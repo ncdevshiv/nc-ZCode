@@ -79,11 +79,21 @@ export function shouldHydrateConversationTurnNavigatorDirectory(params: {
   containerWidthPx: number;
   hasLoadHandler: boolean;
   loadingOlder: boolean;
+  /**
+   * 用户是否已对目录表达意图（hover / focus rail）。
+   *
+   * Bug 根因（2026-09-21 大会话卡顿追踪）：过去只要容器 ≥864px 就无条件补拉全量历史
+   * 进 rows.window，等于所有桌面用户一进会话就付 O(会话) 的窗口，此后每个流式帧的
+   * 全部推导都按整会话长度计费。宽度只是"rail 可能可见"的必要条件，不是"要读全部
+   * 历史"的充分条件：目录在用户真正触碰 rail 前只需覆盖已加载的轮次。
+   */
+  directoryRequested: boolean;
 }): boolean {
   return (
     params.canLoadOlder &&
     !params.loadingOlder &&
     params.hasLoadHandler &&
+    params.directoryRequested &&
     params.containerWidthPx >= CONVERSATION_TURN_NAVIGATOR_MIN_WIDTH_PX
   );
 }
@@ -166,6 +176,63 @@ function buildAssistantPreview(
   };
 }
 
+/**
+ * Bug 根因（2026-09-21 大会话卡顿追踪）：目录项过去每次都对全部 turn 重算 preview——
+ * buildAssistantPreview 拼接整轮 assistant 全文后跑空白归一正则，userPreview 同样逐 query
+ * 正则化。流式每帧 renderUnits 换标识，整份目录（含全部历史文本）随之重算，成本随会话
+ * 总字符数增长，是渲染侧单帧最大的常数项。
+ *
+ * 按 unit 对象标识缓存每轮的 item 草稿（不含 unitIndex——位置逐帧可变，草稿不依赖它）。
+ * unit 标识不变即该轮内容未变（render unit 缓存保证），草稿可原样复用；运行中的轮每帧
+ * 换标识，自然重算。WeakMap 随 unit 回收，不跨会话累积。
+ */
+type ConversationTurnNavigatorItemDraft = Omit<ConversationTurnNavigatorItem, "unitIndex">;
+
+interface ConversationTurnNavigatorUnitCacheEntry {
+  optionsKey: string;
+  drafts: ConversationTurnNavigatorItemDraft[];
+}
+
+const navigatorItemDraftsByUnit = new WeakMap<
+  ConversationTurnRenderUnit,
+  ConversationTurnNavigatorUnitCacheEntry
+>();
+
+function buildConversationTurnNavigatorItemDrafts(
+  unit: ConversationTurnRenderUnit,
+  options: Required<BuildConversationTurnNavigatorItemsOptions>,
+): ConversationTurnNavigatorItemDraft[] {
+  // provider/store 的物理 role=user 还包含 background/goal/mailbox
+  // 等系统上下文；目录代表用户主动 query，只能使用投影明确裁决的 realUser。
+  const realUserInputs = unit.visibleUserInputs.filter((row) => row.origin === "realUser");
+  if (unit.timelineOnly || realUserInputs.length === 0) {
+    return [];
+  }
+
+  // 导航项按 query 拆分，但 hover 的 assistant 摘要保持旧产品语义：
+  // 取所属 product turn 的文本结果，不在 renderer 猜测 guide 回复分段。
+  const { assistantPreview, assistantPreviewKind } = buildAssistantPreview(unit, options);
+  return realUserInputs.map((row, queryIndex) => ({
+    // 不能以 product turn 为目录粒度，并把同一 turn 的 steer query
+    // 全部拼进一个 preview。目录真正导航的是用户可见 query，必须用稳定 row
+    // 身份逐条建项，turnId 只负责把虚拟列表先定位到所属容器。
+    key: `${unit.key}:query:${row.entityId ?? row.rowId}`,
+    turnId: unit.turnId,
+    rowId: row.rowId,
+    userPreview: buildPreviewText({
+      texts: [row.text],
+      fallback: options.userFallbackPreview,
+      maxPreviewChars: options.maxPreviewChars,
+      maxPreviewParagraphs: options.maxPreviewParagraphs,
+    }),
+    assistantPreview,
+    assistantPreviewKind,
+    // 同一 running product turn 可能已有多个已结束 guide segment；只有最后一条
+    // query 仍代表当前工作，避免所有旧 query 一起呈现 running 强调。
+    isRunning: unit.isRunning && queryIndex === realUserInputs.length - 1,
+  }));
+}
+
 export function buildConversationTurnNavigatorItems(
   units: readonly ConversationTurnRenderUnit[],
   options: BuildConversationTurnNavigatorItemsOptions,
@@ -175,39 +242,30 @@ export function buildConversationTurnNavigatorItems(
     maxPreviewChars: options.maxPreviewChars ?? DEFAULT_MAX_PREVIEW_CHARS,
     maxPreviewParagraphs: options.maxPreviewParagraphs ?? DEFAULT_MAX_PREVIEW_PARAGRAPHS,
   };
+  // 语言/上限变化必须作废草稿缓存：intl 文案是草稿的一部分。
+  // 从 options 自身派生键而不是手数列名：BuildConversationTurnNavigatorItemsOptions 将来
+  // 新增选项时无需回来同步，漏同步会让旧草稿带着过期文案继续 served。
+  // 该类型所有取值都是原始值，Object.entries 序列化稳定；sort 让键序不参与比较，
+  // 调用方以不同字面量顺序传同值 options 时不会无故击穿缓存。
+  const optionsKey = JSON.stringify(
+    Object.entries(resolvedOptions).sort(([left], [right]) => left.localeCompare(right)),
+  );
 
-  return units.flatMap((unit, unitIndex) => {
-    // provider/store 的物理 role=user 还包含 background/goal/mailbox
-    // 等系统上下文；目录代表用户主动 query，只能使用投影明确裁决的 realUser。
-    const realUserInputs = unit.visibleUserInputs.filter((row) => row.origin === "realUser");
-    if (unit.timelineOnly || realUserInputs.length === 0) {
-      return [];
+  const items: ConversationTurnNavigatorItem[] = [];
+  units.forEach((unit, unitIndex) => {
+    const cached = navigatorItemDraftsByUnit.get(unit);
+    let drafts: ConversationTurnNavigatorItemDraft[];
+    if (cached !== undefined && cached.optionsKey === optionsKey) {
+      drafts = cached.drafts;
+    } else {
+      drafts = buildConversationTurnNavigatorItemDrafts(unit, resolvedOptions);
+      navigatorItemDraftsByUnit.set(unit, { optionsKey, drafts });
     }
-
-    // 导航项按 query 拆分，但 hover 的 assistant 摘要保持旧产品语义：
-    // 取所属 product turn 的文本结果，不在 renderer 猜测 guide 回复分段。
-    const { assistantPreview, assistantPreviewKind } = buildAssistantPreview(unit, resolvedOptions);
-    return realUserInputs.map((row, queryIndex) => ({
-      // 不能以 product turn 为目录粒度，并把同一 turn 的 steer query
-      // 全部拼进一个 preview。目录真正导航的是用户可见 query，必须用稳定 row
-      // 身份逐条建项，turnId 只负责把虚拟列表先定位到所属容器。
-      key: `${unit.key}:query:${row.entityId ?? row.rowId}`,
-      turnId: unit.turnId,
-      unitIndex,
-      rowId: row.rowId,
-      userPreview: buildPreviewText({
-        texts: [row.text],
-        fallback: resolvedOptions.userFallbackPreview,
-        maxPreviewChars: resolvedOptions.maxPreviewChars,
-        maxPreviewParagraphs: resolvedOptions.maxPreviewParagraphs,
-      }),
-      assistantPreview,
-      assistantPreviewKind,
-      // 同一 running product turn 可能已有多个已结束 guide segment；只有最后一条
-      // query 仍代表当前工作，避免所有旧 query 一起呈现 running 强调。
-      isRunning: unit.isRunning && queryIndex === realUserInputs.length - 1,
-    }));
+    for (const draft of drafts) {
+      items.push({ ...draft, unitIndex });
+    }
   });
+  return items;
 }
 
 function resolveFiniteNonNegative(value: number): number {

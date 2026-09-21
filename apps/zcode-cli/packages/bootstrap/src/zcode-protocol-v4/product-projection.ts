@@ -103,6 +103,7 @@ import type {
   UserInputQuestionPayload,
   QueueItem,
   MutableConversationSnapshotAccumulator,
+  RowActions,
   WorkflowRunProgressEnvelope,
 } from "@zcode/shared/zcode-protocol-v4";
 import {
@@ -395,6 +396,50 @@ function positiveInteger(value: number, fallback: number): number {
 
 function nonNegativeInteger(value: number, fallback: number): number {
   return Number.isFinite(value) && value >= 0 ? Math.floor(value) : fallback;
+}
+
+/**
+ * Bug 根因（2026-09-21 大会话卡顿追踪）：command row actions 是行状态的派生物，
+ * materializeCommandRowActions 过去对每个候选行做两次 JSON.stringify 比较。流式期间每个
+ * 30ms flush 帧都要对整窗所有 turnHeader/userInput/assistantText 行付这份序列化成本，
+ * 而绝大多数行的比较结果都是"未变化"——长会话里这是单帧最大的常数项。
+ *
+ * actions 是小对象（键集由 rowActionsSchema 固定，值为字面量/短枚举），浅比较与序列化
+ * 比较在同构造路径下等价。按**键集合**比较而非列举键：rowActionsSchema 将来增加动作键时
+ * 无需回来同步这个函数——漏同步会让新动作永远判"未变化"而不下发。`key in right` 保证键集
+ * 合同样大小但内容不同时不会误判相等。
+ */
+function conversationRowActionsEqual(
+  left: RowActions | undefined,
+  right: RowActions | undefined,
+): boolean {
+  if (left === right) return true;
+  if (left === undefined || right === undefined) return false;
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  if (leftKeys.length !== rightKeys.length) return false;
+  return leftKeys.every(
+    (key) => key in right && left[key as keyof RowActions] === right[key as keyof RowActions],
+  );
+}
+
+/**
+ * 本帧归约出的 delta 是否可能改变 command row actions 的输入。
+ *
+ * actions 只依赖：行状态与 fileChanges（turnHeader）、最新可编辑 realUser 行、最新可重试
+ * assistant 行、compact 激活态与 pendingInteractions 等快照级事实。row.delta 按协议只追加
+ * text / inputText / output.text / summaryText（apply.ts 的 appendToRow），不触碰上述任何
+ * 输入，因此纯 row.delta 帧的物化结果必然与上次逐字节相同（全部命中"未变化"分支）。
+ * 跳过不是近似，而是同一 reducer 在无输入变化时的空结果。
+ *
+ * 空 delta 集按"可能变化"处理：这是**保守默认**（归约没产出任何 delta 时不排除 actions
+ * 输入变化），与本函数的调用方无关。冷恢复收口 completeHydrationReplay 并不经过本函数——
+ * 它直接调用 materializeCommandRowActions([])（见该处），hydration 期间 materializeActions
+ * 为 false，actions 统一延迟到收口物化。
+ */
+function deltasMayAffectCommandRowActions(deltas: readonly ConversationDelta[]): boolean {
+  if (deltas.length === 0) return true;
+  return deltas.some((delta) => delta.op !== "row.delta");
 }
 
 interface FileToolInputPreviewState {
@@ -1025,7 +1070,12 @@ export class ProductProjection {
     // row、命令 target 与 actions 必须属于同一个 materialization transaction。
     // 旧实现只维护 side-map/最新行判断，UI action 由别处推断，cold/tool-only/failed
     // 轮会出现“入口可见但 target 不可解析”，新目标出现后旧入口也不会撤销。
-    const deltas = materializeActions
+    //
+    // 纯 row.delta 帧（文本追加）不改变 actions 的任何输入：整窗物化只会全部命中
+    // “未变化”。跳过它使逐帧成本与本帧变化的行相关，而不再随会话总行数增长。
+    const shouldMaterializeActions =
+      materializeActions && deltasMayAffectCommandRowActions(reducedWithSubagents);
+    const deltas = shouldMaterializeActions
       ? [...reducedWithSubagents, ...this.materializeCommandRowActions(reducedWithSubagents)]
       : reducedWithSubagents;
     const finalDeltas = this.attachRevision(clearSettledOutputPreviews(deltas));
@@ -1290,7 +1340,7 @@ export class ProductProjection {
         else delete nextActions.canFork;
       }
       const actions = Object.keys(nextActions).length > 0 ? nextActions : undefined;
-      if (JSON.stringify(actions) === JSON.stringify(row.actions)) continue;
+      if (conversationRowActionsEqual(actions, row.actions)) continue;
       const nextRow: ConversationRow = { ...row, actions };
       if (!actions) delete nextRow.actions;
       deltas.push({ op: "row.upserted", row: nextRow });

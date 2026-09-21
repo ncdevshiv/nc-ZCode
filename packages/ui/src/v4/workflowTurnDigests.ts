@@ -50,7 +50,11 @@ interface WorkflowTurnDigestSource {
 interface WorkflowTurnDigestJoin {
   byToolCallId?: ReadonlyMap<string, WorkflowRunCardSummary>;
   byRunId?: ReadonlyMap<string, WorkflowRunCardSummary>;
-  graphByToolCallId?: ReadonlyMap<string, WorkflowCausalityGraphData>;
+  /**
+   * 发起 toolCallId → 静态图。宿主以解析器下发（表在 ref 里每帧重建，见
+   * conversationRowContext.ts）：digest 只在渲染本轮时按需查询，不持有表身份。
+   */
+  graphByToolCallId?: (toolCallId: string) => WorkflowCausalityGraphData | undefined;
 }
 
 export function resolveWorkflowTurnDigests(
@@ -60,7 +64,7 @@ export function resolveWorkflowTurnDigests(
   const digests: WorkflowTurnDigest[] = [];
   const seen = new Set<string>();
   const graphOf = (originToolCallId: string | undefined) =>
-    originToolCallId === undefined ? undefined : join.graphByToolCallId?.get(originToolCallId);
+    originToolCallId === undefined ? undefined : join.graphByToolCallId?.(originToolCallId);
 
   const launch = unit.workflowLaunch;
   if (launch !== undefined) {

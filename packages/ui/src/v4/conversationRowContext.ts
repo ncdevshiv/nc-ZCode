@@ -158,17 +158,34 @@ export interface ConversationRowRenderContext {
    */
   workflowRunPendingQuestionsByRunId?: ReadonlyMap<string, ReadonlySet<string>>;
   /**
+   * 行窗口的分页/rewind 修订号 = 当前窗口首行 rowId（无窗口时 undefined）。
+   *
+   * Bug 根因（2026-09-21）：workflow graph / draft 两张 join 表改为解析器后，rowContext 与
+   * 解析器身份在流式帧保持稳定——这是修复的一部分。但 base 的 memo 依赖里还有 Map 身份，
+   * 补拉更早历史（mergeOlderRows 前插、行对象标识不变）时它会变化，从而重算轮尾 digest。
+   * 只保留解析器会丢掉这个触发器：前插进来的 CreateWorkflow 行本应让更晚轮的
+   * ResumeWorkflowRun 卡拿到 graph，未触及轮的 memo 却不再重算，卡片停在无图状态。
+   * 首行 rowId 只在补拉/rewind 时变化，流式追加不动它，因此把它放进 context 既补回触发器，
+   * 又不把逐帧 churn 带回来。
+   */
+  rowsWindowRevision?: number;
+  /**
    * 发起 toolCallId → 该 run 的静态图（`workflowRunCardJoin.buildWorkflowGraphByToolCallId`），由宿主
    * 从行窗口建立。图是 run 的属性：轮尾 run 卡不论挂在 CreateWorkflow 行、ResumeWorkflowRun 行还是
-   * 直接启动轮上，都按 run 的发起 toolCallId 到这张表取图。
+   * 直接启动轮上，都按 run 的发起 toolCallId 取图。
+   *
+   * Bug 根因（2026-09-21 大会话卡顿追踪）：这里过去直接下发 Map。Map 由行窗口一遍建成，
+   * 行窗口每个流式帧换标识，rowContext 随之换标识，memo(ConversationTurnGroup) 全部
+   * 失效——即使本轮没有任何 workflow 行。改为解析器 + ref：宿主仍每帧重建表，但
+   * rowContext 只持有稳定函数，未变化的 turn 不再被无关的 join 表重建拖着重渲染。
    */
-  workflowGraphByToolCallId?: ReadonlyMap<string, WorkflowCausalityGraphData>;
+  resolveWorkflowGraph?: (toolCallId: string) => WorkflowCausalityGraphData | undefined;
   /**
    * CreateWorkflow / AmendWorkflow 行 → 草稿位置（稿号、是否已被替代），由宿主从行窗口一遍建立
    * （`workflowDraftJoin.buildWorkflowDraftByToolCallId`）。编译反馈行据此写「第 n 稿」并决定空环灯的
-   * 颜色；缺席时卡片不编号。
+   * 颜色；缺席时卡片不编号。下发形式同 resolveWorkflowGraph。
    */
-  workflowDraftByToolCallId?: ReadonlyMap<string, WorkflowDraftPosition>;
+  resolveWorkflowDraft?: (toolCallId: string) => WorkflowDraftPosition | undefined;
   fetchFileChanges?: (
     target: ConversationRowTarget,
     options: ConversationFileChangesRequestOptions,

@@ -158,6 +158,7 @@ import {
   resolveConversationShareSelectionPanelVisible,
 } from "@/v4/conversationShareModePolicy.js";
 import { buildConversationTurnRenderUnits } from "@/v4/conversationTurnRenderUnits.js";
+import { createConversationTurnRenderUnitsCache } from "@/v4/conversationTurnRenderUnitsCache.js";
 import { buildConversationTurnNavigatorItems } from "@/v4/conversationTurnNavigatorHelpers.js";
 import { SessionPluginReferenceIconBoundary } from "@/v4/SessionPluginReferenceIconProvider.js";
 import {
@@ -646,9 +647,15 @@ export function SessionPane({
     enabled: shareSelectionPanelVisible,
     onDismiss: dismissShareSelectionPanel,
   });
+  // 分享选择的 turn 投影与时间线各自持一份记忆化缓存：未变化的 turn 复用同一 unit，
+  // 流式帧不再为分享面板重算整窗分组（分享未激活时这项纯属浪费）。
+  const shareRenderUnitsCache = useMemo(
+    () => createConversationTurnRenderUnitsCache(),
+    [sessionId],
+  );
   const shareRenderUnits = useMemo(
-    () => buildConversationTurnRenderUnits(snapshot?.rows.window ?? []),
-    [snapshot?.rows.window],
+    () => buildConversationTurnRenderUnits(snapshot?.rows.window ?? [], {}, shareRenderUnitsCache),
+    [snapshot?.rows.window, shareRenderUnitsCache],
   );
   const shareItems = useMemo(
     () =>
@@ -1838,6 +1845,21 @@ export function SessionPane({
     () => buildWorkflowDraftByToolCallId(snapshot?.rows.window),
     [snapshot?.rows.window],
   );
+  // 两张行窗口 join 表每帧重建，但不能以 Map 身份进入 rowContext：那会让每个流式帧
+  // 都换掉 rowContext 标识，memo(ConversationTurnGroup) 全量失效。表进 ref、rowContext
+  // 只拿稳定解析器（Bug 根因与修复依据见 conversationRowContext.ts 字段注释）。
+  const workflowGraphByToolCallIdRef = useRef(workflowGraphByToolCallId);
+  workflowGraphByToolCallIdRef.current = workflowGraphByToolCallId;
+  const workflowDraftByToolCallIdRef = useRef(workflowDraftByToolCallId);
+  workflowDraftByToolCallIdRef.current = workflowDraftByToolCallId;
+  const resolveWorkflowGraph = useCallback(
+    (toolCallId: string) => workflowGraphByToolCallIdRef.current?.get(toolCallId),
+    [],
+  );
+  const resolveWorkflowDraft = useCallback(
+    (toolCallId: string) => workflowDraftByToolCallIdRef.current?.get(toolCallId),
+    [],
+  );
   // Workflow 通知 manifest 的升级条目 Waiting→Answered 联查表（runId → 停驻 qid 集合）。
   const workflowRunPendingQuestionsByRunId = useMemo(
     () => buildWorkflowRunPendingQuestionsByRunId(snapshot?.workflowRuns?.runs),
@@ -2210,8 +2232,12 @@ export function SessionPane({
       workflowRunByToolCallId,
       workflowRunByRunId,
       workflowRunPendingQuestionsByRunId,
-      workflowGraphByToolCallId,
-      workflowDraftByToolCallId,
+      resolveWorkflowGraph,
+      resolveWorkflowDraft,
+      // 补拉/rewind 修订号：前插更早历史时让行窗口派生的 join 重新解析（原因见
+      // conversationRowContext.ts 的 rowsWindowRevision 注释）。流式追加不改变首行 rowId，
+      // 因此它不参与逐帧 churn。
+      rowsWindowRevision: snapshot?.rows.window[0]?.rowId,
       fetchFileChanges: handleFetchFileChanges,
       previewFileRewind: workspaceFileRewindEnabled ? handlePreviewFileRewind : undefined,
       applyFileRewind: workspaceFileRewindEnabled ? handleApplyFileRewind : undefined,
@@ -2264,8 +2290,9 @@ export function SessionPane({
       workflowRunByToolCallId,
       workflowRunByRunId,
       workflowRunPendingQuestionsByRunId,
-      workflowGraphByToolCallId,
-      workflowDraftByToolCallId,
+      resolveWorkflowGraph,
+      resolveWorkflowDraft,
+      snapshot?.rows.window[0]?.rowId,
       workspaceFileRewindEnabled,
       handleFetchFileChanges,
       handlePreviewFileRewind,

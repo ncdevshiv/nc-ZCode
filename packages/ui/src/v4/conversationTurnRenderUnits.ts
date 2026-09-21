@@ -8,6 +8,18 @@ import type {
   UserInputRow,
   WorkflowLaunchMeta,
 } from "@zcode/shared/zcode-protocol-v4";
+import {
+  readCachedTurnUnit,
+  readCachedUnitsArray,
+  writeCachedTurnUnit,
+  writeCachedUnitsArray,
+  type ConversationTurnRenderUnitsCache,
+  type ConversationTurnRenderUnitsCacheKey,
+} from "@/v4/conversationTurnRenderUnitsCache.js";
+import {
+  normalizeRenderUnitPosition,
+  shouldForceOpenAbnormalHistory,
+} from "@/v4/conversationTurnRenderUnitPosition.js";
 import type { AssistantWorkRow, ConversationTurnFlowItem } from "@/v4/conversationTurnFlowItems.js";
 import {
   isWorkflowLaunchUserInputRow,
@@ -28,6 +40,9 @@ export type {
   ConversationTurnWorkSegment,
   ConversationTurnWorkStatus,
 } from "@/v4/conversationTurnWorkSegments.js";
+// 行类型随 render unit 一起再导出：调用方（含测试夹具）从同一入口取类型，
+// 避免从协议 barrel 与 builder 各引一份而漂移。
+export type { ConversationRow } from "@zcode/shared/zcode-protocol-v4";
 
 export interface ConversationTurnRenderUnit {
   key: string;
@@ -82,6 +97,8 @@ interface DraftTurnRenderUnit {
   assistantWorkRows: AssistantWorkRow[];
   hookInvocations: HookInvocationRow[];
   orderedRows: ConversationRow[];
+  /** 该 turn 在窗口中的全部行（含 header），按窗口序；缓存指纹只信任行对象标识。 */
+  allRows: ConversationRow[];
 }
 
 function isAssistantTextRow(row: ConversationRow): row is AssistantTextRow {
@@ -217,16 +234,6 @@ function resolveTurnRunning(
   }
   // 仅兼容缺少 turnHeader 的旧投影；background-only work 不阻塞主轮完成。
   return draft.assistantWorkRows.some(isCompletionBlockingWorkRowRunning);
-}
-
-function shouldForceOpenAbnormalHistory(
-  header: TurnHeaderRow | undefined,
-  sessionPhase: SessionPhase | undefined,
-): boolean {
-  if (header) {
-    return header.state === "completedInterrupted" || header.state === "failed";
-  }
-  return sessionPhase === "completedInterrupted" || sessionPhase === "error";
 }
 
 function materializeDraftUnit(
@@ -368,6 +375,7 @@ function createDraftUnit(turnId: string): DraftTurnRenderUnit {
     assistantWorkRows: [],
     hookInvocations: [],
     orderedRows: [],
+    allRows: [],
   };
 }
 
@@ -385,59 +393,10 @@ function shouldKeepRenderUnit(unit: ConversationTurnRenderUnit): boolean {
   );
 }
 
-function normalizeRenderUnitPosition(
-  unit: ConversationTurnRenderUnit,
-  index: number,
-  total: number,
-  options: BuildConversationTurnRenderUnitsOptions,
-): ConversationTurnRenderUnit {
-  const isLastTurn = index === total - 1;
-  const forceOpenHistory = shouldForceOpenAbnormalHistory(unit.header, options.sessionPhase);
-  const assistantHistoryDefaultOpen =
-    unit.workSegments && unit.workSegments.length > 0
-      ? !unit.timelineOnly &&
-        (forceOpenHistory ||
-          (isLastTurn && unit.workSegments.at(-1)?.workStatus?.state === "running") ||
-          (unit.workSegments.length === 1 &&
-            unit.latestAssistantTextRow === undefined &&
-            unit.assistantWorkRows.length > 0))
-      : !unit.timelineOnly &&
-        (forceOpenHistory ||
-          (isLastTurn && unit.workStatus?.state === "running") ||
-          (unit.latestAssistantTextRow === undefined && unit.assistantWorkRows.length > 0));
-  const workSegments = unit.workSegments?.map((segment, segmentIndex, segments) =>
-    segmentIndex === segments.length - 1
-      ? {
-          ...segment,
-          assistantHistoryDefaultOpen:
-            !unit.timelineOnly &&
-            (forceOpenHistory ||
-              (isLastTurn && segment.workStatus?.state === "running") ||
-              (segments.length === 1 &&
-                unit.latestAssistantTextRow === undefined &&
-                segment.assistantWorkRows.length > 0)),
-        }
-      : segment,
-  );
-  if (
-    unit.isLastTurn === isLastTurn &&
-    unit.assistantHistoryDefaultOpen === assistantHistoryDefaultOpen &&
-    workSegments?.at(-1)?.assistantHistoryDefaultOpen ===
-      unit.workSegments?.at(-1)?.assistantHistoryDefaultOpen
-  ) {
-    return unit;
-  }
-  return {
-    ...unit,
-    isLastTurn,
-    assistantHistoryDefaultOpen,
-    ...(workSegments ? { workSegments } : {}),
-  };
-}
-
 export function buildConversationTurnRenderUnits(
   rows: readonly ConversationRow[],
   options: BuildConversationTurnRenderUnitsOptions = {},
+  cache?: ConversationTurnRenderUnitsCache,
 ): ConversationTurnRenderUnit[] {
   const units: DraftTurnRenderUnit[] = [];
   const unitByTurnId = new Map<string, DraftTurnRenderUnit>();
@@ -455,6 +414,7 @@ export function buildConversationTurnRenderUnits(
 
   for (const row of rows) {
     const unit = getOrCreateUnit(row.turnId);
+    unit.allRows.push(row);
     if (isTurnHeaderRow(row)) {
       unit.header = row;
       continue;
@@ -471,11 +431,35 @@ export function buildConversationTurnRenderUnits(
     unit.assistantWorkRows.push(row);
   }
 
-  const materializedUnits = units.map((unit, index) =>
-    materializeDraftUnit(unit, index, units.length, options),
-  );
+  const materializedUnits = units.map((unit, index) => {
+    const isLastTurn = index === units.length - 1;
+    const isRunning = resolveTurnRunning(unit, options);
+    // sessionPhase 只在缺 turnHeader 的轮次参与推导（resolveTurnRunning /
+    // isInterrupted / forceOpenHistory 的冷尾窗回退）；有 header 的轮次不读它，
+    // 纳入键会让每次相位变化无谓重建全部历史轮。
+    const turnCacheKey: ConversationTurnRenderUnitsCacheKey = {
+      rows: unit.allRows,
+      isLastTurn,
+      isRunning,
+      nowMs: isRunning ? options.nowMs : undefined,
+      sessionPhase: unit.header === undefined ? options.sessionPhase : undefined,
+    };
+    const cached =
+      cache === undefined ? undefined : readCachedTurnUnit(cache, unit.turnId, turnCacheKey);
+    if (cached !== undefined) return cached;
+    const materialized = materializeDraftUnit(unit, index, units.length, options);
+    if (cache) writeCachedTurnUnit(cache, unit.turnId, turnCacheKey, materialized);
+    return materialized;
+  });
   const keptUnits = materializedUnits.filter(shouldKeepRenderUnit);
-  return keptUnits.map((unit, index) =>
+  const normalizedUnits = keptUnits.map((unit, index) =>
     normalizeRenderUnitPosition(unit, index, keptUnits.length, options),
   );
+  if (cache === undefined) return normalizedUnits;
+  // 逐元素未变：连数组标识一起保持，下游 useMemo（live tail 拆分、目录项、
+  // 查询行集合）随之全部命中，不再每帧重算。
+  const stableUnits = readCachedUnitsArray(cache, normalizedUnits);
+  if (stableUnits !== undefined) return stableUnits;
+  writeCachedUnitsArray(cache, normalizedUnits);
+  return normalizedUnits;
 }
