@@ -25,6 +25,11 @@ interface ConversationTurnNavigatorProps {
   virtualItems: readonly ConversationTurnNavigatorVirtualItem[];
   activeQueryRowId?: number;
   isHydratingDirectory?: boolean;
+  /**
+   * 用户首次触碰 rail（hover / 键盘 focus）时通知宿主：目录要开始补拉完整历史。
+   * 宽屏不再等于"需要全量目录"——不碰 rail 的会话不为目录付 O(会话) 窗口。
+   */
+  onDirectoryRequest?: () => void;
   onJumpToQuery: (target: { unitIndex: number; rowId: number }, behavior: ScrollBehavior) => void;
 }
 
@@ -52,6 +57,7 @@ function ConversationTurnNavigatorImpl({
   virtualItems,
   activeQueryRowId,
   isHydratingDirectory = false,
+  onDirectoryRequest,
   onJumpToQuery,
 }: ConversationTurnNavigatorProps) {
   const { intl } = useZCodeIntl();
@@ -130,6 +136,10 @@ function ConversationTurnNavigatorImpl({
     });
   }, [activeItemIndex, items.length, railVirtualizer]);
 
+  const handleDirectoryRequest = useCallback(() => {
+    onDirectoryRequest?.();
+  }, [onDirectoryRequest]);
+
   if (items.length < 2) {
     return null;
   }
@@ -141,6 +151,10 @@ function ConversationTurnNavigatorImpl({
       data-testid={TID_V4_TURN_NAVIGATOR}
       data-item-count={items.length}
       data-rendered-item-count={virtualRows.length}
+      // 目录补拉的意图信号：指针进入或键盘聚焦 rail 即视为用户要浏览完整目录。
+      // rail 在 <864px 时 pointer-events-none，意图不会从不可见状态误触发。
+      onPointerEnter={handleDirectoryRequest}
+      onFocus={handleDirectoryRequest}
       className="pointer-events-none invisible absolute inset-y-0 left-0 z-10 w-12 -translate-x-2 opacity-0 transition-[opacity,transform,visibility] duration-150 ease-out motion-reduce:transition-none @min-[864px]/conversation:visible @min-[864px]/conversation:translate-x-0 @min-[864px]/conversation:opacity-100"
     >
       <div

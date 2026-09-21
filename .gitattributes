@@ -2,6 +2,14 @@
 *.mjs text eol=lf
 *.sh  text eol=lf
 
+# 源码固定 LF：仓库提交内容本就是 LF，但 core.autocrlf=true 的 Windows 工作区会检出
+# CRLF，使 oxfmt --check 在工作区误报（格式化器对换行不敏感，只看内容）。显式声明后
+# git 负责归一，工作区与 CI 结论一致，不再依赖人工逐个文件 normalize。
+*.ts  text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.md  text eol=lf
+
 # 上游许可原文与生成的声明按字节保存，不能自动转换换行或裁剪空白。
 # 原文中的 License / ======= 是 Markdown 标题，不是合并冲突。
 THIRD-PARTY-NOTICES.md -text -whitespace conflict-marker-size=32 linguist-generated=true

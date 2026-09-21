@@ -46,6 +46,7 @@ import {
   buildConversationTurnRenderUnits,
   type ConversationTurnRenderUnit,
 } from "@/v4/conversationTurnRenderUnits.js";
+import { createConversationTurnRenderUnitsCache } from "@/v4/conversationTurnRenderUnitsCache.js";
 import {
   resolveConversationTurnNavigatorActiveQueryRowId,
   resolveConversationTurnNavigatorHydrationRetryDelayMs,
@@ -414,13 +415,28 @@ function ConversationTimelineImpl({
     return () => observer.disconnect();
   }, [hasHeaderSlot]);
   const [liveNowMs, setLiveNowMs] = useState(() => Date.now());
+  // 目录补拉意图按 session 记账：宽屏可见不等于要读全量历史，首次 hover/focus rail 才拉起。
+  // 用 key 对比而非 effect 重置，避免切会话后的渲染帧带着上一个会话的意图触发补拉。
+  const [navigatorDirectoryRequestedKey, setNavigatorDirectoryRequestedKey] = useState<
+    string | null
+  >(null);
+  const requestNavigatorDirectory = useCallback(() => {
+    setNavigatorDirectoryRequestedKey(sessionKey);
+  }, [sessionKey]);
+  // render unit 记忆化缓存：未变化的 turn 复用同一 unit 对象，memo(ConversationTurnGroup)
+  // 才能命中；随 sessionKey 重建，不跨会话共享（turnId 与会话绑定）。
+  const renderUnitsCache = useMemo(() => createConversationTurnRenderUnitsCache(), [sessionKey]);
   const renderUnits = useMemo(
     () =>
-      buildConversationTurnRenderUnits(rows, {
-        nowMs: liveNowMs,
-        sessionPhase,
-      }),
-    [liveNowMs, rows, sessionPhase],
+      buildConversationTurnRenderUnits(
+        rows,
+        {
+          nowMs: liveNowMs,
+          sessionPhase,
+        },
+        renderUnitsCache,
+      ),
+    [liveNowMs, rows, sessionPhase, renderUnitsCache],
   );
   const { virtualizedUnits, liveUnit, liveUnitIndex } = useMemo(
     () => splitConversationTimelineLiveTail(renderUnits),
@@ -612,6 +628,10 @@ function ConversationTimelineImpl({
     return () => window.removeEventListener("resize", readWidth);
   }, []);
 
+  // 会话内查找也是目录意图：用户输入查找词时，命中的轮次可能还没加载进窗口，
+  // 与 hover/focus rail 同等对待（查找框在 shell 层，不向 timeline 传 focus 事件，
+  // 这里直接以"有查找词"为意图信号）。
+  const conversationFindActive = conversationFindQuery.trim().length > 0;
   useEffect(() => {
     if (
       !shouldHydrateConversationTurnNavigatorDirectory({
@@ -619,6 +639,7 @@ function ConversationTimelineImpl({
         containerWidthPx: turnNavigatorContainerWidthPx,
         hasLoadHandler: Boolean(onLoadAllOlder),
         loadingOlder,
+        directoryRequested: navigatorDirectoryRequestedKey === sessionKey || conversationFindActive,
       })
     ) {
       return;
@@ -639,27 +660,13 @@ function ConversationTimelineImpl({
     }
     if (attempt.status !== "idle" || !onLoadAllOlder) return;
     attempt.status = "in-flight";
-    logger.debug("[v4-turn-navigator] 目录请求补齐完整历史", {
-      attempt: attempt.attemptCount + 1,
-      loadedRows: rows.length,
-      sessionKey,
-      totalRows: totalCount,
-    });
-    void onLoadAllOlder().then((result) => {
-      if (attempt.key !== hydrationKey) return;
-      if (result.status === "hydrated" || result.status === "not-enough-queries") {
-        attempt.status = "terminal";
-        return;
-      }
-      if (result.status === "stale") {
-        attempt.status = "idle";
-        return;
-      }
+    // 退避调度：stale 与 retryable-failure 的唯一出口。attemptCount 有界递增，delay 表
+    // 第三次返回 null → terminal；定时器只把状态换回 idle 并 bump revision（effect 依赖），
+    // 由 effect 自己决定是否再试，不会在这里递归发起请求。
+    const scheduleHydrationRetry = () => {
       attempt.attemptCount += 1;
-      const retryDelayMs = resolveConversationTurnNavigatorHydrationRetryDelayMs(
-        attempt.attemptCount,
-      );
-      if (retryDelayMs === null) {
+      const delayMs = resolveConversationTurnNavigatorHydrationRetryDelayMs(attempt.attemptCount);
+      if (delayMs === null) {
         attempt.status = "terminal";
         return;
       }
@@ -669,11 +676,35 @@ function ConversationTimelineImpl({
         attempt.retryTimer = null;
         attempt.status = "idle";
         setTurnNavigatorHydrationRetryRevision((revision) => revision + 1);
-      }, retryDelayMs);
+      }, delayMs);
+    };
+    logger.debug("[v4-turn-navigator] 目录请求补齐完整历史", {
+      attempt: attempt.attemptCount + 1,
+      loadedRows: rows.length,
+      sessionKey,
+      totalCount: totalCount,
+    });
+    void onLoadAllOlder().then((result) => {
+      if (attempt.key !== hydrationKey) return;
+      if (result.status === "hydrated" || result.status === "not-enough-queries") {
+        attempt.status = "terminal";
+        return;
+      }
+      // stale 与 retryable-failure 共用同一个有界退避调度（单一来源，两条路径不会漂移）：
+      // stale 的两种来由——窗口游标在取数期间移动（下次尝试即用上新游标，应重试）与宿主暂无
+      // lease（SessionPane 的 handleLoadAllOlder 立即返回 stale，重试无意义）——都由退避的
+      // 有界性兜底：250ms / 1000ms 之后 terminal，无 lease 也不会无限自旋。
+      // Bug 根因（2026-09-21 评审）：stale 过去直接置 idle 就返回，没有任何状态变化，
+      // effect 不会重跑，补拉就此静默停止——用户表达了目录意图（hover/focus/查找）却再也
+      // 拿不到完整目录，只能靠滚动、查找或 resize 等无关依赖变化才恢复。
+      if (result.status !== "stale" && result.status !== "retryable-failure") return;
+      scheduleHydrationRetry();
     });
   }, [
     canLoadOlder,
+    conversationFindActive,
     loadingOlder,
+    navigatorDirectoryRequestedKey,
     onLoadAllOlder,
     rowContext.logEpoch,
     rows,
@@ -1716,6 +1747,7 @@ function ConversationTimelineImpl({
           }
           virtualItems={turnNavigatorVirtualItems}
           activeQueryRowId={turnNavigatorViewport.activeQueryRowId}
+          onDirectoryRequest={requestNavigatorDirectory}
           onJumpToQuery={scrollToQuery}
         />
       )}

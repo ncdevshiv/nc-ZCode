@@ -1174,15 +1174,20 @@ function ConversationTurnGroupImpl({
   // 的 run 卡也从这里出：那一轮没有用户气泡、没有助手内容，run 卡就是它的全部呈现。
   const workflowRunByToolCallId = context.workflowRunByToolCallId;
   const workflowRunByRunId = context.workflowRunByRunId;
-  const workflowGraphByToolCallId = context.workflowGraphByToolCallId;
+  // 图查询走解析器：表在宿主 ref 里逐帧重建，解析器身份稳定，本轮 memo 不因无关帧失效。
+  const resolveWorkflowGraph = context.resolveWorkflowGraph;
+  // 补拉/rewind 修订号必须进依赖：解析器身份稳定后，前插更早历史（行对象标识不变、
+  // unit 缓存命中）不会再换任何 memo 输入，轮尾 ResumeWorkflowRun 卡会永远停在无图状态。
+  // 该值只在补拉/rewind 时变化，流式追加不动它，不会把逐帧 churn 带回来。
+  const rowsWindowRevision = context.rowsWindowRevision;
   const workflowTurnDigests = useMemo(
     () =>
       resolveWorkflowTurnDigests(unit, {
         byToolCallId: workflowRunByToolCallId,
         byRunId: workflowRunByRunId,
-        graphByToolCallId: workflowGraphByToolCallId,
+        graphByToolCallId: resolveWorkflowGraph,
       }),
-    [unit, workflowGraphByToolCallId, workflowRunByRunId, workflowRunByToolCallId],
+    [unit, resolveWorkflowGraph, workflowRunByRunId, workflowRunByToolCallId, rowsWindowRevision],
   );
   // 完成卡：主代理消化 completed 通知的那一轮，轮尾落卡。
   // 同一条门（轮结束）；联接只认 byRunId——通知轮里没有 CreateWorkflow 行可按 toolCallId 联。

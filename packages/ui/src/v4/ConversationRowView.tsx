@@ -2019,7 +2019,7 @@ const ToolCallRowView = memo(function ToolCallRowView({
               : undefined
           }
           workflowRun={workflowRun}
-          workflowDraft={context.workflowDraftByToolCallId?.get(row.toolCallId)}
+          workflowDraft={context.resolveWorkflowDraft?.(row.toolCallId)}
         />
       </div>
     </RowShell>

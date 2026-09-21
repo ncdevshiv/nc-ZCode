@@ -12,6 +12,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -60,6 +61,10 @@ import {
   buildConversationTurnRenderUnits,
   type ConversationTurnRenderUnit,
 } from "@/v4/conversationTurnRenderUnits.js";
+import {
+  createConversationTurnRenderUnitsCache,
+  type ConversationTurnRenderUnitsCache,
+} from "@/v4/conversationTurnRenderUnitsCache.js";
 import type { AssistantWorkRow, ConversationTurnFlowItem } from "@/v4/conversationTurnFlowItems.js";
 import type { ConversationTurnWorkSegment } from "@/v4/conversationTurnWorkSegments.js";
 import { formatConversationWorkDuration } from "@/v4/conversationWorkDuration.js";
@@ -1084,7 +1089,16 @@ export function ConversationShareReadonlyTimeline({
   artifactOpenAction,
   unsupportedRowCount = 0,
 }: ConversationShareReadonlyTimelineProps) {
-  const units = buildConversationTurnRenderUnits(rows);
+  // 分享页整段只读渲染：render unit 记忆化随组件实例存活，行不变则不重建分组。
+  // 懒初始化：useRef(createCache()) 会在每次渲染都分配一个缓存对象，恰好与本修复要消除的
+  // 逐帧分配同类；??= 保证只在首渲染创建，之后复用同一实例。
+  const renderUnitsCacheRef = useRef<ConversationTurnRenderUnitsCache | null>(null);
+  renderUnitsCacheRef.current ??= createConversationTurnRenderUnitsCache();
+  const renderUnitsCache = renderUnitsCacheRef.current;
+  const units = useMemo(
+    () => buildConversationTurnRenderUnits(rows, {}, renderUnitsCache),
+    [rows, renderUnitsCache],
+  );
   const openShareExternalUrl = useCallback((url: string) => {
     try {
       const parsed = new URL(url);
