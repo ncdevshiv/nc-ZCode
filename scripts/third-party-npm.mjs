@@ -80,15 +80,90 @@ export function assertProductionGraphs(lockedProjects, installedProjects) {
   return locked;
 }
 
+/**
+ * 展开 `pnpm-workspace.yaml` 的 `packages:` 为确定性的项目目录列表（含根项目）。
+ * 不支持的 glob 形态直接抛错（fail-closed：宁可失败，禁止静默漏项目导致声明缺包）。
+ */
+async function listWorkspaceProjectDirs(root) {
+  const text = await readFile(join(root, "pnpm-workspace.yaml"), "utf8");
+  const patterns = [];
+  let inPackages = false;
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (line === "" || line.startsWith("#")) continue;
+    if (line === "packages:") {
+      inPackages = true;
+      continue;
+    }
+    if (!inPackages) continue;
+    const item = /^-\s+(.*)$/.exec(line);
+    if (item) patterns.push(item[1].trim().replace(/^(['"])(.*)\1$/, "$2"));
+    else inPackages = false; // packages 段结束（遇到下一个顶层 key）
+  }
+  if (patterns.length === 0) throw new Error("pnpm-workspace.yaml 缺少 packages 列表");
+  const dirs = new Set([root]);
+  for (const pattern of patterns) {
+    if (pattern.startsWith("!")) throw new Error(`pnpm-workspace 排除式 glob 未支持: ${pattern}`);
+    if (pattern.endsWith("/*")) {
+      const base = join(root, pattern.slice(0, -2));
+      let entries;
+      try {
+        entries = await readdir(base, { withFileTypes: true });
+      } catch (error) {
+        if (error.code === "ENOENT") continue; // glob 基目录不存在 = 零匹配（与 pnpm 语义一致）
+        throw error;
+      }
+      // 按名排序保证跨平台确定性（readdir 顺序不作承诺）。
+      for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name, "en"))) {
+        if (!entry.isDirectory()) continue;
+        const dir = join(base, entry.name);
+        try {
+          await readFile(join(dir, "package.json"), "utf8");
+          dirs.add(dir);
+        } catch (error) {
+          if (error.code !== "ENOENT" && error.code !== "ENOTDIR") throw error;
+        }
+      }
+    } else if (pattern.includes("*") || pattern.includes("?")) {
+      throw new Error(`pnpm-workspace glob 形态未支持: ${pattern}`);
+    } else {
+      dirs.add(join(root, pattern));
+    }
+  }
+  return [...dirs];
+}
+
+/** 按固定并发分批执行，保持输入顺序（避免一次性拉起全部 pnpm 进程）。 */
+async function inBatches(items, size, run) {
+  const out = [];
+  for (let index = 0; index < items.length; index += size) {
+    out.push(...(await Promise.all(items.slice(index, index + size).map(run))));
+  }
+  return out;
+}
+
 export async function readWorkspaceProductionGraph(root) {
   root = await realpath(root);
   // 修复：pnpm ls 默认读取安装快照，不能把旧图与当前锁文件哈希拼成有效声明。
-  const [locked, actual] = await Promise.all(
-    [true, false].map(async (lockfileOnly) => {
+  //
+  // 修复（Windows 单进程句柄上限）：`pnpm -r ls --depth Infinity` 的递归 walk 跨整个
+  // 工作区累积未关闭的文件句柄，撞上 Node/libuv 单进程 ~8192 并发句柄天花板必然 EMFILE
+  // （本机实测：同一命令根单项目 exit 0、`-r` 连 --depth 0 都失败且失败文件随运行漂移，
+  // 而 open→close 循环 30 万次无错——根因是 walk 规模下句柄未及时释放，不是句柄分配）。
+  // 修复（嵌套 workspace 正确性）：`apps/zcode-cli` 自带 pnpm-workspace.yaml/lock，
+  // 以子项目目录为 cwd 会解析到嵌套工作区，其 installed 图为空（实测 ACT deps=0）、与
+  // lockfile 图不对称。两个 lockfile-only 变体必须同源：一律 cwd=workspace 根 +
+  // `--filter <相对路径>` 只圈定单项目（实测 adapters 两侧均 21 deps 一致），每次新进程
+  // 重置句柄预算，JSON 按 `-r` 的“各项目结果数组拼接”语义合并后仍做全量交叉校验。
+  const projectDirs = await listWorkspaceProjectDirs(root);
+  async function collect(lockfileOnly) {
+    const collected = await inBatches(projectDirs, 6, async (dir) => {
+      const scope =
+        dir === root ? [] : ["--filter", `./${relative(root, dir).replaceAll("\\", "/")}`];
       const { stdout } = await exec(
         "pnpm",
         [
-          "-r",
+          ...scope,
           "ls",
           "--prod",
           "--json",
@@ -103,8 +178,11 @@ export async function readWorkspaceProductionGraph(root) {
         },
       );
       return JSON.parse(stdout);
-    }),
-  );
+    });
+    return collected.flat();
+  }
+  const locked = await collect(true);
+  const actual = await collect(false);
   const required = assertProductionGraphs(locked, actual);
   return { required, projects: actual };
 }
