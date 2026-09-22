@@ -1,0 +1,19 @@
+# Pure-native workspace — specs/rust-pure-native-roadmap.md S0+
+# (crate map & rules: specs/rust-native-crates.md).
+# One workspace, one CI matrix, one notice pipeline: cargo deps are inventoried by
+# scripts/third-party-cargo.mjs → third-party/native-cargo/ (see the spec's notice rule).
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.97"
+license = "Apache-2.0"
+publish = false
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+# Dev/test only: serializer-parity checks against golden vectors.
+serde_json = { version = "1", features = ["preserve_order"] }
+tokio = { version = "1", features = ["full"] }

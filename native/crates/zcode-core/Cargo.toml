@@ -1,0 +1,12 @@
+[package]
+name = "zcode-core"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "S3 core primitives: serial command admission (CommandInbox mirror), owner/lease table with injected clock, workspace identity key"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true

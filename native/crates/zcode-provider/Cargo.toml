@@ -1,0 +1,25 @@
+[package]
+name = "zcode-provider"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Rust port of ZCode provider runtime (S2): SSE parsing, streaming tool-call assembly, retry decisions, strict tool schema folding, video/* request parity, request builder + transport executor"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+# 生产退避等待（RealClock::sleep_ms）与 idle 窗口计时（HttpTransport）需要 tokio time；
+# workspace "full" 同时覆盖测试的 #[tokio::test]。
+tokio.workspace = true
+# 生产传输（HttpTransport）：
+# - stream        → Response::chunk 分块读取（SSE 流的唯一读取路径）
+# - rustls 原生根 → 运行时读系统证书库（对齐 Node 使用系统 CA），避免 Linux 构建期 OpenSSL 依赖
+# - http2/charset → 与 TS fetch 的协议与响应解码能力对齐
+reqwest = { version = "0.12", default-features = false, features = [
+  "charset",
+  "http2",
+  "rustls-tls-native-roots",
+  "stream",
+] }

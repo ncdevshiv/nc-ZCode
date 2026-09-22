@@ -1,0 +1,15 @@
+[package]
+name = "zcode-scan"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Storage/workspace scan sidecar island mirroring packages/services/src/storage/adapters/fsWalker.ts over the sidecar stdio protocol"
+
+[dependencies]
+serde_json.workspace = true
+zcode-sidecar-proto = { path = "../zcode-sidecar-proto" }
+
+[dev-dependencies]
+tempfile = "3"

@@ -1,0 +1,28 @@
+[package]
+name = "zcode-proc"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "S1 process-tree island: list/kill descendant closures and job-scoped spawn, replacing taskkill /T /F + scraped lists"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+# 共享 sidecar 协议（帧/校验/serve 循环），只消费不修改。
+zcode-sidecar-proto = { path = "../zcode-sidecar-proto" }
+
+[target.'cfg(windows)'.dependencies]
+# Job Objects + Toolhelp32 + Threading + Security（CreateJobObjectW/CreateProcessW 的 cfg 依赖）。
+# ToolHelp 模块路径为 Win32::System::Diagnostics::ToolHelp，特性名同名。
+windows = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_System_JobObjects",
+  "Win32_System_Threading",
+  "Win32_System_Diagnostics_ToolHelp",
+] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

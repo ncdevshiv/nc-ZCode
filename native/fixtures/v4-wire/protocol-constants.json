@@ -1,0 +1,9 @@
+{
+  "wireVersion": 3,
+  "source": "packages/shared/src/zcode-protocol-v4/core.ts",
+  "limits": {
+    "maxFrameBytes": 1048576,
+    "logicalFrameAssemblyMaxFragments": 1024,
+    "transportEnvelopeIdMaxChars": 256
+  }
+}

@@ -1,0 +1,25 @@
+[package]
+name = "zcode-image"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "S1 image island: decode/fit/encode hot path replacing jimp in the TS adapters"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+# 共享 sidecar 协议（帧/校验/serve 循环），只消费不修改。
+zcode-sidecar-proto = { path = "../zcode-sidecar-proto" }
+
+base64 = "0.22"
+# 关闭 default-formats/rayon，显式启用与 TS jimp 支持面对齐的编解码格式（可复现、依赖最小）。
+image = { version = "0.25", default-features = false, features = [
+  "bmp",
+  "gif",
+  "jpeg",
+  "png",
+  "tiff",
+  "webp",
+] }
