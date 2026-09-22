@@ -5,6 +5,10 @@
     "third-party/inventory.json",
     "third-party/upstream/**",
     "third-party/native-search/licenses/**",
-    "third-party/runtime/*.txt"
+    "third-party/native-cargo/licenses/**",
+    "third-party/runtime/*.txt",
+    "native/fixtures/**",
+    "native/crates/zcode-shell/gen/schemas/**",
+    "RUST-PORT-LOG.md"
   ]
 }
