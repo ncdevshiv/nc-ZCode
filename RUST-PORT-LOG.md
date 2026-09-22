@@ -329,3 +329,91 @@ notices 重建，随后一次性交付最终总结（不再有子会话，全部
 - **Nothing is committed.** Working tree: 7 modified tracked files (`.oxfmtrc.json`, `AGENTS.md`, `THIRD-PARTY-NOTICES.md`, `package.json`, `scripts/generate-third-party-notices.mjs`, `scripts/third-party-npm.mjs`, `third-party/inventory.json`) + 9 untracked paths (`native/`, 4 specs, `scripts/gen-v4-golden-vectors.ts`, `scripts/third-party-cargo.mjs`, `RUST-PORT-LOG.md`, `third-party/native-cargo/`).
 - Recommended commit split (repo rule: one feature-level change per commit): (1) specs ×4 — and update their status lines from "S1–S5 executing" to executed with a pointer to this entry; (2) `native/` workspace; (3) golden-vector tooling + `package.json` scripts; (4) cargo notice pipeline + regenerated notices; (5) `AGENTS.md`/`.oxfmtrc.json` wiring.
 - Port deliverables total: 11 crates / 62 Rust files / ~18.5k lines, 222 tests, all repo gates green as listed in §2.
+
+---
+
+## ENTRY 006 — 2026-09-22 — S3 zcode-host：第一个可运行的 in-process Rust host
+
+> Authorship note：由新的 orchestrator 会话执行（前序日志的 no-subagent 指令继续
+> 生效：全部工作由主会话直接完成，未派生子会话）。所有验证数字为本会话实测。
+
+### Goal（承接 ENTRY 004 的 Next 与用户 2026-09-22 批示）
+
+按 specs/rust-native-crates.md 新增的 S3 `zcode-host` 验收落地：stdio NDJSON v4 RPC
+host，把 `zcode-v4-wire` + `zcode-core` + `zcode-provider` **in-process** 集成
+（无 sidecar 跳转），跑通真实 workspace 的完整会话生命周期。
+
+### 交付物
+
+- `native/crates/zcode-host/`（lib + bin）：11 个模块——`rpc`（JSON-RPC 信封）、
+  `profile`（两套 delivery profile + filter/coalesce + 有界回放缓冲）、`rows`
+  （ConversationRow/Delta JSON 构造 + apply 纯函数）、`frame`（wire 帧编码 +
+  三载体信封闸门）、`snapshot`（conversationSnapshotSchema 全必填键集）、
+  `session`（行集/revision/phase/inbox/订阅者/帧管线）、`store`（JSONL transcript，
+  Row/Upsert/Ack 追加日志）、`provider_config`（显式配置文件，缺省 fail-closed）、
+  `turn`（admission → 模型回合 → 投影 → settle）、`lib`（HostServer 路由）、
+  `main`（stdio 循环）。
+- 命令面：`createSession`/`sendText`/`stop`/`renameSession`/`deleteSession` +
+  subscribe/resync/unsubscribe/rowsRange/connection-flow；其余 v4 方法返回 -32601。
+- spec 更新：`rust-native-crates.md`（crate map 增列 zcode-host + S3 验收条款 +
+  依赖方向：host→{v4-wire, core, provider}，无反向边）；`rust-pure-native-roadmap.md`
+  状态行。
+
+### 关键设计决策（有据，README 差异表同步记录）
+
+1. **stop 不走 inbox FIFO**（对齐 TS `sessionStop` 即时取消路径）：否则 stop 会排在
+   在途 turn 之后死锁。stop = request_cancel + noop/accepted ack。
+2. **createSession 是会话外操作**（TS global bucket）：不经 session inbox。
+3. **frame 排序**：subscribe/resync 的 initial/recovery snapshot 是 post-response
+   owned notification，response 行必须先写（RequestOutcome.post_frames）。
+4. **fail-closed**：无 `--provider-config` 不发起模型调用，turn 以
+   `fault.model.providerNotConfigured` 终态投影（turnHeader failed + sessionErrorInfo）。
+5. **flush 模型**：窗口（30/150ms）内合并；每会话 10ms ticker 推进窗口（`flush_expired`）；
+   turn 结束强制 flush（终态确定性收口）。ticker 只持 server Weak 引用。
+
+### 本会话发现并修复的缺陷（测试/e2e 实证）
+
+- B-10 `upsert_row` 收到的是 delta 包装而非行本体 → 行永不被替换（单元测试抓住）。
+- B-11 frame params 丢了 wire 信封、还夹带自造键（checksum/topicBase64）→ 修正为
+  完整 wire 帧（schema strict 键集，测试断言键数=8）。
+- B-12 initial snapshot 早于 subscribe response 发出（违反 post-response 契约，
+  曾导致 e2e 挂死）→ RequestOutcome 拆分。
+- B-13 flush 窗口只靠新事件推进 → turn 尾帧滞留（e2e 挂死）→ ticker + 终态强制 flush。
+- B-14 ticker 持 outbox 克隆 → stdin EOF 后进程不退出 → Weak server 引用。
+- B-15 transcript 重放把 upsert 当新行 → resume 行重复 → 新增 Upsert 日志类型。
+
+### 真实门禁结果（本会话实测）
+
+- native：`cargo fmt --all -- --check` 0；`clippy --workspace --all-targets -D warnings` 0；
+  `cargo test --workspace` **239 passed / 0 failed**（= 222 + zcode-host 17：16 单元 +
+  1 e2e stdio）。
+- pnpm：golden:check 3/3、typecheck 0、lint 0 errors（70 既有警告）、fmt:check 0、
+  architecture:check --changed 0、freshness 新鲜、`third-party-cargo.mjs --check` OK
+  （565 crates；`licenses notices` 重建：1201 npm + 565 cargo，check 通过，
+  67 项 --strict 材料为已声明发布前项）。
+
+### 真实端到端会话（对实际 workspace F:\ZCode-main，temp data-dir，无 provider）
+
+实测序列全部符合协议：createSession accepted → subscribe snapshot + initial frame →
+sendText accepted → assistant 行 fail-closed 文案 + state.updated
+(phase=error, lastError.code=fault.model.providerNotConfigured) → turnHeader failed →
+resync recovery（3 行一致）→ rename accepted → stop(空闲) noop → 未实现方法 -32601 →
+**stdin EOF 进程退出 True** → 重启进程 resume（3 行 + title 持久化）→ 同 commandId
+重提回放 failed 终态（inbox retry_ack 语义，非 duplicate——测试断言按真实契约写）。
+
+### 诚实 OPEN（不模拟）
+
+1. **live provider 路径未验证**：本机无任何 provider 凭据（config/provider 仅模板），
+   `--provider-config` 已配置时的真实模型调用未经执行；fail-closed 路径已全覆盖。
+2. 工具调度 / MCP / subagents / context 装配 / compact：未接线（README 差异表 6 条）。
+3. sqlite 单写者存储：未移植；本 increment 为 JSONL transcript。
+4. subscribe 只做 snapshot；`base.seq` 增量续传未实现（resync = 全量 recovery）。
+5. Linux / macOS 运行时：仅在 Windows 实证。
+6. TS host 卸载路径（flag 切换 spawn 哪个二进制）未接线：当前 flag = 启动参数，
+   Desktop/Web 侧切缝在 S3 后续。
+
+### Next
+
+1. 与用户核对 OPEN 项优先级（provider 凭据接入 / 工具接线 / sqlite）。
+2. TS 侧切缝：外层 host 按 workspace flag spawn zcode-host（strangler 起点）。
+3. 后续：tools/minimal context → MCP → 存储移植 → resume delta 回放。
