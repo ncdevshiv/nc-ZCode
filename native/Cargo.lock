@@ -5852,6 +5852,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "zcode-host"
+version = "3.14.0"
+dependencies = [
+ "clap",
+ "serde",
+ "serde_json",
+ "tokio",
+ "zcode-core",
+ "zcode-provider",
+ "zcode-v4-wire",
+]
+
+[[package]]
 name = "zcode-image"
 version = "0.1.0"
 dependencies = [
