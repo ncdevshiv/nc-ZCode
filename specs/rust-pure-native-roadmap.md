@@ -1,7 +1,7 @@
 # Spec: Pure-native target architecture (Rust core + Tauri shell + webview UI)
 
 Owner: pending (architecture)
-Status: target confirmed; §7 recommendations decided 2026-09-22; S0–S5 executed 2026-09-22 (evidence in RUST-PORT-LOG.md ENTRY 005); S3/S5 host integration, S4 R4 BrowserView design gate and S6 cutover remain OPEN
+Status: target confirmed; §7 recommendations decided 2026-09-22; S0–S5 executed 2026-09-22 (evidence in RUST-PORT-LOG.md ENTRY 005); S3 host integration executing 2026-09-22 (zcode-host, see specs/rust-native-crates.md); S5 wiring, S4 R4 BrowserView design gate and S6 cutover remain OPEN
 Date: 2026-09-22
 
 ## Target (confirmed)
