@@ -113,6 +113,43 @@ Rules:
 - **S5**: axum app serves static UI assets with SPA fallback + health endpoints,
   behind a `HostPort` trait; wiring to a real host is S3/S5 integration (open).
 
+## Cutover order and `old.back/` staging (S3→S6, updated 2026-09-22 ENTRY 007)
+
+Deletion is **stage-gated**, never big-bang: the desktop app and `zcode --web`
+spawn the TS CLI today, so moving any still-executing TS module would break the
+running product. A TS module may move to `old.back/` only when **all four** hold:
+
+1. its Rust counterpart is feature-complete for the product surface that uses it
+   (not just unit parity — the real command path must exist in Rust);
+2. conformance/parity tests are green (golden vectors, e2e stdio, fixture parity);
+3. the per-workspace flag seam actually routes production traffic to the Rust
+   path, and the TS path still runs green with the flag off (rollback intact);
+4. after the flip, the TS module has zero remaining importers in the workspace
+   (verified by typecheck + knip), so the move cannot break `pnpm build`.
+
+Staged order (each stage ends with its own `old.back/` move or an explicit
+"holds" decision):
+
+1. **Agent host + loop** (this increment): `zcode-host` gains the tool layer,
+   context assembly, tool-calling loop, compaction. Cutover = new headless entry
+   `zcode --native` (additive; TS untouched).
+2. **Provider executor**: per-provider flag flip of `zcode-host`'s model path;
+   `adapters/src/model/**` moves to `old.back/` per mirrored module once the
+   parity corpus is green (live corpus still OPEN — flip stays flag-gated).
+3. **S1 islands** (watch/scan/proc/image/diff): wire the sidecars into the TS app
+   first (TS keeps ownership), verify, then move `fileWatcherService.ts`,
+   `fsWalker.ts`, `taskkill` call sites, jimp hot path, jsdiff call sites.
+4. **Server**: `zcode-server` behind the web entry flag; then `packages/server`.
+5. **Shell**: Tauri replaces Electron main per-feature (R4 buckets); then
+   `packages/desktop/src/main`.
+6. **CLI/SEA**: `zcode` native binary; delete `build:sea`/postject scripts.
+7. **S6 exit**: delete `old.back/` after the parity soak window; Node leaves
+   packaging.
+
+`old.back/` lives at the repo root, is gitignored-adjacent (tracked, not
+built), and preserves each moved module's original path under it so parity
+diffs and rollbacks stay one `git mv` away.
+
 ## Third-party notice rule for cargo
 
 Any change to `native/**/Cargo.toml` or `native/Cargo.lock` must regenerate cargo
