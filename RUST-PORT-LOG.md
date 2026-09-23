@@ -417,3 +417,94 @@ resync recovery（3 行一致）→ rename accepted → stop(空闲) noop → �
 1. 与用户核对 OPEN 项优先级（provider 凭据接入 / 工具接线 / sqlite）。
 2. TS 侧切缝：外层 host 按 workspace flag spawn zcode-host（strangler 起点）。
 3. 后续：tools/minimal context → MCP → 存储移植 → resume delta 回放。
+
+---
+
+## ENTRY 007 — 2026-09-22 — zcode-host 成为可运行的原生 agent：工具层 + 工具调用循环
+
+> Authorship note：继续由主会话直接执行（no-subagent 指令仍生效）。所有数字实测。
+
+### 用户指令与执行边界（重要，诚实记录）
+
+用户要求「fully port everything other than UI/UX, 把已移植的 TS 移到 old.back，
+并保证一切运行正常」。本会话交付了离 RUN 最远段的最大增量，但没有、也不能在
+本轮完成全量 cutover，原因是硬事实：**今天所有面向用户的执行都还在 TS/Node/
+Electron 上**——desktop 与 `zcode --web` spawn 的是 TS CLI，没有任何 Rust crate
+被接线进产品路径（本会话再次全树验证：TS/desktop 对 native crate 零引用）。
+此时把仍在执行的 TS 模块移到 `old.back/` 会立刻破坏运行中的产品，与用户的
+第二要求直接冲突。因此本轮按 spec 新增的「Cutover order and old.back staging」
+条款执行：**没有任何模块移入 old.back**（首个移动发生在其 Rust 替代品完成产品
+面 + 切缝真正切换流量之后），并在 spec 里写死了四条件与七个阶段的顺序。
+
+### 交付物（zcode-host 从骨架到可运行 agent）
+
+- **工具层**（`src/tools/`，~1400 行）：Bash/Read/Write/Edit/Glob/Grep 六工具，
+  契约对齐 TS `ToolMetadata`（readOnly/destructive/concurrentSafe/sideEffectScope/
+  timeout/maxOutput）；workspace 路径策略（词法 + canonicalize 双闸）；read-before-
+  edit 状态（会话级）；bash 保守只读分类（首词 + 静态 argv，`~` 仅词首取消）；
+  超时杀树用 `zcode-proc::kill_tree`（S1 crate in-process 复用）；Glob/Grep 基于
+  `zcode-scan` walker（忽略 node_modules/.git/target/dist/.turbo）；正则直接编译、
+  非法 pattern 报错（无字面量回退）。权限闸门 fail-closed：非只读默认拒绝，仅
+  `--full-access` 放行（headless 无交互客户端可问，对齐 TS deny 缺省）。
+- **工具调用循环**（turn.rs 重写）：模型回合 ↔ 工具回合交替，assistant tool_calls
+  与 tool_result 按 provider 形状回灌；toolCall 行投影（running→success/error/
+  cancelled）；防跑飞 = 连续 3 次相同 (tool,input) 签名 typed fault + 单 turn 64
+  回合上限 typed fault（不是 tool-count 硬停止）。
+- **context 装配**（turn_context.rs）：系统提示 + AGENTS.md/CLAUDE.md 发现 +
+  环境事实（workspace/platform/identity）。
+- **microcompact**：阈值 120k 字符机械压缩最早工具结果，保留最近 6 条
+  （LLM 摘要压缩 OPEN——需要 provider）。
+- provider 配置 wire 键改为 camelCase（对齐 TS 配置约定；fail-closed 拒绝路径
+  本身工作正常，是测试抓出的键名不匹配）。
+
+### 本会话发现并修复的缺陷
+
+- B-16 provider config camelCase 不匹配：Rust struct 期望 snake_case，脚本/e2e
+  的 JSON 是 camelCase → fail-closed 拒绝了合法配置（拒绝行为正确，键名错）。
+  修复：`#[serde(rename_all = "camelCase")]`。
+- B-17 bash 只读分类把 `HEAD~1` 判非只读（`~` 全局拒绝）→ tilde 仅在词首取消。
+- B-18 `upsert_row` 曾收到 delta 包装（ENTRY 006 B-10 同源复发点）——本轮重构后
+  由 tool_loop_e2e 的 toolCall 行终态断言看住。
+- B-19 flush 窗口只靠新事件推进（ENTRY 006 B-13）在工具循环下同样出现：回合间隙
+  的尾帧滞留。已由 ticker + turn 终态强制 flush 覆盖（e2e 收敛断言看住）。
+- 环境问题：磁盘满（tauri 构建产物占满 F:）→ 清理 incremental（4.7GB）后恢复；
+  已记录的既存告警（ENVRY 003 EMFILE）本轮未复现。
+
+### 真实门禁结果（本会话实测）
+
+- native：`cargo fmt --all -- --check` 0；`clippy --workspace --all-targets
+  -D warnings` 0；`cargo test --workspace` **259 passed / 0 failed**
+  （= 239 + zcode-host 新增 20：单元 34、lifecycle e2e 1、工具循环 e2e 2、
+  既有 unit 修复若干——净增 20）。
+- pnpm：golden:check 3/3、typecheck 0、lint 0 errors、fmt:check 0、
+  architecture:check --changed 0、freshness 新鲜、cargo notices 重建后 check 通过
+  （565 crates；`licenses notices` 1201 npm + 565 cargo）。
+
+### 真实运行证据（非模拟）
+
+- **工具循环 e2e（本地脚本化 SSE provider double，只在测试进程内）**：
+  回合 1 模型返回 tool_use(Write) → host 真实写盘
+  （`native-e2e.txt` 内容逐字节断言）→ tool_result 回灌（第二个请求体含
+  `tool_result`/`tool_use_id`/`wrote 27 bytes to native-e2e.txt`）→ 回合 2 终态
+  文本 `File written.`，assistant complete、toolCall success。
+- **拒绝场景 e2e**：无 `--full-access` 时同一 tool_use 被拒，文件不存在，
+  `tool.permissionDenied` 以 typed 文本回灌模型。
+- **真实进程 lifecycle**（temp data-dir、实际 workspace）：createSession →
+  subscribe → fail-closed turn（sessionErrorInfo 正确投影）→ 第二个 turn 收敛 →
+  resync 6 行一致 → **stdin EOF 进程退出 True** → 重启 resume 6 行。
+- live provider 仍无凭据：**未经真实 provider 验证**（OPEN，README 差异表第 10 条）。
+
+### old.back 状态（对用户指令的正面回答）
+
+**本轮零移动。** 已移入 spec 的 staging 规则（四条件 + 七阶段顺序）保证第一次移动
+发生在：zcode-host 的某能力面完整 → 外层 host 按 flag 真正 spawn 它 → TS 路径
+flag-off 仍绿 → typecheck/knip 证明 TS 模块零引用。下一个最可能的首个移动候选是
+S1 islands（watch/scan/proc/image/diff 的 TS 实现）——但需要先把 sidecar 接进 TS
+应用，这是下一轮的工作，不是本轮能安全完成的删除。
+
+### Next
+
+1. **S1 接线**：TS 应用 spawn zcode-watch/scan/proc/image/diff sidecar（TS 保持
+   业务所有权），parity 测试后移动对应 TS 实现进 old.back（第一个真实删除）。
+2. TS 侧切缝：workspace flag spawn zcode-host（strangler 起点）。
+3. provider 凭据 → 关闭 live 语料 OPEN；继续工具扩容（web/skills/subagent）。
