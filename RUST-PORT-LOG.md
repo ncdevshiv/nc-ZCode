@@ -570,3 +570,70 @@ streaming 均 200）；模型唯一许可 `opm/space-bunny-free`；Bearer 鉴权
    call sites/jimp/jsdiff。
 2. TS 侧切缝：workspace flag spawn zcode-host。
 3. 工具扩容与 MCP/subagent 移植。
+
+---
+
+## ENTRY 009 — 2026-09-22 — anthropic live 形状打通 + 非流式完整响应路径
+
+> Authorship note：主会话直接执行。凭据仍然只进 repo 外临时目录、跑完即删；
+> 本条目只记录脱敏事实。用户提示：同一 baseurl 还支持 anthropic/messages 等
+> 形状——据此把 anthropic 的 live 路径也关掉。
+
+### 网关实测事实（opm/space-bunny-free @ https://ncnio.com/v1）
+
+- `POST /v1/messages`（anthropic 形状）：**Bearer 鉴权**（`x-api-key` 401，
+  detail 明示要 `Authorization: Bearer`）；非流式返回标准 anthropic message
+  对象（content 数组、stop_reason、usage）。
+- 工具：非流式 + tools → 返回真实 `tool_use` 块（`id`/`name`/`input`），
+  `stop_reason: "tool_use"`。
+- 流式：`stream:true` 在 `/v1/messages` 上返回的是 **OpenAI chunk 形状**
+  （`chat.completion.chunk` + `[DONE]`），不是 anthropic 事件协议——网关侧翻译，
+  不是 anthropic 协议本身。host 的 anthropic 流式解析器镜像真实 anthropic 事件
+  （脚本化 double 覆盖），不能也不应为此改解析器。
+
+### 因此做的两个真实改动
+
+1. **`complete_body`（zcode-provider 新模块）**：2xx-非-SSE 且 body 是完整响应
+   （anthropic `type:"message"` / openai `chat.completion`）时，合成与真实流式
+   协议逐事件同构的 SSE 再喂同一条 FramePipeline——解析/拼装/usage/守卫全部
+   复用，不引入第二条模型代码路径。细节：tool_use 的 content_block_start 必须带
+   `input:{}`（解析器对完整 input 走一次性补齐快路，之后发 input_json_delta 会
+   报「缺少未决 tool_use」）；finish_reason 归一化 tool_use → tool-calls。
+   executor 的非-SSE 分支接入；4 个单测（含用**真实网关响应**做的
+   tool_use 往返）。
+2. **`ProviderConfig.authStyle` + `stream`**：鉴权样式显式可配（缺省 kind 原生：
+   anthropic→x-api-key，openai→bearer；该网关两种形状都只认 Bearer → 配置声明
+   `"authStyle":"bearer"` 即可）；`stream:false` 走完整响应路径。
+   `auth_headers(api_key, style)` 只认最终样式，2 个回归单测锁形状与覆盖优先级。
+
+### Live 实测证据（anthropic 形状，Bearer，非流式）
+
+- 文本轮：assistant complete，「Yes, I'm the anthropic-shaped native host,
+  and seed.txt exists.」；turnHeader completedSuccess。
+- 工具轮：模型经 anthropic tool_use 调用 Write → **anthropic-proof.txt 真实落盘，
+  内容逐字节 "proven via anthropic shape"** → toolCall Write success →
+  assistant complete「Created `anthropic-proof.txt` with the exact requested
+  contents.」→ turnHeader completedSuccess。
+- exit on stdin EOF True；host stderr 干净。
+
+### 门禁（本会话实测）
+
+- native：`cargo fmt --all -- --check` 0；`clippy --workspace --all-targets
+  -D warnings` 0；`cargo test --workspace` **265 passed / 0 failed**
+  （= 260 + complete_body 4 + auth_style 1，净增 5）。
+- pnpm：golden 3/3、typecheck 0、lint 0 errors、fmt:check 0、arch 0、
+  freshness 新鲜、cargo notices check 565 crates 新鲜。
+
+### OPEN 状态
+
+- **关闭**：anthropic 形状的 live 路径（文本 + 工具 + 文件副作用 + 非流式
+  完整响应合成）。两种 wire 形状的 live 闭环都齐了。
+- **仍 OPEN**：runner-debug live golden-request 语料、`generateText` parity、
+  Linux/macOS 运行时、交互 GUI，以及 ENTRY 007 的移植清单。
+
+### Next
+
+1. **S1 接线**（同名不变）：TS spawn 五个 Rust sidecar → parity → 首个
+   old.back 移动。
+2. TS 侧切缝：workspace flag spawn zcode-host。
+3. 工具扩容与 MCP/subagent 移植。
