@@ -20,7 +20,9 @@ pub mod rpc;
 pub mod session;
 pub mod snapshot;
 pub mod store;
+pub mod tools;
 pub mod turn;
+pub mod turn_context;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -39,8 +41,10 @@ use crate::rpc::{
     CODE_METHOD_NOT_FOUND, METHOD_COMMAND, METHOD_CONNECTION_FLOW, METHOD_CONVERSATION_RESYNC,
     METHOD_CONVERSATION_ROWS_RANGE, METHOD_CONVERSATION_SUBSCRIBE, METHOD_CONVERSATION_UNSUBSCRIBE,
 };
-use crate::session::Session;
+use crate::session::{Session, SessionInit};
 use crate::store::{generate_id, is_safe_session_id, now_ms, SessionMeta, TranscriptStore};
+use crate::tools::ToolRegistry;
+use crate::turn::TurnDeps;
 
 pub struct HostServer {
     workspace: PathBuf,
@@ -50,6 +54,7 @@ pub struct HostServer {
     sessions: Mutex<HashMap<String, Arc<Session>>>,
     outbox: UnboundedSender<String>,
     id_counter: AtomicU64,
+    turn_deps: TurnDeps,
     /// 自引用弱指针：flush ticker 只持有 Weak，server 释放即退出（stdout writer 收尾的前提）。
     self_weak: std::sync::OnceLock<std::sync::Weak<HostServer>>,
 }
@@ -59,9 +64,15 @@ impl HostServer {
         workspace: PathBuf,
         data_dir: PathBuf,
         provider: Option<ProviderConfig>,
+        full_access: bool,
     ) -> (Arc<Self>, UnboundedReceiver<String>) {
         let (outbox, inbox) = tokio::sync::mpsc::unbounded_channel();
         let workspace_identity = identity_key(None, &workspace.to_string_lossy());
+        let turn_deps = TurnDeps {
+            registry: Arc::new(ToolRegistry::with_defaults()),
+            context: turn_context::assemble_context(&workspace),
+            full_access,
+        };
         let server = Arc::new(Self {
             workspace,
             workspace_identity,
@@ -70,6 +81,7 @@ impl HostServer {
             sessions: Mutex::new(HashMap::new()),
             outbox,
             id_counter: AtomicU64::new(1),
+            turn_deps,
             self_weak: std::sync::OnceLock::new(),
         });
         let _ = server.self_weak.set(Arc::downgrade(&server));
@@ -138,7 +150,7 @@ impl HostServer {
     /// 处理一行请求。返回 (响应行, 响应之后才允许发出的帧行)——协议契约：
     /// subscribe/resync 的 initial/recovery snapshot 是 post-response owned
     /// notification，response line 必须先写（transport.ts subscribe 注释）。
-    pub async fn handle_line(&self, line: &str) -> (Option<String>, Vec<String>) {
+    pub async fn handle_line(self: &Arc<Self>, line: &str) -> (Option<String>, Vec<String>) {
         let request = match parse_request_line(line) {
             Ok(request) => request,
             Err(error) => {
@@ -151,7 +163,10 @@ impl HostServer {
         self.handle_request(request).await
     }
 
-    pub async fn handle_request(&self, request: RpcRequest) -> (Option<String>, Vec<String>) {
+    pub async fn handle_request(
+        self: &Arc<Self>,
+        request: RpcRequest,
+    ) -> (Option<String>, Vec<String>) {
         let id = request.id.clone();
         let result = match request.method.as_str() {
             METHOD_CONNECTION_FLOW => Ok(RequestOutcome::empty(json!({}))),
@@ -257,7 +272,7 @@ impl HostServer {
 
     // ── 命令面 ──
 
-    async fn command(&self, params: &Value) -> Result<RequestOutcome, RpcError> {
+    async fn command(self: &Arc<Self>, params: &Value) -> Result<RequestOutcome, RpcError> {
         let envelope = parse_command_envelope(params).map_err(|error| {
             RpcError::new(CODE_INVALID_PARAMS, error.message)
                 .with_data(json!({"reasonCode": "proto.invalidPayload"}))
@@ -306,18 +321,19 @@ impl HostServer {
         self.store
             .create_session(&meta)
             .map_err(|error| RpcError::new(CODE_INTERNAL, error.to_string()))?;
-        let session = Session::new(
-            session_id.clone(),
-            self.workspace_identity.clone(),
-            meta.log_epoch,
-            meta.title,
-            meta.title_source,
-            Vec::new(),
-            0,
-            HashMap::new(),
-            0,
-            self.store.clone(),
-        );
+        let session = Session::new(SessionInit {
+            id: session_id.clone(),
+            workspace_root: self.workspace.clone(),
+            workspace_identity: self.workspace_identity.clone(),
+            log_epoch: meta.log_epoch,
+            title: meta.title,
+            title_source: meta.title_source,
+            rows: Vec::new(),
+            revision: 0,
+            transcript_acks: HashMap::new(),
+            next_row_id: 0,
+            store: self.store.clone(),
+        });
         self.register_session(session);
         let ack = json!({
             "commandId": envelope.command_id,
@@ -409,7 +425,7 @@ impl HostServer {
     /// inbox admission：ack-only 命令直接响应；admitted 命令先响应 admission
     /// ack，再派生 turn 任务（turn 结束才 settle）。
     async fn admitted_command(
-        &self,
+        self: &Arc<Self>,
         envelope: &zcode_core::protocol::CommandEnvelope,
     ) -> Result<RequestOutcome, RpcError> {
         let session_id = envelope.session_id.clone().ok_or_else(|| {
@@ -441,11 +457,17 @@ impl HostServer {
                 let provider = self.provider.clone();
                 let outbox = self.outbox.clone();
                 let session_for_turn = Arc::clone(&session);
+                let server_for_turn: Arc<Self> = Arc::clone(self);
                 let command_type = admitted.envelope.command_type.clone();
                 tokio::spawn(async move {
                     if command_type == "sendText" {
-                        let lines =
-                            turn::run_turn(session_for_turn, provider.as_ref(), *admitted).await;
+                        let lines = turn::run_turn(
+                            session_for_turn,
+                            provider.as_ref(),
+                            &server_for_turn.turn_deps,
+                            *admitted,
+                        )
+                        .await;
                         for line in lines {
                             let _ = outbox.send(line);
                         }
@@ -507,18 +529,19 @@ impl HostServer {
                 .max()
                 .unwrap_or(0)
                 + 1;
-            let session = Session::new(
-                session_id.clone(),
-                meta.workspace_identity.clone(),
-                meta.log_epoch,
-                meta.title,
-                meta.title_source,
-                transcript.rows,
-                meta.revision,
-                transcript.acks,
+            let session = Session::new(SessionInit {
+                id: session_id.clone(),
+                workspace_root: self.workspace.clone(),
+                workspace_identity: meta.workspace_identity.clone(),
+                log_epoch: meta.log_epoch,
+                title: meta.title,
+                title_source: meta.title_source,
+                rows: transcript.rows,
+                revision: meta.revision,
+                transcript_acks: transcript.acks,
                 next_row_id,
-                self.store.clone(),
-            );
+                store: self.store.clone(),
+            });
             self.register_session(session);
             resumed += 1;
         }

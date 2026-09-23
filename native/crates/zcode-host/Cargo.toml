@@ -20,6 +20,9 @@ serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 clap = { version = "4", features = ["derive"] }
+regex = "1"
 zcode-core = { path = "../zcode-core" }
 zcode-v4-wire = { path = "../zcode-v4-wire" }
 zcode-provider = { path = "../zcode-provider" }
+zcode-scan = { path = "../zcode-scan" }
+zcode-proc = { path = "../zcode-proc" }

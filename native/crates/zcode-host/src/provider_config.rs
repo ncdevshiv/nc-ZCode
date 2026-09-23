@@ -9,7 +9,10 @@
 use serde::{Deserialize, Serialize};
 use zcode_provider::request::ProviderKind;
 
+/// provider 配置文件（`--provider-config`）。wire 键名与 TS 侧配置一致，
+/// camelCase（`baseUrl`/`apiKey`/`maxTokens`）；Rust 字段名保持 snake_case。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProviderConfig {
     /// `anthropic` | `openai-compatible`（对齐 TS provider api.type 的两个主形状）。
     pub kind: String,

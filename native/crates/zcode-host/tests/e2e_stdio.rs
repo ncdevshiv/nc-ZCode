@@ -225,18 +225,27 @@ fn full_session_lifecycle_over_stdio() {
     assert_eq!(response["result"]["status"], json!("accepted"));
 
     // 逐帧 apply：每帧的 delta 只应用一次（row.appended 重复 apply 会重复入集）。
+    let mut saw_last_error = false;
     loop {
         let line = client.next_line();
         let frame_deltas = deltas_from_frame(&line);
+        for delta in &frame_deltas {
+            if delta["op"] == json!("state.updated") {
+                let code = delta["patch"]["control"]["lastError"]["code"].as_str();
+                if code == Some("fault.model.providerNotConfigured") {
+                    saw_last_error = true;
+                }
+            }
+        }
         apply_to_rows(&mut rows, &frame_deltas);
-        // turnHeader failed + userInput 均已入集 → 轮次结束。
+        // turnHeader failed + userInput + lastError 均已入集 → 轮次结束。
         let has_user = rows.iter().any(|row| {
             row["kind"] == json!("userInput") && row["text"] == json!("hello native host")
         });
         let header_failed = rows
             .iter()
             .any(|row| row["kind"] == json!("turnHeader") && row["state"] == json!("failed"));
-        if has_user && header_failed {
+        if has_user && header_failed && saw_last_error {
             break;
         }
         assert!(
@@ -253,12 +262,11 @@ fn full_session_lifecycle_over_stdio() {
         .find(|row| row["kind"] == json!("assistantText"))
         .expect("assistant row");
     assert_eq!(assistant["state"], json!("failed"));
+    // 失败不得伪造模型正文：错误只进 sessionErrorInfo，assistant 正文保持空。
+    assert_eq!(assistant["text"], json!(""));
     assert!(
-        assistant["text"]
-            .as_str()
-            .unwrap_or_default()
-            .contains("no provider configured"),
-        "fail-closed message must be projected, not swallowed: {assistant}"
+        saw_last_error,
+        "fail-closed error must surface as sessionErrorInfo, not be swallowed"
     );
 
     // 4) resync → recovery snapshot 必须与当前行集一致（终态一致性）

@@ -20,7 +20,12 @@ data-dir ── sessions/<id>/meta.json + transcript.jsonl（追加式）
 已实现：`v4/connection/flow`、`v4/conversation/subscribe|resync|unsubscribe`、
 `v4/conversation/rowsRange`、`v4/command`（`createSession`、`sendText`、`stop`、
 `renameSession`、`deleteSession`）、`v4/conversation/frame` 通知、两套 delivery
-profile、冷恢复 resume。其余 v4 方法返回 `-32601`（不静默吞掉）。
+profile、冷恢复 resume。**多回合 agent 循环**：模型回合与工具回合交替直到模型
+给出无工具调用的终态文本；工具集 Bash/Read/Write/Edit/Glob/Grep（契约含
+readOnly/destructive/concurrentSafe/sideEffectScope/timeout/maxOutput）；
+toolCall 行投影（running → success/error/cancelled）；context 装配（系统提示 +
+AGENTS.md/CLAUDE.md 发现 + 环境事实）；机械 microcompact（阈值 120k 字符，压最早
+的工具结果）。其余 v4 方法返回 `-32601`（不静默吞掉）。
 
 ## 集成边界
 
@@ -35,29 +40,48 @@ profile、冷恢复 resume。其余 v4 方法返回 `-32601`（不静默吞掉�
 
 ## 与 TS host 的差异（OPEN，不模拟）
 
-1. 单模型回合 turn：无工具调度、无 compact、无 context 装配（系统提示是最小
-   占位语义，README 明示而非伪造完整 prompt）。
-2. transcript 是 JSONL；TS 的 sqlite 单写者存储未移植（S3 后续）。
-3. `fault.*` reasonCode 词表只移植了 inbox 已定义的集合；turn/模型失败用本 host
-   定义的 `fault.turn.stopped` / `fault.model.providerNotConfigured` /
+1. 工具集是六工具核心集；TS 的 ~114 个 handler（bash 只读分类全量表、workflow
+   家族、skills、node-repl、webfetch/websearch……）未移植。
+2. bash 用 shell 语义（与 TS 一致：Windows `cmd /D /C`，Unix `sh -c`）；只读
+   分类是**保守**首词 + 静态 argv 分类（TS 的 argv 级分类器未移植）；超时杀树用
+   `zcode-proc::kill_tree`。
+3. input 校验为逐字段靶向校验（完整 JSON Schema 校验器未移植）。
+4. 工具调度为模型序串行（TS 的拓扑/并行分组调度器未移植——本批工具以写为主，
+   串行是更稳的语义）。
+5. transcript 是 JSONL；TS 的 sqlite 单写者存储未移植（S3 后续）。
+6. `fault.*` reasonCode 词表只移植了 inbox 已定义的集合；turn/模型失败用本 host
+   定义的 `fault.turn.stopped` / `fault.turn.roundLimitExceeded` /
+   `fault.turn.repeatedToolCall` / `fault.model.providerNotConfigured` /
    `fault.model.requestFailed` / `fault.command.unsupported:*`（前缀对齐 TS
-   命名空间，值本身是本 crate 的稳定契约，完整词表移植在 S3 后续）。
-4. subscribe 只做 `mode: "snapshot"`；`base.seq` 续传（resume delta 回放）未实现，
+   命名空间，值本身是本 crate 的稳定契约）。
+7. subscribe 只做 `mode: "snapshot"`；`base.seq` 续传（resume delta 回放）未实现，
    resync 用全量 recovery snapshot。
-5. `renameSession`/`deleteSession` 直接生效（无 turn 副作用的会话级控制）。
-6. live provider 语料（runner-debug 录制）在本 checkout 不可用：有
-   `--provider-config` 的请求路径存在但未经真实 provider 验证；无配置时
-   fail-closed（`ModelErrorCode::ProviderNotConfigured` → turnHeader failed +
-   sessionErrorInfo），已由 e2e 覆盖。
+8. `renameSession`/`deleteSession` 直接生效（无 turn 副作用的会话级控制）。
+9. compact 只有机械 microcompact；LLM 摘要压缩（autoCompact）未实现（OPEN）。
+10. live provider 语料（runner-debug 录制）在本 checkout 不可用：
+    `--provider-config` 已配置时的请求路径只能由工具循环 e2e（测试进程内的脚本化
+    SSE double）证明协议闭环，**未经真实 provider 验证**；无配置时 fail-closed
+    （`ModelErrorCode::ProviderNotConfigured` → turnHeader failed +
+    sessionErrorInfo），已由 e2e 覆盖。
+11. full-access 是启动参数 `--full-access`（host 级），非 per-session grant。
 
 ## 验证
 
 ```sh
-cargo test -p zcode-host            # 单元 + e2e stdio（ CARGO_BIN_EXE_zcode-host ）
+cargo test -p zcode-host            # 单元 + e2e stdio + 工具循环 e2e
 cargo clippy -p zcode-host --all-targets -- -D warnings
 cargo fmt -p zcode-host -- --check
 ```
 
-e2e（`tests/e2e_stdio.rs`）驱动真实二进制：create → subscribe → sendText →
-fail-closed 错误投影 → resync（recovery snapshot 行集一致）→ 重启进程 resume
-（行与幂等 ack 不丢）。
+三个 e2e 测试驱动真实二进制：
+
+- `tests/e2e_stdio.rs`：create → subscribe → sendText → fail-closed 错误投影 →
+  resync（recovery snapshot 行集一致）→ 重启进程 resume（行与幂等 ack 不丢）。
+- `tests/tool_loop_e2e.rs`（full-access）：本地脚本化 SSE provider 返回
+  tool_use(Write) → host 真实写文件 → tool_result 回灌 → 终态文本。断言文件真实
+  落盘、toolCall 行 success、第二个请求体含 tool_result 与工具输出。
+- `tests/tool_loop_e2e.rs`（denied）：同一 tool_use 被权限闸门拒绝 → 文件不存在
+  → 拒绝以 typed 文本回灌模型。
+
+启动：`zcode-host --workspace <path> --data-dir <path> [--provider-config <file>]
+[--full-access]`。

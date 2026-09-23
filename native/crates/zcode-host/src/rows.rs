@@ -101,6 +101,34 @@ pub fn row_delta(row_id: u64, path: &str, append: &str) -> Value {
     json!({"op": OP_ROW_DELTA, "rowId": row_id, "path": path, "append": append})
 }
 
+/// toolCall 行（`rows.ts` toolCallRowSchema 的相关子集）：必填 toolCallId/
+/// toolName/status/inputText；`inputText` 是流式路径（continuous 档可增量，
+/// 本 increment 整条一次给出，终态 upsert 携带全量）。error 仅 status=error 携带。
+pub fn tool_call_row(
+    base: &RowBase,
+    tool_call_id: &str,
+    tool_name: &str,
+    status: &str,
+    input_text: &str,
+    error: Option<(&str, &str)>,
+) -> Value {
+    let mut row = row_base(base);
+    if let Some(object) = row.as_object_mut() {
+        object.insert("kind".to_string(), json!("toolCall"));
+        object.insert("toolCallId".to_string(), json!(tool_call_id));
+        object.insert("toolName".to_string(), json!(tool_name));
+        object.insert("status".to_string(), json!(status));
+        object.insert("inputText".to_string(), json!(input_text));
+        if let Some((code, message)) = error {
+            object.insert(
+                "error".to_string(),
+                json!({"code": code, "message": message}),
+            );
+        }
+    }
+    row
+}
+
 pub fn state_updated(patch: Value) -> Value {
     json!({"op": OP_STATE_UPDATED, "patch": patch})
 }

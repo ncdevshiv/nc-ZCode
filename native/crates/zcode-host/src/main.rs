@@ -25,6 +25,9 @@ struct Args {
     /// Provider 配置 JSON；缺省 = 模型层不可用（fail-closed）。
     #[arg(long)]
     provider_config: Option<PathBuf>,
+    /// 允许 destructive 工具调用（write/edit/非只读 bash）；缺省 fail-closed。
+    #[arg(long)]
+    full_access: bool,
 }
 
 #[tokio::main]
@@ -44,8 +47,12 @@ async fn main() {
 
     let _ = std::fs::create_dir_all(args.data_dir.join("sessions"));
 
-    let (server, mut outbox): (Arc<HostServer>, UnboundedReceiver<String>) =
-        HostServer::new(args.workspace.clone(), args.data_dir.clone(), provider);
+    let (server, mut outbox): (Arc<HostServer>, UnboundedReceiver<String>) = HostServer::new(
+        args.workspace.clone(),
+        args.data_dir.clone(),
+        provider,
+        args.full_access,
+    );
     let resumed = server.resume_sessions();
     eprintln!(
         "[zcode-host] ready workspace={} data-dir={} resumed-sessions={} provider={}",

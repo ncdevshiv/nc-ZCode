@@ -5856,11 +5856,14 @@ name = "zcode-host"
 version = "3.14.0"
 dependencies = [
  "clap",
+ "regex",
  "serde",
  "serde_json",
  "tokio",
  "zcode-core",
+ "zcode-proc",
  "zcode-provider",
+ "zcode-scan",
  "zcode-v4-wire",
 ]
 

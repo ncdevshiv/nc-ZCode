@@ -1,13 +1,17 @@
-//! Turn 执行：admission → 投影 → 模型回合 → settle 的完整生命周期。
+//! Turn 执行：admission → context 装配 → 模型/工具循环 → settle 的完整生命周期。
 //!
 //! 与 TS runtime 的关系（specs/rust-native-crates.md S3 验收）：本 increment 的
-//! turn 是「单模型回合」——没有工具调度、没有 compact、没有 context 装配（这些
-//! 在 README 差异表逐条列示为 OPEN）。admission 语义完整：串行 gate、幂等重提、
-//! cancel 全部走 `zcode-core` 的 CommandInbox。
+//! turn 是「多回合 agent 循环」——模型回合与工具回合交替直到模型给出无工具调用
+//! 的终态文本。admission 语义完整（串行 gate、幂等重提、cancel 走
+//! `zcode-core` CommandInbox）；工具层见 `tools/`（六工具 + 权限闸门）；context
+//! 装配见 `turn_context.rs`。
 //!
 //! fail-closed 纪律：没有 provider 配置时不发起任何模型调用，turn 以
-//! `ModelErrorCode::ProviderNotConfigured` 终态投影（sessionErrorInfo +
-//! turnHeader failed），命令 settle 为 failed——绝不伪造 provider、绝不吞掉错误。
+//! `ModelErrorCode::ProviderNotConfigured` 终态投影（turnHeader failed +
+//! sessionErrorInfo），命令 settle 为 failed——绝不伪造 provider、绝不吞错误。
+//!
+//! 防跑飞（不是 tool-count 硬停止）：连续 3 次相同 (tool, input) 签名 → typed
+//! fault 终止；单 turn 模型/工具回合上限 64 → typed fault 终止。
 
 use std::sync::Arc;
 
@@ -18,31 +22,47 @@ use zcode_provider::executor::{self, StreamRequest};
 use zcode_provider::http_transport::HttpTransport;
 use zcode_provider::request::{
     build_anthropic_messages_body, build_openai_compatible_body, Message, MessageRole,
-    ProviderKind, RequestBodyOptions,
+    ProviderKind, RequestBodyOptions, ToolCallRequest, ToolDefinition,
 };
 use zcode_provider::transport::{RealClock, TransportRequest};
-use zcode_provider::{AdapterError, ModelErrorCode, ModelStreamEvent, ModelUsage};
+use zcode_provider::{AdapterError, ModelErrorCode, ModelStreamEvent, ModelToolCall, ModelUsage};
 
 use crate::provider_config::ProviderConfig;
+use crate::rows;
 use crate::session::Session;
 use crate::snapshot;
 use crate::store::now_ms;
+use crate::tools::{ToolContext, ToolError, ToolErrorCode, ToolRegistry};
+use crate::turn_context::{self, ContextFacts};
 
 /// host 定义的 fault code（TS 侧 fault 词表的完整移植尚未完成，README 差异表记录）。
-/// 前缀与 TS `fault.*` 命名空间对齐，值本身是本 host 的稳定契约。
 pub const FAULT_PROVIDER_NOT_CONFIGURED: &str = "fault.model.providerNotConfigured";
 pub const FAULT_TURN_STOPPED: &str = "fault.turn.stopped";
 pub const FAULT_MODEL_FAILED: &str = "fault.model.requestFailed";
+pub const FAULT_TOOL_ROUND_LIMIT: &str = "fault.turn.roundLimitExceeded";
+pub const FAULT_REPEATED_TOOL_CALL: &str = "fault.turn.repeatedToolCall";
 
-/// 系统提示：本 increment 的最小 context builder（完整 context 系统是 OPEN 项）。
-const SYSTEM_PROMPT: &str = "You are zcode-host, the native Rust agent host. \
-Answer concisely. Tool execution, MCP, memory and skills are not yet wired in this host; \
-if the user asks for actions, explain what the TS host would do instead.";
+const MAX_TOOL_ROUNDS: usize = 64;
+const REPEATED_TOOL_CALL_LIMIT: usize = 3;
+
+/// turn 依赖（host 级只读事实，每 host 构建一次）。
+pub struct TurnDeps {
+    pub registry: Arc<ToolRegistry>,
+    pub context: ContextFacts,
+    /// `--full-access`：destructive 工具调用自动允许；缺省 fail-closed。
+    pub full_access: bool,
+}
+
+struct RoundResult {
+    text: String,
+    tool_calls: Vec<ModelToolCall>,
+}
 
 /// 执行一个 admitted 的 sendText turn。返回需要广播的帧行（由调用方写入 stdout）。
 pub async fn run_turn(
     session: Arc<Session>,
     provider: Option<&ProviderConfig>,
+    deps: &TurnDeps,
     admitted: Admitted,
 ) -> Vec<String> {
     let source_command_id = admitted.envelope.command_id.clone();
@@ -61,12 +81,27 @@ pub async fn run_turn(
     lines.extend(session.project_turn_started(&turn_id, &source_command_id));
     lines.extend(session.project_user_input(&turn_id, &text, &source_command_id, &client_id));
 
-    let response_id = format!("resp-{source_command_id}");
     let model_label = provider.map(|config| config.model.as_str());
+    let response_id = format!("resp-{source_command_id}");
     let row_id = session.project_assistant_row(&turn_id, &response_id, model_label);
 
-    let roundtrip = match provider {
-        Some(config) => run_model_roundtrip(&session, config, &text, row_id, &mut lines).await,
+    let mut history: Vec<Message> = vec![Message::text(MessageRole::User, text.as_str())];
+    let mut streamed_text = String::new();
+
+    let outcome = match provider {
+        Some(config) => {
+            run_agent_loop(
+                &session,
+                config,
+                deps,
+                &turn_id,
+                &mut history,
+                &mut streamed_text,
+                row_id,
+                &mut lines,
+            )
+            .await
+        }
         None => Err(AdapterError::new(
             ModelErrorCode::ProviderNotConfigured,
             "no provider configured; pass --provider-config to enable model calls",
@@ -82,10 +117,10 @@ pub async fn run_turn(
             "runtime",
             now_ms(),
         );
-        (roundtrip.unwrap_or_default(), "interrupted", Some(info))
+        (streamed_text, "interrupted", Some(info))
     } else {
-        match roundtrip {
-            Ok(text) => (text, "complete", None),
+        match outcome {
+            Ok(()) => (streamed_text, "complete", None),
             Err(error) => {
                 let code = match error.code {
                     ModelErrorCode::ProviderNotConfigured => FAULT_PROVIDER_NOT_CONFIGURED,
@@ -93,7 +128,7 @@ pub async fn run_turn(
                 };
                 let info =
                     snapshot::session_error_info(code, &error.message, false, "provider", now_ms());
-                (error.message.clone(), "failed", Some(info))
+                (streamed_text, "failed", Some(info))
             }
         }
     };
@@ -158,27 +193,167 @@ fn input_accepted_result(command_id: &str) -> Value {
     })
 }
 
-/// 单模型回合：构造请求体 → zcode-provider executor（含重试/分类）→ 流式投影。
-/// usage 由 Finish 事件直接写入 session 投影（`set_usage`）。
+/// 多回合循环：模型回合 → 工具回合 → 模型回合……直到无工具调用或 typed fault。
+#[allow(clippy::too_many_arguments)]
+async fn run_agent_loop(
+    session: &Arc<Session>,
+    config: &ProviderConfig,
+    deps: &TurnDeps,
+    turn_id: &str,
+    history: &mut Vec<Message>,
+    streamed_text: &mut String,
+    row_id: u64,
+    lines: &mut Vec<String>,
+) -> Result<(), AdapterError> {
+    let tools = deps.registry.tool_definitions();
+    let mut last_signature: Option<String> = None;
+    let mut repeated = 0usize;
+
+    for _round in 0..MAX_TOOL_ROUNDS {
+        if session.take_cancel() {
+            return Ok(());
+        }
+        turn_context::microcompact_messages(history);
+        let round =
+            run_model_roundtrip(session, config, deps, &tools, history, row_id, lines).await?;
+        if !round.text.is_empty() {
+            streamed_text.push_str(&round.text);
+            lines.extend(session.project_assistant_delta(row_id, &round.text));
+        }
+        if round.tool_calls.is_empty() {
+            return Ok(());
+        }
+
+        // assistant 回合带 tool_calls 入史（provider 请求体回灌的必需形状）。
+        history.push(Message {
+            role: MessageRole::Assistant,
+            parts: Vec::new(),
+            tool_call_id: None,
+            tool_calls: to_tool_call_requests(&round.tool_calls),
+            reasoning: Vec::new(),
+        });
+
+        for call in &round.tool_calls {
+            let signature = format!("{}::{}", call.name, call.input);
+            if last_signature.as_deref() == Some(signature.as_str()) {
+                repeated += 1;
+            } else {
+                repeated = 1;
+                last_signature = Some(signature);
+            }
+            if repeated >= REPEATED_TOOL_CALL_LIMIT {
+                return Err(AdapterError::new(
+                    ModelErrorCode::InvalidModelRequest,
+                    format!(
+                        "{FAULT_REPEATED_TOOL_CALL}: {REPEATED_TOOL_CALL_LIMIT} identical consecutive calls to {}",
+                        call.name
+                    ),
+                ));
+            }
+
+            let input_text = call.input.to_string();
+            lines.extend(session.project_tool_call(
+                turn_id,
+                &call.id,
+                &call.name,
+                "running",
+                &input_text,
+                None,
+            ));
+            let output = execute_tool(call, session, deps, turn_id);
+            let (status, error) = match &output {
+                Ok(_) => ("success".to_string(), None),
+                Err(error) => (
+                    if matches!(error.code, ToolErrorCode::Cancelled) {
+                        "cancelled".to_string()
+                    } else {
+                        "error".to_string()
+                    },
+                    Some((error.code.as_str().to_string(), error.message.clone())),
+                ),
+            };
+            let error_ref = error
+                .as_ref()
+                .map(|(code, message)| (code.as_str(), message.as_str()));
+            lines.extend(session.project_tool_call(
+                turn_id,
+                &call.id,
+                &call.name,
+                &status,
+                &input_text,
+                error_ref,
+            ));
+
+            let result_text = match &output {
+                Ok(text) => text.clone(),
+                Err(error) => error.to_model_text(),
+            };
+            let mut tool_message = Message::text(MessageRole::Tool, result_text);
+            tool_message.tool_call_id = Some(call.id.clone());
+            history.push(tool_message);
+        }
+    }
+
+    Err(AdapterError::new(
+        ModelErrorCode::ModelRequestFailed,
+        format!("{FAULT_TOOL_ROUND_LIMIT}: {MAX_TOOL_ROUNDS} model/tool rounds without a terminal answer"),
+    ))
+}
+
+fn to_tool_call_requests(calls: &[ModelToolCall]) -> Vec<ToolCallRequest> {
+    calls
+        .iter()
+        .map(|call| ToolCallRequest {
+            id: call.id.clone(),
+            name: call.name.clone(),
+            input: call.input.clone(),
+        })
+        .collect()
+}
+
+/// 权限闸门 + 执行。错误以稳定文本回灌模型（模型需要能据此修正，而不是猜）。
+fn execute_tool(
+    call: &ModelToolCall,
+    session: &Arc<Session>,
+    deps: &TurnDeps,
+    turn_id: &str,
+) -> Result<String, ToolError> {
+    let Some(tool) = deps.registry.get(&call.name) else {
+        return Err(ToolError::new(
+            ToolErrorCode::InvalidInput,
+            format!("no tool named {} in this host increment", call.name),
+        ));
+    };
+    let ctx = ToolContext {
+        workspace_root: session.workspace_root.clone(),
+        full_access: deps.full_access,
+        trace_id: session.log_epoch(),
+        turn_id: turn_id.to_string(),
+        read_state: Arc::clone(&session.read_state),
+        cancel: Arc::clone(&session.cancel),
+    };
+    deps.registry.authorize(tool.as_ref(), &call.input, &ctx)?;
+    tool.execute(&call.input, &ctx)
+}
+
+/// 单模型回合（含 provider executor 的重试/分类/流式拼装）。
 async fn run_model_roundtrip(
     session: &Arc<Session>,
     config: &ProviderConfig,
-    text: &str,
+    deps: &TurnDeps,
+    tools: &[ToolDefinition],
+    history: &[Message],
     row_id: u64,
     lines: &mut Vec<String>,
-) -> Result<String, AdapterError> {
+) -> Result<RoundResult, AdapterError> {
     let provider_kind = config.provider_kind().map_err(|error| {
         AdapterError::new(ModelErrorCode::ProviderNotConfigured, error.to_string())
     })?;
-    let messages = vec![
-        Message::text(MessageRole::System, SYSTEM_PROMPT),
-        Message::text(MessageRole::User, text),
-    ];
     let options = RequestBodyOptions {
         model: &config.model,
-        system: &[SYSTEM_PROMPT.to_string()],
-        messages: &messages,
-        tools: &[],
+        system: &deps.context.system_blocks,
+        messages: history,
+        tools,
         max_tokens: config.max_tokens,
         stream: true,
     };
@@ -221,19 +396,16 @@ async fn run_model_roundtrip(
         return Err(failure);
     }
 
-    let mut text_out = String::new();
+    let mut text = String::new();
+    let mut tool_calls = Vec::new();
     for event in &execution.events {
         match event {
-            ModelStreamEvent::TextDelta { text, .. } => {
-                text_out.push_str(text);
-                lines.extend(session.project_assistant_delta(row_id, text));
-            }
-            ModelStreamEvent::Finish {
-                usage: event_usage, ..
-            } => {
+            ModelStreamEvent::TextDelta { text: chunk, .. } => text.push_str(chunk),
+            ModelStreamEvent::ToolCall { tool_call } => tool_calls.push(tool_call.clone()),
+            ModelStreamEvent::Finish { usage, .. } => {
                 session.set_usage(json!({
                     "contextWindow": Value::Null,
-                    "cumulative": cumulative_usage(event_usage),
+                    "cumulative": cumulative_usage(usage),
                 }));
             }
             ModelStreamEvent::Error { error } => {
@@ -245,11 +417,13 @@ async fn run_model_roundtrip(
             _ => {}
         }
     }
-    Ok(text_out)
+    if !text.is_empty() {
+        lines.extend(session.project_assistant_delta(row_id, &text));
+    }
+    Ok(RoundResult { text, tool_calls })
 }
 
-/// `ModelUsage` → `sessionUsageState.cumulative` 的四个权威键。
-fn cumulative_usage(usage: &ModelUsage) -> Value {
+pub fn cumulative_usage(usage: &ModelUsage) -> Value {
     json!({
         "inputTokens": usage.input_tokens.unwrap_or(0),
         "outputTokens": usage.output_tokens.unwrap_or(0),
@@ -282,7 +456,7 @@ fn emit_state_update(session: Arc<Session>) -> Vec<String> {
         "revision": session.revision(),
         "usage": session.usage(),
     });
-    session.project_deltas(vec![crate::rows::state_updated(patch)], false)
+    session.project_deltas(vec![rows::state_updated(patch)], false)
 }
 
 /// settle：把终态写回 inbox 并持久化（幂等重提的权威事实）。

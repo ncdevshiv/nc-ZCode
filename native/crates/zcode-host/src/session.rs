@@ -7,7 +7,8 @@
 //! 事件顺序保证：所有投影变更先追加进 session 行集合并落盘，再进入各订阅者的
 //! flush 管线；同一订阅者内帧序严格递增；回放缓冲与在线帧走同一条编码路径。
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -68,6 +69,7 @@ struct Subscriber {
 
 pub struct Session {
     pub id: String,
+    pub workspace_root: PathBuf,
     pub workspace_identity: String,
     title: Mutex<(String, String)>,
     pub rows: Mutex<Vec<Value>>,
@@ -77,56 +79,65 @@ pub struct Session {
     logical_frame_ordinal: AtomicU64,
     pub phase: Mutex<String>,
     pub last_error: Mutex<Option<Value>>,
-    pub cancel: AtomicBool,
+    /// turn 取消探针：工具层与 provider executor 共用同一个开关。
+    pub cancel: Arc<AtomicBool>,
     queue_auto_drain: AtomicBool,
     subscribers: Mutex<Vec<Subscriber>>,
     /// revision / logEpoch / transcript 回源的唯一所有者是 inbox 的 host
     /// （`CommandInboxHost`）；本结构不持有第二份 revision/epoch。
     pub inbox: SharedCommandInbox<SessionHost>,
+    /// read-before-edit 状态：会话级（跨 turn 保持），工具层读写它。
+    pub read_state: Arc<Mutex<HashSet<PathBuf>>>,
     store: TranscriptStore,
     usage: Mutex<Value>,
 }
 
+/// 构造参数集中到一个结构（调用点两个：create/resume）。
+pub struct SessionInit {
+    pub id: String,
+    pub workspace_root: PathBuf,
+    pub workspace_identity: String,
+    pub log_epoch: String,
+    pub title: String,
+    pub title_source: String,
+    pub rows: Vec<Value>,
+    pub revision: i64,
+    pub transcript_acks: HashMap<String, Value>,
+    pub next_row_id: u64,
+    pub store: TranscriptStore,
+}
+
 impl Session {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        id: String,
-        workspace_identity: String,
-        log_epoch: String,
-        title: String,
-        title_source: String,
-        rows: Vec<Value>,
-        revision: i64,
-        transcript_acks: HashMap<String, Value>,
-        next_row_id: u64,
-        store: TranscriptStore,
-    ) -> Arc<Self> {
-        let max_row_id = rows
+    pub fn new(init: SessionInit) -> Arc<Self> {
+        let max_row_id = init
+            .rows
             .iter()
             .filter_map(|row| row.get("rowId").and_then(Value::as_u64))
             .max()
             .unwrap_or(0);
         let host = SessionHost {
-            session_id: id.clone(),
-            revision: AtomicI64::new(revision),
-            log_epoch,
-            transcript_acks: Mutex::new(transcript_acks),
+            session_id: init.id.clone(),
+            revision: AtomicI64::new(init.revision),
+            log_epoch: init.log_epoch,
+            transcript_acks: Mutex::new(init.transcript_acks),
         };
         Arc::new(Self {
-            id,
-            workspace_identity,
-            title: Mutex::new((title, title_source)),
-            rows: Mutex::new(rows),
-            next_row_id: AtomicU64::new(next_row_id.max(max_row_id)),
+            id: init.id,
+            workspace_root: init.workspace_root,
+            workspace_identity: init.workspace_identity,
+            title: Mutex::new((init.title, init.title_source)),
+            rows: Mutex::new(init.rows),
+            next_row_id: AtomicU64::new(init.next_row_id.max(max_row_id)),
             op_seq: AtomicU64::new(max_row_id),
             logical_frame_ordinal: AtomicU64::new(1),
             phase: Mutex::new("draft".to_string()),
             last_error: Mutex::new(None),
-            cancel: AtomicBool::new(false),
+            cancel: Arc::new(AtomicBool::new(false)),
             queue_auto_drain: AtomicBool::new(true),
             subscribers: Mutex::new(Vec::new()),
             inbox: SharedCommandInbox::new(CommandInbox::new(host)),
-            store,
+            read_state: Arc::new(Mutex::new(HashSet::new())),
+            store: init.store,
             usage: Mutex::new(snapshot::empty_usage()),
         })
     }
@@ -560,6 +571,44 @@ impl Session {
         self.project_deltas(vec![rows::row_delta(row_id, "text", append)], false)
     }
 
+    /// toolCall 行：running → 终态（success/error/cancelled）两次投影；
+    /// `inputText` 是流式路径，continuous 档随窗口 flush，终态 upsert 携全量。
+    pub fn project_tool_call(
+        &self,
+        turn_id: &str,
+        tool_call_id: &str,
+        tool_name: &str,
+        status: &str,
+        input_text: &str,
+        error: Option<(&str, &str)>,
+    ) -> Vec<String> {
+        let existing_row_id = self
+            .rows_snapshot()
+            .iter()
+            .find(|row| {
+                row.get("kind").and_then(Value::as_str) == Some("toolCall")
+                    && row.get("toolCallId").and_then(Value::as_str) == Some(tool_call_id)
+            })
+            .and_then(|row| row.get("rowId").and_then(Value::as_u64));
+        let base = match existing_row_id {
+            Some(row_id) => RowBase {
+                row_id,
+                turn_id: turn_id.to_string(),
+                created_at: now_ms(),
+                created_at_seq: self.next_op_seq(),
+            },
+            None => self.row_base(turn_id),
+        };
+        let row = rows::tool_call_row(&base, tool_call_id, tool_name, status, input_text, error);
+        if existing_row_id.is_some() {
+            self.upsert_row(row.clone());
+            self.project_deltas(vec![rows::row_upserted(row)], false)
+        } else {
+            self.append_row(row.clone());
+            self.project_deltas(vec![rows::row_appended(row)], false)
+        }
+    }
+
     pub fn project_assistant_final(
         &self,
         row_id: u64,
@@ -599,18 +648,19 @@ mod tests {
         let store =
             TranscriptStore::new(std::env::temp_dir().join(format!("zcode-host-test-{id}")));
         let _ = std::fs::remove_dir_all(store.session_dir(id));
-        Session::new(
-            id.to_string(),
-            format!("/ws/{id}"),
-            "epoch-1".to_string(),
-            String::new(),
-            "default".to_string(),
-            Vec::new(),
-            0,
-            HashMap::new(),
-            0,
+        Session::new(SessionInit {
+            id: id.to_string(),
+            workspace_root: std::env::temp_dir().join(format!("ws-{id}")),
+            workspace_identity: format!("/ws/{id}"),
+            log_epoch: "epoch-1".to_string(),
+            title: String::new(),
+            title_source: "default".to_string(),
+            rows: Vec::new(),
+            revision: 0,
+            transcript_acks: HashMap::new(),
+            next_row_id: 0,
             store,
-        )
+        })
     }
 
     #[test]
