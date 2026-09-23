@@ -58,11 +58,11 @@ AGENTS.md/CLAUDE.md 发现 + 环境事实）；机械 microcompact（阈值 120k
    resync 用全量 recovery snapshot。
 8. `renameSession`/`deleteSession` 直接生效（无 turn 副作用的会话级控制）。
 9. compact 只有机械 microcompact；LLM 摘要压缩（autoCompact）未实现（OPEN）。
-10. live provider 语料（runner-debug 录制）在本 checkout 不可用：
-    `--provider-config` 已配置时的请求路径只能由工具循环 e2e（测试进程内的脚本化
-    SSE double）证明协议闭环，**未经真实 provider 验证**；无配置时 fail-closed
-    （`ModelErrorCode::ProviderNotConfigured` → turnHeader failed +
-    sessionErrorInfo），已由 e2e 覆盖。
+10. live provider 语料：**openai-compatible 形状已于 2026-09-22 对真实测试
+    endpoint 验证通过**（文本轮 + 工具轮：模型自主调用 Glob/Read/Write，文件真实
+    落盘，usage 真实投影，见 RUST-PORT-LOG ENTRY 008）；**anthropic 形状的 live
+    路径仍未验证**（无 endpoint）；测试用凭据由用户提供，只进临时目录、不随代码
+    提交（repo 规则：凭据不得进日志/提交）。
 11. full-access 是启动参数 `--full-access`（host 级），非 per-session grant。
 
 ## 验证

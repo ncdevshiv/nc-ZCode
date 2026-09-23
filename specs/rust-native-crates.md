@@ -103,10 +103,12 @@ Rules:
   host spawns per workspace (flag off = TS host, unchanged; flag on = `zcode-host`).
   Acceptance: conformance via golden vectors + e2e stdio tests, plus one real
   workspace session end to end (create → prompt → stop → resync identical →
-  restart → resume). Explicitly **OPEN** (not simulated): tool execution, MCP,
-  subagents, context building (system prompt/memory/skills), compaction, sqlite
-  single-writer storage (JSONL transcript only in this increment), live provider
-  corpus, Linux runtime, interactive GUI.
+  restart → resume). Explicitly **OPEN** (not simulated): tool execution beyond
+  the six-tool core, MCP, subagents, context building beyond AGENTS.md
+  discovery, compaction (LLM summarization), sqlite single-writer storage
+  (JSONL transcript only in this increment), the anthropic live-provider path
+  (the openai-compatible live path was verified 2026-09-22 — RUST-PORT-LOG
+  ENTRY 008), Linux runtime, interactive GUI.
 - **S4**: `zcode-shell` compiles (`cargo check`/`cargo build` verified) and maps an
   `IPlatformService`-shaped command surface; interactive window verification and the
   R4 BrowserView design gate remain **open** (product decision, per roadmap §7).

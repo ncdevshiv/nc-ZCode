@@ -367,11 +367,9 @@ async fn run_model_roundtrip(
 
     let transport_request = TransportRequest {
         url: config.endpoint_url(),
-        headers: vec![
-            ("content-type".to_string(), "application/json".to_string()),
-            ("x-api-key".to_string(), config.api_key.clone()),
-            ("anthropic-version".to_string(), "2023-06-01".to_string()),
-        ],
+        // 鉴权头按 provider 形状选择（与 TS 侧一致）：anthropic 用 x-api-key +
+        // anthropic-version；openai-compatible 用 Authorization: Bearer。
+        headers: auth_headers(provider_kind, &config.api_key),
         body: body_json,
     };
     let stream_request = StreamRequest {
@@ -432,6 +430,22 @@ pub fn cumulative_usage(usage: &ModelUsage) -> Value {
     })
 }
 
+/// 出站鉴权头：openai-compatible 要 Bearer，anthropic 要 x-api-key +
+/// anthropic-version（live endpoint 实测抓出的形状错误，回归锁在此）。
+pub fn auth_headers(provider_kind: ProviderKind, api_key: &str) -> Vec<(String, String)> {
+    match provider_kind {
+        ProviderKind::Anthropic => vec![
+            ("content-type".to_string(), "application/json".to_string()),
+            ("x-api-key".to_string(), api_key.to_string()),
+            ("anthropic-version".to_string(), "2023-06-01".to_string()),
+        ],
+        ProviderKind::OpenaiCompatible => vec![
+            ("content-type".to_string(), "application/json".to_string()),
+            ("authorization".to_string(), format!("Bearer {api_key}")),
+        ],
+    }
+}
+
 fn finish_turn(
     session: &Arc<Session>,
     turn_id: &str,
@@ -479,4 +493,27 @@ fn settle(
     let _ = session.inbox.settle(admitted.ticket, final_);
     // 终态命令推进会话 revision（TS 同语义：revision 随权威投影前移）。
     session.set_revision(session.revision().saturating_add(1));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn auth_headers_match_provider_shape() {
+        let openai = auth_headers(ProviderKind::OpenaiCompatible, "k");
+        assert!(openai
+            .iter()
+            .any(|(name, value)| name == "authorization" && value == "Bearer k"));
+        assert!(!openai.iter().any(|(name, _)| name == "x-api-key"));
+
+        let anthropic = auth_headers(ProviderKind::Anthropic, "k");
+        assert!(anthropic
+            .iter()
+            .any(|(name, value)| name == "x-api-key" && value == "k"));
+        assert!(anthropic
+            .iter()
+            .any(|(name, value)| name == "anthropic-version" && value == "2023-06-01"));
+        assert!(!anthropic.iter().any(|(name, _)| name == "authorization"));
+    }
 }
