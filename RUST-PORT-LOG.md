@@ -508,3 +508,65 @@ S1 islands（watch/scan/proc/image/diff 的 TS 实现）——但需要先把 si
    业务所有权），parity 测试后移动对应 TS 实现进 old.back（第一个真实删除）。
 2. TS 侧切缝：workspace flag spawn zcode-host（strangler 起点）。
 3. provider 凭据 → 关闭 live 语料 OPEN；继续工具扩容（web/skills/subagent）。
+
+---
+
+## ENTRY 008 — 2026-09-22 — live provider 打通：真实模型驱动真实工具执行
+
+> Authorship note：主会话直接执行。凭据由用户提供用于测试；按仓库规则
+> （凭据不得进日志/提交），本条目只记录脱敏事实，provider 配置文件只写在
+> repo 外临时目录、跑完即删。
+
+### 用户提供（脱敏记录）
+
+endpoint `https://ncnio.com/v1`（openai-compatible chat/completions + SSE
+streaming 均 200）；模型唯一许可 `opm/space-bunny-free`；Bearer 鉴权。
+本轮所有调用只用了该模型。
+
+### 触发的真实缺陷与修复（live 才抓得到）
+
+- B-20 **鉴权头形状错误**：host 对两种 provider 都发 `x-api-key`，而
+  openai-compatible 需要 `Authorization: Bearer <key>`（真实 endpoint 会 401）。
+  修复：`auth_headers(provider_kind, key)` 按形状选择，并加回归单测
+  （Bearer/x-api-key/anthropic-version 各断言存在与互斥）。脚本化 SSE double
+  抓不到这个 bug——它只看 body，不校验鉴权头。
+
+### Live 实测证据（真实进程 + 真实 endpoint + 真实文件系统）
+
+- **纯文本轮**：模型收到「说 hello 并指出 workspace 有 seed.txt」→ 自主调用
+  Glob 两次 → 回答 "Hello! The file is seed.txt."；assistant complete；usage
+  真实投影（inputTokens 2236 / outputTokens 9 / cacheReadTokens 2188）。
+- **工具轮**：模型调用 Read(seed.txt) + Write(live-proof.txt) → **文件真实落盘，
+  内容逐字节为 "proven by the native host"** → 终态文本
+  "Read seed.txt and created live-proof.txt with the exact requested content."；
+  turnHeader completedSuccess。
+- **行审计（权威）**：服务端 `rowsRange` 复核单轮：totalCount=4
+  （turnHeader/userInput/assistant/toolCall），assistant complete、
+  toolCall Write **success**、audit.txt 内容 "audit ok" 逐字节一致。
+  （第一轮临时 watcher 脚本报出的 "tool row 卡 running / 行数不符" 是 watcher
+  自身的计数缺陷，服务端计数证明 host 投影正确。）
+- **协议行为**：exit on stdin EOF True；resync 恢复一致；模型重复发起相同
+  Read+Write（交替不构成 3 连相同签名，与 TS 的 streak 语义一致，未误触防跑飞）。
+
+### 门禁（本会话实测）
+
+- `cargo fmt --all -- --check` 0；`clippy --workspace --all-targets
+  -D warnings` 0；`cargo test --workspace` **260 passed / 0 failed**
+  （= 259 + auth 回归单测 1）。
+- pnpm：golden 3/3、typecheck 0、lint 0 errors、fmt:check 0、arch 0、
+  freshness 新鲜。
+
+### OPEN 状态更新
+
+- **关闭**：openai-compatible 形状的 live provider 路径（文本轮 + 工具轮 +
+  文件副作用 + usage 投影全链路）。spec/README 差异表同步更新。
+- **仍 OPEN**：anthropic 形状的 live 路径（无 endpoint 可测）；Linux/macOS
+  运行时；交互 GUI；以及 ENTRY 007 清单里的其余移植项。
+
+### Next
+
+1. **S1 接线**（首个真实 old.back 移动的前置）：TS 应用 spawn 五个 Rust
+   sidecar，parity 测试，然后移动 fileWatcherService.ts/fsWalker.ts/taskkill
+   call sites/jimp/jsdiff。
+2. TS 侧切缝：workspace flag spawn zcode-host。
+3. 工具扩容与 MCP/subagent 移植。
