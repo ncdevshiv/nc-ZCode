@@ -106,9 +106,9 @@ Rules:
   restart → resume). Explicitly **OPEN** (not simulated): tool execution beyond
   the six-tool core, MCP, subagents, context building beyond AGENTS.md
   discovery, compaction (LLM summarization), sqlite single-writer storage
-  (JSONL transcript only in this increment), the anthropic live-provider path
-  (the openai-compatible live path was verified 2026-09-22 — RUST-PORT-LOG
-  ENTRY 008), Linux runtime, interactive GUI.
+  (JSONL transcript only in this increment), the runner-debug live golden-request
+  corpus, `generateText` parity, Linux runtime, interactive GUI. The live
+  provider path is verified for both wire shapes (RUST-PORT-LOG ENTRY 008/009).
 - **S4**: `zcode-shell` compiles (`cargo check`/`cargo build` verified) and maps an
   `IPlatformService`-shaped command surface; interactive window verification and the
   R4 BrowserView design gate remain **open** (product decision, per roadmap §7).

@@ -193,6 +193,20 @@ fn input_accepted_result(command_id: &str) -> Value {
     })
 }
 
+/// 生效鉴权样式（配置加载时已校验；这里是纵深防御：坏样式退回 kind 原生并告警）。
+fn resolved_auth_style(config: &ProviderConfig, provider_kind: ProviderKind) -> &'static str {
+    match config.auth_style() {
+        Ok(style) => style,
+        Err(error) => {
+            eprintln!("[zcode-host] invalid authStyle ({error}); using provider default");
+            match provider_kind {
+                ProviderKind::Anthropic => crate::provider_config::AUTH_STYLE_X_API_KEY,
+                ProviderKind::OpenaiCompatible => crate::provider_config::AUTH_STYLE_BEARER,
+            }
+        }
+    }
+}
+
 /// 多回合循环：模型回合 → 工具回合 → 模型回合……直到无工具调用或 typed fault。
 #[allow(clippy::too_many_arguments)]
 async fn run_agent_loop(
@@ -355,7 +369,7 @@ async fn run_model_roundtrip(
         messages: history,
         tools,
         max_tokens: config.max_tokens,
-        stream: true,
+        stream: config.stream,
     };
     let body = match provider_kind {
         ProviderKind::Anthropic => build_anthropic_messages_body(&options),
@@ -367,9 +381,9 @@ async fn run_model_roundtrip(
 
     let transport_request = TransportRequest {
         url: config.endpoint_url(),
-        // 鉴权头按 provider 形状选择（与 TS 侧一致）：anthropic 用 x-api-key +
-        // anthropic-version；openai-compatible 用 Authorization: Bearer。
-        headers: auth_headers(provider_kind, &config.api_key),
+        // 鉴权头按 config 的 authStyle 选择（缺省 kind 原生：anthropic → x-api-key +
+        // anthropic-version，openai-compatible → Authorization: Bearer）。
+        headers: auth_headers(&config.api_key, resolved_auth_style(config, provider_kind)),
         body: body_json,
     };
     let stream_request = StreamRequest {
@@ -430,18 +444,19 @@ pub fn cumulative_usage(usage: &ModelUsage) -> Value {
     })
 }
 
-/// 出站鉴权头：openai-compatible 要 Bearer，anthropic 要 x-api-key +
-/// anthropic-version（live endpoint 实测抓出的形状错误，回归锁在此）。
-pub fn auth_headers(provider_kind: ProviderKind, api_key: &str) -> Vec<(String, String)> {
-    match provider_kind {
-        ProviderKind::Anthropic => vec![
+/// 出站鉴权头：由 `authStyle` 决定（`bearer` → Authorization；否则 x-api-key +
+/// anthropic-version）。kind 原生缺省在 `ProviderConfig::auth_style` 里解析，
+/// 这里只认最终样式——live endpoint 实测抓出的形状错误，回归锁在此。
+pub fn auth_headers(api_key: &str, auth_style: &str) -> Vec<(String, String)> {
+    match auth_style {
+        crate::provider_config::AUTH_STYLE_BEARER => vec![
+            ("content-type".to_string(), "application/json".to_string()),
+            ("authorization".to_string(), format!("Bearer {api_key}")),
+        ],
+        _ => vec![
             ("content-type".to_string(), "application/json".to_string()),
             ("x-api-key".to_string(), api_key.to_string()),
             ("anthropic-version".to_string(), "2023-06-01".to_string()),
-        ],
-        ProviderKind::OpenaiCompatible => vec![
-            ("content-type".to_string(), "application/json".to_string()),
-            ("authorization".to_string(), format!("Bearer {api_key}")),
         ],
     }
 }
@@ -501,13 +516,13 @@ mod tests {
 
     #[test]
     fn auth_headers_match_provider_shape() {
-        let openai = auth_headers(ProviderKind::OpenaiCompatible, "k");
+        let openai = auth_headers("k", crate::provider_config::AUTH_STYLE_BEARER);
         assert!(openai
             .iter()
             .any(|(name, value)| name == "authorization" && value == "Bearer k"));
         assert!(!openai.iter().any(|(name, _)| name == "x-api-key"));
 
-        let anthropic = auth_headers(ProviderKind::Anthropic, "k");
+        let anthropic = auth_headers("k", crate::provider_config::AUTH_STYLE_X_API_KEY);
         assert!(anthropic
             .iter()
             .any(|(name, value)| name == "x-api-key" && value == "k"));
@@ -515,5 +530,25 @@ mod tests {
             .iter()
             .any(|(name, value)| name == "anthropic-version" && value == "2023-06-01"));
         assert!(!anthropic.iter().any(|(name, _)| name == "authorization"));
+    }
+
+    #[test]
+    fn auth_style_override_beats_kind_default() {
+        let config = ProviderConfig {
+            kind: "anthropic".to_string(),
+            base_url: "https://gw.example/v1".to_string(),
+            api_key: "k".to_string(),
+            model: "m".to_string(),
+            max_tokens: 1024,
+            auth_style: Some("bearer".to_string()),
+            stream: true,
+        };
+        assert_eq!(config.auth_style().expect("style"), "bearer");
+        let headers = auth_headers(&config.api_key, config.auth_style().expect("style"));
+        assert!(headers.iter().any(|(name, _)| name == "authorization"));
+        // 缺省时 anthropic 用原生 x-api-key。
+        let mut native = config.clone();
+        native.auth_style = None;
+        assert_eq!(native.auth_style().expect("style"), "x-api-key");
     }
 }

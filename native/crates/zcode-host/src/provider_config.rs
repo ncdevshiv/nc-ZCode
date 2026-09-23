@@ -21,11 +21,27 @@ pub struct ProviderConfig {
     pub model: String,
     #[serde(default = "default_max_tokens")]
     pub max_tokens: u32,
+    /// 鉴权样式：`bearer`（Authorization: Bearer）| `x-api-key`（anthropic 原生）。
+    /// 缺省按 kind 的原生样式（anthropic → x-api-key；openai → bearer）。部分网关
+    /// 对两种形状都只认 Bearer——显式声明即可，不必改代码。
+    #[serde(default)]
+    pub auth_style: Option<String>,
+    /// 流式开关；缺省 true。部分 Provider/网关只提供非流式完整响应（或 stream 被
+    /// 网关翻译成别的形状），置 false 走完整响应路径（executor 合成等价 SSE）。
+    #[serde(default = "default_stream")]
+    pub stream: bool,
 }
 
 fn default_max_tokens() -> u32 {
     4096
 }
+
+fn default_stream() -> bool {
+    true
+}
+
+pub const AUTH_STYLE_BEARER: &str = "bearer";
+pub const AUTH_STYLE_X_API_KEY: &str = "x-api-key";
 
 #[derive(Debug)]
 pub enum ProviderConfigError {
@@ -79,6 +95,21 @@ impl ProviderConfig {
         }
     }
 
+    /// 生效鉴权样式：显式 `authStyle` 优先，否则按 kind 原生默认。
+    pub fn auth_style(&self) -> Result<&'static str, ProviderConfigError> {
+        match self.auth_style.as_deref() {
+            Some(AUTH_STYLE_BEARER) => Ok(AUTH_STYLE_BEARER),
+            Some(AUTH_STYLE_X_API_KEY) => Ok(AUTH_STYLE_X_API_KEY),
+            Some(other) => Err(ProviderConfigError::UnsupportedKind(format!(
+                "authStyle: {other}"
+            ))),
+            None => match self.provider_kind()? {
+                ProviderKind::Anthropic => Ok(AUTH_STYLE_X_API_KEY),
+                ProviderKind::OpenaiCompatible => Ok(AUTH_STYLE_BEARER),
+            },
+        }
+    }
+
     /// 出站 URL：anthropic 用 `<base>/messages`，openai-compatible 用
     /// `<base>/chat/completions`（对齐 TS 两个 api.type 的路径约定；base 已含
     /// `/v1` 等版本段时由配置方负责）。
@@ -102,6 +133,8 @@ mod tests {
             api_key: "key".to_string(),
             model: "m-1".to_string(),
             max_tokens: 1024,
+            auth_style: None,
+            stream: true,
         }
     }
 

@@ -11,6 +11,7 @@ pub mod assemble;
 pub mod business;
 pub mod business_finish;
 pub mod classify;
+pub mod complete_body;
 pub mod executor;
 pub mod frame_pipeline;
 pub mod http_transport;

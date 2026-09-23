@@ -287,7 +287,15 @@ async fn run_attempt<T: ProviderTransport, C: AttemptClock>(
                 return Err(pipeline.business_attempt_failure(business, parsed_value));
             }
         }
-        pipeline.feed(&body, visible)?;
+        // body 是完整响应（anthropic message / openai chat.completion）时，合成与
+        // 真实流式协议逐事件同构的 SSE 再喂管道——非流式 Provider 与网关也能跑同一条
+        // 解析/拼装/usage 路径（complete_body.rs）。
+        let synthesized =
+            crate::complete_body::synthesize_sse_from_complete_body(request.provider_kind, &body);
+        match synthesized {
+            Some(sse) => pipeline.feed(sse.as_bytes(), visible)?,
+            None => pipeline.feed(&body, visible)?,
+        }
     }
 
     // 自然 EOF：残帧 + provider flush（openai 闭合活动块并产 Finish；anthropic 防重复守卫）。

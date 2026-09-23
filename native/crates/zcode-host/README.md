@@ -58,12 +58,16 @@ AGENTS.md/CLAUDE.md 发现 + 环境事实）；机械 microcompact（阈值 120k
    resync 用全量 recovery snapshot。
 8. `renameSession`/`deleteSession` 直接生效（无 turn 副作用的会话级控制）。
 9. compact 只有机械 microcompact；LLM 摘要压缩（autoCompact）未实现（OPEN）。
-10. live provider 语料：**openai-compatible 形状已于 2026-09-22 对真实测试
-    endpoint 验证通过**（文本轮 + 工具轮：模型自主调用 Glob/Read/Write，文件真实
-    落盘，usage 真实投影，见 RUST-PORT-LOG ENTRY 008）；**anthropic 形状的 live
-    路径仍未验证**（无 endpoint）；测试用凭据由用户提供，只进临时目录、不随代码
-    提交（repo 规则：凭据不得进日志/提交）。
-11. full-access 是启动参数 `--full-access`（host 级），非 per-session grant。
+10. live provider：**两种 wire 形状均已对真实 endpoint 实测通过**
+    （2026-09-22）：openai-compatible（stream + tools，ENTRY 008）与
+    anthropic（`/v1/messages` + Bearer + 非流式 + tool_use，ENTRY 009）。
+    测试用凭据由用户提供，只进临时目录、不随代码提交（repo 规则：凭据不得进
+    日志/提交）。仍 OPEN：runner-debug 录制的 live golden-request 语料、
+    `generateText`  parity、Linux/macOS 运行时。
+11. `ProviderConfig` 的 `authStyle`/`stream` 覆盖：网关鉴权样式与流式能力因
+    网关而异（该网关对两种形状都只认 Bearer，且 stream 请求被翻译成 OpenAI
+    chunk 形状），配置显式声明即可，不必改代码。
+12. full-access 是启动参数 `--full-access`（host 级），非 per-session grant。
 
 ## 验证
 
