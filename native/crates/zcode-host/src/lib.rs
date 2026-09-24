@@ -16,6 +16,7 @@ pub mod frame;
 pub mod nc_tools;
 pub mod profile;
 pub mod provider_config;
+pub mod reconciliation;
 pub mod rows;
 pub mod rpc;
 pub mod session;

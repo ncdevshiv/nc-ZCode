@@ -44,6 +44,10 @@ pub fn assemble_context(workspace_root: &Path) -> ContextFacts {
     let instruction_files = discover_instruction_files(workspace_root);
     let mut system_blocks = vec![SYSTEM_PROMPT.to_string()];
 
+    // 工具面路由指引：zcode 原生工具与 nc-tools 家族并存时，明确每类该用哪个
+    // （裁定见 reconciliation.rs / RUST-PORT-LOG ENTRY 016）。
+    system_blocks.push(crate::reconciliation::overlap_routing_hint().to_string());
+
     if !instruction_files.is_empty() {
         system_blocks.push(format!(
             "Workspace instruction files present: {}. Read them with the Read tool before acting; \
