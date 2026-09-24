@@ -1142,3 +1142,38 @@ native 302 tests / fmt 0 / clippy 0；root 全绿（lint 70 基线）。
 1. MCP 客户端接入 host（工具面动态扩展）。
 2. compact 语义（LLM 摘要压缩，当前只有机械 microcompact）。
 3. proc island soak 后翻默认开；old.back 首个移动待调用点语义收敛。
+
+---
+
+## ENTRY 021 — 2026-09-22 — LLM 摘要压缩（compaction）落地
+
+> Authorship note：主会话直接执行。
+
+### 交付物
+
+- `compact.rs`：逐条移植 TS `core/src/compact/prompt.ts` 的**九节结构化摘要提示**
+  + no-tools 前言/尾注；摘要请求**不带工具**（工具调用会白白消耗唯一一轮——TS
+  同纪律）。
+- turn 循环里两级压缩：① 机械 microcompact（无需模型）→ ② 历史超阈值（>24 条）
+  时用**同一模型**摘要旧历史，保留最近 4 条尾部。
+- **压缩不静默**：摘要失败（模型错/取消/空摘要）→ 保留原历史继续本轮——宁可带长
+  历史，也不悄悄丢上下文。
+- 提示词保留 TS 的两条安全硬要求：安全约束与用户消息**必须逐字保留**（压缩不能
+  让安全规则失效）——单测直接断言这两句在提示词里。
+
+### 验证
+
+- 5 个单测：提示词含 TEXT ONLY / 两条安全硬要求 / 九节齐全 / 短历史不调模型
+  （provider 指向不可达端口也不报错——证明短路生效）。
+- **live**：30 条历史过真实 provider，**44 秒**完成，断言历史变短、首条是
+  summary、尾部（message 29）存活。
+
+### 门禁
+
+native 306 tests / fmt 0 / clippy 0；root 全绿（lint 70 基线）。
+
+### Next
+
+1. MCP 客户端接入 host（工具面动态扩展）。
+2. sqlite 存储替换 JSONL transcript。
+3. proc island soak 后翻默认开；old.back 首个移动待调用点语义收敛。
