@@ -24,6 +24,7 @@ pub mod fs_tools;
 pub mod list_models;
 pub mod read_image;
 pub mod search_tools;
+pub mod skill;
 pub mod todo;
 pub mod webfetch;
 
@@ -153,6 +154,7 @@ impl ToolRegistry {
             Arc::new(list_models::ListModelsTool),
         );
         tools.insert("ReadImage".to_string(), Arc::new(read_image::ReadImageTool));
+        tools.insert("Skill".to_string(), Arc::new(skill::SkillTool));
         Self { tools }
     }
 
