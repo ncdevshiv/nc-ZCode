@@ -14,6 +14,7 @@
 
 pub mod compact;
 pub mod frame;
+pub mod mcp;
 pub mod memory;
 pub mod nc_tools;
 pub mod profile;
