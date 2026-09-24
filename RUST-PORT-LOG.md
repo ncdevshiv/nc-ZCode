@@ -1177,3 +1177,42 @@ native 306 tests / fmt 0 / clippy 0；root 全绿（lint 70 基线）。
 1. MCP 客户端接入 host（工具面动态扩展）。
 2. sqlite 存储替换 JSONL transcript。
 3. proc island soak 后翻默认开；old.back 首个移动待调用点语义收敛。
+
+---
+
+## ENTRY 022 — 2026-09-22 — SQLite 存储移植 + 跨语言 parity
+
+> Authorship note：主会话直接执行。
+
+### 交付物
+
+- `storage.rs`：**逐字移植** TS `tasksDatabase/schema-v1.ts` 的 DDL
+  （`tasks` / `task_groups` / `task_group_members` / `task_group_view_node_orders` /
+  `task_group_workspace_bootstraps` / `automations` / `automation_runs` + 全部索引），
+  同表名、同列、同默认值——这是**单写者迁移期共存**的兼容底线：Rust 写的库要能被
+  TS 读到，反之亦然。WAL + busy_timeout（对齐「写者串行」架构决策）。
+- 基础读写：TaskRow insert/upsert、workspace 作用域列表、软归档、deleted 过滤。
+- `storage_probe` 二进制：测试辅助入口（不是产品路径），用 Rust storage 建库+写种子。
+
+### 验证（跨语言，非同语言自洽）
+
+`storage_crosslang.test.ts`：Rust 建库写入 → **node:sqlite 打开同一个文件** →
+验表齐全、验数据（task-new 在前）、验 schema 默认值（mode=build / meta_json={} /
+archived=0 / deleted=0）；再用 TS 插入一行，Rust 侧期望成立。**1/1 通过**。
+另 5 个 Rust 单测：建表、upsert、workspace 作用域 + updated_at 倒序、软归档不删行、
+deleted 行不可见。
+
+### 记录（本 increment 边界）
+
+- TS 侧那些**派生查询**（provider 选择、官方 GLM 选择等）仍在 TS，读同一份库。
+- host 自己的会话 transcript 仍是 JSONL（下一轮替换为 sqlite）。
+
+### 门禁
+
+native 311 tests（含跨语言） / fmt 0 / clippy 0；sidecar tsc/oxlint 0；root 全绿。
+
+### Next
+
+1. transcript JSONL → sqlite（host 会话存储替换）。
+2. MCP 客户端接入 host。
+3. proc island soak 后翻默认开；old.back 首个移动待调用点语义收敛。
