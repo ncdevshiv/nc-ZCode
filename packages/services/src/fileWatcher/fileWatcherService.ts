@@ -1,5 +1,6 @@
 import { watch, type FSWatcher } from "node:fs";
 import { resolve } from "node:path";
+import { createNativeFileWatcher, type NativeWatchHandle } from "@zcode/sidecar";
 import { Emitter, Event, type Event as RpcEvent } from "@zcode/rpc";
 import type { FileWatchEvent } from "@zcode/shared";
 import { createServiceLogger, type ServiceLogger } from "#src/logger/serviceLogger.js";
@@ -11,7 +12,8 @@ const DEBOUNCE_MS = 150;
 
 interface WatcherInstance {
   path: string;
-  watcher: FSWatcher;
+  watcher: FSWatcher | null;
+  native?: NativeWatchHandle;
   changeEmitter: Emitter<FileWatchEvent>;
   /** 防抖定时器 */
   debounceTimer: ReturnType<typeof setTimeout> | null;
@@ -47,7 +49,8 @@ export function createFileWatcherService(options?: {
     const w = watchers.get(id);
     if (!w) return;
     if (w.debounceTimer) clearTimeout(w.debounceTimer);
-    w.watcher.close();
+    if (w.watcher) w.watcher.close();
+    if (w.native) void w.native.unwatch();
     w.changeEmitter.dispose();
     watchers.delete(id);
   }
@@ -57,6 +60,27 @@ export function createFileWatcherService(options?: {
       const id = String(nextId++);
       const changeEmitter = new Emitter<FileWatchEvent>();
       const recursive = params.recursive ?? false;
+
+      // Rust sidecar 路径（flag 开 + 可用）：fs_event 已在 facade 内按本文件的
+      // 防抖语义聚合，这里只负责把事件转成本 service 的 emitter。
+      const native = await createNativeFileWatcher(id, params.path, recursive);
+      if (native) {
+        const instance: WatcherInstance = {
+          path: params.path,
+          watcher: null,
+          native,
+          changeEmitter,
+          debounceTimer: null,
+          pendingChangedPaths: new Set(),
+          hasUnknownChangedPath: false,
+        };
+        watchers.set(id, instance);
+        native.onEvent((event) => {
+          const current = watchers.get(id);
+          if (current) current.changeEmitter.fire(event);
+        });
+        return { id };
+      }
 
       let fsWatcher: FSWatcher;
       try {

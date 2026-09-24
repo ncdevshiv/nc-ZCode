@@ -2,8 +2,9 @@
 //!
 //! 开关：环境变量 `ZCODE_NATIVE_SIDECARS`（逗号分隔 island 名，或 `all`）**可选**
 //! 覆盖默认；`ZCODE_NATIVE_SIDECARS_OFF=1` 是整体 kill switch。
-//! 默认开启的 island：`diff`（parity 88/88、发布包已随带；spec cutover 章节
-//! 登记）。其余 island 默认关（接线与逐条差异核对未完成）。
+//! 默认开启的 island：`diff`（byte-parity 88/88）、`image`（语义 parity，
+//! 用户 2026-09-22 决定翻转；尺寸/格式语义一致，字节级差异记录在 crate README）。
+//! 其余 island 默认关（接线或逐条差异核对未完成）。
 //! 语义：
 //!   `ZCODE_NATIVE_SIDECARS_OFF=1` → 全部关（排障退回 TS 路径）；
 //!   未设置 → 默认集合（diff 开，其余关）；
@@ -27,7 +28,7 @@ const DISABLE_ENV = "ZCODE_NATIVE_SIDECARS_OFF";
 const BIN_DIR_ENV = "ZCODE_SIDECAR_DIR";
 
 /** 默认开启的 island（parity 已绿、发布包已随带；见 spec cutover 章节）。 */
-const DEFAULT_ON_ISLANDS: readonly string[] = ["diff"];
+const DEFAULT_ON_ISLANDS: readonly string[] = ["diff", "image"];
 
 function readFlag(): string {
   return process.env[FLAG_ENV]?.trim() ?? "";

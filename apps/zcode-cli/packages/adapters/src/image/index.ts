@@ -1,5 +1,9 @@
 import { Jimp, ResizeStrategy } from "jimp";
 import {
+  tryNativeResizeToFit,
+  type ImageOutputFormat,
+} from "@zcode/sidecar";
+import {
   type ImagePrepareForModelRequest,
   type ImagePrepareForModelResult,
   type ImageProcessorPort,
@@ -29,6 +33,21 @@ class JimpImageProcessorAdapter implements ImageProcessorPort {
         data: input,
         mediaType: request.mediaType,
         resized: false,
+      };
+    }
+
+    // Rust zcode-image 路径（flag 开 + 可用）：尺寸/格式语义与 jimp 一致，
+    // parity 为语义级（README 差异表）——真实字节在 test/image_parity.test.ts 断言。
+    // 不可用或未超限时 facade 返回 null，走下面的 jimp 原路径。
+    const native = await tryNativeResizeToFit(input, request.mediaType, request.maxDimension);
+    if (native) {
+      throwIfAborted(options.signal);
+      return {
+        data: native.data,
+        mediaType: native.mime,
+        width: native.width,
+        height: native.height,
+        resized: true,
       };
     }
 

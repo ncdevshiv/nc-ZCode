@@ -153,6 +153,7 @@ built), and preserves each moved module's original path under it so parity
 diffs and rollbacks stay one `git mv` away.
 
 ### Stage status (2026-09-22)
+
 - **Stage 1 (agent host + loop): landed.** `zcode-host` runs the multi-round
   agent loop with the six-tool core set; both provider wire shapes live-verified.
 - **Stage 3 first island (diff): wired, flag-gated.** TS package

@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { tryNativeTerminateProcessTree } from "@zcode/sidecar";
 import type { ExecFileOptionsWithStringEncoding } from "node:child_process";
 
 const PROCESS_LOOKUP_TIMEOUT_MS = 1_000;
@@ -34,6 +35,15 @@ export async function terminateMcpStdioProcessTree(
   pid: number,
   options: McpStdioProcessTreeTerminatorOptions = {},
 ): Promise<void> {
+  // Rust sidecar（Job Objects / Toolhelp + 权威存活探针）。flag 开且 sidecar 可用
+  // → 走 `kill_tree`（契约：根已死即空结果 no-op，与下方 TS 实现的存活守卫同）；
+  // 不可用 → 告警并继续用 TS 实现。可注入 execFile/kill/now/sleep/platform 的
+  // 测试路径跳过 sidecar（options 一旦被注入就是显式的确定性测试）。
+  if (!options.execFile && !options.kill && !options.now && !options.sleep) {
+    if (await tryNativeTerminateProcessTree(pid)) {
+      return;
+    }
+  }
   const platform = getPlatform(options);
   if (platform === "win32") {
     await terminateWindowsProcessTree(pid, options);

@@ -160,6 +160,9 @@ importers:
       '@zcode/shared':
         specifier: workspace:*
         version: link:../../../../packages/shared
+      '@zcode/sidecar':
+        specifier: workspace:*
+        version: link:../sidecar
       '@zcode/zcode-cua':
         specifier: workspace:*
         version: link:../../../../packages/zcode-cua
@@ -517,6 +520,9 @@ importers:
       diff:
         specifier: ^9.0.0
         version: 9.0.0
+      jimp:
+        specifier: ^1.6.0
+        version: 1.6.1
 
   apps/zcode-cli/packages/swift-bridge:
     dependencies:
@@ -968,6 +974,9 @@ importers:
       '@zcode/shared':
         specifier: workspace:*
         version: link:../shared
+      '@zcode/sidecar':
+        specifier: workspace:*
+        version: link:../../apps/zcode-cli/packages/sidecar
       '@zcode/zcode-cua':
         specifier: workspace:*
         version: link:../zcode-cua

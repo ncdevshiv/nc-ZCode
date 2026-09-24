@@ -92,6 +92,10 @@ export class SidecarProcess {
     this.listeners.add(listener);
   }
 
+  offEvent(listener: SidecarEventListener): void {
+    this.listeners.delete(listener);
+  }
+
   isAlive(): boolean {
     return !this.dead && this.child.exitCode === null && this.child.signalCode === null;
   }

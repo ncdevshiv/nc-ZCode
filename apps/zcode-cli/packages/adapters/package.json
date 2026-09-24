@@ -108,6 +108,7 @@
     "@zcode/model-option-map": "workspace:*",
     "@zcode/provider": "workspace:*",
     "@zcode/shared": "workspace:*",
+    "@zcode/sidecar": "workspace:*",
     "@zcode/zcode-cua": "workspace:*",
     "ai": "6.0.193",
     "cheerio": "^1.0.0",

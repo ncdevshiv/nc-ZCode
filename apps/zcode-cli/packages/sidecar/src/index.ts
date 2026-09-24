@@ -18,6 +18,43 @@ export { SidecarProcess } from "./process.js";
 export { resolveSidecarBin, sidecarEnabled } from "./config.js";
 export { shutdownSidecars, sidecarPool } from "./pool.js";
 export {
+  PROC_SIDECAR,
+  nativeKillTree,
+  nativeListTree,
+  tryNativeTerminateProcessTree,
+  type KillTreeFailure,
+  type KillTreeResult,
+  type ProcessInfo,
+} from "./proc.js";
+export {
+  SCAN_SIDECAR,
+  nativeScanStorageRoot,
+  scanEnabled,
+  type NativeScanEntry,
+  type NativeScanError,
+  type NativeScanOptions,
+  type NativeScanResult,
+} from "./scan.js";
+export {
+  WATCH_SIDECAR,
+  createNativeFileWatcher,
+  shutdownNativeWatchers,
+  watchEnabled,
+  type FileWatchEvent,
+  type NativeWatchHandle,
+} from "./watch.js";
+export {
+  IMAGE_SIDECAR,
+  imageEnabled,
+  nativeImageInfo,
+  nativeTransformImage,
+  tryNativeResizeToFit,
+  type ImageInfo,
+  type ImageOutputFormat,
+  type ImageTransformOp,
+  type ImageTransformResult,
+} from "./image.js";
+export {
   DIFF_SIDECAR,
   DIFF_TIMEOUT_MS,
   nativeApplyPatch,

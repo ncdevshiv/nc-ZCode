@@ -5,6 +5,8 @@
  */
 import { lstat, opendir } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
+import { nativeScanStorageRoot, scanEnabled } from "@zcode/sidecar";
+import type { NativeScanResult } from "@zcode/sidecar";
 import type { StorageScanEntry } from "../domain/usageAggregate.js";
 import type { StoragePathError } from "@zcode/shared";
 
@@ -40,9 +42,48 @@ function toRelative(rootPath: string, absolutePath: string): string {
   return relative(rootPath, absolutePath).split(sep).join("/");
 }
 
+/**
+ * Rust sidecar 扫描：成功返回结果；sidecar 不可用返回 null（调用方继续走 TS
+ * 遍历）。条目/错误按事件到达序回流，语义与 onEntry/onError 回调一致。
+ */
+async function tryNativeScan(
+  options: WalkStorageRootOptions,
+): Promise<WalkStorageRootResult | null> {
+  let result: NativeScanResult;
+  try {
+    result = await nativeScanStorageRoot(options.rootPath, {
+      recursive: true,
+      followSymlinks: false,
+    });
+  } catch {
+    // SidecarUnavailableError 时 facade 已告警；其余错误同样不得让扫描失败。
+    return null;
+  }
+  for (const entry of result.entries as StorageScanEntry[]) {
+    options.onEntry(entry);
+  }
+  for (const error of result.errors as StoragePathError[]) {
+    options.onError?.(error);
+  }
+  return {
+    directoriesScanned: 0,
+    filesScanned: result.filesScanned,
+    missingRoot: result.missingRoot,
+  };
+}
+
 export async function walkStorageRoot(
   options: WalkStorageRootOptions,
 ): Promise<WalkStorageRootResult> {
+  // Rust sidecar（zcode-scan）路径：flag 开且 sidecar 可用时由 Rust 遍历，
+  // 本文件只做条目/错误回流。差异（顺序 = 串行、目录计数不提供）记录在
+  // native/crates/zcode-scan/README.md 与 RUST-PORT-LOG。
+  if (!options.signal) {
+    if (scanEnabled()) {
+      const native = await tryNativeScan(options);
+      if (native) return native;
+    }
+  }
   const { rootPath, onEntry, onError, signal } = options;
   const concurrency = Math.max(1, options.concurrency ?? 4);
   const yieldEvery = Math.max(1, options.yieldEvery ?? 256);
