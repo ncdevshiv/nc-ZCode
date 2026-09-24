@@ -1216,3 +1216,56 @@ native 311 tests（含跨语言） / fmt 0 / clippy 0；sidecar tsc/oxlint 0；r
 1. transcript JSONL → sqlite（host 会话存储替换）。
 2. MCP 客户端接入 host。
 3. proc island soak 后翻默认开；old.back 首个移动待调用点语义收敛。
+
+---
+
+## ENTRY 023 — 2026-09-22 — MCP 客户端（stdio 传输）接入 host
+
+> Authorship note：主会话直接执行。
+
+### 交付物
+
+- `mcp.rs`：MCP 客户端——spawn server 子进程 → JSON-RPC over stdio →
+  `initialize` → `tools/list` → `tools/call`。工具以 **`mcp__<server>__<tool>`**
+  暴露给模型（与 TS 侧命名一致，不与 nc-tools 点号名/zcode 工具重名）；描述与
+  input schema 来自 server 原样透传（模型据此正确调用）。
+- 隔离：每 server 一个子进程；`disconnect` 即杀子进程并从工具面移除（不留死工具）。
+- **传输面刻意收窄到 stdio**：http/sse 与 OAuth **未接线**（凭据面不同，README
+  差异表记录）。
+- **权限 fail-closed**：外部 MCP 工具一律按 needsApproval 处理，headless 无交互
+  客户端 → 除非 `--full-access` 否则拒绝（不解析 server 的 destructive 标注就
+  不假装理解它）。
+
+### 验证（真实 server 子进程，非 mock）
+
+`mcp_e2e.rs`：起一个**真实 node MCP server 子进程**（按协议应答，不是对象
+mock），全链路 initialize → list → call：
+- 发现 2 个工具；`mcp__test__echo` / `mcp__test__add` 命名正确；
+- 描述/schema 完整（`type:object`、`required:["text"]`）；
+- 真实调用：echo 回 `echo: hello native`，add 回 `5`；
+- 未注册工具 typed error（不静默）；
+- 4 线程并发调用结果正确（100..103）；
+- disconnect 后工具面清空。**2/2 通过**（0.06s）。
+
+### 本轮修掉的两个真实缺陷
+
+1. **server 子进程逃逸**：测试里 pool 断开后子进程仍持 stdout 管道 → 调用方
+   （cargo/shell）永远等不到测试结束（harness 超时）。修复：disconnect 杀子进程，
+   读线程在 EOF 后退出。
+2. `&tool.server != server` 的多余借用（clippy op_ref）——顺手改掉。
+
+### 门禁
+
+native **317 tests** / fmt 0 / clippy 0；root typecheck/fmt/lint(70 基线)/arch/
+freshness 全绿。
+
+### 记录（本 increment 边界）
+
+- http/sse 传输 + OAuth 凭据注入未接线。
+- MCP 工具的 destructive/annotation 语义未解析（统一按需授权处理）。
+
+### Next
+
+1. transcript JSONL → sqlite。
+2. MCP 工具并入 host 的 ToolRegistry（当前 McpPool 独立，需接到注册表/turn 循环）。
+3. proc island soak 后翻默认开；old.back 首个移动待调用点语义收敛。
