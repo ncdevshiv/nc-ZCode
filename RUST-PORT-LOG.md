@@ -988,3 +988,48 @@ freshness 全绿。
 1. 其余 island 差异核对与翻默认开（proc/scan/watch）。
 2. host 深度集成（context 装配、compact、MCP、sqlite）。
 3. soak + knip → 首个 `old.back` 文件级移动。
+
+---
+
+## ENTRY 017 — 2026-09-22 — 工具执行移出 async 线程 + scan/watch 翻默认开
+
+> Authorship note：主会话直接执行。
+
+### 审计发现的真实缺陷（已修）
+
+scan 的第 10 条差异（「让出事件循环」）在 host 侧命中了一个我们自己的问题：
+`execute_tool` 是**同步**调用，跑在 turn 的 async 运行时线程上。长工具（Bash 子
+进程、nc-tools 扫描、HTTP）会占住 runtime worker，**帧 ticker（10ms）停摆**，
+订阅者在工具执行期间收不到任何帧。
+修复：`execute_tool` 改 async，工具经 `spawn_blocking` 执行；串行语义由调用点
+（工具回合逐个 await）保证，不依赖线程归属。
+回归锁：`tests/tool_async_isolation.rs` 两个测试——慢工具（300ms）期间 ticker
+必须继续推进（≥5 tick）；两个并发慢工具期间高频异步计数器不得被饿死（≥190/200）。
+直接 if 工具跑在 async 线程上，这两个测试会红。
+
+### scan / watch 差异逐条核对 → 翻默认开
+
+- **scan**（10 条）：条目字段=TS `StorageScanEntry`（1）；进度事件化 vs 回调（2，
+  等价表达）；遍历顺序=TS concurrency=1 等价（3，**集合/计数/错误集不受并发
+  影响**）；missingRoot（4）；根为文件/不可读（5）；取消（6）；scanId 冲突 409（7，
+  扩展）；mtimeMs 整数（8，亚毫秒不可观测，截断已记录）；扩展参数（9）；**事件
+  循环让出（10）→ 由本轮 spawn_blocking 从 host 侧解决**。
+- **watch**（9）：事件粒度镜像（1）；防抖 150ms 镜像（2）；unwatch 未知 id（3，
+  两侧都成功）；watcher error 清理（4）；无忽略规则（5，**与 TS 一致**：不过滤
+  `.git`，Git 状态信号依赖它）；多根 paths（6，扩展）；路径解析（7）；错误文案
+  （8）；rename 事件（9，sidecar 更细，映射回 TS 的 dirPath 事件）。
+
+四个岛（diff/image/scan/watch）现默认开启；**proc 仍默认关**——它改变 MCP stdio
+子进程回收时机，影响面更大，等 soak。
+
+### 门禁
+
+native 295 tests / fmt 0 / clippy 0；sidecar 96 tests（89 diff parity + 5 image
+parity + 2 default_on，含 flag 语义随默认集合更新）；root typecheck/fmt/
+lint(70 基线)/arch/freshness 全绿。
+
+### Next
+
+1. proc island soak 后翻默认开。
+2. host 深度集成：context 装配、compact、MCP、sqlite 存储。
+3. soak + knip → 首个 `old.back` 文件级移动。
