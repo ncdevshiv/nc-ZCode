@@ -863,3 +863,41 @@ root 全绿（fmt/typecheck/lint 70 警告基线/arch/golden/freshness）；host
 1. host 工具面继续补齐（webfetch/skill/task…），逐个对齐 TS 契约。
 2. 其余 island 的差异核对与翻默认开。
 3. soak + knip → 首个 `old.back` 文件级移动。
+
+---
+
+## ENTRY 014 — 2026-09-22 — host 工具面扩容：WebFetch / Todo / ListModels / ReadImage / Skill
+
+> Authorship note：主会话直接执行。
+
+### 交付物（对齐 TS 契约的新增 Rust 工具）
+
+- **WebFetch**：HTTP(S) 抓取 + 严格 egress 守卫（拒绝非 http(s)、环回/私网/链路
+  local/云元数据/*.local 主机，重定向逐跳复检）。测试抓出真实漏洞：IPv6 字面量
+  经 url crate 带方括号（`[::1]`），原守卫会漏过——现剥括号再判定。
+- **TodoRead/TodoWrite**：TS 同契约（至多一项 in_progress、content trim + 非空 +
+  长度上限、status/priority 闭集），状态挂 Session。
+- **ListModels**：只报 provider 配置**静态已知**的模型（主模型在前去重）+ 思考
+  档位，标注 source=static-config；**绝不编造** OAuth/coding-plan/网关动态目录。
+- **ReadImage**：≤20 MiB 输入、webp 直通、base64 ≤5 MiB / 边长 ≤2000 预算
+  超限时进程内 Lanczos3 降采样；魔数判格式（直通不付解码成本）。
+- **Skill**：从 `.claude/skills` / `.agents/skills` 按名加载，**拒绝猜名**（未知名
+  列出可用项）、路径穿越拒绝、TS 100KB 上限。
+- **Read 对齐**：文件体积上限与 TS 一致（256 KiB，读取前拒绝而非截断）。
+
+### 门禁（本会话实测）
+
+- native：fmt/clippy 0；`cargo test --workspace` **282 passed / 0 failed**。
+- root：typecheck/fmt/lint(70 警告基线)/arch/golden/freshness 全绿；cargo notices 重建。
+
+### 明确 defer（记录原因，不硬凑）
+
+- **WebSearch**：provider-native（走模型 executor 的 server tool 通路），非独立
+  工具——需要 executor 支持，属更深一层集成。
+- **PlanMode**：运行时模式切换 + 已批准计划文件落盘，耦合 runtime/permission 层。
+- **Agent/subagent、workflow 家族、node-repl、Cron、Escalate、ReadPdf/ReadVideo**：
+  下一批。
+
+### Next
+
+继续按序补齐 host 工具面与 runtime 深度集成；island 默认开；old.back 首个移动。
