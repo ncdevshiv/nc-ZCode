@@ -254,6 +254,7 @@ mod tests {
             turn_id: "turn".to_string(),
             read_state: Arc::new(Mutex::new(std::collections::HashSet::new())),
             cancel: Arc::new(AtomicBool::new(false)),
+            todos: crate::tools::todo::new_todo_store(),
         }
     }
 

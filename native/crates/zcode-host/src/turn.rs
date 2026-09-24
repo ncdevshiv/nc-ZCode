@@ -345,6 +345,7 @@ fn execute_tool(
         turn_id: turn_id.to_string(),
         read_state: Arc::clone(&session.read_state),
         cancel: Arc::clone(&session.cancel),
+        todos: Arc::clone(&session.todos),
     };
     deps.registry.authorize(tool.as_ref(), &call.input, &ctx)?;
     tool.execute(&call.input, &ctx)

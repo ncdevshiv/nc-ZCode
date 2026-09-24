@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { Emitter } from "@zcode/rpc";
 import {
@@ -350,6 +351,83 @@ async function buildZCodeAgentSpawnPreflight(
   };
 }
 
+/**
+ * Rust zcode-host 解析器（S3 cutover 的 TS 侧切缝）。
+ *
+ * 开关：`ZCODE_NATIVE_HOST`（`1`/`on`/`true` 开启；`off`/`0` 显式关闭；缺省关闭
+ * = TS Agent 路径，零行为变化）。**per-workspace**：resolver 的输入含
+ * workspacePath/workspaceIdentity，标记写进 env，随子进程进入 host，TS host 与
+ * Rust host 不会同时拥有同一 workspace（AGENTS.md 的 strangler 规则）。
+ *
+ * 找不到二进制 / flag 关 → 返回 null，调用方继续走 TS resolver 链。显式开启
+ * 但二进制缺失时抛错（试验不静默回退成 JS，与 bytecode 分支同纪律）。
+ */
+function resolveNativeZCodeHostCommand(
+  context: ZCodeAgentCommandResolverContext,
+): ZCodeAgentCommand | null {
+  const flag = process.env.ZCODE_NATIVE_HOST?.trim().toLowerCase();
+  const enabled = flag === "1" || flag === "on" || flag === "true";
+  const explicitlyOff = flag === "off" || flag === "0" || flag === "false";
+  if (!enabled || explicitlyOff) {
+    return null;
+  }
+  const binary = findNativeZCodeHostBinary();
+  if (!binary) {
+    throw new Error(
+      "ZCODE_NATIVE_HOST 已开启但未找到 zcode-host 二进制；请先运行 pnpm --dir packages/desktop prepare:native-host 或设置 ZCODE_NATIVE_HOST_BINARY",
+    );
+  }
+  const dataDir = join(
+    process.env.ZCODE_DATA_BASE_DIR?.trim() || join(homedir(), ".zcode"),
+    "native-host",
+  );
+  return {
+    command: binary,
+    args: ["--workspace", context.workspacePath, "--data-dir", dataDir],
+    cwd: context.workspacePath,
+    // workspaceIdentity 与 SWITCH 标记一并透传：Rust host 侧按 identity 隔离
+    // （zcode-core::identity_key），与 TS host 的身份语义一致。
+    env: {
+      ZCODE_NATIVE_HOST: "1",
+      ZCODE_WORKSPACE_IDENTITY: context.workspaceIdentity ?? "",
+    },
+  };
+}
+
+function findNativeZCodeHostBinary(): string | null {
+  const explicit = process.env.ZCODE_NATIVE_HOST_BINARY?.trim();
+  if (explicit && existsSync(explicit)) {
+    return explicit;
+  }
+  const suffix = process.platform === "win32" ? ".exe" : "";
+  // resourcesPath 只在 Electron 运行时存在（host 跑在 utility process 中）。
+  const resourcesPath =
+    typeof (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath === "string"
+      ? (process as NodeJS.Process & { resourcesPath: string }).resourcesPath
+      : undefined;
+  const candidates = [
+    ...(process.env.ZCODE_SIDECAR_DIR
+      ? [join(process.env.ZCODE_SIDECAR_DIR, `zcode-host${suffix}`)]
+      : []),
+    resourcesPath ? join(resourcesPath, "tools", "native-host", `zcode-host${suffix}`) : null,
+    findUpward(`packages/desktop/bundled-tools/native-host/zcode-host${suffix}`),
+    findUpward(
+      `packages/desktop/bundled-tools/${platformArchKey()}/native-host/zcode-host${suffix}`,
+    ),
+    findUpward(`native/target/release/zcode-host${suffix}`),
+    findUpward(`native/target/debug/zcode-host${suffix}`),
+  ];
+  return (
+    candidates.find(
+      (candidate): candidate is string => typeof candidate === "string" && existsSync(candidate),
+    ) ?? null
+  );
+}
+
+function platformArchKey(): string {
+  return `${process.platform}-${process.arch}`;
+}
+
 function resolveBundledWorkspaceZCodeAgentCommand(
   context: ZCodeAgentCommandResolverContext,
 ): ZCodeAgentCommand | null {
@@ -438,6 +516,12 @@ function resolveElectronRuntimeZCodeAgentCommand(
 export function resolveDefaultZCodeAgentCommand(
   context: ZCodeAgentCommandResolverContext,
 ): ZCodeAgentCommand | null {
+  // 顺序：native host 开关（per-workspace strangler 切缝）→ env 显式覆盖 →
+  // monorepo dev 源码/dist → 桌面打包态 Electron Node runtime → 已部署 native binary。
+  const nativeHost = resolveNativeZCodeHostCommand(context);
+  if (nativeHost) {
+    return applyPresentationSurfaceToCommand(nativeHost, context.presentationSurface);
+  }
   const command = process.env.ZCODE_AGENT_SERVER_COMMAND?.trim();
   if (command) {
     return applyPresentationSurfaceToCommand(

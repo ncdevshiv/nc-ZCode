@@ -88,6 +88,8 @@ pub struct Session {
     pub inbox: SharedCommandInbox<SessionHost>,
     /// read-before-edit 状态：会话级（跨 turn 保持），工具层读写它。
     pub read_state: Arc<Mutex<HashSet<PathBuf>>>,
+    /// 会话级 todo 列表（工具与 runtime 共用同一实例；随 meta 持久化后可恢复）。
+    pub todos: crate::tools::todo::TodoStore,
     store: TranscriptStore,
     usage: Mutex<Value>,
 }
@@ -137,6 +139,7 @@ impl Session {
             subscribers: Mutex::new(Vec::new()),
             inbox: SharedCommandInbox::new(CommandInbox::new(host)),
             read_state: Arc::new(Mutex::new(HashSet::new())),
+            todos: crate::tools::todo::new_todo_store(),
             store: init.store,
             usage: Mutex::new(snapshot::empty_usage()),
         })

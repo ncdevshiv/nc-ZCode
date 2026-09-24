@@ -22,6 +22,7 @@ use zcode_provider::request::ToolDefinition;
 pub mod bash;
 pub mod fs_tools;
 pub mod search_tools;
+pub mod todo;
 
 /// sideEffectScope 闭集（TS `ModelToolSideEffectScope`）。
 pub const SCOPE_NONE: &str = "none";
@@ -47,7 +48,7 @@ impl ToolContract {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolErrorCode {
     InvalidInput,
     PermissionDenied,
@@ -105,6 +106,8 @@ pub struct ToolContext {
     /// read-before-edit 状态：Read 成功即登记，Edit 强制先读（对齐 TS readFileState）。
     pub read_state: Arc<Mutex<HashSet<PathBuf>>>,
     pub cancel: Arc<AtomicBool>,
+    /// 会话级状态（当前只有 todo 列表）；Session 持有同一实例，工具写入即会话可见。
+    pub todos: todo::TodoStore,
 }
 
 impl ToolContext {
@@ -137,6 +140,8 @@ impl ToolRegistry {
         tools.insert("Edit".to_string(), Arc::new(fs_tools::EditTool));
         tools.insert("Glob".to_string(), Arc::new(search_tools::GlobTool));
         tools.insert("Grep".to_string(), Arc::new(search_tools::GrepTool));
+        tools.insert("TodoWrite".to_string(), Arc::new(todo::TodoWriteTool));
+        tools.insert("TodoRead".to_string(), Arc::new(todo::TodoReadTool));
         Self { tools }
     }
 
@@ -269,6 +274,7 @@ mod tests {
             turn_id: "turn".to_string(),
             read_state: Arc::new(Mutex::new(HashSet::new())),
             cancel: Arc::new(AtomicBool::new(false)),
+            todos: crate::tools::todo::new_todo_store(),
         }
     }
 
