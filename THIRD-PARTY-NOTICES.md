@@ -42146,6 +42146,8 @@ the MIT License, and the original licenses of the third-party works.
 
 - async-channel@2.5.0: third-party/native-cargo/licenses/async-channel-2.5.0/LICENSE-APACHE
 
+- async-compression@0.4.46: third-party/native-cargo/licenses/async-compression-0.4.46/LICENSE-APACHE
+
 - async-executor@1.14.0: third-party/native-cargo/licenses/async-executor-1.14.0/LICENSE-APACHE
 
 - async-io@2.6.0: third-party/native-cargo/licenses/async-io-2.6.0/LICENSE-APACHE
@@ -42183,6 +42185,10 @@ the MIT License, and the original licenses of the third-party works.
 - cc@1.4.7: third-party/native-cargo/licenses/cc-1.4.7/LICENSE-APACHE
 
 - cfg-if@1.0.5: third-party/native-cargo/licenses/cfg-if-1.0.5/LICENSE-APACHE
+
+- compression-codecs@0.4.41: third-party/native-cargo/licenses/compression-codecs-0.4.41/LICENSE-APACHE
+
+- compression-core@0.4.33: third-party/native-cargo/licenses/compression-core-0.4.33/LICENSE-APACHE
 
 - concurrent-queue@2.5.0: third-party/native-cargo/licenses/concurrent-queue-2.5.0/LICENSE-APACHE
 
@@ -45802,6 +45808,41 @@ END OF TERMS AND CONDITIONS
 The MIT License (MIT)
 
 Copyright (c) 2020 Yoshua Wuyts
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+````
+
+### Notice 88d1e3160df48926ad3310a8ec5699b502889565908f1be7e77cd21282c7a709
+
+- async-compression@0.4.46: third-party/native-cargo/licenses/async-compression-0.4.46/LICENSE-MIT
+
+- compression-codecs@0.4.41: third-party/native-cargo/licenses/compression-codecs-0.4.41/LICENSE-MIT
+
+- compression-core@0.4.33: third-party/native-cargo/licenses/compression-core-0.4.33/LICENSE-MIT
+
+
+
+````text
+The MIT License (MIT)
+
+Copyright (c) 2018 the rustasync developers
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -63389,6 +63430,77 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ````
 
+### Notice e271993808fec50ab29350b39539cdec611a9103f827e0aa26d61da70e2d33f8
+
+- webpki-roots@1.0.9: third-party/native-cargo/licenses/webpki-roots-1.0.9/LICENSE
+
+
+
+````text
+# Community Data License Agreement - Permissive - Version 2.0
+
+This is the Community Data License Agreement - Permissive, Version
+2.0 (the "agreement"). Data Provider(s) and Data Recipient(s) agree
+as follows:
+
+## 1. Provision of the Data
+
+1.1. A Data Recipient may use, modify, and share the Data made
+available by Data Provider(s) under this agreement if that Data
+Recipient follows the terms of this agreement.
+
+1.2. This agreement does not impose any restriction on a Data
+Recipient's use, modification, or sharing of any portions of the
+Data that are in the public domain or that may be used, modified,
+or shared under any other legal exception or limitation.
+
+## 2. Conditions for Sharing Data
+
+2.1. A Data Recipient may share Data, with or without modifications, so
+long as the Data Recipient makes available the text of this agreement
+with the shared Data.
+
+## 3. No Restrictions on Results
+
+3.1. This agreement does not impose any restriction or obligations
+with respect to the use, modification, or sharing of Results.
+
+## 4. No Warranty; Limitation of Liability
+
+4.1. All Data Recipients receive the Data subject to the following
+terms:
+
+THE DATA IS PROVIDED ON AN "AS IS" BASIS, WITHOUT REPRESENTATIONS,
+WARRANTIES OR CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED
+INCLUDING, WITHOUT LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE,
+NON-INFRINGEMENT, MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+NO DATA PROVIDER SHALL HAVE ANY LIABILITY FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING
+WITHOUT LIMITATION LOST PROFITS), HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE DATA OR RESULTS,
+EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+## 5. Definitions
+
+5.1. "Data" means the material received by a Data Recipient under
+this agreement.
+
+5.2. "Data Provider" means any person who is the source of Data
+provided under this agreement and in reliance on a Data Recipient's
+agreement to its terms.
+
+5.3. "Data Recipient" means any person who receives Data directly
+or indirectly from a Data Provider and agrees to the terms of this
+agreement.
+
+5.4. "Results" means any outcome obtained by computational analysis
+of Data, including for example machine learning models and models'
+insights.
+
+````
+
 ### Notice 573f5227db835cd30bbdd3aed3f82615f80119a4d5c82b4daf642dbfe2b6afde
 
 - weezl@0.1.12: third-party/native-cargo/licenses/weezl-0.1.12/LICENSE-MIT
@@ -70634,6 +70746,8 @@ Conservative union of the native/ Cargo.lock (dev/build/test crates included; no
 
 - async-channel@2.5.0 — Apache-2.0 OR MIT
 
+- async-compression@0.4.46 — MIT OR Apache-2.0
+
 - async-executor@1.14.0 — Apache-2.0 OR MIT
 
 - async-io@2.6.0 — Apache-2.0 OR MIT
@@ -70739,6 +70853,10 @@ Conservative union of the native/ Cargo.lock (dev/build/test crates included; no
 - colorchoice@1.0.5 — MIT OR Apache-2.0
 
 - combine@4.6.8 — MIT
+
+- compression-codecs@0.4.41 — MIT OR Apache-2.0
+
+- compression-core@0.4.33 — MIT OR Apache-2.0
 
 - concurrent-queue@2.5.0 — Apache-2.0 OR MIT
 
@@ -71565,6 +71683,8 @@ Conservative union of the native/ Cargo.lock (dev/build/test crates included; no
 - webkit2gtk@2.0.2 — MIT
 
 - webkit2gtk-sys@2.0.2 — MIT
+
+- webpki-roots@1.0.9 — CDLA-Permissive-2.0
 
 - webview2-com@0.38.2 — MIT; NO NOTICE SNAPSHOT (review required)
 
