@@ -946,3 +946,45 @@ patch.stage 与 Edit 的关系、net 与 WebFetch 的去重）留待后续逐项
 ### Next
 
 继续 host 深度集成与语义对齐；其余 island 默认开；old.back 首个移动。
+
+---
+
+## ENTRY 016 — 2026-09-22 — nc-tools ↔ zcode 工具面边界裁定 + 模型路由
+
+> Authorship note：主会话直接执行。ENTRY 015 留下的「语义对齐」项在此收口。
+
+### 逐族核对结论（裁定见 `zcode-host/src/reconciliation.rs`）
+
+- **zcode 没有独立 git 工具**——git 只存在于 Bash 工具内部（还裹着一整套 git 只读
+  分类子策略）。所以 nc-tools 的 `git.*` 家族是**补齐而非重复**：typed 接口
+  （status/diff/log/add/commit/branch/checkout/push/pull/stash/cherryPick/tag/
+  blame）替代「模型手打 git 命令 + 靠 bash 策略兜底」。
+- 同样属于 nc-tools 独有：proc.*（无 shell 逃生口的 argv 进程面）、test.run、
+  pkg.*、net.*、sys.snapshot/journal、batch.execute、code.symbols/graph。
+- **真正重叠的只有 fs.* / search.* vs Read/Write/Edit/Glob/Grep**：两套语义不同
+  （zcode：read-before-edit、model 专用截断、行号输出；nc-tools：occurrence-count
+  patch 守卫、append-only journal、可审阅 patch set）。强行合并要重写一方核心，
+  收益低于风险 → **两套保留 + 系统提示注入明确路由指引**。
+- **多 agent 两套并存**：zcode 的 Agent/Task 是「对模型派活」（子会话 + traceId），
+  nc-tools 的 agent.* 是「进程间协调」（register/heartbeat/lock/peers）——正交。
+- **权限边界写进裁定**：zcode 的 `--full-access` 闸门只管 zcode 原生工具；nc-tools
+  的写由 SDK 自己的校验 patch / reviewable change set 管控，**故意不套** full-access
+  闸门（那会拦下只写变更集不落盘的安全 stage 操作）。
+
+### 验证
+
+- 单测 2 个（路由文案含两套面与选择建议、family 统计）。
+- **live 链路**：真实模型在「显示 git 状态」任务上**自主选择了 `git.status`**
+  （nc-tools 家族），并正确作答「不是 git 仓库」——路由指引在真实决策上生效，
+  不是装饰文案。
+
+### 门禁
+
+native 293 tests 全绿 / fmt 0 / clippy 0；root typecheck/fmt/lint(70 基线)/arch/
+freshness 全绿。
+
+### Next
+
+1. 其余 island 差异核对与翻默认开（proc/scan/watch）。
+2. host 深度集成（context 装配、compact、MCP、sqlite）。
+3. soak + knip → 首个 `old.back` 文件级移动。
