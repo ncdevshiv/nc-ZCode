@@ -164,17 +164,20 @@ diffs and rollbacks stay one `git mv` away.
   through the Rust sidecar; unavailability degrades to jsdiff with a warning,
   protocol/handler errors surface. `diff` is no longer a runtime dependency of
   core/bootstrap — jsdiff is contained in the adapter. Parity: 87 real-jsdiff
-  fixtures replayed through the real binary, 88/88 tests green. Flag defaults
-  OFF (zero behavior change); the first `old.back/` move waits for the
-  default flip per the four-condition rule.
-- **Stage 3 first island (diff): DEFAULT-ON (ENTRY 011).** Packaging script
-  `scripts/prepare-native-sidecars.mjs` builds the five sidecar binaries
-  (release) and stages them into `packages/desktop/bundled-tools/<platformKey>/sidecar/`
-  on the same chain as native-search; desktop main resolves that directory
-  (or `resources/tools/sidecar` in a packaged app) and injects `ZCODE_SIDECAR_DIR`.
-  `ZCODE_NATIVE_SIDECARS_OFF=1` is the global kill switch. Verified: the
-  default-on path (flag unset) resolves the staged **release** binary and
-  returns jsdiff-identical results.
+  fixtures replayed through the real binary, 88/88 tests green. Five sidecar
+  binaries are built in release and staged into
+  `packages/desktop/bundled-tools/<platformKey>/sidecar/` on the native-search
+  runtime-asset chain (skippable with `ZCODE_SKIP_NATIVE_SIDECARS=1`); desktop
+  main resolves that directory (or `resources/tools/sidecar` in a packaged
+  app) and injects `ZCODE_SIDECAR_DIR`. `ZCODE_NATIVE_SIDECARS_OFF=1` is the
+  global kill switch. Verified: the default-on path (flag unset) resolves the
+  staged **release** binary and returns jsdiff-identical results.
+- **Stage 3 all five islands: wired (ENTRY 012).** proc / scan / watch / image
+  facades sit behind the same bridge with TS fallbacks; image is default-ON
+  (user decision, measured semantic parity: dimension decisions, decodable
+  non-blank output, correct jpeg/webp containers). diff + image are the two
+  islands that execute in production today; proc/scan/watch default off pending
+  divergence audits and soak.
 
 ## Third-party notice rule for cargo
 

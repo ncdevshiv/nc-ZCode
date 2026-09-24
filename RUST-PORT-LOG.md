@@ -770,3 +770,56 @@ adapter 内——移动的是实现归属，不是调用点）。
 1. diff island soak 窗口 + knip 验证 → 首个 `old.back` 文件级 `git mv`。
 2. 其余四个 island 接线（逐条核对 scan 10 / watch 9 条已记录差异）。
 3. TS 侧切缝：workspace flag spawn zcode-host。
+
+---
+
+## ENTRY 012 — 2026-09-22 — S1 全岛接线：proc / scan / watch / image
+
+> Authorship note：主会话直接执行。image 默认开启是用户明确决定（已附测量证据）。
+
+### 交付物：四个 island facade + 三个真实调用点
+
+- **proc** → `adapters/src/mcp/process-tree.ts`：`terminateMcpStdioProcessTree`
+  先试 sidecar（`kill_tree`），不可用告警后退回 TS 实现。注入了
+  execFile/kill/now/sleep 的确定性测试路径**跳过 sidecar**（测试不碰真实进程树）。
+  `spawn_in_job` 面仍由 TS `windows-job-object.ts` 持有（README 差异表）。
+- **scan** → `services/src/storage/adapters/fsWalker.ts`：`walkStorageRoot` flag 开
+  时走 sidecar，条目/错误按事件序回流 `onEntry`/`onError`；目录计数 sidecar 不提供
+  恒 0（调用方可派生，README 差异表）；`missingRoot` 与 TS「根不存在=空根非错误」
+  一致。
+- **watch** → `services/src/fileWatcher/fileWatcherService.ts`：长驻 sidecar 进程
+  （不走池——watcher 有状态），facade 内复刻本 service 的 150ms 防抖与
+  「窗口内单一明确路径才透传 changedPath」语义；`node:fs.watch` 保留为 fallback。
+- **image** → `adapters/src/image/index.ts` 的 `resizeToFit`（**默认开**，用户决定）：
+  尺寸/格式语义与 jimp 一致；parity 为**语义级**（jimp 与 Rust image 编码器字节
+  不同，见 crate README），由 `test/image_parity.test.ts` 测量而非假设。
+
+### image 默认开的证据（诚实记录这是语义 parity，不是字节 parity）
+
+`test/image_parity.test.ts`（真实二进制 vs jimp，5/5 通过）断言 model-vision 路径
+真正依赖的性质：尺寸读取一致、缩放决策一致（不过限直通、200x100→80x40）、
+输出是**可解码的非空白图像**（渐变保真 = 真实视觉输入而非乱码）、jpeg/webp
+容器与 mime 正确（webp 按 RIFF/WEBP 头验证，因为 jimp 1.6 不解 webp）。字节级
+差异是**已记录的既定契约**，不是缺陷。
+
+### 门禁（本会话实测）
+
+- root：fmt:check/typecheck/golden:check/freshness 全绿；lint **70 warnings /
+  0 errors**（与基线一致，零新增）；architecture:check 0 violations。
+- CLI：sidecar/adapters/core/bootstrap tsc 全过；sidecar lint 0；
+  diff parity 89/89、image parity 5/5、default_on 2/2。
+- native：266 cargo tests 全绿。
+
+### 阶段推进
+
+S1 五个 island 全部接线完毕：diff（默认开）、image（默认开）、proc / scan / watch
+（默认关，差异核对与 soak 后逐个翻转）。产品默认执行的 Rust 代码至此有两处：
+diff 岛 + image 岛。
+
+### Next
+
+1. scan/watch 的 9–10 条已记录差异逐条核对 → 翻默认开。
+2. proc 默认开（回收面影响 MCP stdio 生命周期，需要 soak 观察）。
+3. 首个 `old.back` 文件级移动（soak + knip 之后）。
+4. TS 侧切缝：workspace flag spawn zcode-host（最大的一块：让 Rust host 接管
+   Desktop 实际流量）。
