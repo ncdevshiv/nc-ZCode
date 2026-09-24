@@ -1,9 +1,10 @@
-//! Context 装配：系统提示 + AGENTS/CLAUDE 发现 + 环境事实。
+//! Context 装配：系统提示 + 工具面路由 + AGENTS/CLAUDE 发现 + 技能目录 + 环境事实。
 //!
-//! 与 TS context builder 的关系（README 差异表）：本 increment 装配 workspace 根
-//! 的 AGENTS.md / CLAUDE.md 与最小环境事实；skills 目录、memory 索引、
-//! `~/.zcode` 用户级配置、MCP 工具提示均未接线（OPEN）。上限截断防止大文件吃掉
-//! 整个 context（TS 同样有界）。
+//! 与 TS context builder 的关系（README 差异表）：本 increment 装配 workspace 根的
+//! AGENTS.md / CLAUDE.md、技能目录清单与最小环境事实；memory 索引、
+//! `~/.zcode` 用户级配置、MCP 工具提示仍未接线（OPEN）。发现结果**只列名字与
+//! 摘要**——技能正文按需由 Skill 工具加载（TS 同设计：不要把全部 skill 塞进
+//! context）。清单有长度上限，防止大仓库吃掉 context（TS 同样有界）。
 
 use std::path::Path;
 
@@ -12,16 +13,18 @@ use zcode_core::identity::identity_key;
 use zcode_provider::request::{ContentPart, Message, MessageRole};
 
 const SYSTEM_PROMPT: &str = "You are zcode-host, the native Rust agent host of ZCode. \
-You run inside the user's workspace with a small toolset: Bash, Read, Write, Edit, Glob, Grep. \
-Rules: prefer Read/Glob/Grep to understand before acting; Edit requires a prior Read of that file; \
-destructive actions require the operator to have granted full access; never claim an action \
-succeeded without a tool result proving it; report blockers honestly instead of guessing.";
+You run inside the user's workspace. Rules: prefer Read/Glob/Grep to understand before \
+acting; Edit requires a prior Read of that file; destructive actions require the \
+operator to have granted full access; never claim an action succeeded without a tool \
+result proving it; report blockers honestly instead of guessing.";
 
 #[derive(Debug, Clone)]
 pub struct ContextFacts {
     pub system_blocks: Vec<String>,
     pub workspace_identity: String,
     pub instruction_files: Vec<String>,
+    /// 工作区可用技能名（排序去重）；正文由 Skill 工具按需加载。
+    pub available_skills: Vec<String>,
     pub estimated_context_bytes: usize,
 }
 
@@ -42,6 +45,7 @@ fn discover_instruction_files(root: &Path) -> Vec<String> {
 pub fn assemble_context(workspace_root: &Path) -> ContextFacts {
     let workspace_identity = identity_key(None, &workspace_root.to_string_lossy());
     let instruction_files = discover_instruction_files(workspace_root);
+    let available_skills = crate::tools::skill::available_skills(workspace_root);
     let mut system_blocks = vec![SYSTEM_PROMPT.to_string()];
 
     // 工具面路由指引：zcode 原生工具与 nc-tools 家族并存时，明确每类该用哪个
@@ -53,6 +57,15 @@ pub fn assemble_context(workspace_root: &Path) -> ContextFacts {
             "Workspace instruction files present: {}. Read them with the Read tool before acting; \
              they carry project rules that override your defaults.",
             instruction_files.join(", ")
+        ));
+    }
+
+    // 技能目录：只列名字，正文按需用 Skill 工具加载（TS 同设计）。
+    if !available_skills.is_empty() {
+        system_blocks.push(format!(
+            "Available skills: {}. Load one with the Skill tool only when its instructions \
+             are relevant to the task; do not guess names that are not listed.",
+            available_skills.join(", ")
         ));
     }
 
@@ -73,6 +86,7 @@ pub fn assemble_context(workspace_root: &Path) -> ContextFacts {
         system_blocks,
         workspace_identity,
         instruction_files,
+        available_skills,
         estimated_context_bytes,
     }
 }
@@ -158,6 +172,36 @@ mod tests {
         let facts = assemble_context(&root);
         assert!(facts.instruction_files.is_empty());
         assert!(facts.system_blocks.len() >= 2);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn available_skills_are_listed_by_name_only() {
+        let root = temp_workspace("skills");
+        for (base, name) in [(".claude/skills", "deploy"), (".agents/skills", "review")] {
+            let dir = root.join(base).join(name);
+            fs::create_dir_all(&dir).expect("skill dir");
+            fs::write(
+                dir.join("SKILL.md"),
+                "# Secret body\nmust not be in context",
+            )
+            .expect("write");
+        }
+        let facts = assemble_context(&root);
+        assert_eq!(
+            facts.available_skills,
+            vec!["deploy".to_string(), "review".to_string()]
+        );
+        let block = facts
+            .system_blocks
+            .iter()
+            .find(|block| block.contains("Available skills"))
+            .expect("skills block");
+        assert!(block.contains("deploy") && block.contains("review"));
+        assert!(
+            !block.contains("Secret body"),
+            "skill bodies must be loaded on demand, not injected"
+        );
         let _ = fs::remove_dir_all(&root);
     }
 
