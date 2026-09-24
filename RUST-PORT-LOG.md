@@ -717,3 +717,56 @@ core/bootstrap 移除——这是本 island 的「移除」，文件级移动等
 2. 其余四个 island 接线（watch/scan/proc/image；scan 有 10 条、watch 有 9 条
    已记录差异，需逐条核对后接线）。
 3. TS 侧切缝：workspace flag spawn zcode-host。
+
+---
+
+## ENTRY 011 — 2026-09-22 — diff island 翻转为默认开启 + 随包分发
+
+> Authorship note：主会话直接执行。用户再次明确「除 UI/前端外全部转 Rust」；
+> 本轮把已接线的第一个 island 从「flag 后可选」推成「产品默认路径」。
+
+### 交付物
+
+1. **随包分发链**（新脚本 `scripts/prepare-native-sidecars.mjs`）：cargo release
+   构建五个 sidecar 二进制 → 暂存到
+   `packages/desktop/bundled-tools/<platformKey>/sidecar/` + `.bundle-meta.json`
+   （来源 manifest 指纹 + 各二进制 sha256，幂等跳过）。挂进
+   `packages/desktop` 的 `prepare:runtime-assets` 链
+   （`ZCODE_SKIP_NATIVE_SIDECARS=1` 可跳过），与 native-search 同一条发布链。
+   本机实测：5 个 release 二进制约 3.3 MB，重复执行走幂等跳过。
+2. **运行时解析**：`@zcode/sidecar` 解析顺序加「bundled-tools 暂存点」；
+   desktop main 新增 `resolveBundledSidecarDir()`（发布包 `resources/tools/sidecar`
+   优先，开发态 bundled-tools），经 `buildHostProcessEnv` 注入
+   `ZCODE_SIDECAR_DIR`。CLI 侧无需猜测布局。
+3. **默认开启**：`sidecarEnabled` 默认集合 = `{diff}`；新增全局 kill switch
+   `ZCODE_NATIVE_SIDECARS_OFF=1`（排障一键退回 TS 路径）；`ZCODE_NATIVE_SIDECARS`
+   仍是精确覆盖（名单/`all`）。其余 island（watch/scan/proc/image）默认关。
+
+### 实测（默认开启路径 = flag 不设）
+
+新测试 `test/default_on.test.ts`：不设任何 env 时 facade 必须（a）解析到
+**staged release 二进制**（断言路径含 `bundled-tools/<key>/sidecar/zcode-diff.exe`
+且文件存在）、（b）返回与 jsdiff 逐字段相等的结果。**2/2 通过**。
+`test/parity.test.ts` 加 flag 语义测试（默认开 / 显式关 / kill switch / 未接线
+island 默认关）：**89/89 通过**。
+
+### 门禁（本会话实测）
+
+- root：fmt:check / typecheck / architecture:check（0 violations）/ freshness
+  全绿；lint **70 warnings / 0 errors**（与基线一致，零新增）。
+- CLI：sidecar/core/bootstrap tsc 全过；sidecar lint 0。
+- native：fmt 0、clippy -D warnings 0、test --workspace 266 passed。
+
+### 阶段推进
+
+S1 diff island：接线 ✅ → parity ✅ → 随包分发 ✅ → 默认开启 ✅。按 cutover
+四条件，**1/2/3 已满足**；条件 4（typecheck+knip 证明 TS 模块零引用、TS 路径
+flag-off 仍绿）待 soak 窗口后核验，随后即可执行首个 `old.back` 文件级移动
+（`core/src/tool/diff.ts` 等四个调用点已只剩 facade 调用，jsdiff 运行时已在
+adapter 内——移动的是实现归属，不是调用点）。
+
+### Next
+
+1. diff island soak 窗口 + knip 验证 → 首个 `old.back` 文件级 `git mv`。
+2. 其余四个 island 接线（逐条核对 scan 10 / watch 9 条已记录差异）。
+3. TS 侧切缝：workspace flag spawn zcode-host。
