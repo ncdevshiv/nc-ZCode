@@ -1066,3 +1066,47 @@ native 296 tests / fmt 0 / clippy 0；root 全绿（lint 仍 70 基线）。
 1. memory 索引与 `~/.zcode` 用户级配置（context 剩余项）。
 2. proc island soak 后翻默认开。
 3. soak + knip → 首个 `old.back` 文件级移动。
+
+---
+
+## ENTRY 019 — 2026-09-22 — 首个 `old.back` 移动的**四条件审计**（未满足，不动文件）
+
+> Authorship note：主会话直接执行。本条目是一份**诚实的阻塞记录**：我核对了
+> `old.back` 四条件规则，结论是「现在不能移」，并记录了确切原因与前置条件。
+
+### 审计结果：为什么还不能移
+
+条件 1（Rust 替代品覆盖产品面）：diff 岛 ✅（Rust `zcode-diff` + 89 例 fixture）。
+条件 3（flag 真正切流量）：diff 岛 ✅（默认开、随包发布、parity 88/88）。
+条件 2（切缝切流量后 flag-off 仍绿）：**⚠️ 半满足**——flag 关时走 facade 里的
+jsdiff 降级分支（这正是 kill switch 依赖的代码，还不能删）。
+条件 4（TS 模块零引用、typecheck+knip 证明）：**❌ 未满足**。
+
+具体引用图（`from "diff"` 现存处）：
+
+- `packages/sidecar/src/diff.ts` + `index.ts` + 3 个测试文件——**只剩 adapter 内部**
+  （运行时的 `diff` 依赖已从 core/bootstrap 完全移除，这是真进展）。
+- 四个**仍在运行**的 facade 调用点：`core/tool/diff.ts`、
+  `core/runtime/helpers/turn-file-changes.ts`、`core/runtime/methods/file-rewind.ts`、
+  `bootstrap/zcode-protocol-v4/cold-file-change-summaries.ts`——它们是「调用点」，
+  不是可移动的实现（TS 实现的 diff 逻辑早已收敛进 adapter）。
+- core `tool/diff.ts` 仍有 3 个 import 方（result-display / edit / write），且
+  `countPatchLines` 是 zcode 自有逻辑（不是 jsdiff 搬运），**不构成「被替代的
+  TS 实现」**。
+
+**结论**：把 `core/tool/diff.ts` 之类移进 `old.back/` 会是假动作——它不是被 Rust
+替代的旧实现，而是仍在跑的活代码，且移走会断 import。真正的「可移项」需要先把
+四个调用点的**语义**也吃进 Rust（或证明它们只是稳定转发层且无独立价值），再逐个
+knip 归零才移。按规则 4 的纪律：**本轮零文件移动**。
+
+### 判定这张 audit 表的方法（留下可复核的证据）
+
+- 运行时 `from "diff"` 只剩 adapter → **依赖收敛是真的**（可核实）。
+- 调用点仍活 → **不可动**（可核实）。
+- 两点都记进本条目，任何人想「顺手把 diff.ts 挪进 old.back」都能立刻看到为什么
+  不能。
+
+### Next
+
+1. 继续 host 深度集成（memory 索引、MCP、compact、sqlite）与 island 收尾。
+2. 当某个调用点的实现**真的**变成纯转发且 knip 归零时，才执行首个 `old.back` 移动。
