@@ -13,6 +13,7 @@
 //! 与 TS host 的关系：能力面子集 + fail-closed 差异逐条记录在 crate README。
 
 pub mod frame;
+pub mod nc_tools;
 pub mod profile;
 pub mod provider_config;
 pub mod rows;
@@ -65,11 +66,13 @@ impl HostServer {
         data_dir: PathBuf,
         provider: Option<ProviderConfig>,
         full_access: bool,
-    ) -> (Arc<Self>, UnboundedReceiver<String>) {
+    ) -> Result<(Arc<Self>, UnboundedReceiver<String>), tools::ToolError> {
         let (outbox, inbox) = tokio::sync::mpsc::unbounded_channel();
         let workspace_identity = identity_key(None, &workspace.to_string_lossy());
         let turn_deps = TurnDeps {
-            registry: Arc::new(ToolRegistry::with_defaults()),
+            registry: Arc::new(
+                ToolRegistry::with_defaults().with_nc_tools(nc_tools::build_nc_tools(&workspace)?),
+            ),
             context: turn_context::assemble_context(&workspace),
             full_access,
             provider_config: provider.clone().map(Arc::new),
@@ -86,7 +89,7 @@ impl HostServer {
             self_weak: std::sync::OnceLock::new(),
         });
         let _ = server.self_weak.set(Arc::downgrade(&server));
-        (server, inbox)
+        Ok((server, inbox))
     }
 
     pub fn workspace(&self) -> &PathBuf {

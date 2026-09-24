@@ -158,6 +158,16 @@ impl ToolRegistry {
         Self { tools }
     }
 
+    /// 把 nc-tools 的原生工具面（进程内 Kernel，89 个 typed 工具）并入注册表。
+    /// 点号工具名（`fs.read`/`git.status`…）与 TS 侧工具名并存，互不覆盖。
+    pub fn with_nc_tools(mut self, nc: Vec<Arc<crate::nc_tools::NcTool>>) -> Self {
+        for tool in nc {
+            self.tools
+                .insert(tool.contract().name, tool as Arc<dyn Tool>);
+        }
+        self
+    }
+
     pub fn get(&self, name: &str) -> Option<Arc<dyn Tool>> {
         self.tools.get(name).cloned()
     }

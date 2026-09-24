@@ -52,7 +52,11 @@ async fn main() {
         args.data_dir.clone(),
         provider,
         args.full_access,
-    );
+    )
+    .unwrap_or_else(|error| {
+        eprintln!("[zcode-host] startup failed: {error}");
+        std::process::exit(1);
+    });
     let resumed = server.resume_sessions();
     eprintln!(
         "[zcode-host] ready workspace={} data-dir={} resumed-sessions={} provider={}",
