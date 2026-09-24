@@ -823,3 +823,43 @@ diff 岛 + image 岛。
 3. 首个 `old.back` 文件级移动（soak + knip 之后）。
 4. TS 侧切缝：workspace flag spawn zcode-host（最大的一块：让 Rust host 接管
    Desktop 实际流量）。
+
+---
+
+## ENTRY 013 — 2026-09-22 — TS 侧切缝：per-workspace flag 把产品流量导向 Rust host
+
+> Authorship note：主会话直接执行。
+
+### 交付物
+
+- **切缝**（`services/src/zcode-agent/zcodeAgentProcessManager.ts`）：
+  `resolveDefaultZCodeAgentCommand` 最前面插入 `resolveNativeZCodeHostCommand`。
+  `ZCODE_NATIVE_HOST=1` → 该 workspace spawn Rust `zcode-host`；未设置/`off` →
+  TS 链原样；**开启但找不到二进制 → 抛错**（试验不静默回退成 JS，与 bytecode
+  分支同纪律）。二进制来源：显式 env → Electron resources → bundled-tools →
+  cargo target。`workspaceIdentity` 随 env 进子进程（Rust/TS host 不会同时拥有
+  同一 workspace——AGENTS.md strangler 规则）。这就是 spec 里写的「per-workspace
+  flag 切缝」。
+- **工具扩容**：TodoWrite / TodoRead 落入 zcode-host，契约与 TS 逐字一致
+  （至多一项 in_progress、content trim + 非空 + 长度上限、status/priority 闭集），
+  状态挂 Session（跨 turn、随 meta 可恢复）。
+
+### 实测（端到端）
+
+- 切缝探针：`ZCODE_NATIVE_HOST=1` 时 resolver 选中
+  `native/target/debug/zcode-host.exe`，args 正确带 workspace/data-dir。
+- 协议烟囱：spawn 出的 host 正确应答 createSession + initial 帧 + stdin EOF 退出。
+- **真链路**（真实 provider + 真实模型 + 真实工具 + 真实文件）：模型经 Write
+  tool 创建 `cutover.txt`，内容逐字节 `cutover proven`，toolCall success，
+  assistant complete，turnHeader completedSuccess。
+
+### 门禁
+
+root 全绿（fmt/typecheck/lint 70 警告基线/arch/golden/freshness）；host crate
+39 单测 + 2 e2e 全绿，clippy 0。
+
+### Next（持续推进，不等回复）
+
+1. host 工具面继续补齐（webfetch/skill/task…），逐个对齐 TS 契约。
+2. 其余 island 的差异核对与翻默认开。
+3. soak + knip → 首个 `old.back` 文件级移动。
