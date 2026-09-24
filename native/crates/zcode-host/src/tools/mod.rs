@@ -22,6 +22,7 @@ use zcode_provider::request::ToolDefinition;
 pub mod bash;
 pub mod fs_tools;
 pub mod list_models;
+pub mod read_image;
 pub mod search_tools;
 pub mod todo;
 pub mod webfetch;
@@ -151,6 +152,7 @@ impl ToolRegistry {
             "ListModels".to_string(),
             Arc::new(list_models::ListModelsTool),
         );
+        tools.insert("ReadImage".to_string(), Arc::new(read_image::ReadImageTool));
         Self { tools }
     }
 

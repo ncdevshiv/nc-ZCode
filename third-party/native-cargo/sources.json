@@ -4,7 +4,7 @@
   "inputs": {
     "scripts/third-party-cargo.mjs": "f149e0eb60186cfa64d139185bc26e0566ba0bd0f46561c6dbf849e82b1dee4d",
     "native/Cargo.toml": "d202a297b3c41b55e56d36522fccd1e388313d6a998fe0de6a0d34d2bc0c66ab",
-    "native/Cargo.lock": "f8032ae189394503bcd10a5a13357119891c7a2308bc7c11fdc44162ee5a59c2"
+    "native/Cargo.lock": "dadf12247ad0f626361a141da122bbb3ab3b6e293db0e8efcb80fed7db450705"
   },
   "packages": [
     {
