@@ -23,6 +23,7 @@ pub mod rows;
 pub mod rpc;
 pub mod session;
 pub mod snapshot;
+pub mod storage;
 pub mod store;
 pub mod tools;
 pub mod turn;
