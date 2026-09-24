@@ -901,3 +901,48 @@ root 全绿（fmt/typecheck/lint 70 警告基线/arch/golden/freshness）；host
 ### Next
 
 继续按序补齐 host 工具面与 runtime 深度集成；island 默认开；old.back 首个移动。
+
+---
+
+## ENTRY 015 — 2026-09-22 — nc-tools 原生集成（进程内 Kernel，非 MCP）
+
+> Authorship note：主会话直接执行。用户要求：把 `F:\nc-sdk\nc-tools` 的工具与能力
+> **原生集成**（明确「不要经 MCP」）。
+
+### 交付物：in-process Kernel 直连
+
+- `zcode-host` 直接以 **crate 依赖**链接 `nct-mcp` / `nct-core`（Cargo path 依赖），
+  启动时 `nct_mcp::build_kernel(workspace_root)` 装配**全部 89 个 typed 工具**
+  （fs.* / patch.* / search.* / code.* / text.diff / git.* / proc.* / test.run /
+  pkg.* / net.* / agent.* / env.* / sys.* / batch.execute），`Kernel::call` 同步执行
+  ——与 host 的 turn 串行语义天然一致。
+- **不经 MCP**：不启 MCP server、不走 socket/JSON-RPC、不起 sidecar/子进程；
+  传输仍由 zcode 的 v4 协议承担，工具面直接进 host `ToolRegistry`（点号名与现有
+  zcode 工具名并存、不覆盖）。
+- 每 host 一个 kernel（root=workspace）：nc-tools 的 append-only journal 落在
+  `<workspace>/.nc-tools/journal.jsonl`（工具调用的第二条独立审计链，与 zcode
+  transcript 并存）。kernel 构造失败 → host 启动失败（不交付"部分工具面"）。
+- `HostServer::new` 改为 `Result`（构造失败可报告），main 在启动失败时退出码 1。
+
+### 验证（9 个集成测试 + 真实链路）
+
+`tests/nc_tools_integration.rs`（9/9 通过）每个家族跑真实副作用：fs 写读往返、
+fs list/stat、**对真实仓库**跑 git.status、text.diff、search.grep、journal 内容、
+未知工具 fail-closed、cancel 前置拦截。**真实链路**（live provider）：模型经
+`fs.list` 工具拿到真实 workspace 内容并作答，journal 记录了完整的
+tool.call/tool.result（含 baseDir/durationMs/callSeq）。
+
+### 门禁
+
+native：fmt/clippy 0；`cargo test --workspace` **291 passed / 0 failed**。
+root：typecheck/fmt/lint(70 基线)/arch/golden/freshness 全绿。
+
+### 记录（本 increment 的边界）
+
+nc-tools 覆盖面很广，但**本 increment 只做「工具面进 host + 全家族可执行 + 真实
+链路验证」**；与 zcode 语义对齐的深度集成（如 git 工具与 zcode 工具的边界、
+patch.stage 与 Edit 的关系、net 与 WebFetch 的去重）留待后续逐项对齐。
+
+### Next
+
+继续 host 深度集成与语义对齐；其余 island 默认开；old.back 首个移动。
