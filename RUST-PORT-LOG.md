@@ -637,3 +637,83 @@ streaming 均 200）；模型唯一许可 `opm/space-bunny-free`；Bearer 鉴权
    old.back 移动。
 2. TS 侧切缝：workspace flag spawn zcode-host。
 3. 工具扩容与 MCP/subagent 移植。
+
+---
+
+## ENTRY 010 — 2026-09-22 — S1 首个 island 接线：diff sidecar 进 TS 应用
+
+> Authorship note：主会话直接执行（no-subagent 指令仍生效）。flag 默认关，
+> 产品行为零变化；凭据与上一轮相同，不涉及新的外部调用。
+
+### 交付物
+
+- **`@zcode/sidecar` 新包**（apps/zcode-cli/packages/sidecar，~600 行）：
+  NDJSON stdio 桥——`SidecarProcess`（ready 握手校验 sidecar/proto、按 id 关联
+  请求/响应、event 分发、exit 即在途全部 reject）、`SidecarPool`（按名复用、
+  空闲 60s 回收、崩溃逐出后按需重建、回收先逐出再关进程）、`config`
+  （`ZCODE_NATIVE_SIDECARS` 开关 + 二进制解析：`ZCODE_SIDECAR_DIR` 优先，
+  否则从模块位置上行找含 `native/` + `pnpm-workspace.yaml` 的 repo 根）。
+- **diff facade**（jsdiff 兼容面）：`nativeStructuredPatch` /
+  `nativeApplyPatch` / `nativeUnifiedPatch` / `nativeDiffLines`。语义对齐：
+  flag 关 = jsdiff 原路径；flag 开 = sidecar；**不可用（二进制缺失/spawn 失败/
+  崩溃/超时）→ 告警一次并降级 jsdiff**（可用性事故不拖垮用户轮次）；协议错误
+  （版本不匹配/Illegal 帧/400/404/500）抛错（配置与版本偏移是构建事故）。
+  超时 → `undefined`（jsdiff 超时语义）。
+- **四个调用点全部改走 facade**（await 化，全部本就在 async 上下文）：
+  core `tool/diff.ts`（createStructuredPatch）、`runtime/helpers/
+  turn-file-changes.ts`（recordTurnFileChange/buildTurnFileChangeSummary/
+  diffLineStat）、`runtime/methods/file-rewind.ts`（applyPatch）、
+  bootstrap `zcode-protocol-v4/cold-file-change-summaries.ts`
+  （createFinalPatch/resolveCheckpointAfterContent）。
+- **依赖收敛**：`diff` 从 core/bootstrap 的 dependencies **移除**——jsdiff
+  运行时与 `StructuredPatch` 类型都只存在于 `@zcode/sidecar`（adapter）内。
+
+### 实测发现并修复（工具存在的意义）
+
+- B-21 **wire 方法名文档/代码漂移**：zcode-diff 注册的是 snake_case
+  （`structured_patch`），README 协议表是 dot/camel（`structuredPatch`）——
+  TS 客户端按文档调用拿到 404。以 README 为契约对齐代码，并加
+  `wire_method_names_match_readme` 回归测试锁定集合（旧名必须 404）。
+- B-22 **facade 的 unified 结果没解包**：sidecar 返回 `{patch: string|null}`
+  （协议形状），facade 当裸字符串用 → 所有 unified 用例失败。
+- B-23 **fallback 与 sidecar 语义不一致**：`nativeUnifiedPatch` 的 jsdiff
+  降级路径用了 `createPatch`（单文件补丁，label 缺失时把旧内容写进 header），
+  而 sidecar 镜像的是 `createTwoFilesPatch`（两文件补丁）——flag 两侧行为会
+  分叉。统一为 `createTwoFilesPatch`；parity 测试的 jsdiff 侧同样修正。
+- B-24 **pool 回收与 acquire 竞争**：回收定时器先关进程再逐出，进行中的
+  acquire 可能拿到正在关闭的进程 → write EPIPE（node:test 报 async activity
+  after test ended）。修复：逐出先于关闭（原子）；测试加 `after()` 收尾。
+- B-25 **repo 根解析被 exports 挡**：`require.resolve("pkg/package.json")`
+  被 package exports 拒绝（catch 吞掉返回 null）→ 二进制解析失败、全部静默
+  降级。修复：从模块位置上行找 repo 根标记（`native/` + workspace 文件），
+  源码/构建产物深度都适用。
+
+### Parity 证据（真实二进制 + 真实 jsdiff）
+
+`test/parity.test.ts`（node --test，遵循 bootstrap 测试惯例）回放
+`native/crates/zcode-diff/tests/fixtures/jsdiff-parity.json` 全部 87 例
+（unified 25 / structured 25 / chunks 25 / apply 12）：同输入过真实
+`zcode-diff` 二进制与本地 jsdiff，逐字段相等；fixture 侧先行断言本地 jsdiff
+与 fixture 一致。**88/88 通过**（含二进制解析测试）。crate 侧 266 workspace
+测试全绿（+1 wire 名回归）。
+
+### 门禁（本会话实测）
+
+- CLI：16/16 包 typecheck 通过；sidecar lint 0 warnings；root lint 仍
+  **70 warnings / 0 errors**（与基线一致，零新增）；root fmt:check/typecheck/
+  architecture:check（0 violations）/freshness/golden:check 全绿。
+- native：fmt 0、clippy -D warnings 0、test --workspace 266 passed。
+
+### old.back 状态
+
+**零移动**（规则 3：flag 默认关，暂无生产流量走 Rust）。`old.back/` 建立并
+写入 staging README（四条件 + 七阶段顺序 + 当前状态）。jsdiff 依赖已从
+core/bootstrap 移除——这是本 island 的「移除」，文件级移动等默认值翻转。
+
+### Next
+
+1. diff flag 默认值翻转决策（parity 已 88/88；翻转后 jsdiff fallback 保留一
+   个 soak 窗口，再走规则 4 的 knip 验证 → 首个 `git mv`）。
+2. 其余四个 island 接线（watch/scan/proc/image；scan 有 10 条、watch 有 9 条
+   已记录差异，需逐条核对后接线）。
+3. TS 侧切缝：workspace flag spawn zcode-host。
