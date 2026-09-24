@@ -168,6 +168,12 @@ impl ToolRegistry {
         self
     }
 
+    /// 注册测试/实验工具（仅供宿主内部装配与测试使用；名字冲突时覆盖）。
+    pub fn with_test_tool(mut self, tool: Arc<dyn Tool>) -> Self {
+        self.tools.insert(tool.contract().name, tool);
+        self
+    }
+
     pub fn get(&self, name: &str) -> Option<Arc<dyn Tool>> {
         self.tools.get(name).cloned()
     }

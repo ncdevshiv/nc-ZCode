@@ -276,7 +276,7 @@ async fn run_agent_loop(
                 &input_text,
                 None,
             ));
-            let output = execute_tool(call, session, deps, turn_id);
+            let output = execute_tool(call, session, deps, turn_id).await;
             let (status, error) = match &output {
                 Ok(_) => ("success".to_string(), None),
                 Err(error) => (
@@ -328,7 +328,7 @@ fn to_tool_call_requests(calls: &[ModelToolCall]) -> Vec<ToolCallRequest> {
 }
 
 /// 权限闸门 + 执行。错误以稳定文本回灌模型（模型需要能据此修正，而不是猜）。
-fn execute_tool(
+async fn execute_tool(
     call: &ModelToolCall,
     session: &Arc<Session>,
     deps: &TurnDeps,
@@ -351,7 +351,19 @@ fn execute_tool(
         provider_config: deps.provider_config.clone(),
     };
     deps.registry.authorize(tool.as_ref(), &call.input, &ctx)?;
-    tool.execute(&call.input, &ctx)
+    // 阻塞池：工具执行是同步的（Bash 等子进程、nc-tools Kernel、HTTP），
+    // 不能占住 turn 的 async 运行时线程——串行语义由调用点（工具回合逐个 await）
+    // 保证，不依赖「谁在哪个线程上跑」。
+    let tool = Arc::clone(&tool);
+    let input = call.input.clone();
+    tokio::task::spawn_blocking(move || tool.execute(&input, &ctx))
+        .await
+        .map_err(|error| {
+            ToolError::new(
+                ToolErrorCode::ExecutionFailed,
+                format!("tool task failed: {error}"),
+            )
+        })?
 }
 
 /// 单模型回合（含 provider executor 的重试/分类/流式拼装）。

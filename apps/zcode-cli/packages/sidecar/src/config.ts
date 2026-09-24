@@ -3,7 +3,9 @@
 //! 开关：环境变量 `ZCODE_NATIVE_SIDECARS`（逗号分隔 island 名，或 `all`）**可选**
 //! 覆盖默认；`ZCODE_NATIVE_SIDECARS_OFF=1` 是整体 kill switch。
 //! 默认开启的 island：`diff`（byte-parity 88/88）、`image`（语义 parity，
-//! 用户 2026-09-22 决定翻转；尺寸/格式语义一致，字节级差异记录在 crate README）。
+//! 用户 2026-09-22 决定翻转；尺寸/格式语义一致，字节级差异记录在 crate README）、
+//! `scan` / `watch`（事件/防抖语义镜像 TS，差异逐条核对见各自 crate README）。
+//! `proc` 默认关（回收时机影响 MCP stdio 生命周期，等 soak）。
 //! 其余 island 默认关（接线或逐条差异核对未完成）。
 //! 语义：
 //!   `ZCODE_NATIVE_SIDECARS_OFF=1` → 全部关（排障退回 TS 路径）；
@@ -27,8 +29,19 @@ const FLAG_ENV = "ZCODE_NATIVE_SIDECARS";
 const DISABLE_ENV = "ZCODE_NATIVE_SIDECARS_OFF";
 const BIN_DIR_ENV = "ZCODE_SIDECAR_DIR";
 
-/** 默认开启的 island（parity 已绿、发布包已随带；见 spec cutover 章节）。 */
-const DEFAULT_ON_ISLANDS: readonly string[] = ["diff", "image"];
+/**
+ * 默认开启的 island（parity 已绿、发布包已随带；见 spec cutover 章节）。
+ *
+ * - diff：byte-parity（88/88 fixture，真实 jsdiff 对照）
+ * - image：语义 parity（用户 2026-09-22 决定翻转；尺寸/格式一致，字节差异已记录）
+ * - scan：条目/错误集合与 TS fsWalker 一致（顺序是 TS concurrency=1 等价语义，
+ *   并发只影响顺序不影响集合——见 zcode-scan README 差异表 1–5）
+ * - watch：事件与防抖语义镜像 TS fileWatcherService（150ms 防抖、单明确路径透传）
+ *
+ * proc 暂默认关：它改变 MCP stdio 子进程的回收时机（影响面比其它岛大），
+ * 等 soak 观察后再翻。
+ */
+const DEFAULT_ON_ISLANDS: readonly string[] = ["diff", "image", "scan", "watch"];
 
 function readFlag(): string {
   return process.env[FLAG_ENV]?.trim() ?? "";

@@ -27,22 +27,26 @@ const {
   sidecarEnabled,
 } = await import("../src/index.js");
 
-test("flag semantics: default-on diff, explicit off, kill switch", async () => {
+test("flag semantics: default-on islands, explicit off, kill switch", async () => {
   // 显式 flag（parity 用）开启
   assert.equal(sidecarEnabled("diff"), true);
   const { sidecarEnabled: freshEnabled } = await import(
     `../src/config.js?fresh=${Date.now()}`
   );
-  // 默认集合：diff 开，未接线 island 关
+  // 默认集合：diff/image/scan/watch 开，proc（等 soak）关
   delete process.env.ZCODE_NATIVE_SIDECARS;
   assert.equal(freshEnabled("diff"), true, "diff is default-on after the cutover flip");
-  assert.equal(freshEnabled("scan"), false, "unwired islands stay off by default");
+  assert.equal(freshEnabled("image"), true, "image is default-on per the user decision");
+  assert.equal(freshEnabled("scan"), true, "scan is default-on after the divergence audit");
+  assert.equal(freshEnabled("watch"), true, "watch is default-on after the divergence audit");
+  assert.equal(freshEnabled("proc"), false, "proc stays off until MCP stdio soak");
   // kill switch 覆盖一切
   process.env.ZCODE_NATIVE_SIDECARS_OFF = "1";
   const { sidecarEnabled: killedEnabled } = await import(
     `../src/config.js?killed=${Date.now()}`
   );
   assert.equal(killedEnabled("diff"), false, "kill switch must force the TS path");
+  assert.equal(killedEnabled("scan"), false, "kill switch must force the TS path");
   delete process.env.ZCODE_NATIVE_SIDECARS_OFF;
   // 复原 parity 进程状态
   process.env.ZCODE_NATIVE_SIDECARS = "diff";
