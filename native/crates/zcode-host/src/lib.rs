@@ -12,6 +12,7 @@
 //! revision、phase 与 inbox 的唯一所有者；turn 是唯一写投影的路径。
 //! 与 TS host 的关系：能力面子集 + fail-closed 差异逐条记录在 crate README。
 
+pub mod compact;
 pub mod frame;
 pub mod memory;
 pub mod nc_tools;

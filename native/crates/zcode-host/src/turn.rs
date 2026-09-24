@@ -44,6 +44,8 @@ pub const FAULT_REPEATED_TOOL_CALL: &str = "fault.turn.repeatedToolCall";
 
 const MAX_TOOL_ROUNDS: usize = 64;
 const REPEATED_TOOL_CALL_LIMIT: usize = 3;
+/// 触发 LLM 摘要压缩的历史消息条数（> 该值时压缩旧部分，保留最近若干条）。
+const COMPACT_HISTORY_THRESHOLD_MESSAGES: usize = 24;
 
 /// turn 依赖（host 级只读事实，每 host 构建一次）。
 pub struct TurnDeps {
@@ -229,7 +231,23 @@ async fn run_agent_loop(
         if session.take_cancel() {
             return Ok(());
         }
+        // 1) 机械 microcompact：阈值内直接裁剪旧工具结果（无需模型）。
         turn_context::microcompact_messages(history);
+        // 2) LLM 摘要压缩：历史超阈值时用同一模型摘要旧历史（保留最近若干条）。
+        //    摘要失败**不静默**：保留原历史继续本轮（宁可长，不丢上下文）。
+        if history.len() > COMPACT_HISTORY_THRESHOLD_MESSAGES {
+            let cancel_probe: Arc<dyn Fn() -> bool + Send + Sync> = {
+                let session = Arc::clone(session);
+                Arc::new(move || session.cancel.load(std::sync::atomic::Ordering::SeqCst))
+            };
+            if let Ok(compacted) =
+                crate::compact::compact_history(config, &deps.context, history, cancel_probe).await
+            {
+                if compacted.len() < history.len() {
+                    *history = compacted;
+                }
+            }
+        }
         let round =
             run_model_roundtrip(session, config, deps, &tools, history, row_id, lines).await?;
         if !round.text.is_empty() {
