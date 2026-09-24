@@ -394,6 +394,21 @@ function resolveBundledLarkCliBinaryPath(): string | undefined {
   return resolveBundledRuntimeToolBinaryPath("lark-cli", "lark-cli");
 }
 
+/**
+ * Rust sidecar 目录（diff/scan/watch/proc/image）。
+ * 发布包：resources/tools/sidecar；开发态：bundled-tools/<platformKey>/sidecar。
+ * 注入 ZCODE_SIDECAR_DIR 后 CLI 侧的 @zcode/sidecar 无需猜测布局。
+ */
+export function resolveBundledSidecarDir(): string | undefined {
+  const candidates = isElectronAppPackaged()
+    ? [join(process.resourcesPath, "tools", "sidecar")]
+    : [];
+  candidates.push(
+    join(import.meta.dirname, "../../bundled-tools", resolvePlatformKeyForPackagedApp(), "sidecar"),
+  );
+  return candidates.find((candidate) => existsSync(candidate));
+}
+
 export function resolveBundledGlmBinaryPath(): string | undefined {
   return resolveBundledZCodeAgentBinaryPath();
 }
@@ -466,6 +481,7 @@ function resolveDynamicWorkflowModeHostEnv(options: {
 export function buildHostProcessEnv(hostProcessLocalEnv: Record<string, string>) {
   const glmBinaryPath = resolveBundledGlmBinaryPath();
   const larkCliBinaryPath = resolveBundledLarkCliBinaryPath();
+  const sidecarDir = resolveBundledSidecarDir();
   const resolvedGlmBinaryPath = resolveHostProcessBinaryEnv(
     "GLM_BINARY_PATH",
     hostProcessLocalEnv,
@@ -560,5 +576,7 @@ export function buildHostProcessEnv(hostProcessLocalEnv: Record<string, string>)
       : {}),
     ...(resolvedGlmBinaryPath ? { GLM_BINARY_PATH: resolvedGlmBinaryPath } : {}),
     ...(resolvedLarkCliBinaryPath ? { ZCODE_LARK_CLI_BINARY: resolvedLarkCliBinaryPath } : {}),
+    // Rust sidecar 目录：CLI 侧 @zcode/sidecar 的第一优先级解析来源。
+    ...(sidecarDir ? { ZCODE_SIDECAR_DIR: sidecarDir } : {}),
   };
 }

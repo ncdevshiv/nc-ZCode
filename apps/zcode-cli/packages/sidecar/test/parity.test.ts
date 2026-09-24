@@ -24,7 +24,29 @@ const {
   nativeUnifiedPatch,
   resolveSidecarBin,
   shutdownSidecars,
+  sidecarEnabled,
 } = await import("../src/index.js");
+
+test("flag semantics: default-on diff, explicit off, kill switch", async () => {
+  // 显式 flag（parity 用）开启
+  assert.equal(sidecarEnabled("diff"), true);
+  const { sidecarEnabled: freshEnabled } = await import(
+    `../src/config.js?fresh=${Date.now()}`
+  );
+  // 默认集合：diff 开，未接线 island 关
+  delete process.env.ZCODE_NATIVE_SIDECARS;
+  assert.equal(freshEnabled("diff"), true, "diff is default-on after the cutover flip");
+  assert.equal(freshEnabled("scan"), false, "unwired islands stay off by default");
+  // kill switch 覆盖一切
+  process.env.ZCODE_NATIVE_SIDECARS_OFF = "1";
+  const { sidecarEnabled: killedEnabled } = await import(
+    `../src/config.js?killed=${Date.now()}`
+  );
+  assert.equal(killedEnabled("diff"), false, "kill switch must force the TS path");
+  delete process.env.ZCODE_NATIVE_SIDECARS_OFF;
+  // 复原 parity 进程状态
+  process.env.ZCODE_NATIVE_SIDECARS = "diff";
+});
 
 // 进程退出前收尾 sidecar；否则回收/退出与在途写竞争，node:test 报
 // "asynchronous activity after the test ended"（EPIPE）。

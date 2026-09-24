@@ -1,29 +1,43 @@
 //! sidecar 开关与二进制解析。
 //!
-//! 开关：环境变量 `ZCODE_NATIVE_SIDECARS`（逗号分隔的 sidecar 名，或 `all`）。
-//! 用途/优先级/错误行为在 `specs/rust-native-crates.md` 的 cutover 章节登记：
-//!   缺省 = 全部关闭（TS 路径，零行为变化）；
-//!   `diff` = diff 热路径走 Rust sidecar，不可用时降级 jsdiff 并告警；
-//!   协议错误（版本不匹配/Illegal 帧）冒泡——那是构建/配置事故，不静默。
+//! 开关：环境变量 `ZCODE_NATIVE_SIDECARS`（逗号分隔 island 名，或 `all`）**可选**
+//! 覆盖默认；`ZCODE_NATIVE_SIDECARS_OFF=1` 是整体 kill switch。
+//! 默认开启的 island：`diff`（parity 88/88、发布包已随带；spec cutover 章节
+//! 登记）。其余 island 默认关（接线与逐条差异核对未完成）。
+//! 语义：
+//!   `ZCODE_NATIVE_SIDECARS_OFF=1` → 全部关（排障退回 TS 路径）；
+//!   未设置 → 默认集合（diff 开，其余关）；
+//!   设置为名单/`all` → 精确控制（不含 kill switch）。
+//! 二进制缺失/spawn 失败 → facade 告警并降级 TS 路径，不阻断用户轮次；
+//! 协议错误（版本不匹配/Illegal 帧/4xx/5xx）→ 抛错（配置与版本偏移是构建事故）。
 //!
 //! 二进制解析（按优先级）：
-//!   1. `ZCODE_SIDECAR_DIR/<name>[.exe]`（发布包与 CI 用它指向随包二进制）；
-//!   2. 仓库相对路径 `<repo>/native/target/{release,debug}/<name>[.exe]`
-//!      （repo 根由本包位置推导：packages/sidecar → repo 根四级上行；开发态用）。
+//!   1. `ZCODE_SIDECAR_DIR/<name>[.exe]`（桌面 runtime 显式注入；发布包指向
+//!      resources/tools/sidecar）；
+//!   2. `<repo>/packages/desktop/bundled-tools/<platformKey>/sidecar/<name>[.exe]`
+//!      （`prepare:native-sidecars` 暂存点；dev 与直跑 CLI 都能找到）；
+//!   3. 仓库相对路径 `<repo>/native/target/{release,debug}/<name>[.exe]`
+//!      （repo 根由本包位置逐级上行发现）。
 
 import { existsSync } from "node:fs";
 import path from "node:path";
 
 const FLAG_ENV = "ZCODE_NATIVE_SIDECARS";
+const DISABLE_ENV = "ZCODE_NATIVE_SIDECARS_OFF";
 const BIN_DIR_ENV = "ZCODE_SIDECAR_DIR";
+
+/** 默认开启的 island（parity 已绿、发布包已随带；见 spec cutover 章节）。 */
+const DEFAULT_ON_ISLANDS: readonly string[] = ["diff"];
 
 function readFlag(): string {
   return process.env[FLAG_ENV]?.trim() ?? "";
 }
 
 export function sidecarEnabled(name: string): boolean {
+  // 单一 kill switch：排障时可整体退回 TS 路径而不改代码。
+  if (process.env[DISABLE_ENV]?.trim() === "1") return false;
   const flag = readFlag();
-  if (flag.length === 0) return false;
+  if (flag.length === 0) return DEFAULT_ON_ISLANDS.includes(name);
   if (flag === "all" || flag === "*") return true;
   return flag
     .split(",")
@@ -61,6 +75,18 @@ export function resolveSidecarBin(name: string): string | null {
   }
   const root = repoRootFromModule();
   if (!root) return null;
+  // 2) prepare:native-sidecars 暂存点（发布包解包后的 dev 布局与直跑一致）。
+  const bundled = path.join(
+    root,
+    "packages",
+    "desktop",
+    "bundled-tools",
+    `${process.platform}-${process.arch}`,
+    "sidecar",
+    `${name}${suffix}`,
+  );
+  if (existsSync(bundled)) return bundled;
+  // 3) cargo 产物（未跑 prepare 时的开发态兜底）。
   for (const profile of ["release", "debug"]) {
     const candidate = path.join(root, "native", "target", profile, `${name}${suffix}`);
     if (existsSync(candidate)) return candidate;

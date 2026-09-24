@@ -23,6 +23,11 @@ const shouldPrepareWindowsBrowserImportHelper =
 // 到屏幕底部，仍可用），所以无条件挂在 darwin 上不会让构建变脆。
 const shouldPrepareMacosWindowBounds = target.os === "darwin";
 
+// Rust sidecars（native/crates 五个 bin）。默认构建：cross 目标用
+// ZCODE_TARGET_OS/ARCH，缺 cargo 时脚本内跳过（发布链不因此变脆）。跳过时
+// runtime 判 sidecar 不可用，各 island 按既定策略降级。
+const shouldPrepareNativeSidecars = process.env.ZCODE_SKIP_NATIVE_SIDECARS !== "1";
+
 // 本机桌面包内置 agent 的 JS bundle（prepare:agent-bundle），运行时由 app 的 Electron Node runtime 执行。
 // 远端跨平台原生二进制仍由上面的 prepare:remote-assets 提供。
 // native-search 归档随仓库分发，准备步骤只做本地解包校验，不需要任何下载源配置。
@@ -31,6 +36,9 @@ const localRuntimeScripts = [
   ...(nativeSearchReleasePlan.enabled ? ["prepare:native-search"] : []),
   ...(shouldPrepareWindowsBrowserImportHelper ? ["prepare:browser-import-helper"] : []),
   ...(shouldPrepareMacosWindowBounds ? ["prepare:macos-window-bounds"] : []),
+  // Rust sidecars（diff/scan/watch/proc/image）走同一条链暂存进 bundled-tools；
+  // 跳过时 runtime 直接判 sidecar 不可用并按 island 降级，不阻断发布。
+  ...(shouldPrepareNativeSidecars ? ["prepare:native-sidecars"] : []),
 ];
 
 function runTimedPnpmScript(scriptName) {

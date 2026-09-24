@@ -153,7 +153,6 @@ built), and preserves each moved module's original path under it so parity
 diffs and rollbacks stay one `git mv` away.
 
 ### Stage status (2026-09-22)
-
 - **Stage 1 (agent host + loop): landed.** `zcode-host` runs the multi-round
   agent loop with the six-tool core set; both provider wire shapes live-verified.
 - **Stage 3 first island (diff): wired, flag-gated.** TS package
@@ -167,6 +166,14 @@ diffs and rollbacks stay one `git mv` away.
   fixtures replayed through the real binary, 88/88 tests green. Flag defaults
   OFF (zero behavior change); the first `old.back/` move waits for the
   default flip per the four-condition rule.
+- **Stage 3 first island (diff): DEFAULT-ON (ENTRY 011).** Packaging script
+  `scripts/prepare-native-sidecars.mjs` builds the five sidecar binaries
+  (release) and stages them into `packages/desktop/bundled-tools/<platformKey>/sidecar/`
+  on the same chain as native-search; desktop main resolves that directory
+  (or `resources/tools/sidecar` in a packaged app) and injects `ZCODE_SIDECAR_DIR`.
+  `ZCODE_NATIVE_SIDECARS_OFF=1` is the global kill switch. Verified: the
+  default-on path (flag unset) resolves the staged **release** binary and
+  returns jsdiff-identical results.
 
 ## Third-party notice rule for cargo
 
