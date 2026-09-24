@@ -4,7 +4,7 @@
   "inputs": {
     "scripts/third-party-cargo.mjs": "f149e0eb60186cfa64d139185bc26e0566ba0bd0f46561c6dbf849e82b1dee4d",
     "native/Cargo.toml": "d202a297b3c41b55e56d36522fccd1e388313d6a998fe0de6a0d34d2bc0c66ab",
-    "native/Cargo.lock": "944968ce50854fcb6e4742bb9b063ee6e9eea707b71bc6e9fdec06ce23b513ff"
+    "native/Cargo.lock": "f8032ae189394503bcd10a5a13357119891c7a2308bc7c11fdc44162ee5a59c2"
   },
   "packages": [
     {
@@ -207,6 +207,22 @@
         {
           "file": "third-party/native-cargo/licenses/async-channel-2.5.0/LICENSE-MIT",
           "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+        }
+      ]
+    },
+    {
+      "name": "async-compression",
+      "version": "0.4.46",
+      "license": "MIT OR Apache-2.0",
+      "source": "crates.io registry",
+      "notices": [
+        {
+          "file": "third-party/native-cargo/licenses/async-compression-0.4.46/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "third-party/native-cargo/licenses/async-compression-0.4.46/LICENSE-MIT",
+          "sha256": "88d1e3160df48926ad3310a8ec5699b502889565908f1be7e77cd21282c7a709"
         }
       ]
     },
@@ -1002,6 +1018,38 @@
         {
           "file": "third-party/native-cargo/licenses/combine-4.6.8/LICENSE",
           "sha256": "9bbc1b3dc4674a9ebb12c2a62f54fe3c08672539717f8d05828f684b6cc419a3"
+        }
+      ]
+    },
+    {
+      "name": "compression-codecs",
+      "version": "0.4.41",
+      "license": "MIT OR Apache-2.0",
+      "source": "crates.io registry",
+      "notices": [
+        {
+          "file": "third-party/native-cargo/licenses/compression-codecs-0.4.41/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "third-party/native-cargo/licenses/compression-codecs-0.4.41/LICENSE-MIT",
+          "sha256": "88d1e3160df48926ad3310a8ec5699b502889565908f1be7e77cd21282c7a709"
+        }
+      ]
+    },
+    {
+      "name": "compression-core",
+      "version": "0.4.33",
+      "license": "MIT OR Apache-2.0",
+      "source": "crates.io registry",
+      "notices": [
+        {
+          "file": "third-party/native-cargo/licenses/compression-core-0.4.33/LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+        },
+        {
+          "file": "third-party/native-cargo/licenses/compression-core-0.4.33/LICENSE-MIT",
+          "sha256": "88d1e3160df48926ad3310a8ec5699b502889565908f1be7e77cd21282c7a709"
         }
       ]
     },
@@ -6977,6 +7025,18 @@
         {
           "file": "third-party/native-cargo/licenses/webkit2gtk-sys-2.0.2/LICENSE",
           "sha256": "281b72cb008466810da31680e72005b9899c7e9d7705b909c86098260e12aa7d"
+        }
+      ]
+    },
+    {
+      "name": "webpki-roots",
+      "version": "1.0.9",
+      "license": "CDLA-Permissive-2.0",
+      "source": "crates.io registry",
+      "notices": [
+        {
+          "file": "third-party/native-cargo/licenses/webpki-roots-1.0.9/LICENSE",
+          "sha256": "e271993808fec50ab29350b39539cdec611a9103f827e0aa26d61da70e2d33f8"
         }
       ]
     },

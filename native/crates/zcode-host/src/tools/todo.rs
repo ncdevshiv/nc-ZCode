@@ -80,18 +80,19 @@ fn parse_items(input: &Value) -> Result<Vec<TodoItem>, ToolError> {
                 format!("content exceeds {MAX_CONTENT_CHARS} characters"),
             ));
         }
-        let status =
-            match todo.get("status").and_then(Value::as_str) {
-                Some("pending") => TodoStatus::Pending,
-                Some("in_progress") => TodoStatus::InProgress,
-                Some("completed") => TodoStatus::Completed,
-                other => return Err(ToolError::new(
+        let status = match todo.get("status").and_then(Value::as_str) {
+            Some("pending") => TodoStatus::Pending,
+            Some("in_progress") => TodoStatus::InProgress,
+            Some("completed") => TodoStatus::Completed,
+            other => {
+                return Err(ToolError::new(
                     ToolErrorCode::InvalidInput,
                     format!(
                         "status: invalid value {other:?}; expected pending|in_progress|completed"
                     ),
-                )),
-            };
+                ))
+            }
+        };
         let priority = match todo.get("priority").and_then(Value::as_str) {
             Some("high") => TodoPriority::High,
             Some("medium") => TodoPriority::Medium,

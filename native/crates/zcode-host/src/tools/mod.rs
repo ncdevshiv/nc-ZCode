@@ -23,6 +23,7 @@ pub mod bash;
 pub mod fs_tools;
 pub mod search_tools;
 pub mod todo;
+pub mod webfetch;
 
 /// sideEffectScope 闭集（TS `ModelToolSideEffectScope`）。
 pub const SCOPE_NONE: &str = "none";
@@ -142,6 +143,7 @@ impl ToolRegistry {
         tools.insert("Grep".to_string(), Arc::new(search_tools::GrepTool));
         tools.insert("TodoWrite".to_string(), Arc::new(todo::TodoWriteTool));
         tools.insert("TodoRead".to_string(), Arc::new(todo::TodoReadTool));
+        tools.insert("WebFetch".to_string(), Arc::new(webfetch::WebFetchTool));
         Self { tools }
     }
 
