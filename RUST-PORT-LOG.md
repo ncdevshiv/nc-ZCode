@@ -1033,3 +1033,36 @@ lint(70 基线)/arch/freshness 全绿。
 1. proc island soak 后翻默认开。
 2. host 深度集成：context 装配、compact、MCP、sqlite 存储。
 3. soak + knip → 首个 `old.back` 文件级移动。
+
+---
+
+## ENTRY 018 — 2026-09-22 — context 装配：技能目录发现
+
+> Authorship note：主会话直接执行。
+
+### 交付物
+
+- `assemble_context` 现在发现工作区技能（`.claude/skills` + `.agents/skills`），
+  把**名字清单**注入系统提示（正文按需用 Skill 工具加载——TS 同设计，不把全部
+  skill 塞进 context）。清单有长度上限。
+- 顺手修掉一条过期文案：系统提示里「small toolset (Bash, Read, …)」在 nc-tools
+  家族落地后已经不成立——改成不含工具面枚举的规则表述（工具面由
+  reconciliation 的路由指引承担，避免两处各说一半）。
+
+### 验证
+
+- 单测：技能按名发现、**正文不进 context**（`Secret body` 断言）。
+- **live**：在本仓库（8 个真实 skill）上问「不用加载任何技能，列出可用技能名」，
+  模型准确答出 `agent-browser, ai-elements, architecture-governance,
+  dep-refs, dogfood, electron, feature-boundary-planner, react-best-practices`
+  ——发现是真实的，不是文案。
+
+### 门禁
+
+native 296 tests / fmt 0 / clippy 0；root 全绿（lint 仍 70 基线）。
+
+### Next
+
+1. memory 索引与 `~/.zcode` 用户级配置（context 剩余项）。
+2. proc island soak 后翻默认开。
+3. soak + knip → 首个 `old.back` 文件级移动。
