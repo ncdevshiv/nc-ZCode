@@ -25,6 +25,8 @@ pub struct ContextFacts {
     pub instruction_files: Vec<String>,
     /// 工作区可用技能名（排序去重）；正文由 Skill 工具按需加载。
     pub available_skills: Vec<String>,
+    /// 是否注入了 MEMORY.md 索引（缺失/空文件为 false）。
+    pub memory_loaded: bool,
     pub estimated_context_bytes: usize,
 }
 
@@ -43,9 +45,19 @@ fn discover_instruction_files(root: &Path) -> Vec<String> {
 }
 
 pub fn assemble_context(workspace_root: &Path) -> ContextFacts {
+    assemble_context_with_memory(workspace_root, None)
+}
+
+/// 同 `assemble_context`，但额外注入 memory root 下的 `MEMORY.md` 索引。
+/// host 启动时用 data-dir/memory 作为默认 memory root。
+pub fn assemble_context_with_memory(
+    workspace_root: &Path,
+    memory_root: Option<&Path>,
+) -> ContextFacts {
     let workspace_identity = identity_key(None, &workspace_root.to_string_lossy());
     let instruction_files = discover_instruction_files(workspace_root);
     let available_skills = crate::tools::skill::available_skills(workspace_root);
+    let memory_index = memory_root.and_then(crate::memory::read_memory_index);
     let mut system_blocks = vec![SYSTEM_PROMPT.to_string()];
 
     // 工具面路由指引：zcode 原生工具与 nc-tools 家族并存时，明确每类该用哪个
@@ -69,6 +81,14 @@ pub fn assemble_context(workspace_root: &Path) -> ContextFacts {
         ));
     }
 
+    // 项目记忆索引（存在才注入；缺失/读失败都不是错误）。
+    if let Some(index) = memory_index.filter(|index| !index.is_empty()) {
+        system_blocks.push(format!(
+            "Project memory index (from MEMORY.md — durable facts learned in this workspace; \
+             trust it over assumptions, and update it with the Edit tool when facts change):\n\n{index}"
+        ));
+    }
+
     system_blocks.push(
         json!({
             "environment": {
@@ -87,6 +107,8 @@ pub fn assemble_context(workspace_root: &Path) -> ContextFacts {
         workspace_identity,
         instruction_files,
         available_skills,
+        memory_loaded: memory_root
+            .is_some_and(|root| root.join(crate::memory::MEMORY_FILE_NAME).exists()),
         estimated_context_bytes,
     }
 }
@@ -172,6 +194,40 @@ mod tests {
         let facts = assemble_context(&root);
         assert!(facts.instruction_files.is_empty());
         assert!(facts.system_blocks.len() >= 2);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn memory_index_is_injected_when_present_and_absent_when_not() {
+        let root = temp_workspace("memory");
+        let memory_dir = root.join("memory");
+        fs::create_dir_all(&memory_dir).expect("memory dir");
+
+        // 无 MEMORY.md → 不注入、不报错。
+        let without = assemble_context_with_memory(&root, Some(&memory_dir));
+        assert!(!without.memory_loaded);
+        assert!(
+            !without
+                .system_blocks
+                .iter()
+                .any(|block| block.contains("Project memory index")),
+            "missing memory must not inject a block"
+        );
+
+        // 有 MEMORY.md → 注入索引内容。
+        fs::write(
+            memory_dir.join("MEMORY.md"),
+            "- the native host is the default agent runtime\n",
+        )
+        .expect("write");
+        let with = assemble_context_with_memory(&root, Some(&memory_dir));
+        assert!(with.memory_loaded);
+        let block = with
+            .system_blocks
+            .iter()
+            .find(|block| block.contains("Project memory index"))
+            .expect("memory block");
+        assert!(block.contains("native host is the default agent runtime"));
         let _ = fs::remove_dir_all(&root);
     }
 

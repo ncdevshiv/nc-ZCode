@@ -13,6 +13,7 @@
 //! 与 TS host 的关系：能力面子集 + fail-closed 差异逐条记录在 crate README。
 
 pub mod frame;
+pub mod memory;
 pub mod nc_tools;
 pub mod profile;
 pub mod provider_config;
@@ -70,11 +71,13 @@ impl HostServer {
     ) -> Result<(Arc<Self>, UnboundedReceiver<String>), tools::ToolError> {
         let (outbox, inbox) = tokio::sync::mpsc::unbounded_channel();
         let workspace_identity = identity_key(None, &workspace.to_string_lossy());
+        let memory_root = data_dir.join("memory");
+        let _ = std::fs::create_dir_all(&memory_root);
         let turn_deps = TurnDeps {
             registry: Arc::new(
                 ToolRegistry::with_defaults().with_nc_tools(nc_tools::build_nc_tools(&workspace)?),
             ),
-            context: turn_context::assemble_context(&workspace),
+            context: turn_context::assemble_context_with_memory(&workspace, Some(&memory_root)),
             full_access,
             provider_config: provider.clone().map(Arc::new),
         };
