@@ -1269,3 +1269,37 @@ freshness 全绿。
 1. transcript JSONL → sqlite。
 2. MCP 工具并入 host 的 ToolRegistry（当前 McpPool 独立，需接到注册表/turn 循环）。
 3. proc island soak 后翻默认开；old.back 首个移动待调用点语义收敛。
+
+---
+
+## ENTRY 024 — 2026-09-22 — MCP 工具并入 ToolRegistry（turn 可调用）
+
+> Authorship note：主会话直接执行。ENTRY 023 的 Next 第 2 项收口。
+
+### 交付物
+
+- `mcp_tools.rs`：`McpToolProxy` 把 `McpPool` 的工具适配成 host `Tool`；
+  `ToolRegistry::with_mcp_tools` 并入注册表 → **turn 循环里模型真的能调用**（此前
+  pool 独立、工具不在注册表，模型看不见）。
+- 启动参数 `--mcp-server Name=command[:arg,arg]`（可重复），启动时连接；**连接失败
+  不阻断启动**——MCP 是可选能力面，不是 host 生存依赖。
+- 权限与 nc-tools **刻意不同**：MCP 工具注册为 needsApproval（`readOnly: false`），
+  headless 无交互客户端 → 无 `--full-access` 即拒绝。理由：不解析 server 的
+  destructive 标注、就不假装理解它，保守优先。
+
+### 验证
+
+- 单测（起真实 node MCP server）：连接的 `mcp__probe__ping` 必须出现在
+  `registry.names()`（模型可见），且经 `Tool::execute` 真实执行拿到 server 的
+  `pong`。
+- 已有 4 个 mcp_tools 单测（契约/空池/断连 typed error/并入注册表）。
+
+### 门禁
+
+native **321 tests** / fmt 0 / clippy 0；root 全绿（lint 70 基线）。
+
+### Next
+
+1. transcript JSONL → sqlite（host 会话存储替换）。
+2. proc island soak 后翻默认开。
+3. old.back 首个移动（待调用点语义收敛）。
