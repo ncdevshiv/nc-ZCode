@@ -15,6 +15,7 @@
 pub mod compact;
 pub mod frame;
 pub mod mcp;
+pub mod mcp_tools;
 pub mod memory;
 pub mod nc_tools;
 pub mod profile;
@@ -40,6 +41,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use zcode_core::identity::identity_key;
 use zcode_core::protocol::{parse_command_envelope, CommandStatus};
 
+use crate::mcp::McpPool;
 use crate::profile::DeliveryProfileName;
 use crate::provider_config::ProviderConfig;
 use crate::rpc::{
@@ -51,6 +53,32 @@ use crate::session::{Session, SessionInit};
 use crate::store::{generate_id, is_safe_session_id, now_ms, SessionMeta, TranscriptStore};
 use crate::tools::ToolRegistry;
 use crate::turn::TurnDeps;
+
+/// 解析 `--mcp-server Name=command[:arg,arg]`。
+/// 返回 `(server 名, 可执行文件, 参数)`；形状不合法返回 None。
+fn parse_mcp_spec(spec: &str) -> Option<(String, String, Vec<String>)> {
+    let (name, rest) = spec.split_once('=')?;
+    let name = name.trim();
+    if name.is_empty() {
+        return None;
+    }
+    let mut parts = rest.splitn(2, ':');
+    let command = parts.next()?.trim().to_string();
+    if command.is_empty() {
+        return None;
+    }
+    let args = parts
+        .next()
+        .map(|raw| {
+            raw.split(',')
+                .map(str::trim)
+                .filter(|arg| !arg.is_empty())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+    Some((name.to_string(), command, args))
+}
 
 pub struct HostServer {
     workspace: PathBuf,
@@ -71,14 +99,34 @@ impl HostServer {
         data_dir: PathBuf,
         provider: Option<ProviderConfig>,
         full_access: bool,
+        mcp_servers: Vec<String>,
     ) -> Result<(Arc<Self>, UnboundedReceiver<String>), tools::ToolError> {
         let (outbox, inbox) = tokio::sync::mpsc::unbounded_channel();
         let workspace_identity = identity_key(None, &workspace.to_string_lossy());
         let memory_root = data_dir.join("memory");
         let _ = std::fs::create_dir_all(&memory_root);
+
+        // MCP servers（可选，stdio 形态）：`--mcp-server Name=command[:arg,arg]` 可重复。
+        // 连接失败不阻断启动——MCP 是可选能力面，不是 host 的生存依赖。
+        let mcp_pool = Arc::new(McpPool::new());
+        for spec in &mcp_servers {
+            let Some((name, command, args)) = parse_mcp_spec(spec) else {
+                eprintln!(
+                    "[zcode-host] invalid --mcp-server spec (expected Name=command[:arg,arg]): {spec}"
+                );
+                continue;
+            };
+            match mcp_pool.connect_stdio(&name, &command, &args) {
+                Ok(count) => eprintln!("[zcode-host] mcp {name}: {count} tools"),
+                Err(error) => eprintln!("[zcode-host] mcp {name} unavailable: {error}"),
+            }
+        }
+
         let turn_deps = TurnDeps {
             registry: Arc::new(
-                ToolRegistry::with_defaults().with_nc_tools(nc_tools::build_nc_tools(&workspace)?),
+                ToolRegistry::with_defaults()
+                    .with_nc_tools(nc_tools::build_nc_tools(&workspace)?)
+                    .with_mcp_tools(mcp_tools::proxies_for(&mcp_pool)),
             ),
             context: turn_context::assemble_context_with_memory(&workspace, Some(&memory_root)),
             full_access,

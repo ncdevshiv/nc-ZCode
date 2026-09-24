@@ -25,9 +25,12 @@ struct Args {
     /// Provider 配置 JSON；缺省 = 模型层不可用（fail-closed）。
     #[arg(long)]
     provider_config: Option<PathBuf>,
-    /// 允许 destructive 工具调用（write/edit/非只读 bash）；缺省 fail-closed。
+    /// 允许 destructive 工具调用（write/edit/非只读 bash/外部 MCP 工具）；缺省 fail-closed。
     #[arg(long)]
     full_access: bool,
+    /// MCP server（stdio）：`Name=command[:arg,arg]`，可重复。
+    #[arg(long = "mcp-server", value_name = "SPEC")]
+    mcp_servers: Vec<String>,
 }
 
 #[tokio::main]
@@ -52,6 +55,7 @@ async fn main() {
         args.data_dir.clone(),
         provider,
         args.full_access,
+        args.mcp_servers.clone(),
     )
     .unwrap_or_else(|error| {
         eprintln!("[zcode-host] startup failed: {error}");
