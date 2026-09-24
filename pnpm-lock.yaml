@@ -236,12 +236,12 @@ importers:
       '@zcode/shared':
         specifier: workspace:*
         version: link:../../../../packages/shared
+      '@zcode/sidecar':
+        specifier: workspace:*
+        version: link:../sidecar
       '@zcode/telemetry':
         specifier: workspace:*
         version: link:../telemetry
-      diff:
-        specifier: ^9.0.0
-        version: 9.0.0
       zod:
         specifier: 4.6.5
         version: 4.6.5
@@ -371,15 +371,15 @@ importers:
       '@zcode/shared-types':
         specifier: workspace:*
         version: link:../shared-types
+      '@zcode/sidecar':
+        specifier: workspace:*
+        version: link:../sidecar
       '@zcode/zcode-cua':
         specifier: workspace:*
         version: link:../../../../packages/zcode-cua
       cheerio:
         specifier: ^1.0.0
         version: 1.2.0
-      diff:
-        specifier: ^9.0.0
-        version: 9.0.0
       ipaddr.js:
         specifier: 1.9.1
         version: 1.9.1
@@ -511,6 +511,12 @@ importers:
       '@types/node':
         specifier: ^24.0.0
         version: 24.12.2
+
+  apps/zcode-cli/packages/sidecar:
+    dependencies:
+      diff:
+        specifier: ^9.0.0
+        version: 9.0.0
 
   apps/zcode-cli/packages/swift-bridge:
     dependencies:

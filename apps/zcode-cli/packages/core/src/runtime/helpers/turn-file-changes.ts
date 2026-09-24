@@ -1,10 +1,10 @@
-import { structuredPatch } from "diff";
+import { nativeStructuredPatch } from "@zcode/sidecar";
 import type { DiffHunk, TurnFileChangeSummary } from "../deps.js";
 import type { RuntimeTurnFileChangeMap } from "../types.js";
 
 const DIFF_TIMEOUT_MS = 5_000;
 
-export function recordTurnFileChange(
+export async function recordTurnFileChange(
   changes: RuntimeTurnFileChangeMap,
   input: {
     afterContent?: string;
@@ -13,7 +13,7 @@ export function recordTurnFileChange(
     structuredPatch: DiffHunk[];
     toolName: string;
   },
-): void {
+): Promise<void> {
   const fallback = countPatchLines(input.structuredPatch);
   const existing = changes.get(input.path);
   if (!existing) {
@@ -36,20 +36,20 @@ export function recordTurnFileChange(
   existing.writeCount += 1;
 }
 
-export function buildTurnFileChangeSummary(
+export async function buildTurnFileChangeSummary(
   changes: RuntimeTurnFileChangeMap,
-): TurnFileChangeSummary | undefined {
+): Promise<TurnFileChangeSummary | undefined> {
   if (changes.size === 0) return undefined;
 
-  const items = Array.from(changes.values())
-    .map((entry) => {
+  const mapped = await Promise.all(
+    Array.from(changes.values()).map(async (entry) => {
       const stat =
         entry.afterContent === undefined
           ? {
               additions: entry.fallbackAdditions,
               deletions: entry.fallbackDeletions,
             }
-          : diffLineStat(entry.beforeContent ?? "", entry.afterContent, entry.path);
+          : await diffLineStat(entry.beforeContent ?? "", entry.afterContent, entry.path);
       return {
         additions: stat.additions,
         deletions: stat.deletions,
@@ -57,8 +57,9 @@ export function buildTurnFileChangeSummary(
         toolNames: Array.from(entry.toolNames).sort(),
         writeCount: entry.writeCount,
       };
-    })
-    .sort((left, right) => left.path.localeCompare(right.path));
+    }),
+  );
+  const items = mapped.sort((left, right) => left.path.localeCompare(right.path));
 
   return {
     additions: items.reduce((total, item) => total + item.additions, 0),
@@ -68,16 +69,22 @@ export function buildTurnFileChangeSummary(
   };
 }
 
-function diffLineStat(
+async function diffLineStat(
   beforeContent: string,
   afterContent: string,
   filePath: string,
-): { additions: number; deletions: number } {
-  return countPatchLines(
-    structuredPatch(filePath, filePath, beforeContent, afterContent, undefined, undefined, {
-      timeout: DIFF_TIMEOUT_MS,
-    })?.hunks ?? [],
+): Promise<{ additions: number; deletions: number }> {
+  // flag 关 = jsdiff（facade 内部）；flag 开 = Rust zcode-diff sidecar。
+  const patch = await nativeStructuredPatch(
+    filePath,
+    filePath,
+    beforeContent,
+    afterContent,
+    undefined,
+    undefined,
+    { timeout: DIFF_TIMEOUT_MS },
   );
+  return countPatchLines(patch?.hunks ?? []);
 }
 
 function countPatchLines(hunks: DiffHunk[]): { additions: number; deletions: number } {

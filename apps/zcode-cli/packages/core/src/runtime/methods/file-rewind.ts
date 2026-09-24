@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { isAbsolute, resolve } from "node:path";
-import { applyPatch, type StructuredPatch } from "diff";
+import { nativeApplyPatch, type StructuredPatch } from "@zcode/sidecar";
 import {
   RewindScope,
   RewindStrategy,
@@ -375,7 +375,7 @@ async function buildWorkspaceFileRewindPlan(
       // FileSystemPort 只接受绝对路径。若不在计划阶段按 runtime workspace root
       // 解析，安全文件会被误报 file_read_failed，组合 rewind 只返回 blocked。
       const filePath = resolveCheckpointFilePath(this.workspaceRoot, file.path);
-      const afterContent = resolveCheckpointAfterContent(file);
+      const afterContent = await resolveCheckpointAfterContent(file);
       if (afterContent === undefined) {
         markUnsafe(unsupportedByPath, {
           action: file.existedBefore && file.beforeContent !== null ? "restore" : "delete",
@@ -520,9 +520,9 @@ function resolveTargetCheckpoints(
   return checkpoint ? [checkpoint] : [];
 }
 
-function resolveCheckpointAfterContent(
+async function resolveCheckpointAfterContent(
   file: WorkspaceCheckpointArtifact["files"][number],
-): string | null | undefined {
+): Promise<string | null | undefined> {
   const afterContent = (file as { afterContent?: unknown }).afterContent;
   if (typeof afterContent === "string") {
     return afterContent;
@@ -540,7 +540,7 @@ function resolveCheckpointAfterContent(
     newHeader: undefined,
     hunks: file.structuredPatch,
   };
-  const patched = applyPatch(beforeContent, patch, {
+  const patched = await nativeApplyPatch(beforeContent, patch, {
     autoConvertLineEndings: false,
     fuzzFactor: 0,
   });

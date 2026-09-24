@@ -9,7 +9,7 @@ import {
   type TurnId,
 } from "@zcode/contracts";
 import type { V4ConversationFileChangesResult } from "@zcode/shared/zcode-protocol-v4";
-import { applyPatch, structuredPatch, type StructuredPatch } from "diff";
+import { nativeApplyPatch, nativeStructuredPatch, type StructuredPatch } from "@zcode/sidecar";
 
 interface FileChangeAggregate {
   afterContent?: string;
@@ -133,7 +133,7 @@ async function aggregateWorkspaceCheckpoints(
     );
     for (const file of artifact.files) {
       const fallback = countPatchLines(file.structuredPatch);
-      const afterContent = resolveCheckpointAfterContent(file);
+      const afterContent = await resolveCheckpointAfterContent(file);
       const existing = byPath.get(file.path);
       if (!existing) {
         byPath.set(file.path, {
@@ -157,12 +157,12 @@ async function aggregateWorkspaceCheckpoints(
     }
   }
 
-  const items = Array.from(byPath.values())
-    .map((entry) => {
+  const mapped = await Promise.all(
+    Array.from(byPath.values()).map(async (entry) => {
       const patches =
         entry.afterContent === undefined
           ? entry.patches
-          : createFinalPatch(entry.path, entry.beforeContent ?? "", entry.afterContent);
+          : await createFinalPatch(entry.path, entry.beforeContent ?? "", entry.afterContent);
       const stat =
         entry.afterContent === undefined
           ? {
@@ -178,8 +178,9 @@ async function aggregateWorkspaceCheckpoints(
         toolNames: Array.from(entry.toolNames).sort(),
         patches,
       };
-    })
-    .sort((left, right) => left.path.localeCompare(right.path));
+    }),
+  );
+  const items = mapped.sort((left, right) => left.path.localeCompare(right.path));
 
   return {
     files: items.length,
@@ -263,17 +264,21 @@ export async function buildColdFileChangeSummaries(input: {
   return summaries;
 }
 
-function createFinalPatch(path: string, beforeContent: string, afterContent: string): DiffHunk[] {
-  return (
-    structuredPatch(path, path, beforeContent, afterContent, undefined, undefined, {
-      timeout: 5_000,
-    })?.hunks ?? []
-  );
+async function createFinalPatch(
+  path: string,
+  beforeContent: string,
+  afterContent: string,
+): Promise<DiffHunk[]> {
+  // flag 关 = jsdiff（facade 内部）；flag 开 = Rust zcode-diff sidecar。
+  const patch = await nativeStructuredPatch(path, path, beforeContent, afterContent, undefined, undefined, {
+    timeout: 5_000,
+  });
+  return patch?.hunks ?? [];
 }
 
-function resolveCheckpointAfterContent(
+async function resolveCheckpointAfterContent(
   file: ReturnType<typeof parseWorkspaceCheckpointArtifact>["files"][number],
-): string | undefined {
+): Promise<string | undefined> {
   if (typeof file.afterContent === "string") return file.afterContent;
   if (!file.existedBefore && file.beforeContent === null && file.structuredPatch.length === 0) {
     return undefined;
@@ -285,7 +290,7 @@ function resolveCheckpointAfterContent(
     newHeader: undefined,
     hunks: file.structuredPatch,
   };
-  const patched = applyPatch(file.beforeContent ?? "", patch, {
+  const patched = await nativeApplyPatch(file.beforeContent ?? "", patch, {
     autoConvertLineEndings: false,
     fuzzFactor: 0,
   });

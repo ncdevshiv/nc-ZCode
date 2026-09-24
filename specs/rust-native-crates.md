@@ -115,7 +115,7 @@ Rules:
 - **S5**: axum app serves static UI assets with SPA fallback + health endpoints,
   behind a `HostPort` trait; wiring to a real host is S3/S5 integration (open).
 
-## Cutover order and `old.back/` staging (S3→S6, updated 2026-09-22 ENTRY 007)
+## Cutover order and `old.back/` staging (S3→S6, updated 2026-09-22 ENTRY 010)
 
 Deletion is **stage-gated**, never big-bang: the desktop app and `zcode --web`
 spawn the TS CLI today, so moving any still-executing TS module would break the
@@ -151,6 +151,22 @@ Staged order (each stage ends with its own `old.back/` move or an explicit
 `old.back/` lives at the repo root, is gitignored-adjacent (tracked, not
 built), and preserves each moved module's original path under it so parity
 diffs and rollbacks stay one `git mv` away.
+
+### Stage status (2026-09-22)
+
+- **Stage 1 (agent host + loop): landed.** `zcode-host` runs the multi-round
+  agent loop with the six-tool core set; both provider wire shapes live-verified.
+- **Stage 3 first island (diff): wired, flag-gated.** TS package
+  `apps/zcode-cli/packages/sidecar` (`@zcode/sidecar`) bridges the NDJSON stdio
+  protocol (ready handshake, request/response, pool with idle reaping and
+  crash eviction). `ZCODE_NATIVE_SIDECARS=diff` routes the four jsdiff call
+  sites (tool/diff, turn-file-changes, file-rewind, cold-file-change-summaries)
+  through the Rust sidecar; unavailability degrades to jsdiff with a warning,
+  protocol/handler errors surface. `diff` is no longer a runtime dependency of
+  core/bootstrap — jsdiff is contained in the adapter. Parity: 87 real-jsdiff
+  fixtures replayed through the real binary, 88/88 tests green. Flag defaults
+  OFF (zero behavior change); the first `old.back/` move waits for the
+  default flip per the four-condition rule.
 
 ## Third-party notice rule for cargo
 

@@ -45,7 +45,7 @@ fn baseline_is_real_jsdiff_9() {
 fn unified_patches_match_jsdiff_byte_for_byte() {
     for case in cases("unified") {
         let name = case["name"].as_str().expect("name");
-        let got = run("diff_unified", &case);
+        let got = run("diff.unified", &case);
         match &case["expected"] {
             Value::Null => assert_eq!(got, json!({"patch": null}), "unified/{name}"),
             expected => {
@@ -64,7 +64,7 @@ fn unified_patches_match_jsdiff_byte_for_byte() {
 fn structured_patches_match_jsdiff_including_key_order() {
     for case in cases("structured") {
         let name = case["name"].as_str().expect("name");
-        let got = run("structured_patch", &case);
+        let got = run("structuredPatch", &case);
         assert_value_json_eq(&got, &case["expected"], &format!("structured/{name}"));
     }
 }
@@ -73,7 +73,7 @@ fn structured_patches_match_jsdiff_including_key_order() {
 fn line_chunks_match_jsdiff_including_boolean_explicitness() {
     for case in cases("chunks") {
         let name = case["name"].as_str().expect("name");
-        let got = run("diff_lines", &case);
+        let got = run("diff.lines", &case);
         assert_value_json_eq(&got["chunks"], &case["expected"], &format!("chunks/{name}"));
     }
 }
@@ -88,7 +88,7 @@ fn apply_results_match_jsdiff_success_and_failure() {
     assert!(failures >= 1, "fixtures 必须覆盖失败路径");
     for case in &cases {
         let name = case["name"].as_str().expect("name");
-        let got = run("apply_patch", case);
+        let got = run("diff.applyPatch", case);
         assert_value_json_eq(&got, &case["expected"], &format!("apply/{name}"));
     }
 }
@@ -105,14 +105,14 @@ fn roundtrip_structured_then_apply_recovers_target() {
 
     // 直接送 params（run() 面向 fixture 的 {params, expected} 形状）。
     let patch = zcode_diff::handle(
-        "structured_patch",
+        "structuredPatch",
         &json!({"old": old, "new": new, "oldLabel": "f.txt", "newLabel": "f.txt"}),
     )
     .unwrap_or_else(|err| panic!("structured 意外失败: {}", err.body.message));
     let hunks = patch["hunks"].as_array().expect("hunks").clone();
     assert_eq!(hunks.len(), 2, "远距变更应拆两个 hunk: {patch}");
 
-    let applied = zcode_diff::handle("apply_patch", &json!({"source": old, "hunks": hunks}))
+    let applied = zcode_diff::handle("diff.applyPatch", &json!({"source": old, "hunks": hunks}))
         .unwrap_or_else(|err| panic!("apply 意外失败: {}", err.body.message));
     assert_eq!(
         applied,

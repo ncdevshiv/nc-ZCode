@@ -528,7 +528,7 @@ async function writeEditResult(input: {
   );
   recordReadFileStateMetadata(input.context, readFileStateEntry);
 
-  const structuredPatch = createStructuredPatch({
+  const structuredPatch = await createStructuredPatch({
     filePath: input.inputFilePath,
     oldContent: input.originalFile,
     newContent: contentToWrite,

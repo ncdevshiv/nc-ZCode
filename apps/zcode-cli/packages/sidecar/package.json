@@ -1,0 +1,25 @@
+{
+  "name": "@zcode/sidecar",
+  "private": true,
+  "version": "0.1.0",
+  "description": "NDJSON stdio bridge to the Rust native sidecars (S1 islands): spawn, ready handshake, request/response correlation, pool lifecycle. Diff facades mirror the jsdiff surface used by zcode.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "node ../../scripts/clean-dist.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint src",
+    "lint:fix": "oxlint --write src"
+  },
+  "dependencies": {
+    "diff": "^9.0.0"
+  }
+}

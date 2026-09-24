@@ -63,7 +63,7 @@ AGENTS.md/CLAUDE.md 发现 + 环境事实）；机械 microcompact（阈值 120k
     anthropic（`/v1/messages` + Bearer + 非流式 + tool_use，ENTRY 009）。
     测试用凭据由用户提供，只进临时目录、不随代码提交（repo 规则：凭据不得进
     日志/提交）。仍 OPEN：runner-debug 录制的 live golden-request 语料、
-    `generateText`  parity、Linux/macOS 运行时。
+    `generateText` parity、Linux/macOS 运行时。
 11. `ProviderConfig` 的 `authStyle`/`stream` 覆盖：网关鉴权样式与流式能力因
     网关而异（该网关对两种形状都只认 Bearer，且 stream 请求被翻译成 OpenAI
     chunk 形状），配置显式声明即可，不必改代码。

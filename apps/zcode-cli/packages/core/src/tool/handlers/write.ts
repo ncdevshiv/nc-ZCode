@@ -146,16 +146,17 @@ const writeHandler: ToolHandler = async (input, context) => {
   recordReadFileStateMetadata(context, readFileStateEntry);
 
   if (originalFile) {
+    const structuredPatch = await createStructuredPatch({
+      filePath: file_path,
+      oldContent: originalFile,
+      newContent: contentToWrite,
+    });
     return attachToolExecutionTelemetry(
       {
         type: "update",
         filePath: file_path,
         content: contentToWrite,
-        structuredPatch: createStructuredPatch({
-          filePath: file_path,
-          oldContent: originalFile,
-          newContent: contentToWrite,
-        }),
+        structuredPatch,
         originalFile,
         userModified: false,
       },

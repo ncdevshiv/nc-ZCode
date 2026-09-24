@@ -27,6 +27,15 @@ use zcode_sidecar_proto::{
 /// sidecar 标识（ready 事件回显）。
 pub const SIDECAR_NAME: &str = "zcode-diff";
 
+/// wire 方法名（README 的协议表即本数组；改动必须同步 README——`handle` 按名分发，
+/// 未列出的名字一律 404）。回归测试锁定集合，防文档/代码再次漂移。
+pub const WIRE_METHOD_NAMES: [&str; 4] = [
+    "diff.unified",
+    "structuredPatch",
+    "diff.lines",
+    "diff.applyPatch",
+];
+
 /// `context` 默认值（jsdiff `structuredPatch` 同源默认）。
 const DEFAULT_CONTEXT: u64 = 4;
 /// `timeoutMs` 默认值（对齐 TS 调用方的 5000ms）。
@@ -44,12 +53,7 @@ pub fn run() -> i32 {
     }
 
     let mut registry: Registry<io::Stdout> = Registry::new();
-    for method in [
-        "diff_unified",
-        "structured_patch",
-        "diff_lines",
-        "apply_patch",
-    ] {
+    for method in WIRE_METHOD_NAMES {
         registry.register(method, |params, _emitter| handle(method, params));
     }
 
@@ -71,11 +75,31 @@ pub fn run() -> i32 {
 /// 方法分发入口：registry 与 parity 测试共用同一条实现路径。
 pub fn handle(method: &str, params: &Value) -> Result<Value, HandlerError> {
     match method {
-        "diff_unified" => diff_unified(params),
-        "structured_patch" => structured_patch(params),
-        "diff_lines" => diff_lines(params),
-        "apply_patch" => apply_patch(params),
+        "diff.unified" => diff_unified(params),
+        "structuredPatch" => structured_patch(params),
+        "diff.lines" => diff_lines(params),
+        "diff.applyPatch" => apply_patch(params),
         other => Err(HandlerError::not_found(format!("unknown method: {other}"))),
+    }
+}
+
+#[cfg(test)]
+mod wire_name_tests {
+    use super::*;
+
+    /// README 协议表的四个名字必须全部可分发；旧 snake_case 名字必须 404。
+    #[test]
+    fn wire_method_names_match_readme() {
+        for name in WIRE_METHOD_NAMES {
+            let err = handle(name, &json!({"old": "a", "new": "a"})).err();
+            assert!(
+                !matches!(&err, Some(error) if error.body.code == 404),
+                "wire method {name} must dispatch, got: {:?}",
+                err.map(|error| error.body)
+            );
+        }
+        let stale = handle("diff_unified", &json!({})).expect_err("旧 snake_case 名必须 404");
+        assert_eq!(stale.body.code, 404);
     }
 }
 
@@ -386,19 +410,19 @@ mod tests {
     #[test]
     fn handle_dispatches_methods_and_rejects_unknown() {
         let result =
-            handle("diff_lines", &json!({"old": "a\n", "new": "a\nb\n"})).expect("diff_lines ok");
+            handle("diff.lines", &json!({"old": "a\n", "new": "a\nb\n"})).expect("diff_lines ok");
         assert_eq!(result["chunks"].as_array().expect("chunks").len(), 2);
 
         let err = handle("no_such", &json!({})).unwrap_err();
         assert_eq!(err.body.code, 404);
 
         // 缺 old → 400。
-        let err = handle("diff_unified", &json!({"new": "x"})).unwrap_err();
+        let err = handle("diff.unified", &json!({"new": "x"})).unwrap_err();
         assert_eq!(err.body.code, 400);
 
         // fuzzFactor 1 → 400。
         let err = handle(
-            "apply_patch",
+            "diff.applyPatch",
             &json!({"source": "a", "hunks": [], "fuzzFactor": 1}),
         )
         .unwrap_err();
@@ -410,16 +434,16 @@ mod tests {
         let old: String = (0..5000).map(|i| format!("old {i}\n")).collect();
         let new: String = (0..5000).map(|i| format!("new {i}\n")).collect();
         let params = json!({"old": old, "new": new, "timeoutMs": 0});
-        let unified = handle("diff_unified", &params).expect("响应正常");
+        let unified = handle("diff.unified", &params).expect("响应正常");
         assert_eq!(unified, json!({"patch": null}), "超时 → patch:null");
-        let structured = handle("structured_patch", &params).expect("响应正常");
+        let structured = handle("structuredPatch", &params).expect("响应正常");
         assert_eq!(structured, Value::Null, "超时 → 裸 null");
     }
 
     #[test]
     fn apply_patch_result_shapes() {
         let ok = handle(
-            "apply_patch",
+            "diff.applyPatch",
             &json!({
                 "source": "a\nb\nc\n",
                 "hunks": [{"oldStart":1,"oldLines":3,"newStart":1,"newLines":3,
@@ -430,7 +454,7 @@ mod tests {
         assert_eq!(ok, json!({"applied": true, "result": "a\nB\nc\n"}));
 
         let fail = handle(
-            "apply_patch",
+            "diff.applyPatch",
             &json!({
                 "source": "zzz",
                 "hunks": [{"oldStart":1,"oldLines":3,"newStart":1,"newLines":3,

@@ -95,7 +95,7 @@ fn protocol_lifecycle_ready_mismatch_404_and_shutdown() {
     let mut client = spawn_ready();
 
     // 版本不匹配 → 400 + 前缀 + exit 1（fail-closed）。
-    client.send(json!({"v":2,"id":9,"method":"diff_lines","params":{"old":"a","new":"b"}}));
+    client.send(json!({"v":2,"id":9,"method":"diff.lines","params":{"old":"a","new":"b"}}));
     let frame = client.read_frame();
     assert_error_code(&frame, 400);
     let message = frame["error"]["message"].as_str().expect("message");
@@ -125,7 +125,7 @@ fn unified_and_structured_roundtrip_over_stdio() {
     // diff_unified：完整 patch 文本（Index/文件头/hunk 行）。
     let resp = client.request(
         1,
-        "diff_unified",
+        "diff.unified",
         json!({
             "old": "a\nb\nc\n",
             "new": "a\nB\nc\n",
@@ -143,7 +143,7 @@ fn unified_and_structured_roundtrip_over_stdio() {
     // structured_patch：裸补丁对象（无外层包装）。
     let resp = client.request(
         2,
-        "structured_patch",
+        "structuredPatch",
         json!({
             "old": "a\nb\nc\n",
             "new": "a\nB\nc\n",
@@ -163,7 +163,7 @@ fn unified_and_structured_roundtrip_over_stdio() {
     assert_eq!(hunk["lines"], json!([" a", "-b", "+B", " c"]));
 
     // 无标签 → undefined 键省略（镜像 JSON.stringify）。
-    let resp = client.request(3, "structured_patch", json!({"old": "a\n", "new": "b\n"}));
+    let resp = client.request(3, "structuredPatch", json!({"old": "a\n", "new": "b\n"}));
     assert_eq!(resp["ok"], json!(true));
     assert!(
         resp["result"].get("oldFileName").is_none(),
@@ -181,7 +181,7 @@ fn diff_lines_reports_chunks_with_explicit_booleans() {
     let mut client = spawn_ready();
 
     // 相同输入 → 单个公共 chunk，added/removed 显式 false。
-    let resp = client.request(1, "diff_lines", json!({"old": "a\nb\n", "new": "a\nb\n"}));
+    let resp = client.request(1, "diff.lines", json!({"old": "a\nb\n", "new": "a\nb\n"}));
     assert_eq!(resp["ok"], json!(true), "diff_lines 失败: {resp}");
     let chunks = resp["result"]["chunks"].as_array().expect("chunks");
     assert_eq!(chunks.len(), 1);
@@ -191,14 +191,14 @@ fn diff_lines_reports_chunks_with_explicit_booleans() {
     assert_eq!(chunks[0]["value"], json!("a\nb\n"));
 
     // 插入 → 公共 + 新增两段。
-    let resp = client.request(2, "diff_lines", json!({"old": "a\n", "new": "a\nb\n"}));
+    let resp = client.request(2, "diff.lines", json!({"old": "a\n", "new": "a\nb\n"}));
     let chunks = resp["result"]["chunks"].as_array().expect("chunks");
     assert_eq!(chunks.len(), 2);
     assert_eq!(chunks[1]["added"], json!(true));
     assert_eq!(chunks[1]["value"], json!("b\n"));
 
     // 空↔空 → 空数组。
-    let resp = client.request(3, "diff_lines", json!({"old": "", "new": ""}));
+    let resp = client.request(3, "diff.lines", json!({"old": "", "new": ""}));
     assert_eq!(resp["result"]["chunks"], json!([]));
 
     client.send(json!({"v":1,"id":4,"method":"shutdown","params":{}}));
@@ -213,14 +213,14 @@ fn apply_patch_success_failure_and_shape_errors() {
     // 先用 structured_patch 取 hunks，再原样回灌（真实组合链路）。
     let patch = client.request(
         1,
-        "structured_patch",
+        "structuredPatch",
         json!({"old": "a\nb\nc\n", "new": "a\nB\nc\n"}),
     );
     let hunks = patch["result"]["hunks"].clone();
 
     let ok = client.request(
         2,
-        "apply_patch",
+        "diff.applyPatch",
         json!({"source": "a\nb\nc\n", "hunks": hunks}),
     );
     assert_eq!(ok["ok"], json!(true), "apply 失败: {ok}");
@@ -232,7 +232,7 @@ fn apply_patch_success_failure_and_shape_errors() {
     // 上下文全不匹配 → applied:false（不是协议错误）。
     let fail = client.request(
         3,
-        "apply_patch",
+        "diff.applyPatch",
         json!({
             "source": "zzz",
             "hunks": [{"oldStart":1,"oldLines":3,"newStart":1,"newLines":3,
@@ -247,7 +247,7 @@ fn apply_patch_success_failure_and_shape_errors() {
     assert_eq!(fail["result"], json!({"applied": false}));
 
     // 空 hunks → 原样返回 source。
-    let empty = client.request(4, "apply_patch", json!({"source": "raw", "hunks": []}));
+    let empty = client.request(4, "diff.applyPatch", json!({"source": "raw", "hunks": []}));
     assert_eq!(empty["result"], json!({"applied": true, "result": "raw"}));
 
     client.send(json!({"v":1,"id":5,"method":"shutdown","params":{}}));
@@ -260,17 +260,17 @@ fn invalid_params_map_to_400_and_keep_serving() {
     let mut client = spawn_ready();
 
     // 缺 old → 400。
-    assert_error_code(&client.request(1, "diff_unified", json!({"new": "x"})), 400);
+    assert_error_code(&client.request(1, "diff.unified", json!({"new": "x"})), 400);
     // old 类型不符（空串是合法输入，不报错）→ 非字符串才 400。
     assert_error_code(
-        &client.request(2, "diff_unified", json!({"old": 7, "new": "x"})),
+        &client.request(2, "diff.unified", json!({"old": 7, "new": "x"})),
         400,
     );
     // context 负数 / 浮点 → 400。
     assert_error_code(
         &client.request(
             3,
-            "structured_patch",
+            "structuredPatch",
             json!({"old": "a", "new": "b", "context": -1}),
         ),
         400,
@@ -278,7 +278,7 @@ fn invalid_params_map_to_400_and_keep_serving() {
     assert_error_code(
         &client.request(
             4,
-            "structured_patch",
+            "structuredPatch",
             json!({"old": "a", "new": "b", "context": 1.5}),
         ),
         400,
@@ -286,7 +286,7 @@ fn invalid_params_map_to_400_and_keep_serving() {
     // fuzzFactor 非 0 → 400（仅支持精确应用）。
     let resp = client.request(
         5,
-        "apply_patch",
+        "diff.applyPatch",
         json!({"source": "a", "hunks": [], "fuzzFactor": 1}),
     );
     assert_error_code(&resp, 400);
@@ -300,20 +300,24 @@ fn invalid_params_map_to_400_and_keep_serving() {
     );
     // hunks 形状非法 → 400。
     assert_error_code(
-        &client.request(6, "apply_patch", json!({"source": "a", "hunks": "nope"})),
+        &client.request(
+            6,
+            "diff.applyPatch",
+            json!({"source": "a", "hunks": "nope"}),
+        ),
         400,
     );
     assert_error_code(
         &client.request(
             7,
-            "apply_patch",
+            "diff.applyPatch",
             json!({"source": "a", "hunks": [{"oldStart": 1}]}),
         ),
         400,
     );
 
     // 所有 400 之后仍正常服务，最后优雅退出。
-    let ok = client.request(8, "diff_lines", json!({"old": "a\n", "new": "b\n"}));
+    let ok = client.request(8, "diff.lines", json!({"old": "a\n", "new": "b\n"}));
     assert_eq!(ok["ok"], json!(true), "错误后必须继续服务: {ok}");
 
     client.send(json!({"v":1,"id":9,"method":"shutdown","params":{}}));
@@ -328,7 +332,7 @@ fn timeout_zero_yields_null_patch_and_bare_structured_null() {
 
     let resp = client.request(
         1,
-        "diff_unified",
+        "diff.unified",
         json!({"old": old, "new": new, "oldLabel": "f", "newLabel": "f", "timeoutMs": 0}),
     );
     assert_eq!(resp["ok"], json!(true), "超时是业务 null 不是错误: {resp}");
@@ -336,7 +340,7 @@ fn timeout_zero_yields_null_patch_and_bare_structured_null() {
 
     let resp = client.request(
         2,
-        "structured_patch",
+        "structuredPatch",
         json!({"old": old, "new": new, "timeoutMs": 0}),
     );
     assert_eq!(resp["ok"], json!(true), "超时是业务 null 不是错误: {resp}");

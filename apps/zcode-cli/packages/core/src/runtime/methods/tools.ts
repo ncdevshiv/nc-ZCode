@@ -215,7 +215,7 @@ export async function emitFileMutationCheckpoint(
     );
     await this.appendEvent(event, options.traceContext);
     options.events.push(event);
-    recordTurnFileChange(this.currentTurnFileChanges, {
+    await recordTurnFileChange(this.currentTurnFileChanges, {
       afterContent: candidate.content,
       beforeContent: candidate.originalFile,
       path: candidate.filePath,

@@ -590,7 +590,7 @@ async function runModelBackedTurnStepImpl(
   const supportsTurnFileChanges = querySource === "main_turn" || querySource === "subagent";
   const fileChanges =
     supportsTurnFileChanges && toolCalls.length === 0
-      ? buildTurnFileChangeSummary(this.currentTurnFileChanges)
+      ? await buildTurnFileChangeSummary(this.currentTurnFileChanges)
       : undefined;
   const modelCompleteEvent = this.createEvent(
     SessionEventType.ModelComplete,
