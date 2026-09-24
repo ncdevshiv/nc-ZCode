@@ -32,6 +32,8 @@ z-work/
 openclaw/
 .run-logs/
 .worktrees/
+# nc-tools 的 append-only 审计日志（工作区运行时产物，测试也会在 cwd 落一份）。
+.nc-tools/
 packages/stream-animate/dist-server/
 packages/stream-animate/.stream-animate-data/
 .codegraph
