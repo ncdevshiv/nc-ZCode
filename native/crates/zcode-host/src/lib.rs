@@ -72,6 +72,7 @@ impl HostServer {
             registry: Arc::new(ToolRegistry::with_defaults()),
             context: turn_context::assemble_context(&workspace),
             full_access,
+            provider_config: provider.clone().map(Arc::new),
         };
         let server = Arc::new(Self {
             workspace,

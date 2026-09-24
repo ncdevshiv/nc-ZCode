@@ -17,6 +17,8 @@ use super::{
 const DEFAULT_READ_LINES: usize = 2000;
 const DEFAULT_READ_LINE_CHARS: usize = 2000;
 const MAX_WRITE_BYTES: usize = 8 * 1024 * 1024;
+/// TS `contracts/tools/read.ts` 的体积上限：256 KiB（对齐后 Rust Read 与 TS 同界）。
+const READ_MAX_FILE_SIZE_BYTES: u64 = 256 * 1024;
 
 /// 解析并校验 workspace 内的路径：拒绝 `..` 逃逸与非 workspace 绝对路径。
 /// canonicalize 前的词法校验 + canonicalize 后的前缀校验双闸。
@@ -101,6 +103,20 @@ impl Tool for ReadTool {
         check_cancelled(ctx)?;
         let raw = require_string(input, "file_path")?;
         let path = resolve_workspace_path(ctx, raw)?;
+        // 体积上限与 TS Read 一致（256 KiB）：超限直接拒绝，交给模型换方式
+        // （offset/limit）而不是先读进内存再截断。
+        let metadata = std::fs::metadata(&path).map_err(|error| {
+            ToolError::new(
+                ToolErrorCode::ExecutionFailed,
+                format!("stat {raw}: {error}"),
+            )
+        })?;
+        if metadata.len() > READ_MAX_FILE_SIZE_BYTES {
+            return Err(ToolError::new(
+                ToolErrorCode::InvalidInput,
+                format!("{raw} exceeds the {READ_MAX_FILE_SIZE_BYTES} byte read limit"),
+            ));
+        }
         let content = std::fs::read_to_string(&path).map_err(|error| {
             ToolError::new(
                 ToolErrorCode::ExecutionFailed,
@@ -282,6 +298,7 @@ mod tests {
             read_state: Arc::new(Mutex::new(std::collections::HashSet::new())),
             cancel: Arc::new(AtomicBool::new(false)),
             todos: crate::tools::todo::new_todo_store(),
+            provider_config: None,
         }
     }
 

@@ -21,6 +21,7 @@ use zcode_provider::request::ToolDefinition;
 
 pub mod bash;
 pub mod fs_tools;
+pub mod list_models;
 pub mod search_tools;
 pub mod todo;
 pub mod webfetch;
@@ -109,6 +110,8 @@ pub struct ToolContext {
     pub cancel: Arc<AtomicBool>,
     /// 会话级状态（当前只有 todo 列表）；Session 持有同一实例，工具写入即会话可见。
     pub todos: todo::TodoStore,
+    /// host 级 provider 配置（ListModels 的事实来源；每轮由 TurnDeps 注入）。
+    pub provider_config: Option<std::sync::Arc<crate::provider_config::ProviderConfig>>,
 }
 
 impl ToolContext {
@@ -144,6 +147,10 @@ impl ToolRegistry {
         tools.insert("TodoWrite".to_string(), Arc::new(todo::TodoWriteTool));
         tools.insert("TodoRead".to_string(), Arc::new(todo::TodoReadTool));
         tools.insert("WebFetch".to_string(), Arc::new(webfetch::WebFetchTool));
+        tools.insert(
+            "ListModels".to_string(),
+            Arc::new(list_models::ListModelsTool),
+        );
         Self { tools }
     }
 
@@ -277,6 +284,7 @@ mod tests {
             read_state: Arc::new(Mutex::new(HashSet::new())),
             cancel: Arc::new(AtomicBool::new(false)),
             todos: crate::tools::todo::new_todo_store(),
+            provider_config: None,
         }
     }
 

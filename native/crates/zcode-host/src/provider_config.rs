@@ -30,6 +30,27 @@ pub struct ProviderConfig {
     /// 网关翻译成别的形状），置 false 走完整响应路径（executor 合成等价 SSE）。
     #[serde(default = "default_stream")]
     pub stream: bool,
+    /// 静态已知模型目录（ListModels 的事实来源）。缺省只含主模型——**绝不用
+    /// 动态 registry 之外的猜测填充**（TS 的完整 model 目录含账户/网关动态下发，
+    /// 在 host 侧未接线，见 crate README 差异表）。
+    #[serde(default)]
+    pub extra_models: Vec<String>,
+    /// 该 provider 支持的思考档位（ListModels 输出；缺省空 = 不支持）。
+    #[serde(default)]
+    pub reasoning_levels: Vec<String>,
+}
+
+impl ProviderConfig {
+    /// 模型目录：主模型在前，其余去重保序。
+    pub fn model_catalog(&self) -> Vec<String> {
+        let mut models = vec![self.model.clone()];
+        for model in &self.extra_models {
+            if !models.contains(model) {
+                models.push(model.clone());
+            }
+        }
+        models
+    }
 }
 
 fn default_max_tokens() -> u32 {
@@ -135,6 +156,8 @@ mod tests {
             max_tokens: 1024,
             auth_style: None,
             stream: true,
+            extra_models: Vec::new(),
+            reasoning_levels: Vec::new(),
         }
     }
 

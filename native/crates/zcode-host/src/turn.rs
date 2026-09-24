@@ -51,6 +51,8 @@ pub struct TurnDeps {
     pub context: ContextFacts,
     /// `--full-access`：destructive 工具调用自动允许；缺省 fail-closed。
     pub full_access: bool,
+    /// host 级 provider 配置（ListModels 的事实来源）。
+    pub provider_config: Option<Arc<ProviderConfig>>,
 }
 
 struct RoundResult {
@@ -346,6 +348,7 @@ fn execute_tool(
         read_state: Arc::clone(&session.read_state),
         cancel: Arc::clone(&session.cancel),
         todos: Arc::clone(&session.todos),
+        provider_config: deps.provider_config.clone(),
     };
     deps.registry.authorize(tool.as_ref(), &call.input, &ctx)?;
     tool.execute(&call.input, &ctx)
@@ -543,6 +546,8 @@ mod tests {
             max_tokens: 1024,
             auth_style: Some("bearer".to_string()),
             stream: true,
+            extra_models: Vec::new(),
+            reasoning_levels: Vec::new(),
         };
         assert_eq!(config.auth_style().expect("style"), "bearer");
         let headers = auth_headers(&config.api_key, config.auth_style().expect("style"));

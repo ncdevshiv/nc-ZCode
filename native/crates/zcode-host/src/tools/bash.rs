@@ -255,6 +255,7 @@ mod tests {
             read_state: Arc::new(Mutex::new(std::collections::HashSet::new())),
             cancel: Arc::new(AtomicBool::new(false)),
             todos: crate::tools::todo::new_todo_store(),
+            provider_config: None,
         }
     }
 
