@@ -1110,3 +1110,35 @@ knip 归零才移。按规则 4 的纪律：**本轮零文件移动**。
 
 1. 继续 host 深度集成（memory 索引、MCP、compact、sqlite）与 island 收尾。
 2. 当某个调用点的实现**真的**变成纯转发且 knip 归零时，才执行首个 `old.back` 移动。
+
+---
+
+## ENTRY 020 — 2026-09-22 — context 装配：项目记忆索引（MEMORY.md）
+
+> Authorship note：主会话直接执行。
+
+### 交付物
+
+- `memory.rs`：按 TS `core/src/memory/index-content.ts` **逐条**移植索引读取与截断
+  ——200 行 / 25,000 字符上限、逐字一致的 WARNING 文案、**字符安全截断**（不切
+  多字节字符中间）、缺失/读失败**不报错不注入**（与 TS「目录预创建失败不阻断」同
+  纪律）。
+- host 启动时创建 `<data-dir>/memory` 作为 memory root（写侧有家），并把索引
+  作为系统块注入（说明「信任它、事实变了用 Edit 更新」）。
+- 记录差异：**记忆抽取**（从会话学习事实）仍在 TS 侧——两侧共享同一 `MEMORY.md`
+  格式约定，本轮只做读取与注入。
+
+### 验证
+
+5 个单测：trim、小索引原样、200 行截断 + WARNING 文案、字符上限的 UTF-8 安全、
+缺失不注入 / 存在则注入且内容正确。
+
+### 门禁
+
+native 302 tests / fmt 0 / clippy 0；root 全绿（lint 70 基线）。
+
+### Next
+
+1. MCP 客户端接入 host（工具面动态扩展）。
+2. compact 语义（LLM 摘要压缩，当前只有机械 microcompact）。
+3. proc island soak 后翻默认开；old.back 首个移动待调用点语义收敛。
