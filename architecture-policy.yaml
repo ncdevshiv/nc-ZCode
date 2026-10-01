@@ -64,4 +64,33 @@ global:
   forbidDeepImports: true
   managedOnly: true
 
+# 语言边界：TypeScript 只存在于前端。规范来源 specs/typescript-frontend-only.md。
+# 棘轮基线在 .architecture-ts-baseline.json，由 pnpm architecture:ts-baseline:update 生成。
+# 与模块规则分开存放基线，是为了让 baseline:update 无法顺手把新增语言债洗白。
+languageBoundary:
+  id: ts-frontend-only
+  # 判定扩展名。JS/MJS 未纳入是记录在案的待裁决项（spec §8.1），不是遗漏。
+  extensions: [.ts, .tsx, .mts, .cts]
+  allowlist:
+    - id: frontend-webview
+      kind: frontend
+      roots:
+        - packages/ui
+        - packages/web
+        - packages/desktop/src/renderer
+        - packages/desktop/src/preload
+    - id: dev-tooling
+      kind: dev-tooling
+      roots: [.agents/skills, scripts, harness, packages/desktop/scripts]
+    - id: dev-tooling-entry
+      kind: dev-tooling
+      files: [packages/server/build-remote.ts]
+    - id: dev-tooling-config
+      kind: dev-tooling
+      patterns: ["**/*.config.ts", "**/*.d.ts", "**/*.d.mts"]
+  # 非 allowlist 的 TS 不得依赖 dev-tooling，否则允许清单会退化成后端 TS 的停车场。
+  forbidDevToolingImports: true
+  # 逃生舱：写进仓库、走 code review、必须自带到期日。落地本 spec 时为空（实测 0 例需要）。
+  escapeHatches: []
+
 exceptions: []

@@ -15,6 +15,7 @@ pub const METHOD_CONVERSATION_RESYNC: &str = "v4/conversation/resync";
 pub const METHOD_CONVERSATION_UNSUBSCRIBE: &str = "v4/conversation/unsubscribe";
 pub const METHOD_CONVERSATION_ROWS_RANGE: &str = "v4/conversation/rowsRange";
 pub const METHOD_COMMAND: &str = "v4/command";
+pub const METHOD_COMMANDS_QUERY: &str = "v4/commands/query";
 
 pub const NOTIFICATION_CONVERSATION_FRAME: &str = "v4/conversation/frame";
 

@@ -9,6 +9,7 @@
     "third-party/runtime/*.txt",
     "native/fixtures/**",
     "native/crates/zcode-shell/gen/schemas/**",
-    "RUST-PORT-LOG.md"
+    "RUST-PORT-LOG.md",
+    ".architecture-ts-baseline.json"
   ]
 }

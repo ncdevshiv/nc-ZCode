@@ -7,9 +7,27 @@
   },
   "overrides": [
     {
+      // scripts/architecture/** 的门禁代码是手写 .mjs，没有类型检查兜底。
+      // 这里只开 no-undef（全仓开会把存量 warning 淹掉），目的就是让
+      // 「引用了不存在的函数」在 lint 阶段就炸，而不是等到门禁运行时 ReferenceError。
+      "files": ["scripts/architecture/**/*.mjs"],
+      // 这些 .mjs 跑在 Node 里：process / console / URL 是合法全局，不声明的话
+      // no-undef 会把它们全报成未定义，规则就变成了噪声而不是信号。
+      "env": { "node": true },
+      "rules": { "no-undef": "error" }
+    },
+    {
       // 测试文件天然会堆叠大量场景与断言，继续复用生产代码的行数上限会造成误报，
       // 因此只对 test/spec 文件关闭 max-lines，避免放宽业务代码约束。
-      "files": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
+      "files": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.spec.ts",
+        "**/*.spec.tsx",
+        // 架构门禁的测试同样是 .mjs，不豁免的话 400 行上限会逼着人删断言。
+        "**/*.test.mjs",
+        "**/*.spec.mjs"
+      ],
       "rules": {
         "max-lines": "off"
       }

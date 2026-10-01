@@ -5,6 +5,26 @@
 - 定位问题时，未明确要求修改代码就先调查原因。结合源码、日志和运行时证据，区分已确认原因与待验证假设。
 - 保留与任务无关的本地改动，不自行恢复已移除的模块或内部依赖。
 
+## 语言边界：TypeScript 只存在于前端
+
+- 仓库里**新增或扩大** TypeScript 只允许发生在前端与开发工具中；前端之外的一切
+  TypeScript 都是迁移债（见 `specs/typescript-frontend-only.md`）。
+- 允许清单：`packages/ui`、`packages/web`、`packages/desktop/src/renderer`、
+  `packages/desktop/src/preload`、`.agents/skills`、`scripts`、`harness`、
+  `packages/desktop/scripts`、`packages/server/build-remote.ts`、
+  `**/*.config.ts`、`**/*.d.ts`、`**/*.d.mts`。
+- 机器强制：`architecture-policy.yaml` 的 `languageBoundary` 段 +
+  `.architecture-ts-baseline.json` 棘轮基线，由 `pnpm architecture:check` 执行
+  （每次调用都跑，`--changed` 也会跑；不是只看改动文件）。基线只减不增，
+  扩大基线需要 `pnpm architecture:ts-baseline:update --accept-growth --reason … --approved-by …`。
+- 需要在非前端写 TS（例如与冻结 fixture 对比的测试）时，不要绕过门禁：在
+  `languageBoundary.escapeHatches` 加一条带 `reason` / `approvedBy` / `expires`
+  的条目，让它可复核、可到期。
+- **强制范围**：`pnpm architecture:check` 与 `pnpm verify:pre-push`。本仓库当前
+  **没有 CI 跑这一步**（`.github/` 里没有架构门禁），所以提交前必须自己跑。
+- 这条边界**不删任何代码**，也不判断 Rust 移植是否完成；能不能删由
+  `old.back/README.md` 的四条件与 `RUST-PORT-MATRIX.md` 决定。
+
 ## 命令与仓库结构
 
 开工前运行 `node scripts/check-workspace-freshness.mjs` 检查基线。Node 版本以 `mise.toml` 为准。
@@ -20,6 +40,8 @@
 | Web 开发          | `pnpm dev:web`                                                  |
 | 提交前检查        | `pnpm verify:pre-push`（Lint 与架构检查）                       |
 | 架构检查          | `pnpm architecture:check --changed`                             |
+| TS 语言边界基线   | `pnpm architecture:ts-baseline:update`（默认只减不增，见上）    |
+| 架构门禁单测      | `pnpm architecture:test`（已纳入 `verify:pre-push`）            |
 | 模块阅读包        | `pnpm architecture:context <module-id>`                         |
 | 未使用依赖与导出  | `pnpm knip`                                                     |
 | 导出引用查询      | `pnpm dep:refs --list-exports <file>`                           |

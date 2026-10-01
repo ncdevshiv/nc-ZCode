@@ -19,7 +19,7 @@
     "golden:vectors": "tsx scripts/gen-v4-golden-vectors.ts",
     "golden:check": "tsx scripts/gen-v4-golden-vectors.ts --check",
     "native:test": "cargo test --manifest-path native/Cargo.toml",
-    "verify:pre-push": "pnpm run lint && pnpm run architecture:check -- --changed",
+    "verify:pre-push": "pnpm run lint && pnpm run architecture:test && pnpm run architecture:check -- --changed",
     "build": "pnpm -r build",
     "build:desktop-agent:bytecode": "node scripts/build-desktop-agent-bytecode.mjs",
     "build:zcode": "node scripts/build-zcode.mjs",
@@ -47,6 +47,8 @@
     "architecture:check": "node scripts/architecture/architecture-check.mjs check",
     "architecture:report": "node scripts/architecture/architecture-check.mjs report",
     "architecture:baseline:update": "node scripts/architecture/architecture-check.mjs baseline:update",
+    "architecture:ts-baseline:update": "node scripts/architecture/architecture-check.mjs ts-baseline:update",
+    "architecture:test": "node --test scripts/architecture/language-boundary.test.mjs",
     "architecture:context": "node scripts/architecture/architecture-check.mjs context"
   },
   "dependencies": {

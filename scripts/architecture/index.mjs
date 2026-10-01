@@ -1,7 +1,9 @@
 import { gitFileNames } from "./git-file-names.mjs";
+import { checkLanguageBoundary, updateTsBaseline } from "./language-boundary.mjs";
+import { violation } from "./violation.mjs";
+import { formatMarkdownReport, formatReport } from "./report.mjs";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { createHash } from "node:crypto";
 
 import {
   countPublicMethods,
@@ -16,22 +18,6 @@ import {
   publicEntrypointMatches,
   resolveImport,
 } from "./policy.mjs";
-
-function fingerprint(rule, file, detail = "") {
-  return createHash("sha256").update(`${rule}\0${file}\0${detail}`).digest("hex").slice(0, 16);
-}
-
-function violation({ rule, file, detail, message, module, global = false }) {
-  return {
-    rule,
-    file: posix(file),
-    module: module?.id ?? null,
-    detail,
-    message,
-    fingerprint: fingerprint(rule, posix(file), detail),
-    global,
-  };
-}
 
 function cycleViolations(edges, policy, modulesByFile) {
   const state = new Map();
@@ -304,7 +290,18 @@ export async function checkArchitecture({ cwd = process.cwd(), changedFiles = nu
     : violations;
   const baselineViolations = scoped.filter((item) => baselineFingerprints.has(item.fingerprint));
   const newViolations = scoped.filter((item) => !baselineFingerprints.has(item.fingerprint));
-  return { policy, violations: scoped, baselineViolations, newViolations, baseline };
+  // 语言边界每次调用都跑，不受 --changed 影响：changedFiles 只收窄模块规则的
+  // 作用域（`global` 违例本来就豁免），而棘轮比较的是全仓文件与基线，
+  // 只看改动文件就是一个现成的绕过口子（verify:pre-push 就传 --changed）。
+  const languageBoundary = await checkLanguageBoundary({ cwd, policy });
+  return {
+    policy,
+    violations: scoped,
+    baselineViolations,
+    newViolations,
+    baseline,
+    languageBoundary,
+  };
 }
 
 export async function updateBaseline({ cwd = process.cwd(), violations }) {
@@ -358,33 +355,6 @@ export async function generateContext({ cwd = process.cwd(), moduleId }) {
   ].join("\n");
 }
 
-export function formatReport(result) {
-  const lines = [
-    `architecture: ${result.newViolations.length === 0 ? "OK" : "FAILED"}`,
-    `violations: ${result.violations.length}`,
-    `baseline: ${result.baselineViolations.length}`,
-    `new: ${result.newViolations.length}`,
-  ];
-  for (const item of result.newViolations)
-    lines.push(`- ${item.rule} ${item.file}: ${item.message}`);
-  return lines.join("\n");
-}
-
-export function formatMarkdownReport(result) {
-  const lines = [
-    `# Architecture report`,
-    "",
-    `- Status: **${result.newViolations.length === 0 ? "OK" : "FAILED"}**`,
-    `- Violations: ${result.violations.length}`,
-    `- Baseline: ${result.baselineViolations.length}`,
-    `- New: ${result.newViolations.length}`,
-  ];
-  if (result.newViolations.length > 0) {
-    lines.push("", "## New violations", "", "| Rule | File | Message |", "| --- | --- | --- |");
-    for (const item of result.newViolations)
-      lines.push(`| ${item.rule} | ${item.file} | ${item.message.replaceAll("|", "\\|")} |`);
-  }
-  return lines.join("\n");
-}
-
 export { loadPolicy };
+// 报告渲染住在 report.mjs，棘轮住在 language-boundary.mjs，这里转出，调用方只认一个入口。
+export { checkLanguageBoundary, updateTsBaseline, formatMarkdownReport, formatReport };

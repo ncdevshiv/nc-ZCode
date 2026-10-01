@@ -290,6 +290,21 @@ impl Session {
             .and_then(|row| row.get("rowId").and_then(Value::as_u64))
     }
 
+    /// 已落定 ack 的只读回源（v4/commands/query 用）。
+    ///
+    /// 账本在 `inbox.host()` 上，而 `SessionHost` 是**每 session 一份**
+    /// （带自己的 session_id 与 transcript_acks），所以这里天然按 session 隔离，
+    /// 不会把别的 session 的 ack 答给调用方。
+    pub fn settled_ack(&self, command_id: &str) -> Option<Value> {
+        self.inbox
+            .host()
+            .transcript_acks
+            .lock()
+            .ok()?
+            .get(command_id)
+            .cloned()
+    }
+
     pub fn persist_ack(&self, command_id: &str, ack: &Value) {
         let _ = self.store.append_ack(&self.id, command_id, ack);
         if let Ok(mut guard) = self.inbox.host().transcript_acks.lock() {
