@@ -153,15 +153,15 @@ pub(crate) const V4_COMMAND_TYPES: &[&str] = &[
 pub(crate) const UNROUTED_COMMANDS: &[(&str, &str)] = &[
     (
         "cancelBackgroundWork",
-        "dynamic workflow run 生命周期（native/specs/workflow-capability-boundary.md）",
+        "dynamic workflow run 生命周期（specs/workflow-capability-boundary.md）",
     ),
     (
         "resumeWorkflowRun",
-        "dynamic workflow run 生命周期（native/specs/workflow-capability-boundary.md）",
+        "dynamic workflow run 生命周期（specs/workflow-capability-boundary.md）",
     ),
     (
         "startSavedWorkflow",
-        "saved workflow 解析与编译（native/specs/workflow-capability-boundary.md）",
+        "saved workflow 解析与编译（specs/workflow-capability-boundary.md）",
     ),
     (
         "amendWorkflowRunSettings",

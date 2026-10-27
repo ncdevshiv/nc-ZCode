@@ -92,31 +92,31 @@ pub const V4_METHODS_UNIMPLEMENTED: &[(&str, &str)] = &[
     ),
     (
         "v4/conversation/workflowRunArtifactData",
-        "dynamic workflow run 引擎（决策见 native/specs/workflow-capability-boundary.md）",
+        "dynamic workflow run 引擎（决策见 specs/workflow-capability-boundary.md）",
     ),
     (
         "v4/conversation/workflowRunArtifactRead",
-        "dynamic workflow run 引擎（决策见 native/specs/workflow-capability-boundary.md）",
+        "dynamic workflow run 引擎（决策见 specs/workflow-capability-boundary.md）",
     ),
     (
         "v4/conversation/workflowRunArtifacts",
-        "dynamic workflow run 引擎（决策见 native/specs/workflow-capability-boundary.md）",
+        "dynamic workflow run 引擎（决策见 specs/workflow-capability-boundary.md）",
     ),
     (
         "v4/conversation/workflowRunEvents",
-        "dynamic workflow run 引擎（决策见 native/specs/workflow-capability-boundary.md）",
+        "dynamic workflow run 引擎（决策见 specs/workflow-capability-boundary.md）",
     ),
     (
         "v4/conversation/workflowRunNodeResult",
-        "dynamic workflow run 引擎（决策见 native/specs/workflow-capability-boundary.md）",
+        "dynamic workflow run 引擎（决策见 specs/workflow-capability-boundary.md）",
     ),
     (
         "v4/conversation/workflowRunWorkspace",
-        "dynamic workflow run 引擎（决策见 native/specs/workflow-capability-boundary.md）",
+        "dynamic workflow run 引擎（决策见 specs/workflow-capability-boundary.md）",
     ),
     (
         "v4/conversation/workflowRuns",
-        "dynamic workflow run 引擎（决策见 native/specs/workflow-capability-boundary.md）",
+        "dynamic workflow run 引擎（决策见 specs/workflow-capability-boundary.md）",
     ),
     ("v4/telemetry/event", "telemetry 上报通道"),
     (

@@ -232,7 +232,7 @@ AGENTS.md/CLAUDE.md 发现 + 环境事实）；机械 microcompact（阈值 120k
     （那是 CLI 侧 session 库里 `input_baseline` 的事实），空对象表示"没有基线"而不是
     "有基线但丢了"。`modelRequestCount` 按 HTTP 请求计（executor 内部 attempt 重试算
     同一次），`totalTokens = inputTokens + outputTokens`。
-41. **workflow 引擎边界是已记录的产品决策**（`native/specs/workflow-capability-boundary.md`）：
+41. **workflow 引擎边界是已记录的产品决策**（`specs/workflow-capability-boundary.md`）：
     host 是会话运行时（turn/tool/hooks/goal/文件/队列/读模型），workflow 引擎留在 TS
     侧——它依赖 TS compiler API，重写等于换产品格式。4 条命令与 7 个 run 读取方法
     因此保持 fail-closed 并逐条登记；若未来上 sidecar，契约是"host 拥有 runId ≡
