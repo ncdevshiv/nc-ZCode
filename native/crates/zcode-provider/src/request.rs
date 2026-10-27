@@ -10,6 +10,7 @@
 //! byte-parity 门保持 OPEN：这里只断言 patch/compat 源码已证明的形状，
 //! 其余键序与字段假设在 README「divergences」记录。
 
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 
 use crate::schema::{is_anthropic_first_party_model_id, to_strict_tool_schema};
@@ -30,7 +31,8 @@ pub enum ProviderKind {
 // 内部消息模型（缝上沿 contracts ModelRequest 的收窄子集）
 // ============================================================
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum MessageRole {
     System,
     // TS 侧 Message.role 默认为 'user'（对齐默认对话消息），derive Default 需保持该语义。
@@ -41,7 +43,8 @@ pub enum MessageRole {
 }
 
 /// 多模态内容部件；`data` 均为 base64 文本（附件解析层已编码）。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
 pub enum ContentPart {
     Text { text: String },
     Image { media_type: String, data: String },
@@ -49,7 +52,7 @@ pub enum ContentPart {
 }
 
 /// assistant 历史中的 tool 调用（回灌请求体）。
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ToolCallRequest {
     pub id: String,
     pub name: String,
@@ -57,7 +60,7 @@ pub struct ToolCallRequest {
 }
 
 /// assistant 历史中的 reasoning 块（anthropic 往返 signature 的载体）。
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct ReasoningBlock {
     pub text: String,
     /// anthropic.signature；缺席时序列化为空串（对齐 providerOptionsForReasoningBlock）。
@@ -66,7 +69,11 @@ pub struct ReasoningBlock {
     pub redacted_data: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+/// 序列化形状是**持久化契约**，不是内部实现的副产品：会话的模型历史要落进
+/// `transcript.jsonl` 并在重启后逐字段还原（specs/rust-native-crates.md S3
+/// session memory 规则 2）。因此字段名保持 snake_case 原样落盘、由本模块自己
+/// 读回；跨语言读取方只能是 host 的 transcript 回放，不存在第二种解码器。
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Message {
     pub role: MessageRole,
     /// 纯文本消息用 `text()` 构造；富内容走 parts。

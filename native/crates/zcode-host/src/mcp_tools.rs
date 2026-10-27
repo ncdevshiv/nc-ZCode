@@ -85,6 +85,7 @@ mod tests {
         ToolContext {
             workspace_root: std::env::temp_dir(),
             full_access,
+            interactive: false,
             trace_id: "t".to_string(),
             turn_id: "turn".to_string(),
             read_state: Arc::new(Mutex::new(HashSet::new())),

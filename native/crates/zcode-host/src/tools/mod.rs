@@ -101,10 +101,20 @@ impl std::fmt::Display for ToolError {
     }
 }
 
+/// 单次调用的权限裁决。`Ask` 由 turn 打开 permission 交互并等待用户应答。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Authorization {
+    Allow,
+    Ask,
+    Deny(String),
+}
+
 pub struct ToolContext {
     pub workspace_root: PathBuf,
-    /// `--full-access`： destructive 调用自动允许；缺省 fail-closed。
+    /// 生效的 full-access（`--full-access` 或用户在 permission 里授予的会话级授权）。
     pub full_access: bool,
+    /// 当前会话是否有可应答的订阅者；headless 时非只读调用 fail-closed。
+    pub interactive: bool,
     pub trace_id: String,
     pub turn_id: String,
     /// read-before-edit 状态：Read 成功即登记，Edit 强制先读（对齐 TS readFileState）。
@@ -213,29 +223,21 @@ impl ToolRegistry {
         defs
     }
 
-    /// 权限闸门（host 执行前调用）：只读放行；其余按 full_access 裁决。
-    /// 返回 Ok(()) = 允许执行；Err = fail-closed 拒绝（直接回灌模型）。
-    pub fn authorize(
-        &self,
-        tool: &dyn Tool,
-        input: &Value,
-        ctx: &ToolContext,
-    ) -> Result<(), ToolError> {
+    /// 权限闸门（host 执行前调用）：只读或已授权 → Allow；有交互客户端 → Ask
+    /// （由 turn 打开 permission 交互并等待）；headless → Deny（fail-closed）。
+    pub fn authorize(&self, tool: &dyn Tool, input: &Value, ctx: &ToolContext) -> Authorization {
         let contract = tool.contract();
         let read_only = contract.read_only || tool.is_read_only_invocation(input);
-        if read_only {
-            return Ok(());
+        if read_only || ctx.full_access {
+            return Authorization::Allow;
         }
-        if ctx.full_access {
-            return Ok(());
+        if ctx.interactive {
+            return Authorization::Ask;
         }
-        Err(ToolError::new(
-            ToolErrorCode::PermissionDenied,
-            format!(
-                "{} is not read-only and this host runs without --full-access; \
-                 the action was not performed",
-                contract.name
-            ),
+        Authorization::Deny(format!(
+            "{} is not read-only and no interactive client is attached; \
+             the action was not performed",
+            contract.name
         ))
     }
 }
@@ -308,6 +310,7 @@ mod tests {
         ToolContext {
             workspace_root: PathBuf::from("."),
             full_access,
+            interactive: false,
             trace_id: "t".to_string(),
             turn_id: "turn".to_string(),
             read_state: Arc::new(Mutex::new(HashSet::new())),
@@ -321,8 +324,21 @@ mod tests {
     fn authorize_fails_closed_without_full_access() {
         let registry = ToolRegistry::with_defaults();
         let tool = StubTool;
-        assert!(registry.authorize(&tool, &json!({}), &ctx(false)).is_err());
-        assert!(registry.authorize(&tool, &json!({}), &ctx(true)).is_ok());
+        assert!(matches!(
+            registry.authorize(&tool, &json!({}), &ctx(false)),
+            Authorization::Deny(_)
+        ));
+        assert_eq!(
+            registry.authorize(&tool, &json!({}), &ctx(true)),
+            Authorization::Allow
+        );
+        // 有交互客户端时可询问用户
+        let mut interactive = ctx(false);
+        interactive.interactive = true;
+        assert_eq!(
+            registry.authorize(&tool, &json!({}), &interactive),
+            Authorization::Ask
+        );
     }
 
     #[test]

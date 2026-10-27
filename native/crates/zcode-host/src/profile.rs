@@ -105,33 +105,110 @@ pub fn filter_deltas_for_profile(deltas: &[Value], profile: DeliveryProfile) -> 
 
 /// 合并一个 flush 窗口内的 delta：同一 (rowId, path) 的 row.delta 拼接 append，
 /// 其余 op 原序保留。合并不改变语义（客户端按序 apply 后终态一致）。
+/// 与 TS `coalesceConversationDeltas` 同一套规则（语义要求：coalesce 后逐条 apply
+/// 的终态必须与未合并一致）：
+///   1. **相邻**同 (rowId,path) 的 row.delta → append 拼接；
+///   2. **相邻** state.updated → patch 键浅合并（后键覆盖前键）；
+///   3. row.upserted 吞掉同 rowId 更早的 row.delta（整行替换蕴含追加），但只回溯
+///      到最近的屏障，且不越过同 rowId 的 upserted/appended（那属于上一代行）；
+///   4. row.removed 是屏障，任何规则不得跨越。
+///
+/// 旧实现用 `find` 全局搜索同 (rowId,path)，会把**被 upsert 隔开的**两段追加合并，
+/// 客户端 apply 后正文重复（如 "a" + "b" 变成 "aab"）。
 pub fn coalesce_deltas(deltas: &[Value]) -> Vec<Value> {
+    fn op(delta: &Value) -> Option<&str> {
+        delta.get("op").and_then(Value::as_str)
+    }
+    fn row_id(delta: &Value) -> Option<u64> {
+        delta
+            .get("row")
+            .and_then(|row| row.get("rowId"))
+            .and_then(Value::as_u64)
+            .or_else(|| delta.get("rowId").and_then(Value::as_u64))
+    }
+    fn is_barrier(delta: &Value) -> bool {
+        op(delta) == Some("row.removed")
+    }
+
     let mut out: Vec<Value> = Vec::with_capacity(deltas.len());
     for delta in deltas {
-        let is_stream_delta = delta.get("op").and_then(Value::as_str) == Some("row.delta");
-        if !is_stream_delta {
-            out.push(delta.clone());
+        // 规则 3：row.upserted 吞掉同 rowId 更早的 row.delta。
+        if op(delta) == Some("row.upserted") {
+            let target = row_id(delta);
+            let mut i = out.len();
+            while i > 0 {
+                i -= 1;
+                let prev = &out[i];
+                if is_barrier(prev) {
+                    break;
+                }
+                if op(prev) == Some("row.delta") && row_id(prev) == target {
+                    out.remove(i);
+                    continue;
+                }
+                if (op(prev) == Some("row.upserted") || op(prev) == Some("row.appended"))
+                    && row_id(prev) == target
+                {
+                    break;
+                }
+            }
+        }
+
+        // 规则 1：相邻同 (rowId,path) 的 row.delta 拼接。
+        let merge_stream = out.last().is_some_and(|last| {
+            op(delta) == Some("row.delta")
+                && op(last) == Some("row.delta")
+                && row_id(last) == row_id(delta)
+                && last.get("path") == delta.get("path")
+        });
+        if merge_stream {
+            if let Some(last) = out.last_mut() {
+                let merged = format!(
+                    "{}{}",
+                    last.get("append").and_then(Value::as_str).unwrap_or(""),
+                    delta.get("append").and_then(Value::as_str).unwrap_or("")
+                );
+                if let Some(object) = last.as_object_mut() {
+                    object.insert("append".to_string(), json!(merged));
+                }
+            }
             continue;
         }
-        let row_id = delta.get("rowId").cloned().unwrap_or(Value::Null);
-        let path = delta.get("path").cloned().unwrap_or(Value::Null);
-        let append = delta.get("append").and_then(Value::as_str).unwrap_or("");
-        if let Some(existing) = out.iter_mut().find(|candidate| {
-            candidate.get("op").and_then(Value::as_str) == Some("row.delta")
-                && candidate.get("rowId") == Some(&row_id)
-                && candidate.get("path") == Some(&path)
-        }) {
-            let merged = format!(
-                "{}{}",
-                existing.get("append").and_then(Value::as_str).unwrap_or(""),
-                append
-            );
-            if let Some(object) = existing.as_object_mut() {
-                object.insert("append".to_string(), json!(merged));
+
+        // 规则 2：相邻 state.updated 浅合并。
+        let merge_state = out.last().is_some_and(|last| {
+            op(delta) == Some("state.updated") && op(last) == Some("state.updated")
+        });
+        if merge_state {
+            if let Some(last) = out.last_mut() {
+                let mut merged = last.get("patch").cloned().unwrap_or_else(|| json!({}));
+                if let (Some(target), Some(source)) = (
+                    merged.as_object_mut(),
+                    delta.get("patch").and_then(Value::as_object),
+                ) {
+                    for (key, value) in source {
+                        target.insert(key.clone(), value.clone());
+                    }
+                }
+                *last = json!({"op": "state.updated", "patch": merged});
             }
-        } else {
-            out.push(delta.clone());
+            continue;
         }
+
+        // 相邻同 rowId 的 row.upserted：留最后一条（整行替换的传递性）。
+        let replace_upsert = out.last().is_some_and(|last| {
+            op(delta) == Some("row.upserted")
+                && op(last) == Some("row.upserted")
+                && row_id(last) == row_id(delta)
+        });
+        if replace_upsert {
+            if let Some(last) = out.last_mut() {
+                *last = delta.clone();
+            }
+            continue;
+        }
+
+        out.push(delta.clone());
     }
     out
 }
@@ -232,6 +309,70 @@ mod tests {
         assert_eq!(merged[0]["append"], json!("hello"));
         assert_eq!(merged[1]["append"], json!("x"));
         assert_eq!(merged[2]["append"], json!("world"));
+    }
+
+    #[test]
+    fn coalesce_upsert_swallows_earlier_delta_for_same_row() {
+        let deltas = vec![
+            delta(1, "text", "a"),
+            json!({"op":"row.upserted","row":{"rowId":1,"kind":"assistantText","text":"a"}}),
+            delta(1, "text", "b"),
+        ];
+        let merged = coalesce_deltas(&deltas);
+        // 被 upsert 吞掉的 "a" 不得再与 "b" 合并（否则 apply 后变 "aab"）。
+        assert_eq!(merged.len(), 2);
+        assert_eq!(merged[0]["op"], json!("row.upserted"));
+        assert_eq!(merged[1]["append"], json!("b"));
+    }
+
+    #[test]
+    fn coalesce_does_not_merge_across_intervening_row() {
+        let deltas = vec![
+            delta(1, "text", "a"),
+            delta(2, "text", "x"),
+            delta(1, "text", "b"),
+        ];
+        let merged = coalesce_deltas(&deltas);
+        assert_eq!(merged.len(), 3, "only adjacent same-row deltas may merge");
+        assert_eq!(merged[0]["append"], json!("a"));
+        assert_eq!(merged[2]["append"], json!("b"));
+    }
+
+    #[test]
+    fn coalesce_stops_at_row_removed_barrier() {
+        let deltas = vec![
+            delta(1, "text", "a"),
+            json!({"op":"row.removed","fromRowId":1}),
+            delta(1, "text", "b"),
+        ];
+        let merged = coalesce_deltas(&deltas);
+        assert_eq!(merged.len(), 3, "row.removed is a barrier");
+        assert_eq!(merged[0]["append"], json!("a"));
+        assert_eq!(merged[2]["append"], json!("b"));
+    }
+
+    #[test]
+    fn coalesce_merges_adjacent_state_updates_shallowly() {
+        let deltas = vec![
+            json!({"op":"state.updated","patch":{"revision":1,"control":{"phase":"running"}}}),
+            json!({"op":"state.updated","patch":{"revision":2}}),
+        ];
+        let merged = coalesce_deltas(&deltas);
+        assert_eq!(merged.len(), 1);
+        assert_eq!(merged[0]["patch"]["revision"], json!(2));
+        assert_eq!(merged[0]["patch"]["control"]["phase"], json!("running"));
+    }
+
+    #[test]
+    fn coalesce_upsert_does_not_swallow_previous_generation() {
+        let deltas = vec![
+            json!({"op":"row.upserted","row":{"rowId":1,"kind":"assistantText","text":"a"}}),
+            delta(1, "text", "b"),
+            json!({"op":"row.upserted","row":{"rowId":1,"kind":"assistantText","text":"ab"}}),
+        ];
+        let merged = coalesce_deltas(&deltas);
+        assert_eq!(merged.len(), 1);
+        assert_eq!(merged[0]["row"]["text"], json!("ab"));
     }
 
     #[test]

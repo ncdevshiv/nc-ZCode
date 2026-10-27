@@ -138,7 +138,7 @@ pub fn build_nc_tools(workspace_root: &std::path::Path) -> Result<Vec<Arc<NcTool
         )
     })?;
     // session 默认 base 锚到 workspace（与 zcode 的 workspaceIdentity 同一目录）。
-    kernel.set_default_base(workspace_root);
+    kernel.set_default_base(workspace_root, "roots");
     let shared = Arc::new(kernel);
     let tools = tool_descriptors(&shared)
         .into_iter()

@@ -204,6 +204,7 @@ pub(crate) enum AttemptOutcome {
     EmptyRetry { delay_ms: u64 },
 }
 
+#[allow(clippy::result_large_err)]
 async fn run_attempt<T: ProviderTransport, C: AttemptClock>(
     transport: &mut T,
     clock: &C,

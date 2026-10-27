@@ -15,6 +15,22 @@ path = "src/lib.rs"
 name = "zcode-host"
 path = "src/main.rs"
 
+[[bench]]
+name = "transcript_replay"
+harness = false
+
+[[bench]]
+name = "file_rewind"
+harness = false
+
+[[bench]]
+name = "goal_domain"
+harness = false
+
+[[bench]]
+name = "workspace_hooks"
+harness = false
+
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
@@ -36,5 +52,8 @@ zcode-scan = { path = "../zcode-scan" }
 zcode-proc = { path = "../zcode-proc" }
 # nc-tools：以 crate 形式**进程内直接链接**（不是 MCP server、不是 sidecar）。
 # 它的 89 个 typed 工具通过 Kernel 注册表进入 host 的工具面。
-nct-mcp = { path = "F:/nc-sdk/nc-tools/crates/nct-mcp" }
-nct-core = { path = "F:/nc-sdk/nc-tools/crates/nct-core" }
+nct-mcp = { path = "G:/nc-sdk/nc-tools/crates/nct-mcp" }
+nct-core = { path = "G:/nc-sdk/nc-tools/crates/nct-core" }
+
+[dev-dependencies]
+criterion = { version = "0.7", features = ["html_reports"] }

@@ -24,6 +24,7 @@ fn ctx(root: &std::path::Path) -> ToolContext {
     ToolContext {
         workspace_root: root.to_path_buf(),
         full_access: true,
+        interactive: false,
         trace_id: "t".to_string(),
         turn_id: "turn".to_string(),
         read_state: Arc::new(Mutex::new(std::collections::HashSet::new())),

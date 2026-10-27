@@ -49,7 +49,7 @@ impl SseParser {
             events.push(parse_frame_lossy(&frame_bytes));
         }
         if emit_trailing && !self.buffer.is_empty() {
-            let rest: Vec<u8> = self.buffer.drain(..).collect();
+            let rest: Vec<u8> = std::mem::take(&mut self.buffer);
             events.push(parse_frame_lossy(&rest));
         }
         events

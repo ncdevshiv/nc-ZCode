@@ -1,8 +1,8 @@
 //! ConversationRow / ConversationDelta 的 JSON 构造，形状逐字段对齐
 //! `packages/shared/src/zcode-protocol-v4/rows.ts` 与 `delta.ts`。
 //!
-//! 本 increment 只投影三种行（turnHeader / userInput / assistantText）与五个
-//! delta op 中的四个（row.removed 属 edit/rewind 路径，尚未接线，不构造）。
+//! 本 increment 投影三种行（turnHeader / userInput / assistantText）与五个 delta op
+//! 全部：row.removed 由分支截断（editUserQuery / retryTurn）构造。
 //! 结构性规则与服务端一致：结构变化换整行（row.upserted），文本增长用
 //! row.delta；rowId 单调递增、永不复用。
 
@@ -11,13 +11,26 @@ use serde_json::{json, Value};
 pub const OP_ROW_APPENDED: &str = "row.appended";
 pub const OP_ROW_UPSERTED: &str = "row.upserted";
 pub const OP_ROW_DELTA: &str = "row.delta";
+pub const OP_ROW_REMOVED: &str = "row.removed";
 pub const OP_STATE_UPDATED: &str = "state.updated";
+
+/// `turnHeader.origin` 的取值（`rows.ts` turnHeaderRowSchema.origin 闭集的本 host 子集）。
+/// 普通用户输入轮。
+pub const TURN_ORIGIN_USER_INPUT: &str = "userInput";
+/// edit/retry 重放轮：TS 用这个 origin 把"重跑"与普通输入轮区分开，UI 不靠文本嗅探。
+pub const TURN_ORIGIN_EDIT_RERUN: &str = "editRerun";
+/// goal 自动续跑轮（model-only 输入；`turnHeaderRowSchema.origin` 闭集）。
+pub const TURN_ORIGIN_GOAL_CONTINUATION: &str = "goalContinuation";
 
 /// rowBaseFields 的公共部分（`rows.ts` rowBaseFields）。
 #[derive(Debug, Clone)]
 pub struct RowBase {
     pub row_id: u64,
     pub turn_id: String,
+    /// 行的稳定实体身份（`rowBaseFields.entityId`）。命令侧的
+    /// `conversationRowTarget.entityId` 就与它比对，所以 append 与终态 upsert
+    /// 必须给出同一个值——变了就等于换了实体。
+    pub entity_id: String,
     pub created_at: i64,
     pub created_at_seq: u64,
 }
@@ -26,19 +39,36 @@ pub fn row_base(base: &RowBase) -> Value {
     json!({
         "rowId": base.row_id,
         "turnId": base.turn_id,
+        "entityId": base.entity_id,
         "createdAt": base.created_at,
         "createdAtSeq": base.created_at_seq,
     })
 }
 
 /// turnHeader 行（`rows.ts` turnHeaderRowSchema 的相关子集）。
-pub fn turn_header_row(
-    base: &RowBase,
-    origin: &str,
-    state: &str,
-    started_at: i64,
-    source_command_id: &str,
-) -> Value {
+/// turnHeader 行的可变字段（8 个位置参数会退化成"调用点靠猜"，所以收成一个结构）。
+pub struct TurnHeaderFields<'a> {
+    pub origin: &'a str,
+    pub state: &'a str,
+    pub started_at: i64,
+    pub source_command_id: &'a str,
+    pub history_round_count: usize,
+    /// 本轮的文件变更汇总；运行中的轮传 `None`（还没改完，下发了就是假的）。
+    pub file_changes: Option<&'a crate::file_ledger::FileChangeSummary>,
+    /// `actions.canRewindFiles`：客户端是否该显示「撤销本轮文件改动」。
+    pub can_rewind_files: bool,
+}
+
+pub fn turn_header_row(base: &RowBase, fields: TurnHeaderFields<'_>) -> Value {
+    let TurnHeaderFields {
+        origin,
+        state,
+        started_at,
+        source_command_id,
+        history_round_count,
+        file_changes,
+        can_rewind_files,
+    } = fields;
     let mut row = row_base(base);
     if let Some(object) = row.as_object_mut() {
         object.insert("kind".to_string(), json!("turnHeader"));
@@ -46,11 +76,76 @@ pub fn turn_header_row(
         object.insert("state".to_string(), json!(state));
         object.insert("startedAt".to_string(), json!(started_at));
         object.insert("sourceCommandId".to_string(), json!(source_command_id));
+        // turnHeaderRowSchema.historyRoundCount：该轮之前的产品轮次数。UI 用它标注
+        // "第 N 轮"，不必回读 transcript（TS 注释：不得由 UI 重猜）。
+        object.insert("historyRoundCount".to_string(), json!(history_round_count));
+        // fileChanges 只在轮收口时有意义（本轮的写都记完了才汇总）；运行中的轮不下发。
+        if let Some(summary) = file_changes {
+            object.insert(
+                "fileChanges".to_string(),
+                json!({
+                    "additions": summary.additions,
+                    "deletions": summary.deletions,
+                    "files": summary.files,
+                    // "active" = 还能回滚；rewind 成功后改写为 "reverted"（TS 同语义）。
+                    "state": "active",
+                }),
+            );
+        }
+        // rowBaseFields.actions：只下发为 true 的键。
+        if can_rewind_files {
+            object.insert("actions".to_string(), json!({"canRewindFiles": true}));
+        }
     }
     row
 }
 
-/// userInput 行（`rows.ts` userInputRowSchema 的相关子集）。
+/// `hookInvocationRowSchema`：一次事件的全部 hook 调用（含被准入跳过的）。
+/// `executions` 里 `didExecute=false` 表示准入未通过（没有真的跑过进程）。
+pub struct HookInvocationFields<'a> {
+    pub hook_invocation_id: &'a str,
+    pub event: &'a str,
+    pub state: &'a str,
+    pub started_at: i64,
+    pub ended_at: i64,
+    pub lane: &'a str,
+    pub anchor_tool_call_id: Option<&'a str>,
+    pub executions: Vec<Value>,
+}
+
+pub fn hook_invocation_row(base: &RowBase, fields: HookInvocationFields<'_>) -> Value {
+    let HookInvocationFields {
+        hook_invocation_id,
+        event,
+        state,
+        started_at,
+        ended_at,
+        lane,
+        anchor_tool_call_id,
+        executions,
+    } = fields;
+    let mut row = row_base(base);
+    if let Some(object) = row.as_object_mut() {
+        object.insert("kind".to_string(), json!("hookInvocation"));
+        object.insert("hookInvocationId".to_string(), json!(hook_invocation_id));
+        object.insert("hookEventName".to_string(), json!(event));
+        object.insert("hookCount".to_string(), json!(executions.len()));
+        object.insert("state".to_string(), json!(state));
+        object.insert("startedAt".to_string(), json!(started_at));
+        object.insert("endedAt".to_string(), json!(ended_at));
+        object.insert(
+            "durationMs".to_string(),
+            json!((ended_at - started_at).max(0)),
+        );
+        object.insert("lane".to_string(), json!(lane));
+        if let Some(call_id) = anchor_tool_call_id {
+            object.insert("anchorToolCallId".to_string(), json!(call_id));
+        }
+        object.insert("executions".to_string(), json!(executions));
+    }
+    row
+}
+
 pub fn user_input_row(
     base: &RowBase,
     text: &str,
@@ -97,6 +192,12 @@ pub fn row_upserted(row: Value) -> Value {
     json!({"op": OP_ROW_UPSERTED, "row": row})
 }
 
+/// 分支截断 op：删除 `from_row_id` **及其后所有**行
+/// （`delta.ts` row.removed 原文语义，客户端按 rowId >= fromRowId 作用于已加载集合）。
+pub fn row_removed(from_row_id: u64) -> Value {
+    json!({"op": OP_ROW_REMOVED, "fromRowId": from_row_id})
+}
+
 pub fn row_delta(row_id: u64, path: &str, append: &str) -> Value {
     json!({"op": OP_ROW_DELTA, "rowId": row_id, "path": path, "append": append})
 }
@@ -124,6 +225,28 @@ pub fn tool_call_row(
                 "error".to_string(),
                 json!({"code": code, "message": message}),
             );
+        }
+    }
+    row
+}
+
+/// reasoning 行（`rows.ts` reasoningRowSchema）：思考正文，state 三态，
+/// durationMs 仅终态带上。
+pub fn reasoning_row(
+    base: &RowBase,
+    response_id: &str,
+    text: &str,
+    state: &str,
+    duration_ms: Option<i64>,
+) -> Value {
+    let mut row = row_base(base);
+    if let Some(object) = row.as_object_mut() {
+        object.insert("kind".to_string(), json!("reasoning"));
+        object.insert("assistantResponseId".to_string(), json!(response_id));
+        object.insert("text".to_string(), json!(text));
+        object.insert("state".to_string(), json!(state));
+        if let Some(duration_ms) = duration_ms {
+            object.insert("durationMs".to_string(), json!(duration_ms));
         }
     }
     row
@@ -186,8 +309,41 @@ mod tests {
         RowBase {
             row_id,
             turn_id: "turn-1".to_string(),
+            entity_id: "resp-1".to_string(),
             created_at: 1_700_000_000_000,
             created_at_seq: row_id,
+        }
+    }
+
+    /// 每一行都必须带稳定实体身份：`conversationRowTarget.entityId` 靠它拒绝
+    /// 过期快照（rowId 在截断/分叉后指向别的实体）。
+    #[test]
+    fn every_row_builder_emits_a_stable_entity_id() {
+        let base = base(3);
+        let rows = [
+            turn_header_row(
+                &base,
+                TurnHeaderFields {
+                    origin: TURN_ORIGIN_USER_INPUT,
+                    state: "running",
+                    started_at: 1,
+                    source_command_id: "cmd-1",
+                    history_round_count: 0,
+                    file_changes: None,
+                    can_rewind_files: false,
+                },
+            ),
+            user_input_row(&base, "q", "cmd-1", "client-1"),
+            assistant_text_row(&base, "resp-1", "text", "complete", None),
+            tool_call_row(&base, "call-1", "Write", "success", "{}", None),
+            reasoning_row(&base, "resp-1", "thinking", "complete", None),
+        ];
+        for row in &rows {
+            assert_eq!(
+                row["entityId"].as_str(),
+                Some("resp-1"),
+                "行构造器必须把 RowBase 的实体身份原样写进行里: {row}"
+            );
         }
     }
 

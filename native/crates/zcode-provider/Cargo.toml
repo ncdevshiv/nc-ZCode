@@ -23,3 +23,10 @@ reqwest = { version = "0.12", default-features = false, features = [
   "rustls-tls-native-roots",
   "stream",
 ] }
+
+[[bench]]
+name = "sse_streaming"
+harness = false
+
+[dev-dependencies]
+criterion = { version = "0.7", features = ["html_reports"] }

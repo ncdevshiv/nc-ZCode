@@ -97,12 +97,21 @@ impl Client {
     }
 
     fn response(&mut self, id: u64) -> Value {
+        // 先取 pending 再读新行；读到的通知帧按原序放回，**绝不能**把刚弹出的帧再塞回
+        // 队尾（next_line 会再次弹出它 → 死循环）。
+        let mut skipped = std::collections::VecDeque::new();
         loop {
-            let message = self.next_line();
+            let message = match self.pending.pop_front() {
+                Some(buffered) => buffered,
+                None => self.next_line(),
+            };
             if message.get("id").and_then(Value::as_u64) == Some(id) {
+                for line in skipped.into_iter().rev() {
+                    self.pending.push_front(line);
+                }
                 return message;
             }
-            self.pending.push_back(message);
+            skipped.push_back(message);
         }
     }
 }

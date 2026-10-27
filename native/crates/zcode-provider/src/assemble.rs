@@ -334,7 +334,7 @@ impl RetryBoundaryBuffer {
 
     /// 尝试成功收尾：按原序释放残余前奏（签名类空 delta 随前奏保留原位）。
     pub fn take_committed(&mut self) -> Vec<ModelStreamEvent> {
-        self.buffered.drain(..).collect()
+        std::mem::take(&mut self.buffered)
     }
 
     /// providerEventObserved 分支：事件已算"观察到"，强制释放前奏并标记已提交。

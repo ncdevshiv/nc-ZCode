@@ -12,25 +12,41 @@
 //! revision、phase 与 inbox 的唯一所有者；turn 是唯一写投影的路径。
 //! 与 TS host 的关系：能力面子集 + fail-closed 差异逐条记录在 crate README。
 
+pub mod branch;
+mod commands;
 pub mod commands_query;
 pub mod compact;
+pub mod content_hash;
+pub mod conversation_reads;
+pub mod file_ledger;
 pub mod frame;
+pub mod goal;
+pub mod goal_loop;
+pub mod goal_verifier;
+mod host_interactions;
+mod host_queue;
+pub mod interaction;
 pub mod mcp;
 pub mod mcp_tools;
 pub mod memory;
 pub mod nc_tools;
 pub mod profile;
 pub mod provider_config;
+pub mod queue;
 pub mod reconciliation;
+pub mod rewind;
 pub mod rows;
 pub mod rpc;
 pub mod session;
+pub mod sessions;
+pub mod single_shot;
 pub mod snapshot;
 pub mod storage;
 pub mod store;
 pub mod tools;
 pub mod turn;
 pub mod turn_context;
+pub mod workspace_hooks;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -40,7 +56,7 @@ use std::sync::{Arc, Mutex};
 use serde_json::{json, Value};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use zcode_core::identity::identity_key;
-use zcode_core::protocol::{parse_command_envelope, CommandStatus};
+use zcode_core::protocol::parse_command_envelope;
 
 use crate::mcp::McpPool;
 use crate::profile::DeliveryProfileName;
@@ -87,6 +103,9 @@ pub struct HostServer {
     workspace_identity: String,
     store: TranscriptStore,
     provider: Option<ProviderConfig>,
+    /// workspace hook 信任台账（`<data-dir>/security/workspace-hook-trust-v1.json`）。
+    /// host 级共享：同一工作区的多个会话看到同一份台账。
+    hook_store: Arc<crate::workspace_hooks::TrustStore>,
     sessions: Mutex<HashMap<String, Arc<Session>>>,
     /// 进程内命令账本中**不属于任何 session** 的那一份（`sessionId: null` 的
     /// global 幂等桶，即 createSession）。与 session 账本物理分开：global 桶的
@@ -114,6 +133,11 @@ impl HostServer {
         let workspace_identity = identity_key(None, &workspace.to_string_lossy());
         let memory_root = data_dir.join("memory");
         let _ = std::fs::create_dir_all(&memory_root);
+        let hook_store = Arc::new(crate::workspace_hooks::TrustStore::new(
+            data_dir
+                .join("security")
+                .join(crate::workspace_hooks::TRUST_STORE_FILE),
+        ));
 
         // MCP servers（可选，stdio 形态）：`--mcp-server Name=command[:arg,arg]` 可重复。
         // 连接失败不阻断启动——MCP 是可选能力面，不是 host 的生存依赖。
@@ -145,6 +169,7 @@ impl HostServer {
             workspace,
             workspace_identity,
             store: TranscriptStore::new(data_dir),
+            hook_store,
             provider,
             sessions: Mutex::new(HashMap::new()),
             global_acks: Mutex::new(HashMap::new()),
@@ -180,6 +205,9 @@ impl HostServer {
     }
 
     fn register_session(&self, session: Arc<Session>) {
+        // 帧的唯一有序出口：turn 期间的帧由 Session 直接写入 outbox（eager），
+        // 与 ticker 共用同一 FIFO，避免「延后发送的帧」越过后续帧。
+        session.set_frame_sink(self.outbox.clone());
         if let Ok(mut guard) = self.sessions.lock() {
             guard.insert(session.id.clone(), Arc::clone(&session));
         }
@@ -206,6 +234,11 @@ impl HostServer {
                     return;
                 }
                 for line in session.flush_expired() {
+                    if server.outbox.send(line).is_err() {
+                        return;
+                    }
+                }
+                for line in session.expire_hook_review(now_ms()) {
                     if server.outbox.send(line).is_err() {
                         return;
                     }
@@ -244,21 +277,65 @@ impl HostServer {
             METHOD_CONVERSATION_RESYNC => self.resync(&request.params),
             METHOD_CONVERSATION_UNSUBSCRIBE => self.unsubscribe(&request.params),
             METHOD_CONVERSATION_ROWS_RANGE => self.rows_range(&request.params),
+            "v4/conversation/fileChanges" => self
+                .conversation_file_changes(&request.params)
+                .map(RequestOutcome::empty),
+            "v4/conversation/fileRewindPreview" => self
+                .conversation_file_rewind_preview(&request.params)
+                .map(RequestOutcome::empty),
+            "v4/conversation/usage" => self
+                .conversation_usage(&request.params)
+                .map(RequestOutcome::empty),
             METHOD_COMMAND => self.command(&request.params).await,
             METHOD_COMMANDS_QUERY => self
                 .commands_query(&request.params)
                 .map(RequestOutcome::empty),
-            other => Err(RpcError::new(
-                CODE_METHOD_NOT_FOUND,
-                format!("method not implemented in this host increment: {other}"),
-            )),
+            other => {
+                // 已知但未接线的方法必须说清楚**缺什么**（清单测试保证表不为空且精确）；
+                // 未知方法保持通用 not-found，不把内部清单当公开词表。
+                let missing = rpc::V4_METHODS_UNIMPLEMENTED
+                    .iter()
+                    .find(|(name, _)| *name == other)
+                    .map(|(_, reason)| *reason);
+                let message = match missing {
+                    Some(reason) => {
+                        format!("{other} is not wired in this host increment: missing {reason}")
+                    }
+                    None => format!("method not implemented in this host increment: {other}"),
+                };
+                Err(RpcError::new(CODE_METHOD_NOT_FOUND, message))
+            }
         };
+        let session = request
+            .params
+            .get("sessionId")
+            .and_then(Value::as_str)
+            .and_then(|session_id| self.session(session_id));
         match result {
-            Ok(outcome) => (
-                Some(RpcResponse::ok(id, outcome.response).to_line()),
-                outcome.post_frames,
-            ),
-            Err(error) => (Some(RpcResponse::err(id, error).to_line()), Vec::new()),
+            Ok(outcome) => {
+                let response_line = RpcResponse::ok(id, outcome.response).to_line();
+                if let Some(session) = session {
+                    if session.has_frame_sink() {
+                        // 会话请求：response 与帧写入同一 FIFO（response 先入），
+                        // 与 turn 的 eager 帧共序，杜绝「帧先于响应/帧序颠倒」。
+                        session.enqueue_line(response_line.clone());
+                        for frame in outcome.post_frames {
+                            session.enqueue_line(frame);
+                        }
+                        return (None, Vec::new());
+                    }
+                }
+                (Some(response_line), outcome.post_frames)
+            }
+            Err(error) => {
+                let line = RpcResponse::err(id, error).to_line();
+                if let Some(session) = session {
+                    if session.enqueue_line(line.clone()) {
+                        return (None, Vec::new());
+                    }
+                }
+                (Some(line), Vec::new())
+            }
         }
     }
 
@@ -388,17 +465,118 @@ impl HostServer {
                 .with_data(json!({"reasonCode": "proto.invalidPayload"}))
         })?;
 
-        match envelope.command_type.as_str() {
-            // createSession 是会话外操作（TS 的 global bucket，不经 session inbox）。
-            "createSession" => self.create_session(&envelope),
-            // stop 是控制命令（对齐 TS sessionStop 的即时取消路径）：不能排 inbox
-            // FIFO——那会排在正在跑的 turn 后面造成死锁。
-            "stop" => self.stop(&envelope),
-            // rename/delete 是会话级控制：直接生效，无 turn 副作用。
-            "renameSession" => self.rename_session(&envelope),
-            "deleteSession" => self.delete_session(&envelope),
-            // 其余命令（sendText 等）走 session inbox 串行 admission。
-            _ => self.admitted_command(&envelope).await,
+        // 路由事实只有 `commands::route` 一处；本函数把位点翻译成调用，不承载命令语义。
+        // 这样能力面（snapshot::availability）与执行面读同一张表，不可能对同一个命令
+        // 一个显示 allowed、另一个 fail-closed。
+        match commands::route(&envelope.command_type) {
+            commands::Route::CreateSession => self.create_session(&envelope),
+            commands::Route::Stop => self.stop(&envelope),
+            commands::Route::RenameSession => self.rename_session(&envelope),
+            commands::Route::DeleteSession => self.delete_session(&envelope),
+            commands::Route::ResolveInteraction => {
+                let session = self.queue_session(&envelope)?;
+                Ok(self.resolve_interaction_command(&session, &envelope))
+            }
+            commands::Route::SnoozeInteraction => {
+                let session = self.queue_session(&envelope)?;
+                Ok(self.snooze_interaction_command(&session, &envelope))
+            }
+            commands::Route::QueueMutation(mutation) => {
+                let session = self.queue_session(&envelope)?;
+                Ok(match mutation {
+                    commands::QueueMutation::Edit => self.queue_edit_command(&session, &envelope),
+                    commands::QueueMutation::Reorder => {
+                        self.queue_reorder_command(&session, &envelope)
+                    }
+                    commands::QueueMutation::Delete => {
+                        self.queue_delete_command(&session, &envelope)
+                    }
+                    commands::QueueMutation::SendNow => {
+                        self.queue_send_now_command(&session, &envelope)
+                    }
+                })
+            }
+            // busy / 已有排队 → 入队（FIFO，不插队）；否则走正常 admission。
+            commands::Route::SendText => {
+                let session = self.queue_session(&envelope)?;
+                if HostServer::should_queue_input(&session) {
+                    let text = envelope
+                        .payload
+                        .get("text")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .to_string();
+                    let outcome = self.enqueue_text_input(&session, &envelope, text);
+                    if !session.is_running() && session.queue_auto_drain() {
+                        let server = Arc::clone(self);
+                        let session = Arc::clone(&session);
+                        tokio::spawn(async move {
+                            server.drain_queue(session).await;
+                        });
+                    }
+                    return Ok(outcome);
+                }
+                self.admitted_command(&envelope).await
+            }
+            // sendGoalCommand：提交期校验（空目标 / 4000 字上限 / plan 互斥）不通过
+            // 就直接拒绝——不能先入队再在执行时拒绝，那会让 UI 先看到"已接受"。
+            commands::Route::SendGoalCommand => {
+                let session = self.queue_session(&envelope)?;
+                if let Err(final_) = commands::goal::validate_goal_submission(&envelope.payload) {
+                    let ack = json!({
+                        "commandId": envelope.command_id,
+                        "status": "rejected",
+                        "revisionAtDecision": session.revision(),
+                        "reasonCode": final_.reason_code,
+                        "message": final_.message,
+                    });
+                    self.persist_command_ack(&session.id, &envelope.command_id, &ack);
+                    return Ok(RequestOutcome::empty(ack));
+                }
+                if HostServer::should_queue_input(&session) {
+                    let objective = envelope
+                        .payload
+                        .get("text")
+                        .and_then(Value::as_str)
+                        .unwrap_or_default()
+                        .trim()
+                        .to_string();
+                    let text = envelope
+                        .payload
+                        .get("displayText")
+                        .and_then(Value::as_str)
+                        .map(str::trim)
+                        .filter(|text| !text.is_empty())
+                        .map(str::to_string)
+                        .unwrap_or_else(|| format!("/goal {objective}"));
+                    let outcome = self.enqueue_text_input(&session, &envelope, text);
+                    if !session.is_running() && session.queue_auto_drain() {
+                        let server = Arc::clone(self);
+                        let session = Arc::clone(&session);
+                        tokio::spawn(async move {
+                            server.drain_queue(session).await;
+                        });
+                    }
+                    return Ok(outcome);
+                }
+                self.admitted_command(&envelope).await
+            }
+            commands::Route::PauseGoal => {
+                let session = self.queue_session(&envelope)?;
+                Ok(self.pause_goal_command(&session, &envelope))
+            }
+            commands::Route::ResumeGoal => {
+                let session = self.queue_session(&envelope)?;
+                if let Some(outcome) = self.resume_goal_submit_ack(&session, &envelope) {
+                    return Ok(outcome);
+                }
+                self.admitted_command(&envelope).await
+            }
+            // 未接线的命令也进 inbox：ack 必须进命令账本，重放时才能回同一个
+            // fail-closed 结果，而不是每次答 unknown。
+            commands::Route::Admitted | commands::Route::Unsupported => {
+                self.admitted_command(&envelope).await
+            }
         }
     }
 
@@ -412,39 +590,10 @@ impl HostServer {
                 "createSession requires sessionId: null",
             ));
         }
-        let session_id = self.next_id("session");
-        if !is_safe_session_id(&session_id) {
-            return Err(RpcError::new(
-                CODE_INTERNAL,
-                "generated session id failed safety check",
-            ));
-        }
-        let meta = SessionMeta {
-            session_id: session_id.clone(),
-            title: String::new(),
-            title_source: "default".to_string(),
-            log_epoch: self.next_id("epoch"),
-            revision: 0,
-            workspace_identity: self.workspace_identity.clone(),
-            created_at: now_ms(),
-        };
-        self.store
-            .create_session(&meta)
-            .map_err(|error| RpcError::new(CODE_INTERNAL, error.to_string()))?;
-        let session = Session::new(SessionInit {
-            id: session_id.clone(),
-            workspace_root: self.workspace.clone(),
-            workspace_identity: self.workspace_identity.clone(),
-            log_epoch: meta.log_epoch,
-            title: meta.title,
-            title_source: meta.title_source,
-            rows: Vec::new(),
-            revision: 0,
-            transcript_acks: HashMap::new(),
-            next_row_id: 0,
-            store: self.store.clone(),
-        });
-        self.register_session(session);
+        // 创建序列（id/epoch、meta 落盘、注册、frame sink、ticker）只有
+        // `open_session` 一份实现；这里只提供"空会话"这份 seed。
+        let session = self.open_session(crate::sessions::SessionSeed::blank())?;
+        let session_id = session.id.clone();
         let ack = json!({
             "commandId": envelope.command_id,
             "status": "accepted",
@@ -485,17 +634,46 @@ impl HostServer {
             .session(session_id)
             .ok_or_else(|| session_not_found(session_id))?;
         let running = session.is_running();
+        let revision_at_decision = session.revision();
+        let expected = envelope
+            .payload
+            .get("expectedForegroundExecutionId")
+            .and_then(Value::as_str);
+        // 迟到 stop 护栏（TS guard.stopTargetChanged）：带 expected 时必须命中当前
+        // 前台执行的 commandId；否则只 noop，绝不 abort 用户没看到的新执行。
+        if let Some(expected) = expected {
+            if !running || session.active_command().as_deref() != Some(expected) {
+                let ack = json!({
+                    "commandId": envelope.command_id,
+                    "status": "noop",
+                    "revisionAtDecision": revision_at_decision,
+                    "reasonCode": "guard.stopTargetChanged",
+                });
+                self.persist_command_ack(session_id, &envelope.command_id, &ack);
+                return Ok(RequestOutcome::empty(ack));
+            }
+        }
         if running {
             session.request_cancel();
         }
         let ack = json!({
             "commandId": envelope.command_id,
             "status": if running { "accepted" } else { "noop" },
-            "revisionAtDecision": session.revision(),
+            "revisionAtDecision": revision_at_decision,
             "reasonCode": if running { Value::Null } else { json!("guard.nothingToStop") },
         });
         self.persist_command_ack(session_id, &envelope.command_id, &ack);
-        Ok(RequestOutcome::empty(ack))
+        // 受理停止 → 立即投影 control.stopState="stopping"（turn 收口前订阅者可见）。
+        let post_frames = if running {
+            session.bump_revision();
+            session.project_control_update()
+        } else {
+            Vec::new()
+        };
+        Ok(RequestOutcome {
+            response: ack,
+            post_frames,
+        })
     }
 
     fn rename_session(
@@ -518,15 +696,22 @@ impl HostServer {
         let session = self
             .session(session_id)
             .ok_or_else(|| session_not_found(session_id))?;
+        let revision_at_decision = session.revision();
         session.set_title(title.to_string(), "custom");
+        session.bump_revision();
         self.persist_meta(&session);
         let ack = json!({
             "commandId": envelope.command_id,
             "status": "accepted",
-            "revisionAtDecision": session.revision(),
+            "revisionAtDecision": revision_at_decision,
         });
         self.persist_command_ack(session_id, &envelope.command_id, &ack);
-        Ok(RequestOutcome::empty(ack))
+        // meta 变更投影给 live 订阅者（TS：SessionTitleUpdated → 投影收口）。
+        let post_frames = session.project_meta_update();
+        Ok(RequestOutcome {
+            response: ack,
+            post_frames,
+        })
     }
 
     fn delete_session(
@@ -536,11 +721,17 @@ impl HostServer {
         let session_id = envelope.session_id.as_deref().ok_or_else(|| {
             RpcError::new(CODE_INVALID_PARAMS, "deleteSession requires sessionId")
         })?;
-        self.store
-            .delete_session(session_id)
-            .map_err(|error| RpcError::new(CODE_INTERNAL, error.to_string()))?;
-        if let Ok(mut guard) = self.sessions.lock() {
-            guard.remove(session_id);
+        // 语义 = closeSession，**不是真删**（对齐 TS session-mgmt 的裁决：message 库
+        // 无删除 API，旧协议同样只 close；历史必须残留，重启后仍可恢复）。
+        // 旧实现 remove_dir_all 会连 transcript 一起抹掉——不可接受的破坏性偏差。
+        let removed = self
+            .sessions
+            .lock()
+            .ok()
+            .map(|mut guard| guard.remove(session_id).is_some())
+            .unwrap_or(false);
+        if !removed {
+            return Err(session_not_found(session_id));
         }
         let ack = json!({
             "commandId": envelope.command_id,
@@ -582,37 +773,12 @@ impl HostServer {
             }
             zcode_core::inbox::Outcome::Execute(admitted) => {
                 let ack = serde_json::to_value(&admitted.ack).unwrap_or(Value::Null);
-                let provider = self.provider.clone();
-                let outbox = self.outbox.clone();
-                let session_for_turn = Arc::clone(&session);
-                let server_for_turn: Arc<Self> = Arc::clone(self);
-                let command_type = admitted.envelope.command_type.clone();
+                // 路由到此为止：命令语义全部交给 `commands::execute`（唯一的 admitted
+                // 执行入口），本函数只负责先响应 admission ack、再派生执行任务。
+                let server = Arc::clone(self);
+                let session_for_command = Arc::clone(&session);
                 tokio::spawn(async move {
-                    if command_type == "sendText" {
-                        let lines = turn::run_turn(
-                            session_for_turn,
-                            provider.as_ref(),
-                            &server_for_turn.turn_deps,
-                            *admitted,
-                        )
-                        .await;
-                        for line in lines {
-                            let _ = outbox.send(line);
-                        }
-                        return;
-                    }
-                    // 本 increment 未接线的命令类型：fail-closed settle，绝不静默执行。
-                    let admitted = *admitted;
-                    let session = session_for_turn;
-                    let reason = format!("fault.command.unsupported:{command_type}");
-                    let final_ = zcode_core::protocol::CommandFinal::with_reason(
-                        CommandStatus::Failed,
-                        reason,
-                    );
-                    let merged = zcode_core::protocol::merge_final(&admitted.ack, &final_);
-                    let merged_value = serde_json::to_value(&merged).unwrap_or(Value::Null);
-                    session.persist_ack(&admitted.envelope.command_id, &merged_value);
-                    let _ = session.inbox.settle(admitted.ticket, final_);
+                    commands::execute(&server, session_for_command, *admitted).await;
                 });
                 Ok(RequestOutcome::empty(ack))
             }
@@ -634,10 +800,36 @@ impl HostServer {
 
     fn persist_command_ack(&self, session_id: &str, command_id: &str, ack: &Value) {
         if let Some(session) = self.session(session_id) {
-            session.persist_ack(command_id, ack);
+            if let Err(error) = session.persist_ack(command_id, ack) {
+                eprintln!(
+                    "[zcode-host] persist_ack failed for session {session_id} command {command_id}: {error}"
+                );
+            }
         }
         // session 查不到时**不**回落到 global 账本：global 桶只由 persist_global_ack 写。
         // 两个写入口等于两个 owner，重提 createSession 的语义会随分支顺序漂移。
+    }
+
+    /// 构建一个会话的 hook 准入状态（快照在这里发现；读失败只记诊断，
+    /// 会话仍然可用——hook 执行面尚未接线，fail-closed 的表现就是"什么都不跑"）。
+    fn build_hook_admission(
+        &self,
+        workspace_identity: &str,
+    ) -> Arc<crate::workspace_hooks::WorkspaceHookAdmission> {
+        let admission = Arc::new(crate::workspace_hooks::WorkspaceHookAdmission::new(
+            self.workspace.clone(),
+            workspace_identity.to_string(),
+            workspace_identity.to_string(),
+            Arc::clone(&self.hook_store),
+        ));
+        if let Err(error) = admission.refresh(&crate::workspace_hooks::rfc3339_utc(now_ms())) {
+            eprintln!(
+                "[zcode-host] workspace hook discovery failed for {}: {} ({error:?})",
+                workspace_identity,
+                error.reason_code()
+            );
+        }
+        admission
     }
 
     fn persist_meta(&self, session: &Arc<Session>) {
@@ -650,6 +842,12 @@ impl HostServer {
             revision: session.revision(),
             workspace_identity: session.workspace_identity.clone(),
             created_at: now_ms(),
+            followup_mode: session.followup_mode(),
+            collaboration_mode: session.collaboration_mode(),
+            provider: session.provider(),
+            model: session.model(),
+            thought: session.thought(),
+            goal: session.goal(),
         };
         let _ = self.store.write_meta(&meta);
     }
@@ -665,6 +863,26 @@ impl HostServer {
                 continue;
             };
             let transcript = self.store.load_transcript(&session_id).unwrap_or_default();
+            // 降级恢复必须**可见**（review MAJOR-2）：容错回放会跳过坏行，所以
+            // 这份 transcript 可能缺一段。静默 resume 会让用户以为会话记忆完整，
+            // 而模型实际看到的是残缺上下文——那比直接报错更糟。
+            if !transcript.skipped_lines.is_empty() {
+                eprintln!(
+                    "[zcode-host] degraded resume for session {session_id}: skipped {} unreadable line(s); history={} rows={}",
+                    transcript.skipped_lines.len(),
+                    transcript.history.len(),
+                    transcript.rows.len()
+                );
+                for reason in transcript.skipped_lines.iter().take(3) {
+                    eprintln!("[zcode-host]   skipped {reason}");
+                }
+                if transcript.skipped_lines.len() > 3 {
+                    eprintln!(
+                        "[zcode-host]   … {} more",
+                        transcript.skipped_lines.len() - 3
+                    );
+                }
+            }
             let next_row_id = transcript
                 .rows
                 .iter()
@@ -672,6 +890,7 @@ impl HostServer {
                 .max()
                 .unwrap_or(0)
                 + 1;
+            let hooks = self.build_hook_admission(&meta.workspace_identity);
             let session = Session::new(SessionInit {
                 id: session_id.clone(),
                 workspace_root: self.workspace.clone(),
@@ -683,8 +902,21 @@ impl HostServer {
                 revision: meta.revision,
                 transcript_acks: transcript.acks,
                 next_row_id,
+                history: transcript.history,
+                // 分支截断的历史锚点随 transcript 回放重建：重启后仍能安全 edit/retry。
+                turn_history_starts: transcript.turn_history_starts,
+                file_changes: transcript.file_changes,
+                followup_mode: meta.followup_mode,
+                collaboration_mode: meta.collaboration_mode,
+                provider: meta.provider,
+                model: meta.model,
+                thought: meta.thought,
+                goal: meta.goal,
+                hooks,
                 store: self.store.clone(),
             });
+            session.ensure_hook_review(now_ms());
+            session.run_session_start_hooks("resume");
             self.register_session(session);
             resumed += 1;
         }
