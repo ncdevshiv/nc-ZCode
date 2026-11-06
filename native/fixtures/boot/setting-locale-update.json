@@ -1,0 +1,6 @@
+{
+  "channel": "setting",
+  "method": "update",
+  "arg": "[{\"locale\":\"en-US\",\"localePreference\":\"system\"}]",
+  "response": "<undefined>"
+}

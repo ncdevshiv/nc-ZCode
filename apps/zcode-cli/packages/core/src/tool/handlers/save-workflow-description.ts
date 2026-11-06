@@ -10,18 +10,18 @@ const INTRO = [
 ].join(" ");
 
 /**
- * 提示策略。这段是本工具描述里**最重要**的部分，所以写在最前、用最直白的祈使句。
+* Tips for strategies. This paragraph is the **most important** part of this tool description, so it is written first and uses the most straightforward imperative sentence.
  *
- * 理由：保存会在用户的仓库里留下一个文件，而模型对「这个 workflow 看起来挺通用」的判断
- * 远比用户宽松。一个会自作主张保存的 agent 会在几轮对话里往 `.zcode/workflows` 里堆满
- * 半成品，而那些文件此后会出现在每一次 ListSavedWorkflows 里。所以门槛不是"别乱存"这种
- * 程度副词，而是一条硬规则：先用散文建议，等用户点头，再调用。
+* Reason: Saving will leave a file in the user's warehouse, and the model's judgment of "this workflow looks quite general"
+* Far more lenient than users. An agent that saves on its own initiative will fill up `.zcode/workflows` in several rounds of conversations.
+* Semi-finished products, and those files will appear in every ListSavedWorkflows thereafter. So the threshold is not like "don't save randomly"
+* Adverb of degree, but a hard rule: use prose suggestions first, wait for the user to nod, and then call.
  */
 const HINT_POLICY = [
   "When to call it — read this before you call it:",
   "- NEVER call this tool unsolicited. Saving writes a file into the user's repository; that is their decision, not yours.",
   "- When a workflow you just built looks reusable, SUGGEST it in prose first — one sentence naming what you would save and why — and then stop and wait. Call SaveWorkflow only after the user agrees.",
-  '- If the user asks directly ("save this workflow", "保存这个工作流"), that is agreement: call it.',
+  '- If the user asks directly ("save this workflow", "save this workflow"), that is agreement: call it.',
   "- A workflow is worth suggesting when it would plausibly be run again with different inputs. A one-off script tailored to a single question is not; suggesting it wastes the user's attention and clutters the project.",
 ].join("\n");
 
@@ -29,7 +29,7 @@ const FILE_FORMAT = [
   "File format:",
   "- The saved file is valid TypeScript: a `/* zcode-workflow` block comment carrying YAML metadata, followed by the script verbatim.",
   "- `description` is required and shows up wherever the workflow is listed. `whenToUse` is optional guidance for whoever picks a workflow later — write it for a reader who has not seen this conversation.",
-  // 保存一份刚跑过的草稿是最常见的场景，而重新吐一遍脚本是这里唯一一笔可以省掉的大代价。
+// Saving a draft that has just been run is the most common scenario, and spitting out the script again is the only big cost that can be saved here.
   "- `script_path` saves a working draft without re-emitting it: pass the file a CreateWorkflow or AmendWorkflow result named instead of `script`, and its body is what gets saved (a `/* zcode-workflow` block in that file is dropped — the metadata comes from the fields here).",
   "- Saving over an existing name REPLACES that workflow. The confirmation window tells the user whether this is a new file or an overwrite, so pick the name deliberately: reuse it to update a workflow, choose a new one to add a variant.",
 ].join("\n");

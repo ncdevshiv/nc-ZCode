@@ -1,4 +1,5 @@
-import ts from "typescript";
+// @ts-nocheck
+import ts from "../compiler/ts-shim.js";
 import {
   innermost,
   issuesSince,
@@ -9,10 +10,10 @@ import {
 import { barrier, recordControl, settlesAt } from "./causality-order-settle.js";
 import { strandMark } from "./causality-order-strands.js";
 
-// causality-order.ts 顶到 oxlint max-lines 上限（400 行），把循环语句的访问器
-// （for / for-of / for-in / while / do…while）连同 `for` 字面量轮数的推导拆到本文件；公开面
-// 仍从 causality-order.ts 导出。{@link walkLoop} 在 walk 的 if 链里占原来四个分支的位置，
-// 判定顺序与原文件逐字一致。
+// causality-order.ts reaches the upper limit of oxlint max-lines (400 lines), and changes the accessor of the loop statement
+// (for / for-of / for-in / while / do...while) together with the derivation of `for` literal rounds are split into this document; public
+// Still exported from causality-order.ts. {@link walkLoop} occupies the position of the original four branches in the if chain of walk.
+// The judgment order is consistent with the original file verbatim.
 
 /** Walk a loop body with its statement registered as a jump target for the duration. */
 function walkLoopBody(

@@ -20,9 +20,9 @@ S3 exit of the roadmap. The Rust crate must reproduce these fixtures exactly.
 Regeneration flow:
 
 ```sh
-pnpm golden:vectors        # regenerate fixtures from TS source
-pnpm golden:check          # fail if fixtures drift from TS source
-pnpm native:test           # cargo test (includes golden-vector conformance)
+bun run golden:vectors        # regenerate fixtures from TS source
+bun run golden:check          # fail if fixtures drift from TS source
+bun run native:test           # cargo test (includes golden-vector conformance)
 # or directly: cargo test --manifest-path native/Cargo.toml
 ```
 

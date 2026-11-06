@@ -29,7 +29,7 @@ interface ExternalTurnFaultError extends Error {
   zcodeTurnFault: typeof EXTERNAL_TURN_FAULT_MARKER;
 }
 
-/** 宿主用此窄入口中止 turn，同时要求 core 持久化 TurnError 而不是用户取消。 */
+/** The host uses this narrow entry to abort a turn, while requiring core to persist TurnError rather than user cancellation. */
 export function createExternalTurnFaultError(code: string, message = code): Error {
   return Object.assign(new Error(message), {
     code,
@@ -119,8 +119,8 @@ export function createTurnFailureError(
 
   return createCoreError(CoreErrorType.UnknownError, fallbackMessage, {
     cause: error instanceof Error ? error : undefined,
-    // turn 级 UnknownError 只是统一生命周期包装；UI/error payload
-    // 需要展示下层 provider/tool 给出的用户可读根因，不能让泛化文案抢占摘要。
+// turn-level UnknownError is just a unified life cycle wrapper; UI/error payload
+// It is necessary to display the user-readable root cause given by the underlying provider/tool, and generalized copywriting cannot be allowed to preempt the abstract.
     context: withErrorPayloadRole(undefined, ErrorPayloadRole.Wrapper),
   });
 }
@@ -136,10 +136,10 @@ export function createTurnCancelledError(error: unknown) {
   });
 }
 
-// 用户主动中断（TurnCancelled）属于正常结束，不应记为错误。turn/compact/rewind 三处 catch
-// 之前都无条件 emit TurnError，会被 reducer/UI/桌面统一映射成 turn.failed（status:error、追加错误消息）。
-// 这里统一收口：取消时改发 TurnComplete(resultType:"cancelled") 让状态干净回到 idle，真实错误才发 TurnError。
-// 调用方仍负责向上 throw coreError 与记录 usage。
+// User-initiated interruption (TurnCancelled) is a normal end and should not be recorded as an error. turn/compact/rewind three catches
+// Previously, TurnError was unconditionally emitted, which will be uniformly mapped to turn.failed (status: error, append error message) by reducer/UI/desktop.
+// Here is the unified conclusion: when canceling, send TurnComplete(resultType: "cancelled") to let the state return to idle cleanly, and only send TurnError when there is a real error.
+// The caller is still responsible for throwing coreError and logging usage.
 export async function appendTurnOutcomeEvent(
   runtime: AgentRuntimeInternal,
   params: {
@@ -189,8 +189,8 @@ export async function appendTurnOutcomeEvent(
         {
           error: {
             type: externalFault?.code ?? coreError.type,
-            // coreError.message 常是泛化文案，真实 provider/network 原因藏在 cause 链里；
-            // 写入可读 payload fields 让桌面端和恢复链路都能展示根因。
+// coreError.message is often a generalized text, and the real provider/network reason is hidden in the cause chain;
+//Write readable payload fields so that both desktop and recovery links can display the root cause.
             ...projectExecutionErrorPayload(coreError, params.fallbackMessage),
             stack: coreError.stack,
           },

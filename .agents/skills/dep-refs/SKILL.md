@@ -1,37 +1,37 @@
 ---
 name: dep-refs
-description: Use when needs to inspect TypeScript export references in the z-code workspace, list exports from a file, verify whether an export is unused before deletion, investigate who imports a symbol during refactors, or combine pnpm knip unused-export results with pnpm dep:refs symbol-level reference tracing.
+description: Use when needs to inspect TypeScript export references in the z-code workspace, list exports from a file, verify whether an export is unused before deletion, investigate who imports a symbol during refactors, or combine bun run knip unused-export results with bun run dep:refs symbol-level reference tracing.
 disable-model-invocation: true
 ---
 
 # Dep Refs
 
-Use the repository's `pnpm dep:refs` CLI to answer symbol-level questions before changing or deleting TypeScript exports. Run commands from the z-code repository root.
+Use the repository's `bun run dep:refs` CLI to answer symbol-level questions before changing or deleting TypeScript exports. Run commands from the z-code repository root.
 
 ## Workflow
 
 Start broad when deleting code:
 
 ```bash
-pnpm knip
+bun run knip
 ```
 
 Use `knip` to find likely unused exports, then inspect any risky or unclear export with `dep:refs`:
 
 ```bash
-pnpm dep:refs packages/shared/src/remoteTarget.ts:stripRemoteTargetSecrets
+bun run dep:refs packages/shared/src/remoteTarget.ts:stripRemoteTargetSecrets
 ```
 
 List all exports in a file when the exact symbol name is unknown:
 
 ```bash
-pnpm dep:refs --list-exports packages/shared/src/remoteTarget.ts
+bun run dep:refs --list-exports packages/shared/src/remoteTarget.ts
 ```
 
 Use scoped scans for fast exploration only when the scope is intentionally limited:
 
 ```bash
-pnpm dep:refs --scope packages/services packages/shared/src/remoteTarget.ts:stripRemoteTargetSecrets
+bun run dep:refs --scope packages/services packages/shared/src/remoteTarget.ts:stripRemoteTargetSecrets
 ```
 
 Before claiming an export is safe to delete, prefer an unscoped `dep:refs` run so cross-package callers are not missed.

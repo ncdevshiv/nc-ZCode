@@ -47,8 +47,8 @@ export async function runRegularTurnLoop(
   while (true) {
     throwIfTurnAborted(state.turnAbortSignal);
     const outputTokenRecoveryActive = state.turnRequestState.outputTokenContinuationCount > 0;
-    // guide 只允许由完整 tool result batch 设置这个一次性诊断；普通 queue 不在
-    // model roundtrip 起点消费，避免把未来 turn 错并入当前 product turn。
+// The guide only allows this one-time diagnostic to be set by a complete tool result batch; normal queues are not
+// model roundtrip starting point consumption to avoid erroneously merging future turns into the current product turn.
     const drainedSteerForNextRequest = state.drainedSteerForNextRequest;
     state.drainedSteerForNextRequest = undefined;
 
@@ -108,9 +108,9 @@ export async function runRegularTurnLoop(
     throwIfTurnAborted(state.turnAbortSignal);
     const finishTools = beginLocalTurnPreparation(state.turnTraceContext, "tools");
     const turnDisallowedTools = buildTurnDisallowedTools(state);
-    // automation 派发到已 active 会话或重试恢复时，入口 metadata 可能没有带到
-    // loop state；但 queryId 仍是 automation-*。provider 请求边界必须按 queryId 再硬过滤
-    // automation 写工具，否则模型会先看到并创建、修改或删除任务定义。
+// When automation is dispatched to an active session or retrying recovery, the entry metadata may not be brought
+// loop state; but queryId is still automation-*. The provider request boundary must be hard filtered by queryId
+// Automation writing tool, otherwise the model will see it first and create, modify or delete the task definition.
     const tools = state.automationCreateLimitReached
       ? []
       : turnDisallowedTools
@@ -159,16 +159,16 @@ export async function runRegularTurnLoop(
         ? buildRuntimeOutputStyleReminderBody(state.turnOutputStyle)
         : null;
     if (outputStyleReminderBody) {
-      // output_style 是 provider-visible 的当前 turn runtime attachment，
-      // 需要进入内存历史参与后续 request 的增量轨迹；但不把它落 session。
+// output_style is the current turn runtime attachment of provider-visible,
+// Need to enter the memory history to participate in the incremental trajectory of subsequent requests; but do not drop it into the session.
       commitTurnRequestEntries(this, state.turnRequestState, [
         systemReminderAttachmentEntry("output_style", outputStyleReminderBody),
       ]);
     }
     const providerEntries = [...state.turnRequestState.entries];
     const requestEntries = providerEntries;
-    // provider-visible user ordering projection 会改变最终 latest user 落点，
-    // cache-control 必须在 projection 后统一设置，避免 raw synthetic entry 抢占缓存锚点。
+// provider-visible user ordering projection will change the final latest user placement point.
+// cache-control must be set uniformly after projection to prevent raw synthetic entries from seizing the cache anchor point.
     const providerProjection = buildRuntimeProviderRequestMessages(this, {
       entries: requestEntries,
       applyCacheControl: true,
@@ -191,8 +191,8 @@ export async function runRegularTurnLoop(
       ),
     );
 
-    // 生产包需要知道 Turn 是否已经跨过 provider 边界；这里只记录请求元数据，
-    // 不记录 prompt、消息内容或 streaming chunk，避免泄露内容并控制日志量。
+// The production package needs to know whether Turn has crossed the provider boundary; only request metadata is recorded here,
+// Do not record prompts, message content or streaming chunks to avoid leaking content and control the amount of logs.
     this.logger?.info("Model request started", {
       ...traceContextToLogContext(state.turnTraceContext),
       event: "model.request.started",
@@ -221,15 +221,15 @@ export async function runRegularTurnLoop(
 function buildTurnDisallowedTools(state: RegularTurnLoopState): Set<string> | null {
   const tools = new Set(state.toolDisallowlist ?? []);
   if (isAutomationMutationRestrictedTurn(state)) {
-    // 定时任务执行轮只应运行任务 prompt，不能反过来管理自己的定义。
-    // 保留 CronList 供只读查询；所有 mutation 在 provider 请求边界统一隐藏。
+// The scheduled task execution wheel should only run the task prompt and cannot in turn manage its own definition.
+// Reserve CronList for read-only query; all mutations are uniformly hidden at provider request boundaries.
     for (const toolName of AUTOMATION_MUTATION_TOOL_NAMES) {
       tools.add(toolName);
     }
   }
   if (isOffPeakCreateRestrictedTurn(state)) {
-    // 闲时执行轮禁止再创建闲时任务（防递归自我派生）；OffPeakList 只读保留。
-    // 注意 automation 执行轮不进此分支——cron turn 放行 OffPeakCreate。
+// The idle execution wheel prohibits the creation of idle tasks (preventing recursive self-derivation); OffPeakList is read-only and reserved.
+// Note that the automation execution round does not enter this branch - cron turn releases OffPeakCreate.
     for (const toolName of OFF_PEAK_MUTATION_TOOL_NAMES) {
       tools.add(toolName);
     }

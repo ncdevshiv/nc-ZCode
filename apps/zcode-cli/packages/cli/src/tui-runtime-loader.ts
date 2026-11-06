@@ -33,9 +33,17 @@ const packageEntryPath = "node_modules/@zcode/tui/dist/index.js";
 const manifestFileName = "manifest.json";
 
 export const loadTuiRuntime = async (): Promise<TuiRuntimeModule> => {
-  const sea = await import("node:sea");
+  // `node:sea` only exists in Node's SEA runtime; Bun falls back to the bundled TUI.
+  const sea = await import("node:sea").catch(() => null);
 
-  if (!sea.isSea()) {
+  if (!sea?.isSea()) {
+    // Bun compiled binaries cannot resolve bare specifiers from on-disk modules,
+    // and opentui resolves yoga-layout with createRequire + readFileSync.
+    if (/~BUN|\$bunfs/u.test(process.argv[1] ?? "")) {
+      throw new Error(
+        "TUI is unavailable in the Bun single-file build; use the Node SEA release or run from a workspace install.",
+      );
+    }
     return await import("@zcode/tui");
   }
 

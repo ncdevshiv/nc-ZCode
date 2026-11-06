@@ -6,8 +6,8 @@ import {
 } from "@zcode/telemetry";
 
 /**
- * 官方 CLI 异步入口在创建同步 App 之前调用；只把准备出的 device MID 放回业务 env，
- * OTLP Header 等私密配置仍保留在进程内捕获区，不进入 Tool/MCP 子进程环境。
+* The official CLI asynchronous entry is called before creating the synchronous App; only the prepared device MID is returned to the business env.
+* Private configurations such as OTLP Header are still retained in the in-process capture area and do not enter the Tool/MCP sub-process environment.
  */
 export async function prepareZCodeTelemetryEnv(
   env: NodeJS.ProcessEnv = process.env,
@@ -25,8 +25,8 @@ export async function prepareZCodeTelemetryEnv(
 }
 
 /**
- * 与 prepareZCodeTelemetryEnv 对称地关闭当前进程持有的 Telemetry Owner。
- * 单个 App/Session 只允许 flush；只有最外层可执行入口可以调用本函数。
+* Close the Telemetry Owner held by the current process symmetrically with prepareZCodeTelemetryEnv.
+* Only flush is allowed for a single App/Session; only the outermost executable entry can call this function.
  */
 export async function shutdownZCodeTelemetry(): Promise<void> {
   await shutdownPreparedModelTelemetry();

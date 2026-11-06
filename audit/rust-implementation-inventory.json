@@ -1,0 +1,17 @@
+{
+  "crates": 41,
+  "rustFiles": 448,
+  "rustLoc": 192867,
+  "productionIntegration": "Not on desktop production path",
+  "keyCrates": [
+    "zcode-host",
+    "zcode-workflow",
+    "zcode-services-agent",
+    "zcode-provider",
+    "zcode-server",
+    "zcode-shell",
+    "zcode-rpc",
+    "zcode-core"
+  ],
+  "notes": "Source existence does not imply runtime reachability. Production desktop still uses TypeScript."
+}

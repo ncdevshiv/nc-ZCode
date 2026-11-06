@@ -13,7 +13,7 @@ import { encodeJson } from "../json.js";
 import type { MessageRow, PartRow } from "../rows.js";
 import { touchSession } from "./sessions.js";
 
-// 只补回旧版快照字段，不合并整个 JSON：递归 merge 会让已清空的 metadata/options 残留。
+// Only replace the old snapshot fields, do not merge the entire JSON: recursive merge will leave the cleared metadata/options.
 function preserveLegacyMembers(table: "message" | "part", keys: readonly string[]): string {
   return keys.reduce(
     (sql, key) =>
@@ -32,19 +32,19 @@ const MESSAGE_DATA_UPDATE = preserveLegacyMembers("message", [
 ]);
 const PART_DATA_UPDATE = preserveLegacyMembers("part", ["fromModel", "toModel", "model"]);
 
-// on-conflict 的 sequence 规则：
-// 同 scope 再保存必须原样保留现有 sequence——包括 NULL。coalesce(existing, excluded)
-// 会把 NULL 历史行（迁移遗漏/旧版本二进制写入）在任何一次再保存时重排到队尾（excluded=max+1），
-// assistant 完成后的二次 save 就足以触发，造成时间线漂移；NULL 由 0015 backfill 统一修复。
-// 跨 scope 改绑（id 冲突但 session/message 不同，仅导入 upsert 场景）才取 excluded 的新 scope 队尾。
+// on-conflict sequence rules:
+// Saving with the same scope must retain the existing sequence as it is - including NULL. coalesce(existing, excluded)
+// NULL historical rows (migration omissions/old version binary writes) will be rearranged to the end of the queue (excluded=max+1) when saving again,
+// The second save after the assistant is completed is enough to trigger, causing the timeline to drift; NULL is fixed uniformly by 0015 backfill.
+// Cross-scope binding changes (ID conflicts but session/message are different, only the upsert scenario is imported) will take the tail of the excluded new scope.
 export async function saveMessage(
   db: DatabaseSync,
   input: MessageInfo,
   copyFrom?: Parameters<SessionStorePort["saveMessage"]>[1],
 ): Promise<void> {
   const { id, sessionID, ...data } = input;
-  // 冻结旧版协议 mapper 无条件读取 user.model；缺少整个对象会让正文也无法打开。
-  // 只补必需对象；旧行的原 model 仍由冲突更新/复制逻辑保留，新版 Reader 不使用它。
+// Freeze the old protocol mapper to read user.model unconditionally; missing the entire object will make the text unable to be opened.
+// Complement only required objects; the original model of the old row is still retained by the conflicting update/copy logic and is not used by the new Reader.
   const storedData =
     input.role === "user"
       ? {
@@ -119,8 +119,8 @@ export async function savePart(
   let storedData: Record<string, unknown> = data;
   if (input.type === "timeline" && input.timelineType === "model_change") {
     const { fromModel, toModel, ...part } = data as typeof input;
-    // 冻结旧版 Reader 直接访问 toModel.providerID；只为这一个必需对象做最小兼容写入。
-    // 当前 Reader 不读它，更新同一旧行时 SQL 保留原快照，不持续反向同步。
+// Freeze the old version of Reader to directly access toModel.providerID; only do minimal compatible writes for this required object.
+// The current Reader does not read it. When updating the same old row, SQL retains the original snapshot and does not continue reverse synchronization.
     const oldToModel = toModel
       ? {
           providerID: toModel.providerId,
@@ -188,7 +188,7 @@ function copyLegacyMembers(
   source: Parameters<SessionStorePort["saveMessage"]>[1],
 ): Record<string, unknown> {
   if (!source) return data;
-  // 复制只搬运存储快照；运行层不读取旧字段，也不能凭当前选择重建旧值。
+// Replication only moves storage snapshots; the runtime layer does not read old fields, nor can it reconstruct old values ​​based on current selections.
   const row = db
     .prepare(`SELECT data FROM ${table} WHERE id=? AND session_id=?`)
     .get(source.id, source.sessionID);

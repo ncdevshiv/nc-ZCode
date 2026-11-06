@@ -48,8 +48,8 @@ function prepareToolExecutionInput(
 
   const parsed = runtimeSchema.safeParse(jsonNormalized);
   if (!parsed.success) {
-    // runtime schema 已经完成默认值、preprocess 和约束判断；失败时若只
-    // 返回 raw input，后续 JSON Schema 会重新推导一份不完整且顺序不同的错误。
+// The runtime schema has completed the default value, preprocess and constraint judgment; if it fails, only
+// Return the raw input, and the subsequent JSON Schema will re-derive an incomplete and different order error.
     const runtimeValidationIssues = readRuntimeValidationIssues(parsed.error);
     return {
       input: jsonNormalized,

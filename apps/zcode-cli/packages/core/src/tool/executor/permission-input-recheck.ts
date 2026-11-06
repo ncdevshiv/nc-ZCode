@@ -40,7 +40,7 @@ export async function recheckPermissionHookModifiedInput(input: {
     planEnabled: input.deps.sessionModePort?.isPlanEnabled?.(),
     riskLevel: input.entry.metadata.riskLevel,
     toolName: input.toolCall.name,
-    // 与首次判定同源：hook 改过 input 之后，草稿免确认仍要按同一个工作目录复核。
+// Same origin as the first judgment: after the hook changes the input, the draft still needs to be reviewed in the same working directory without confirmation.
     workingDirectory: input.deps.getWorkingDirectory(),
   };
   const rulePolicy = input.entry.resolvePermissionRulePolicy?.(

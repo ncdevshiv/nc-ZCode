@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 // ============================================================
 // Bash Tool Handler
 // ============================================================
@@ -133,9 +134,9 @@ async function executeBashHandler(
   const progressTiming: BashProgressTiming = {};
   const commandTelemetry = startBashCommandTelemetry(parsed, context);
   const runOptions = createExecutionRunOptions(context, progressTiming, commandTelemetry);
-  // 后台命令完成后 runTaskNotificationBatch 会另起一轮通知 turn，该 turn 不带
-  // turnExecutionModel，闲时 turn 结束/失败后就会落到用户自己的套餐上跑完整 agent loop。
-  // 与 subagent runner 的 BACKGROUND_UNAVAILABLE 对称：闲时 turn 拒绝显式后台，也关闭超时自动转后台。
+// After the background command is completed, runTaskNotificationBatch will start another round of notification turn, which does not have
+// turnExecutionModel, after the idle turn ends/fails, it will fall to the user's own package to run the complete agent loop.
+// Symmetrical with subagent runner's BACKGROUND_UNAVAILABLE: turn refuses explicit background when idle, and also turns off automatic background transfer after timeout.
   const backgroundDisabled = context.offPeakTurn === true;
   if (parsed.run_in_background && backgroundDisabled) {
     throw createCoreError(
@@ -211,8 +212,8 @@ async function executeBashHandler(
     runtimeScope: context.runtimeScope,
   });
   if (cwdDecision.nextWorkingDirectory) {
-    // 主线程 Bash 成功后会保留项目内 cwd；
-    // 离开项目边界时 reset 回原始工作区，并把 reset 文案放进 Bash stderr。
+// The main thread Bash will retain the cwd in the project after success;
+// When leaving the project boundary, reset returns to the original workspace and puts the reset copy into Bash stderr.
     await context.setWorkingDirectory?.(cwdDecision.nextWorkingDirectory);
   }
   const output = await toBashOutput(result, parsed, context, {
@@ -319,8 +320,8 @@ function finishBashCommandTelemetry(
   } else if (result.status === "spawn_error") {
     telemetry.finishFailed("spawn", "configuration", result.error);
   } else if (result.status === "failed" && result.error) {
-    // 非零退出码是命令事实（例如 grep 未匹配），不等同于执行框架失败。
-    // 只有 Adapter 明确提供结构化 failure 时才污染 command failure rate。
+// Non-zero exit codes are command facts (e.g. grep did not match) and are not equivalent to execution frame failures.
+// Pollute the command failure rate only if the Adapter explicitly provides a structured failure.
     telemetry.finishFailed("execute", "internal", result.error);
   } else {
     telemetry.finishCompleted();
@@ -544,8 +545,8 @@ function createBashTimeoutBudgetResolver(
 ): NonNullable<ToolEntry["resolveTimeoutBudgetMs"]> {
   return (input) => {
     const parsed = BashInputSchema.safeParse(input);
-    // 旧 watchdog 直接读取 raw timeout，导致 0 被压成 1ms，且字符串数字绕过
-    // Bash policy。这里和 handler 共用 timeout || default / max 解析后再加 cleanup grace。
+// The old watchdog directly reads raw timeout, causing 0 to be compressed into 1ms, and string numbers are bypassed
+// Bash policy. This timeout is shared with the handler || default / max and cleanup grace is added after parsing.
     return resolveBashTimeoutMs(parsed.success ? parsed.data.timeout : undefined, timeoutPolicy);
   };
 }

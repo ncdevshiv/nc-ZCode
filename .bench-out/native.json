@@ -1,0 +1,176 @@
+{
+  "impl": "rust",
+  "rows": [
+    {
+      "tool": "read",
+      "impl": "rust",
+      "iterations": 200,
+      "meanNs": 843763,
+      "medianNs": 769900,
+      "p95Ns": 1267000,
+      "check": "content:true"
+    },
+    {
+      "tool": "write",
+      "impl": "rust",
+      "iterations": 100,
+      "meanNs": 925258,
+      "medianNs": 871600,
+      "p95Ns": 1195300,
+      "check": ""
+    },
+    {
+      "tool": "glob",
+      "impl": "rust",
+      "iterations": 40,
+      "meanNs": 976175,
+      "medianNs": 896400,
+      "p95Ns": 1629000,
+      "check": "400"
+    },
+    {
+      "tool": "grep",
+      "impl": "rust",
+      "iterations": 20,
+      "meanNs": 46980790,
+      "medianNs": 45220900,
+      "p95Ns": 58661800,
+      "check": "40"
+    },
+    {
+      "tool": "edit(read+edit)",
+      "impl": "rust",
+      "iterations": 100,
+      "meanNs": 1704342,
+      "medianNs": 1615400,
+      "p95Ns": 2275100,
+      "check": "ok"
+    },
+    {
+      "tool": "js.warm",
+      "impl": "rust",
+      "iterations": 100,
+      "meanNs": 301638,
+      "medianNs": 289400,
+      "p95Ns": 393900,
+      "check": ""
+    },
+    {
+      "tool": "js.cold",
+      "impl": "rust",
+      "iterations": 15,
+      "meanNs": 116446353,
+      "medianNs": 110700400,
+      "p95Ns": 173541800,
+      "check": ""
+    },
+    {
+      "tool": "cron.create",
+      "impl": "rust",
+      "iterations": 60,
+      "meanNs": 152703,
+      "medianNs": 140100,
+      "p95Ns": 224000,
+      "check": ""
+    },
+    {
+      "tool": "cron.list",
+      "impl": "rust",
+      "iterations": 200,
+      "meanNs": 230205,
+      "medianNs": 215600,
+      "p95Ns": 295100,
+      "check": ""
+    },
+    {
+      "tool": "cron.update",
+      "impl": "rust",
+      "iterations": 200,
+      "meanNs": 203795,
+      "medianNs": 158300,
+      "p95Ns": 289900,
+      "check": ""
+    },
+    {
+      "tool": "cron.delete",
+      "impl": "rust",
+      "iterations": 100,
+      "meanNs": 94464,
+      "medianNs": 46400,
+      "p95Ns": 78600,
+      "check": ""
+    },
+    {
+      "tool": "cron.list.service",
+      "impl": "rust",
+      "iterations": 200,
+      "meanNs": 166233,
+      "medianNs": 156600,
+      "p95Ns": 228100,
+      "check": ""
+    },
+    {
+      "tool": "cron.update.service",
+      "impl": "rust",
+      "iterations": 200,
+      "meanNs": 166233,
+      "medianNs": 156600,
+      "p95Ns": 228100,
+      "check": ""
+    },
+    {
+      "tool": "cron.delete.service",
+      "impl": "rust",
+      "iterations": 100,
+      "meanNs": 88487,
+      "medianNs": 47000,
+      "p95Ns": 81500,
+      "check": ""
+    },
+    {
+      "tool": "read",
+      "impl": "nc",
+      "iterations": 200,
+      "meanNs": 15736991,
+      "medianNs": 14849100,
+      "p95Ns": 23316300,
+      "check": "content:true"
+    },
+    {
+      "tool": "write",
+      "impl": "nc",
+      "iterations": 100,
+      "meanNs": 14530457,
+      "medianNs": 14324400,
+      "p95Ns": 17322600,
+      "check": ""
+    },
+    {
+      "tool": "glob",
+      "impl": "nc",
+      "iterations": 40,
+      "meanNs": 96543785,
+      "medianNs": 94509700,
+      "p95Ns": 125249700,
+      "check": "400"
+    },
+    {
+      "tool": "grep",
+      "impl": "nc",
+      "iterations": 20,
+      "meanNs": 77007435,
+      "medianNs": 75243600,
+      "p95Ns": 100739700,
+      "check": "80"
+    },
+    {
+      "tool": "edit(read+edit)",
+      "impl": "nc",
+      "iterations": 100,
+      "meanNs": 16017765,
+      "medianNs": 15764700,
+      "p95Ns": 20298200,
+      "check": "patch-only"
+    }
+  ]
+}

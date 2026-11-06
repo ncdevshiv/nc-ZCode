@@ -1,11 +1,11 @@
-//! SidecarProcess：单个 sidecar 进程的 NDJSON 生命周期管理。
+//! SidecarProcess: NDJSON life cycle management of a single sidecar process.
 //!
-//! 契约（镜像 native/crates/zcode-sidecar-proto 的 serve 循环）：
-//!   - spawn 后第一行必须是 `event:"ready"`（data.sidecar 名与 proto 版本都要校验），
-//!     否则 SidecarProtocolError——版本不匹配必须炸在启动时，不是第一个请求时；
-//!   - `request()` 写一行、按 id 关联响应；过程中的 event 帧分发给 listener；
-//!   - 进程退出：在途请求全部 reject（SidecarUnavailableError），进程标记为 dead；
-//!   - `shutdown()` 发 `shutdown` 方法，等响应与 exit(0)；超时 kill。
+//! Contract (mirroring the serve loop of native/crates/zcode-sidecar-proto):
+//! - The first line after spawn must be `event:"ready"` (data.sidecar name and proto version must be verified),
+//! Otherwise SidecarProtocolError - version mismatch must occur at startup, not at the first request;
+//! - `request()` writes a line and associates the response by id; the event frame in the process is distributed to the listener;
+//! - Process exit: all requests in transit are rejected (SidecarUnavailableError), and the process is marked as dead;
+//! - `shutdown()` sends the `shutdown` method, waits for the response and exit(0); timeout kill.
 
 import { type ChildProcess, spawn } from "node:child_process";
 import readline from "node:readline";
@@ -136,7 +136,7 @@ export class SidecarProcess {
     try {
       await this.request("shutdown", undefined, SHUTDOWN_GRACE_MS);
     } catch {
-      // shutdown 响应超时/进程已退场都走 kill 收尾；shutdown 是尽力而为的礼貌路径。
+//Shutdown responds to timeout/process has exited and ends with kill; shutdown is a best-effort polite path.
     }
     await new Promise<void>((resolve) => {
       const timer = setTimeout(() => {

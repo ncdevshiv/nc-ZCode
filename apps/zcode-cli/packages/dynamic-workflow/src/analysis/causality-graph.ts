@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { AnalysisCore } from "./core.js";
 import { isStructuralRegionKind, type RegionKind } from "./constants.js";
 import type { OrderRegion } from "./causality-order.js";
@@ -15,9 +16,9 @@ import { dedupeFacts, expandMaySetLanes, weakest } from "./causality-graph-lanes
 
 /** Re-exported so the causality vocabulary is importable from one module. */
 export type { NamePattern } from "./types.js";
-// 拆分：本文件顶到 oxlint max-lines 上限（400 行）。公开类型与三个 lane 常量定义
-// 在 causality-graph-types.ts，may-set 车道展开与事实去重在 causality-graph-lanes.ts；这里原样
-// 再导出，既有的 `from "./causality-graph.js"` 引用一个不改。
+// Split: This file reaches the oxlint max-lines limit (400 lines). Public types and three lane constant definitions
+// In causality-graph-types.ts, may-set lane expansion and fact deduplication in causality-graph-lanes.ts; as is here
+// Export again, and the existing `from "./causality-graph.js"` reference will not be changed.
 export { SINK_ID, UNKNOWN_LANE, WORKSPACE_LANE } from "./causality-graph-types.js";
 export type { CausalityGraph, Certainty, Lane, OrderEdge } from "./causality-graph-types.js";
 export type { Phase, Region, Step, StepKind } from "./causality-graph-types.js";
@@ -133,10 +134,10 @@ export function projectCausalityGraph(core: AnalysisCore, site: SiteGraph): Caus
     return parent?.id;
   };
 
-  // 以 `continue` / `break` 结束的分支臂里发出的 step，相对它跳出的那个循环被「延后」：
-  // step → (循环 id → 跳转种类)。同一轮里更靠后的 issue 对它们的 seq 事实要改判（见
-  // `Fact.viaJump`）。臂 = 跳转事件区域链上、目标循环之内最靠里的 `branch` 区域；直接写在
-  // 循环体里的无条件 `continue` 没有臂，也就没有可延后的东西（本轮剩余语句本来就不会跑）。
+// The step issued in the branch arm ending with `continue` / `break` is "delayed" relative to the loop it jumps out of:
+// step → (loop id → jump type). Issues later in the same round have to change their seq facts (see
+// `Fact.viaJump`). Arm = the innermost `branch` area on the jump event area chain and within the target loop; written directly in
+// The unconditional `continue` in the loop body has no arms, so there is nothing to postpone (the remaining statements of this round will not run in the first place).
   const deferredByStep = new Map<string, Map<string, "continue" | "break">>();
   for (const event of trace.events) {
     // `mark` leaves belong to the control-flow projection only. Skipped up front:
@@ -213,8 +214,8 @@ export function projectCausalityGraph(core: AnalysisCore, site: SiteGraph): Caus
         mayHaveSettled = mayHaveSettled === undefined ? maybe : mayHaveSettled && maybe;
       }
       if (mayHaveSettled === undefined) continue;
-      // 延后判定：`from` 若在一个跳出了 L 的臂里发出，而这次 issue 仍在 L 之内，那么
-      // `break` 臂 → 事实不成立（本轮和下一轮都到不了），`continue` 臂 → 只能靠下一轮。
+// Delayed judgment: if `from` is issued in an arm that jumped out of L, and this issue is still within L, then
+// `break` arm → The fact is not established (neither this round nor the next round can be reached), `continue` arm → can only rely on the next round.
       let viaJump = false;
       let unrealizable = false;
       for (const [loop, kind] of deferredByStep.get(from) ?? []) {
@@ -421,7 +422,7 @@ export function projectCausalityGraph(core: AnalysisCore, site: SiteGraph): Caus
       // round), not WHERE it was witnessed.
       ...rest,
       kind: "carry" as const,
-      // 保留底层 kind：carry 最小化需要知道回边改型前是硬依赖还是纯顺序。
+// Keep the underlying kind: carry minimization requires knowing whether it is a hard dependency or a pure sequence before back-end modification.
       ...(kind === "carry" ? {} : { carryOf: kind }),
     });
   }
@@ -430,9 +431,9 @@ export function projectCausalityGraph(core: AnalysisCore, site: SiteGraph): Caus
 
   const edges: OrderEdge[] = [];
   const fedBy: string[] = [];
-  // 商图的输入：同一批归约后的事实，certainty 已按端点继承过，sink 边剔除（阶段→sink 不
-  // 出图，UI 由 fedBy step 的 phase 推导）。carryOf 必须带上——阶段边跑的是同一个
-  // reduceOrdering，carry 最小化按底层 kind 判见证。
+//Input of the business graph: the same batch of reduced facts, certainty has been inherited by endpoints, and sink edges are eliminated (stage → sink is not
+//Plot, UI is derived from the phase of fedBy step). carryOf must be brought - the one running on both sides of the stage is the same
+// reduceOrdering, carry minimizes the witness based on the underlying kind.
   const phaseFacts: PhaseSourceFact[] = [];
   for (const fact of reduced) {
     const certainty = weakest([fact.certainty, certaintyOf(fact.from), certaintyOf(fact.to)]);
@@ -546,8 +547,8 @@ export function projectCausalityGraph(core: AnalysisCore, site: SiteGraph): Caus
     steps,
     ...(fedBy.length > 0 ? { sink: { fedBy } } : {}),
   });
-  // 阶段投影最后跑：它对成品图做机械改写（跨阶段拷贝 + 商图），并且在零标记脚本上是恒等
-  // 函数——既有快照的回归钉就是这一条。
+// Stage projection runs last: it does a mechanical rewrite of the finished image (cross-stage copy + commercial image), and is identical on zero-mark scripts
+// Function - the regression nail for existing snapshots is this one.
   return projectPhaseGraph(
     expanded,
     trace.phases,

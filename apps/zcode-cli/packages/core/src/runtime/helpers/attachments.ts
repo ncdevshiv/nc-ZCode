@@ -42,10 +42,10 @@ type ResolveAttachmentOptions = {
 };
 
 /**
- * 附件 → TurnStarted 事件的轻量展示元信息（TurnAttachmentMeta）。
- * 在 resolve/persist 之前即可用（TurnStarted 先于 resolveTurnAttachments 发出），
- * 因此只做无 IO 推断：filename/mimeType/sizeBytes 优先取协议边界透传值，
- * 缺省按 path basename / 扩展名 / data URL 头 / content 长度兜底。
+* Attachment → Lightweight display meta information (TurnAttachmentMeta) for the TurnStarted event.
+* Available before resolve/persist (TurnStarted is emitted before resolveTurnAttachments),
+* Therefore, only non-IO inference is done: filename/mimeType/sizeBytes takes priority to obtain the protocol boundary transparent transmission value.
+* By default, path basename / extension / data URL header / content length is used.
  */
 export function summarizeTurnAttachmentsForEvent(
   attachments: TurnState["attachments"],
@@ -72,7 +72,7 @@ export function summarizeTurnAttachmentsForEvent(
     const bytes =
       attachment.sizeBytes ??
       (attachment.content !== undefined ? Buffer.byteLength(attachment.content, "utf8") : 0);
-    // data URL/inline 内容无稳定引用；路径/URL 作为展示层引用。
+// data URL/inline content has no stable reference; path/URL is used as a presentation layer reference.
     const ref =
       path && !isDataOrArtifactUrl(path)
         ? path
@@ -115,8 +115,8 @@ async function resolveTurnAttachment(
 
   if (attachment.content) {
     if (attachment.type === "pdf" && !isDataOrArtifactUrl(attachment.content)) {
-      // PDF 曾沿用普通 file 的 inline 文本分支，损坏或伪造的正文会被 UTF-8
-      // 解码后送进 provider；PDF 必须只接受 data URL 或 artifact URI，并在请求前明确降级。
+// PDF used to use the inline text branch of ordinary file, and damaged or forged text will be UTF-8
+// Decode and send to provider; PDF must only accept data URL or artifact URI, and be explicitly downgraded before requesting.
       return resolvedPlaceholderAttachment(
         attachment,
         attachment.path ?? `attachment-${index + 1}`,
@@ -232,7 +232,7 @@ async function resolveLocalFileAttachment(
     }
 
     if (!isTextLikePath(absolutePath)) {
-      // 疑似二进制文件不能误当文本读入 prompt，只交付路径引用给后续工具处理。
+// Suspected binary files cannot be mistakenly read into the prompt as text, and only path references are delivered to subsequent tools for processing.
       return resolvedPathReferenceAttachment(attachment, attachment.path!, {
         filename,
         mime: inferAttachmentMimeFromPath(absolutePath),
@@ -243,8 +243,8 @@ async function resolveLocalFileAttachment(
     }
 
     if (attachment.sourceKind === "clipboard-text") {
-      // 长粘贴文本已经落成临时文件，预读会重新把正文塞进 prompt_attachment 系统提示。
-      // 这里只交付真实本地附件引用，等模型明确需要时再通过文件读取工具进入上下文。
+// The long paste text has been created as a temporary file, and the pre-reading will re-insert the text into the prompt_attachment system prompt.
+// Only the real local attachment reference is delivered here, and the context will be entered through the file reading tool when the model clearly needs it.
       return resolvedPathReferenceAttachment(attachment, attachment.path!, {
         filename,
         mime,

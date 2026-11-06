@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import type { DatabaseSync, SQLInputValue } from "node:sqlite";
 import type {
   AppUsageDayModelRow,
@@ -26,7 +27,7 @@ export async function recordModelUsage(db: DatabaseSync, input: ModelUsageRecord
       input.cacheReadInputTokens,
     ) + integer(input.outputTokens);
 
-  // 数据库沿用 0010 创建的历史列名；领域层使用更准确的 reasoningLevel。
+// The database inherits the historical column name created by 0010; the domain layer uses the more accurate reasoningLevel.
   db.prepare(
     `
       insert into model_usage (
@@ -381,8 +382,8 @@ function toolUsageValues(input: ToolUsageRecord): SQLInputValue[] {
   ];
 }
 
-// 说明：按本地日归桶用固定偏移 tzOffsetMs，dayIndex = floor((started_at + off)/DAY)。
-// DST 跨日边界存在最多 1 小时误差，对用量统计可接受。
+// Description: Use fixed offset tzOffsetMs according to the local day return bucket, dayIndex = floor((started_at + off)/DAY).
+// DST cross-day boundaries have a maximum error of 1 hour, which is acceptable for usage statistics.
 export async function queryAppUsage(
   db: DatabaseSync,
   input: AppUsageQueryInput,
@@ -498,7 +499,7 @@ export async function queryAppUsage(
     )
     .all(tzOffsetMs, DAY_MS, since, until) as Array<{ dayIndex: number; toolCallCount: number }>;
 
-  // 合并三类按日统计到同一 dayIndex
+// Merge three categories of daily statistics into the same dayIndex
   const dayMap = new Map<number, AppUsageDayRow>();
   for (const row of days) {
     dayMap.set(row.dayIndex, {
@@ -638,8 +639,8 @@ export async function queryTaskUsage(
         ? inputSideTokens
         : Math.max(0, inputSideTokens - (inputBaselineBySource[source] ?? 0));
     if (source !== undefined) {
-      // 压缩会让后续 context input 变小；累计消耗不能因此回扣历史，
-      // 但 baseline 必须降到压缩后的值，后续新增轮次才能继续按增量计算。
+// Compression will make subsequent context input smaller; the cumulative consumption cannot be deducted from history.
+// But the baseline must be reduced to the compressed value, and subsequent new rounds can continue to be calculated incrementally.
       inputBaselineBySource[source] = inputSideTokens;
     }
 
@@ -712,8 +713,8 @@ function inputSideTokensFromStoredUsage(row: {
     }
   }
 
-  // AI SDK v6 写入的 inputTokens 已经是 total input；历史表里 cache 字段只是 breakdown。
-  // task usage 和 compact 基线不能再把 cache read/write 叠到 inputTokens 上。
+// The inputTokens written by AI SDK v6 are already total input; the cache field in the history table is just breakdown.
+// Task usage and compact baselines can no longer stack cache read/write onto inputTokens.
   return input;
 }
 
@@ -729,7 +730,7 @@ function taskUsageInputBaselineSource(querySource: string): string | undefined {
 }
 
 function integer(value: number | null | undefined): number {
-  // providerTotalTokens 这类旧记录字段可能是 null；adapters 独立 tsc 需要先完成类型收窄。
+// Old record fields such as providerTotalTokens may be null; adapters independent tsc needs to complete type narrowing first.
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return 0;
   }

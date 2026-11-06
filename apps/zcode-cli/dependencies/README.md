@@ -46,13 +46,15 @@ From the repository root:
 
 ```sh
 # Prepare the host tools in packages/desktop/bundled-tools/<platform>-<arch>.
-pnpm --filter @zcode/desktop prepare:native-search
+bun run --filter @zcode/desktop prepare:native-search
 
 # Prepare a specific target, optionally into a separate staging directory.
 node scripts/prepare-native-search-tools.mjs --platform linux --arch x64 --output-dir /tmp/zcode-native-search
 
-# Package the CLI, including the prepared target tools.
-pnpm build:sea
+# Package the CLI. `build:sea` produces Bun single-file binaries for all
+# targets with native search tools and the built-in provider config embedded;
+# the TUI and koffi are not embedded (use `build:sea:node` for those assets).
+bun run build:sea
 
 # Verify archives, server-cli staging, SEA assets, and remote component packaging.
 node --test scripts/native-search-tools.test.mjs
@@ -66,6 +68,6 @@ modified archives fail preparation; restore them from Git before retrying.
 To update a dependency, add the new versioned archives, update the release and
 SHA-256 pins in the configuration, and update `SHA256SUMS`. The public source
 archives and build inputs for bfs and ugrep are recorded in that configuration;
-the producer entry points remain `pnpm build:native-search` and
+the producer entry points remain `bun run build:native-search` and
 `pnpm pack:native-search`. Recheck every affected target and SEA packaging before
 replacing an active release.

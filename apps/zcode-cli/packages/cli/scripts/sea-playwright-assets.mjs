@@ -55,7 +55,7 @@ const resolvePlaywrightPackageRoot = (root) => {
   } catch (error) {
     const fallback = resolve(root, "..", "..", "node_modules", "playwright-core");
     if (existsSync(join(fallback, "package.json"))) return fallback;
-    throw new Error("Missing playwright-core runtime. Run `pnpm install` before `pnpm sea`.", {
+    throw new Error("Missing playwright-core runtime. Run `bun install` before `bun run sea`.", {
       cause: error,
     });
   }

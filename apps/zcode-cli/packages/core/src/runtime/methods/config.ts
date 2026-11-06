@@ -99,17 +99,17 @@ export function setSessionModelSelection(
   this: AgentRuntimeInternal,
   selection: ModelSelection | undefined,
 ): void {
-  // 恢复/配置刷新可以清除失效选择；未绑定不应借用默认模型，也不影响正在执行的 Active Model。
+// Restoration/configuration refresh can clear invalid selections; unbound should not borrow the default model, nor affect the executing Active Model.
   this.sessionModelSelection = selection && cloneModelSelection(selection);
 }
 
 export function getProjectId(this: AgentRuntimeInternal): ProjectId {
-  // Bash cd 会改变执行 cwd，但 project identity 不能随工具内 cwd 漂移。
+// Bash cd will change the execution cwd, but the project identity cannot drift with the cwd in the tool.
   return projectIdFromDirectory(this.workspaceRoot);
 }
 
 export function setWorkingDirectory(this: AgentRuntimeInternal, cwd: string): void {
-  // Bash cwd 持久化只应影响当前 runtime 会话，不能改变工作区身份。
+// Bash cwd persistence should only affect the current runtime session, not the workspace identity.
   this.workingDirectory = cwd;
 }
 
@@ -166,34 +166,34 @@ export function subscribeEvents(this: AgentRuntimeInternal, sink: SessionEventSi
 }
 
 /**
- * 外部子 runtime 的接缝（一）：交出本 runtime 的会话事件 store。
+* Seam of external sub-runtime (1): Hand over the session event store of this runtime.
  *
- * 在 class 外构造的子 runtime（bootstrap 的 dwf actor / legacy script workflow）必须与父
- * runtime 共享同一个 store，否则子会话事件只落在一个谁都读不到的私有 store 里，v4 的
- * `loadPersistedEvents(childSessionId)` 恒为空——transcript 永久空白。子事件仍按子自己的
- * sessionId 落库，两条会话在同一个 store 里互不覆盖（`subagent.ts:280` 的
- * `eventStore: this.eventStore` 是同一条约定）。
+* The child runtime constructed outside the class (bootstrap's dwf actor/legacy script workflow) must be consistent with the parent
+* The runtime shares the same store, otherwise sub-session events only fall in a private store that no one can read, v4
+* `loadPersistedEvents(childSessionId)` is always empty - the transcript is always blank. Child events are still held in their own
+* The sessionId is stored in the library, and the two sessions in the same store do not cover each other (`subagent.ts:280`
+* `eventStore: this.eventStore` is the same contract).
  */
 export function getSessionEventStore(this: AgentRuntimeInternal): SessionEventStorePort {
   return this.eventStore;
 }
 
 /**
- * 外部子 runtime 的接缝（二）：把子会话的原始事件扇出给本 runtime 的外部 sink 集。
+* Seam of external sub-runtime (2): Fan out the original events of the sub-session to the external sink set of this runtime.
  *
- * 语义与 `subagent.ts:338` 的 `notifyEventSinks(event, {...trace, sessionId: childSessionId})`
- * 完全一致：保留子 sessionId（协议层按它路由到 detached live session），只通知、不 append。
+* The semantics are the same as `notifyEventSinks(event, {...trace, sessionId: childSessionId})` of `subagent.ts:338`
+* Exactly the same: retain the sub-sessionId (the protocol layer routes it to the detached live session), only notify, not append.
  *
- * 子 runtime 必须在**构造期**把这个调用装成自己的 `deps.eventSink`：
- * `ensureSessionPersistedForExternalActivity` 把 SessionTitleUpdated 写成 sequenceNumber 1，
- * 而 v4 网关只排水连续 seq——构造之后才挂的订阅从 seq 2 起，会永远等一个再也不会来的 seq 1。
+* The child runtime must install this call as its own `deps.eventSink` during **construction**:
+* `ensureSessionPersistedForExternalActivity` writes SessionTitleUpdated as sequenceNumber 1,
+* The v4 gateway only drains consecutive seqs - subscriptions that are hung after construction, starting from seq 2, will wait forever for a seq 1 that will never come again.
  */
 export async function notifyExternalChildSessionEvent(
   this: AgentRuntimeInternal,
   input: { childSessionId: SessionId; event: SessionEvent; traceContext?: TraceContext },
 ): Promise<void> {
-  // 只通知、绝不 append：子 runtime 已经按自己的 sessionId 把这条事件落库了，
-  // 再走父 runtime 的 append 链路会造成同一事件在共享 store 里出现两份。
+// Only notify, never append: the child runtime has already dropped this event according to its own sessionId.
+// Using the append link of the parent runtime will cause two copies of the same event to appear in the shared store.
   await this.notifyEventSinks(input.event, {
     ...(input.traceContext ?? this.rootTraceContext),
     sessionId: input.childSessionId,
@@ -201,17 +201,17 @@ export async function notifyExternalChildSessionEvent(
 }
 
 /**
- * 外部子 runtime 的接缝（三）：铸造子 runtime 的**对外交互**端口。
+* Seam of external sub-runtime (3): Cast the **external interaction** port of the sub-runtime.
  *
- * 子 runtime 的账本身份（子 sessionId）不是协议客户端能应答的身份。dwf actor 与 legacy
- * workflow child 过去直接从 `appOptions` 取 `providerRuntimeHeadersPort` / `permissionBroker`，
- * 于是带着 `sess_dwf-…`去问桌面；桌面回包路径上的 `requireSession` 抛错、response 永不发出，
- * 子代理在首个模型请求前永久挂起（8 个子代理、80 分钟无任何事件）。core 内建 subagent 当时靠
- * 两个私有 wrapper 绕开，三处装配两错一对——说明规则散落在调用点就一定会漂。
+* The ledger identity (child sessionId) of the sub-runtime is not an identity that the protocol client can respond to. dwf actor and legacy
+* workflow child used to take `providerRuntimeHeadersPort` / `permissionBroker` directly from `appOptions`,
+* So I took `sess_dwf-...` to ask the desktop; the `requireSession` on the desktop return path threw an error and the response was never sent.
+* Subagent hangs permanently before first model request (8 subagents, 80 minutes without any events). Core's built-in subagent relied on
+* Two private wrappers are bypassed, and three assemblies, two of which are wrong and one of which is wrong - indicate that rules will definitely drift if they are scattered at the call point.
  *
- * 修法：派生收敛到 `deriveChildClientPorts`，且只能由**父 runtime** 调用——`parentSessionId`
- * 由父自己填，调用方给不了错的值。任何在 class 外构造子 runtime 的装配（dwf actor、legacy
- * workflow child）必须经这里取端口。
+* Fix: derived convergence to `deriveChildClientPorts`, and can only be called by **parent runtime** - `parentSessionId`
+* Filled in by the parent himself, the caller cannot give wrong value. Any assembly that constructs a subruntime outside of class (dwf actor, legacy
+* workflow child) must get the port here.
  */
 export function createChildClientPorts(
   this: AgentRuntimeInternal,
@@ -236,8 +236,8 @@ export function getContextBuilder(this: AgentRuntimeInternal): ContextBuilder {
       { persistEnvInfo: false },
     );
   }
-  // 这个 getter 只能提供同步预览 builder，不能初始化 messageHistory。
-  // 否则首轮 executeTurn 会跳过异步 context source 解析，导致真实 workspace context 丢失。
+// This getter can only provide synchronous preview builder and cannot initialize messageHistory.
+// Otherwise, the first round of executeTurn will skip the asynchronous context source parsing, causing the real workspace context to be lost.
   return this.contextBuilder;
 }
 
@@ -261,13 +261,13 @@ function filterRuntimeVisibleTools(
   tools: ModelToolContract[],
 ): ModelToolContract[] {
   const visibleTools = filterEmbeddedSearchRuntimeVisibleTools(this, tools);
-  // provider-visible 工具顺序属于最终输出边界；toolset 只决定可见工具集合。
+// provider-visible tool order belongs to the final output boundary; toolset only determines the set of visible tools.
   return orderProviderVisibleToolContracts(visibleTools);
 }
 
 function shouldExposeWebSearch(this: AgentRuntimeInternal, model?: Model): boolean {
-  // 无 Model 的调用只枚举完整注册表，供持久化和 UI 元数据使用；真实执行始终传入
-  // 当前 Active Model，并只读取其冻结的完整能力事实。
+// Model-less calls only enumerate the complete registry for persistence and UI metadata; real execution is always passed in
+// The current Active Model and only reads its frozen full capability facts.
   if (!model) return true;
   return model.properties.supportsNativeWebSearch;
 }

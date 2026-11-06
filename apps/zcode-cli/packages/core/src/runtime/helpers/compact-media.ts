@@ -88,8 +88,8 @@ function projectCompactBlock(block: ModelMessageContentBlock): {
   if (block.type === "image") {
     return { block: compactPlaceholderBlock("[image]"), replaced: true };
   }
-  // video 与 image/document 同语义：retry 媒体瘦身漏掉 video 会让大体积 base64
-  // 原样穿过 retry 请求，违背占位投影的目的。
+// Video has the same semantics as image/document: retry media slimming and missing video will make the base64 volume larger.
+// Passing through the retry request as it is defeats the purpose of placeholder projection.
   if (block.type === "video") {
     return { block: compactPlaceholderBlock("[video]"), replaced: true };
   }

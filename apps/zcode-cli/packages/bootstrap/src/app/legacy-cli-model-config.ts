@@ -50,7 +50,7 @@ const providerSchema = z
     npm: z.never().optional(),
     options: z
       .object({
-        // 已发布配置用空字符串表示尚未填写 Key，不能因此拒绝整份升级输入。
+// The published configuration uses an empty string to indicate that the Key has not been filled in, and the entire upgrade input cannot be rejected for this reason.
         apiKey: z.string().optional(),
         baseURL: z.string().min(1).optional(),
         apiKeyRequired: z.boolean().optional(),
@@ -96,7 +96,7 @@ export interface LegacyCliModelConfigProjection {
   readonly provider?: Readonly<Record<string, LegacyCliProvider>>;
 }
 
-/** 已发布旧 CLI JSON 的最小私有解析边界；结果只能立即导入当前 Config。 */
+/** Published minimum private parsing bounds for legacy CLI JSON; results can only be imported into the current Config immediately. */
 export function parseLegacyCliModelConfig(value: unknown): LegacyCliModelConfigProjection {
   const parsed = legacyRootSchema.parse(value);
   const rawModel = parsed.model;

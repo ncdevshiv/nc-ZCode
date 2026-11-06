@@ -30,8 +30,9 @@ const MARKER_FILE = "playwright-manifest.json";
 const PACKAGE_JSON_PATH = "node_modules/playwright-core/package.json";
 
 export async function loadCliPlaywrightChromium(): Promise<PlaywrightChromiumModule> {
-  const sea = await import("node:sea");
-  if (!sea.isSea()) {
+  // `node:sea` only exists in Node's SEA runtime; Bun loads playwright from node_modules.
+  const sea = await import("node:sea").catch(() => null);
+  if (!sea?.isSea()) {
     return (await import("playwright-core")) as PlaywrightChromiumModule;
   }
 

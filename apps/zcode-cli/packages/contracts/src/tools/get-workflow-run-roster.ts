@@ -1,56 +1,56 @@
 // ============================================================
-// GetWorkflowRun 的**情势截面** schema：阶段 / 子代理 / 健康
+// GetWorkflowRun's **schema cross-section** schema: Stage/Subagent/Health
 // ============================================================
-// 从 get-workflow-run.ts 拆出，理由与端口侧 dynamic-workflow-run-roster.port.ts 同一条：
-// 那份文件已接近 oxlint 的 max-lines 上限，而这三组 schema 自成一块。公开面不变——
-// get-workflow-run.ts 原地再导出这里的每一个名字，`@zcode/contracts` 的导入路径逐字不动。
+// Detach from get-workflow-run.ts for the same reason as dynamic-workflow-run-roster.port.ts on the port side:
+// That document is close to the max-lines limit of oxlint, and these three sets of schemas are self-contained. The public side remains unchanged——
+// get-workflow-run.ts exports each name here in place, and the import path of `@zcode/contracts` remains unchanged.
 //
-// 这里是端口类型（DynamicWorkflowRunPhaseView / …SubagentView / …Health）的**逐字段镜像**，
-// 只多了 zod 的界。两侧必须同步：端口是读面的事实，这里是模型面的契约，缺一个字段就意味着
-// 一件已经查出来的事实到不了模型。
+//Here is a **field-by-field mirror** of the port type (DynamicWorkflowRunPhaseView/…SubagentView/…Health),
+// Just more zod boundaries. Both sides must be synchronized: the port is the fact of the read side, here is the contract of the model side, missing a field means
+// A fact that has been found cannot reach the model.
 
 import { z } from "zod";
 
 /**
- * 情势截面的界。每一条都与已有的某条界同值，不另起一套：
- * 阶段数与阶段名随 reducer 的 `WORKFLOW_RUNS_LIMITS.maxPhases` / `maxPhaseNameLength`，
- * 指令头与工具名/目标随引擎侧的 `INSTRUCTIONS_HEAD_MAX_CHARS` / `LAST_TOOL_TARGET_MAX_CHARS`。
+* The boundary of the situation section. Each one has the same value as an existing one, no new set is required:
+* The number of phases and phase names depend on the reducer's `WORKFLOW_RUNS_LIMITS.maxPhases` / `maxPhaseNameLength`,
+* The command header and tool name/target follow the engine-side `INSTRUCTIONS_HEAD_MAX_CHARS` / `LAST_TOOL_TARGET_MAX_CHARS`.
  */
 export const GET_WORKFLOW_RUN_ROSTER_LIMITS = {
-  /** 阶段表的行数上界（与 reducer 的 maxPhases 同值）。 */
+/** Upper bound on the number of rows in the stage table (same value as reducer's maxPhases). */
   maxPhases: 32,
   maxPhaseNameLength: 128,
   /**
-   * 花名册的行数上界。刻意高于阶段表：一次 50 路 fan-out 是平常事，而读者问的正是
-   * 「谁在干什么」。超出这条界时整块被裁，并由 `subagentsTruncated` 说明裁过——
-   * 一个静默少掉 18 行的花名册读起来像「只有 64 个子代理」。
+* Upper bound on the number of lines in the roster. Deliberately above the stage: a 50-way fan-out is commonplace, and this is exactly what readers are asking
+* "Who is doing what?" When this boundary is exceeded, the entire block is cut, and `subagentsTruncated` indicates that it has been cut——
+* A roster that silently loses 18 lines reads like "only 64 subagents".
    */
   maxSubagents: 64,
   maxActorNameLength: 128,
-  /** 一次 ask 的任务摘要（`node-queued` 的 `instructionsHead`）。 */
+/** Task summary for an ask (`node-queued`’s `instructionsHead`). */
   maxInstructionsHeadLength: 240,
   maxLastToolNameLength: 64,
   maxLastToolTargetLength: 120,
-  /** `node-waiting` 的自由文本原因（退避里的 provider 错误一句话）。 */
+/** Free text reason for `node-waiting` (wrong provider sentence in backoff). */
   maxWaitReasonLength: 240,
 } as const;
 
-/** 一个阶段在情势截面里的处境（端口 `DynamicWorkflowRunPhaseView` 的镜像）。 */
+/** The position of a phase in the status section (mirror of port `DynamicWorkflowRunPhaseView`). */
 export const GetWorkflowRunPhaseSchema = z
   .object({
     name: z.string().min(1).max(GET_WORKFLOW_RUN_ROSTER_LIMITS.maxPhaseNameLength),
-    /** `ahead` = 脚本声明了它但控制流还没到，也是唯一 `rounds: 0` 的状态。 */
+/** `ahead` = The script declares it but the control flow has not yet arrived, and the only state is `rounds: 0`. */
     state: z.enum(["done", "current", "ahead", "unfinished"]),
     rounds: z.number().int().nonnegative(),
     nodesSettled: z.number().int().nonnegative(),
     nodesRunning: z.number().int().nonnegative(),
-    /** 最近一次进入 / 离开的时刻（epoch ms）。事件无时间戳时缺席，绝不给 0。 */
+/** The latest entry/exit time (epoch ms). Absent when the event has no timestamp, never give 0. */
     enteredAt: z.number().optional(),
     exitedAt: z.number().optional(),
   })
   .strict();
 
-/** 一次 ask 里最近被观察到的工具调用。`target` 是线索（路径 / 命令头），不是入参全文。 */
+/** The most recently observed tool call in an ask. `target` is a clue (path/command header), not the full text of the input parameter. */
 export const GetWorkflowRunSubagentLastToolSchema = z
   .object({
     name: z.string().min(1).max(GET_WORKFLOW_RUN_ROSTER_LIMITS.maxLastToolNameLength),
@@ -60,8 +60,8 @@ export const GetWorkflowRunSubagentLastToolSchema = z
   .strict();
 
 /**
- * 子代理此刻正在跑的那一次 ask。`turn` / `toolCalls` **缺席读作「不知道」**，`0` 读作
- * 「一个工具都没调过」——老 journal 没有 `node-progress`，两者必须可分辨。
+* The ask that the subagent is running at the moment. `turn` / `toolCalls` **Absent is read as "don't know"**, `0` is read as
+* "Not a single tool has been adjusted" - the old journal does not have `node-progress`, the two must be distinguishable.
  */
 export const GetWorkflowRunSubagentAskSchema = z
   .object({
@@ -79,7 +79,7 @@ export const GetWorkflowRunSubagentAskSchema = z
   })
   .strict();
 
-/** 当前 ask 正在等什么。`slot` = 等进程级准入闸门；`backoff` = runner 在退避重试。 */
+/** What ask is currently waiting for. `slot` = wait for the process-level admission gate; `backoff` = runner will retry after backing off. */
 export const GetWorkflowRunSubagentWaitSchema = z
   .object({
     cause: z.enum(["slot", "backoff"]),
@@ -90,10 +90,10 @@ export const GetWorkflowRunSubagentWaitSchema = z
   .strict();
 
 /**
- * 花名册里的一个子代理（端口 `DynamicWorkflowRunSubagentView` 的镜像）。
+* A subagent in the roster (mirror of port `DynamicWorkflowRunSubagentView`).
  *
- * `state` 的七个词是闭集，且读的顺序就是写的顺序（端口注释有完整判定链）：run 活着时
- * `parked` → `waiting` → `executing` → `failed` → `idle`，run 终态时只剩
+* The seven words of `state` are closed sets, and the order of reading is the order of writing (the port annotation has a complete decision chain): when run is alive
+* `parked` → `waiting` → `executing` → `failed` → `idle`, only the final state of run
  * `unfinished` → `failed` → `done`。
  */
 export const GetWorkflowRunSubagentSchema = z
@@ -105,7 +105,7 @@ export const GetWorkflowRunSubagentSchema = z
     phaseName: z.string().max(GET_WORKFLOW_RUN_ROSTER_LIMITS.maxPhaseNameLength).optional(),
     currentAsk: GetWorkflowRunSubagentAskSchema.optional(),
     wait: GetWorkflowRunSubagentWaitSchema.optional(),
-    /** 它停在哪个问题上；`health.pendingQuestionsKnown` 为假的那次读永不在场。 */
+/** The question it stops at; the read where `health.pendingQuestionsKnown` is false is never present. */
     parkedOn: z.string().optional(),
     stepsSettled: z.number().int().nonnegative(),
     stepsFailed: z.number().int().nonnegative(),
@@ -115,8 +115,8 @@ export const GetWorkflowRunSubagentSchema = z
   .strict();
 
 /**
- * run 级并发现状。**整个对象只在被压到自己那条界以下时在场**：跑满自己那条界的 run 没有
- * 可说的，而它在场就等于「正被限着」。
+* Run level and find the status. **The entire object is only present when it is pressed below its own boundary**: There is no run that fills its own boundary.
+* can be said, and its presence means "being limited."
  */
 export const GetWorkflowRunConcurrencyHealthSchema = z
   .object({
@@ -127,7 +127,7 @@ export const GetWorkflowRunConcurrencyHealthSchema = z
   })
   .strict();
 
-/** run 整体还在不在动（端口 `DynamicWorkflowRunHealth` 的镜像）。 */
+/** The run is still running as a whole (mirror of port `DynamicWorkflowRunHealth`). */
 export const GetWorkflowRunHealthSchema = z
   .object({
     lastProgressAt: z.number().optional(),
@@ -135,11 +135,11 @@ export const GetWorkflowRunHealthSchema = z
     concurrency: GetWorkflowRunConcurrencyHealthSchema.optional(),
     consecutiveFailures: z.number().int().nonnegative(),
     cachedSteps: z.number().int().nonnegative(),
-    /** 仅终态 run：还标着 `running` 的节点行数（进程死在它们下面）。为 0 时缺席。 */
+/** Final state run only: Number of node lines also marked `running` (processes die under them). Absent when 0. */
     leftoverRunning: z.number().int().positive().optional(),
     /**
-     * 这次读能不能回答「有没有问题在等答案」。为假时 `pendingQuestions` 整字段缺席，
-     * 且没有任何子代理会被报成 `parked`——「没有人在等」与「不知道」是两个不同的事实。
+* Can you answer "Are there any questions waiting for answers" during this reading? When false, the entire `pendingQuestions` field is absent,
+* And no sub-agent will be reported as `parked` - "no one is waiting" and "don't know" are two different facts.
      */
     pendingQuestionsKnown: z.boolean(),
   })

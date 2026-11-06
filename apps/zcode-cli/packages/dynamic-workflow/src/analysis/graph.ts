@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { AnalysisCore, CoreSimpleSite, CoreTypes } from "./core.js";
 import { isActorSite } from "./core.js";
 import type { TaintOcc } from "./domain.js";

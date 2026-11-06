@@ -1050,6 +1050,7 @@ export function UnifiedBrowserView({
         />
       ) : null}
       <BrowserViewportSurface
+        browserKey={browserKey}
         browserRegionRef={browserRegionRef}
         browserState={browserState}
         desktopZoomFactor={desktopZoomFactor}

@@ -1,0 +1,6 @@
+{
+  "zcodeHostLibCheck": "FAIL",
+  "workspaceLibCheck": "FAIL",
+  "testsRun": 0,
+  "note": "Build blocked; no tests executed."
+}

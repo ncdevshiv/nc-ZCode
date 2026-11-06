@@ -1,43 +1,43 @@
 /**
- * workflow run 产物的序列化规则，被 core 内的两处共用：完成通知的 `<result>`（background-tasks.ts）
- * 与 runtime task 条目上的 `resultText`（background-task-registry.ts，TaskOutput 的唯一来源）。
+* The serialization rules of workflow run products are shared by two places in core: `<result>` (background-tasks.ts) of completion notification
+* With `resultText` on the runtime task entry (background-task-registry.ts, the only source of TaskOutput).
  *
- * 实现**搬到了 `@zcode/contracts`**（`interfaces/dynamic-workflow-run.port.ts`，与
- * `boundDynamicWorkflowRunEventPayload` 同一个接缝），因为它多了第三个消费者：bootstrap 的 v4
- * 投影要用同一条规则算 `workflowRuns.reports[].preview`（详情页 Results 区）。bootstrap 不能
- * import core 的内部模块，而复制一份序列化规则就是「同一个值在通知里和面板上长得不一样」的
- * 来源。这里保留一个再导出，好让 core 侧的两个 import 站点不动。
+* Implementation** moved to `@zcode/contracts`** (`interfaces/dynamic-workflow-run.port.ts`, with
+* `boundDynamicWorkflowRunEventPayload` the same seam), because it has a third consumer: bootstrap v4
+* Projection should be calculated using the same rule `workflowRuns.reports[].preview` (Results area of ​​the details page). bootstrap cannot
+* Import core's internal module, and copying a serialization rule means "the same value looks different in the notification and on the panel"
+* Source. Keep one here and export it so that the two import sites on the core side do not move.
  */
 import { serializeWorkflowArtifact } from "@zcode/contracts";
 
 export { serializeWorkflowArtifact };
 
 /**
- * 完成通知里 `<reports>` 那一节的预算：整节最多这么多字符。
+* The budget for the `<reports>` section in the completion notice: the maximum number of characters in the entire section.
  *
- * 通知端本来就有 120k 的总截断，但那是**最后一道**闸：它先斩到的是排在后面的字段。渐进产物
- * 可以有 256 条，任由它铺开会把 `<result>` 与 `<error>` 挤出通知——而那两个才是模型首先要看的。
- * 所以这一节自己带预算。
+* The notification end originally had a total truncation of 120k, but that was the **last** gate: it cut the fields at the back first. gradual product
+* There can be 256, and spreading it out will crowd out notifications for `<result>` and `<error>` - those are the two the model looks at first.
+*So bring your own budget for this section.
  */
 const WORKFLOW_REPORTS_PREVIEW_MAX_CHARS = 8_000;
-/** 单条的界。一条 32KB 的产物不该吃掉整节预算，让后面十条一条也进不来。 */
+/** Single boundary. A 32KB product should not eat up the entire section budget, making it impossible for the next ten products to enter. */
 const WORKFLOW_REPORT_ITEM_MAX_CHARS = 2_000;
 
 interface WorkflowReportsNotificationSection {
-  /** **真实总条数**（不是预览里的条数）。 */
+/** **Real total number of items** (not the number of items in the preview). */
   count: number;
-  /** 预览里实际给出的条数；小于 count 即预览是局部的。 */
+/** The actual number of items in the preview; less than count means the preview is partial. */
   shown: number;
   preview: string;
 }
 
 /**
- * journal 里的 report 条目 → 完成通知的 `<reports>` 一节（completed / failed / cancelled 通用）。
+* The report entry in the journal → the `<reports>` section of the completion notification (common to completed / failed / canceled).
  *
- * 截断与计数**两者都重要**：计数才是让主 agent 知道「预览是局部的、全量可经 run id 取回」的
- * 那个信号。只给预览会让模型以为它看到了全部；只给计数则等于什么产物都没回。
+* Truncation and counting **Both are important**: Counting is what lets the main agent know that "the preview is partial and the full amount can be retrieved through run id"
+* That signal. Giving only a preview will make the model think it has seen everything; giving only a count means returning no product at all.
  *
- * 零条时返回 `undefined`，调用方据此让整节缺席——不发一节空的 `<reports>`。
+* Returns `undefined` when there are zero records, and the caller accordingly leaves the entire section absent - does not send an empty `<reports>`.
  */
 export function buildWorkflowReportsNotificationSection(
   items: readonly unknown[] | undefined,
@@ -49,7 +49,7 @@ export function buildWorkflowReportsNotificationSection(
   for (const [index, item] of items.entries()) {
     const text = clip(serializeWorkflowArtifact(item) ?? "", WORKFLOW_REPORT_ITEM_MAX_CHARS);
     const line = `[${index + 1}] ${text}`;
-    // 至少给一条：一条超长产物也比"报过 11 条但一条都看不到"有用。
+// Give at least one: A super long product is more useful than "reported 11 but can't see any of them".
     if (lines.length > 0 && used + line.length + 1 > WORKFLOW_REPORTS_PREVIEW_MAX_CHARS) break;
     lines.push(line);
     used += line.length + 1;
@@ -59,14 +59,14 @@ export function buildWorkflowReportsNotificationSection(
 }
 
 /**
- * manifest 载荷（`WorkflowNotificationMeta.reports`）的 `<reports>` 一节。与上面那个
- * **通知文本**用的一节同源同逐条序列化（`serializeWorkflowArtifact`），只是产出 **string[]**
- * 而非拼接好的一段文本——manifest 由 GUI 逐条渲染成编号预览，拼接会让它再拆一次。
+* The `<reports>` section of the manifest payload (`WorkflowNotificationMeta.reports`). with the one above
+* **Notification text** uses the same source as item-by-item serialization (`serializeWorkflowArtifact`), but outputs **string[]**
+* Instead of a piece of spliced ​​text - the manifest is rendered into a numbered preview one by one by the GUI, and splicing will cause it to be split again.
  *
- * 界与通知文本那一节刻意不同：这里逐条 ≤500、最多 8 条（同步于 shared 的 `workflowNotificationMetaSchema`——超界会让 turnHeader row 落库时 zod 拒收）。
- * `count` 恒是**真实总条数**：`count ≠ shown` 就是「预览是局部的、全量经 run id 可取」的信号。
+* The bounds are deliberately different from the notification text section: each item here is ≤500, with a maximum of 8 items (synchronized with the shared `workflowNotificationMetaSchema` - exceeding the bounds will cause zod to reject the turnHeader row when it is dropped).
+* `count` is always the **real total number**: `count ≠ shown` is the signal that "the preview is partial and the full amount is available via run id".
  *
- * 零条时返回 `undefined`，调用方据此让整字段缺席。
+* Returns `undefined` when there are zero fields, so the caller leaves the whole field absent.
  */
 export function buildWorkflowReportsManifestSection(
   items: readonly unknown[] | undefined,
@@ -81,9 +81,9 @@ export function buildWorkflowReportsManifestSection(
   return { count: items.length, shown: preview.length, preview };
 }
 
-/** manifest 载荷里逐条产物预览的界（shared schema：≤500 字符）。 */
+/** The boundaries of product previews in the manifest payload (shared schema: ≤500 characters). */
 const WORKFLOW_NOTIFICATION_REPORT_ITEM_MAX_CHARS = 500;
-/** manifest 载荷里预览最多几条（shared schema：≤8 条）。 */
+/** The maximum number of preview items in the manifest payload (shared schema: ≤8 items). */
 const WORKFLOW_NOTIFICATION_REPORTS_MAX_ITEMS = 8;
 
 function clip(text: string, max: number): string {

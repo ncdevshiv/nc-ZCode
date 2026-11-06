@@ -1,14 +1,14 @@
-/* eslint-disable max-lines -- shared node_repl host 的 worker、CUA bridge 和生命周期必须保持同一边界。 */
+/* eslint-disable max-lines -- The shared node_repl host's workers, CUA bridge, and lifecycle must maintain the same boundaries. */
 import { resolve } from "node:path";
 import { isMainThread, parentPort, Worker, workerData } from "node:worker_threads";
 import { INVALID_PARAMS, Server, type Tool } from "@modelcontextprotocol/server";
 import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import { JsInputJsonSchema } from "@zcode/contracts/tools/node-repl";
-// 值导入必须走 @zcode/core/repl 这条深路径：barrel 会把 core 的整张图拖进 bundle
-// （tool handlers → @zcode/dynamic-workflow → typescript，实测 21.7MB 且求值即崩
-// ERR_AMBIGUOUS_MODULE_SYNTAX）。宿主只需要 REPL 会话本身。
-// 类型也一并从 /repl 取：总入口的顶层副作用会把 Agent、Bash 注册表和工作流编译器
-// 打入每个 REPL Worker，Worker 会重复承担这份开销。
+// Value import must go through the deep path of @zcode/core/repl: barrel will drag the entire image of core into the bundle
+// (tool handlers → @zcode/dynamic-workflow → typescript, measured 21.7MB and the evaluation will crash
+//ERR_AMBIGUOUS_MODULE_SYNTAX). The host only needs the REPL session itself.
+// The type is also taken from /repl: the top-level side effect of the main entry will be the Agent, Bash registry and workflow compiler
+// Enter each REPL Worker, and the Worker will bear this overhead repeatedly.
 import {
   NodeReplSession,
   type NodeReplRequestMeta,
@@ -41,8 +41,8 @@ const UNTRUSTED_SESSION_KEY = "__unscoped__";
 const WORKER_KIND = "zcode-node-repl-call";
 export const NODE_REPL_MCP_PROCESS_TITLE = "zcode-node-repl-mcp";
 const pluginRoot = process.env.ZCODE_PLUGIN_ROOT ?? process.cwd();
-// CUA 与 Browser Use 共用 node_repl host，但文档和 native 依赖必须按领域隔离；
-// 否则 CUA skill 会因为 host root 恰好来自 Browser Use 而再次产生隐式依赖。
+// CUA and Browser Use share the node_repl host, but document and native dependencies must be isolated by domain;
+// Otherwise, the CUA skill will have an implicit dependency again because the host root happens to come from Browser Use.
 const browserDocumentationRoot = resolve(pluginRoot, "docs");
 const cuaDocumentationRoot = resolve(
   process.env.ZCODE_CUA_PLUGIN_ROOT ?? pluginRoot,
@@ -52,7 +52,7 @@ const jsInputSchema = z
   .object({
     code: z.string(),
     timeout_ms: z.number().int().min(1).max(MAX_SYNC_TIMEOUT_MS).optional(),
-    // tools/list 对新调用强制 title，但执行层必须继续接受旧 provider 和历史回放的 code-only 输入。
+// tools/list forces title on new calls, but the execution layer must continue to accept code-only input from the old provider and history replay.
     title: z.string().min(1).max(120).optional(),
   })
   .strict();
@@ -77,7 +77,7 @@ const tools: Tool[] = [
   {
     name: "js",
     description: JS_TOOL_DESCRIPTION,
-    // host MCP 曾手写出 title optional 的模型合同，和 built-in 合同分叉后 UI 只能显示固定完成文案。
+// Host MCP once hand-wrote the model contract with optional title. After the contract was forked from the built-in contract, the UI could only display the fixed completed copy.
     inputSchema: JsInputJsonSchema as Tool["inputSchema"],
   },
 ];
@@ -110,8 +110,8 @@ export function setNodeReplMcpProcessTitle(target: { title: string } = process):
 }
 
 /**
- * 测试与同进程嵌入入口使用同一条执行逻辑；生产 stdio 默认在一次性 Worker 中调用它，
- * 从而连 Node 的模块缓存也随调用一起销毁。
+* The test and the same process embedding entry use the same execution logic; the production stdio calls it in a one-time Worker by default.
+* Thus, even Node's module cache is destroyed along with the call.
  */
 export function createInProcessNodeReplExecutor(): NodeReplExecutor {
   return async (input) => {
@@ -300,8 +300,8 @@ function invalidParams(message: string): never {
 
 function buildRequestMeta(meta: Record<string, unknown> | undefined): NodeReplRequestMeta {
   const parsed = requestContextSchema.safeParse(meta?.["com.zcode/request-context"]);
-  // 安全边界：顶层 MCP _meta 是第三方可扩展字段，不能成为 ZCode session 路由凭据。
-  // 只有 host client 写入的命名空间会进入 Browser bridge；旧 client 的普通 JS 仍可执行。
+// Security boundary: Top-level MCP _meta is a third-party extensible field and cannot be a ZCode session routing credential.
+// Only namespaces written by the host client will enter the Browser bridge; ordinary JS from the old client can still be executed.
   return parsed.success ? parsed.data : {};
 }
 
@@ -315,11 +315,11 @@ export { installNodeReplProcessGuards, installNodeReplShutdownTriggers };
 export async function main(): Promise<void> {
   setNodeReplMcpProcessTitle();
   const runtimes = new Set<NodeReplMcpRuntime>();
-  // 官方 plugin host 在 main() 返回后会清除短暂恢复的 Helper 凭据，而
-  // serveStdio 的 server factory 要到 MCP initialize 时才执行。过去在 factory 内读取
-  // process.env，必然得到空值，导致 node_repl 永久把 Computer Use 判为 unavailable。
-  // 这里在 main() 生命周期内先捕获 runtime；Worker 只收到二次 bridge token，
-  // 不会接触 Helper 的原始 socket/token。
+// The official plugin host will clear the temporarily restored Helper credentials after main() returns, and
+// The server factory of serveStdio will not be executed until MCP initialize. Used to read in factory
+// process.env will inevitably get a null value, causing node_repl to permanently judge Computer Use as unavailable.
+// Here, the runtime is captured first during the main() life cycle; the Worker only receives the bridge token twice.
+// Will not touch the Helper's original socket/token.
   const computerUseRuntime = captureComputerUseRuntimeFromEnvironment();
   const handle = serveStdio(
     () => {

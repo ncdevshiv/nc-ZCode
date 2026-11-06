@@ -5,14 +5,14 @@
 // confirmed at the gate — starts the run in the background through
 // `DynamicWorkflowRunPort`.
 //
-// 两条路径，由端口是否注入决定：
-//   1. 端口在场（生产接线）：clean compile + Allow → port.submit → 输出
-//      {status:"backgrounded", backgroundTaskId: runId}，结果经后台通知管线回到主 agent。
-//   2. 端口缺席（未接线的宿主、单测）：保持接线前的占位行为——只回诊断与因果图，什么都不执行。
+//Two paths, determined by whether the port is injected:
+// 1. Port present (production wiring): clean compile + Allow → port.submit → output
+// {status: "backgrounded", backgroundTaskId: runId}, the result is returned to the main agent through the background notification pipeline.
+// 2. The port is absent (unwired host, single test): Keep the placeholder behavior before wiring - only return the diagnosis and cause-and-effect diagram, and execute nothing.
 //
-// 坏脚本路径与端口无关且完全不变：`prepareApproval` 裁掉弹窗，handler 直接回诊断，
-// 不启动、不建 run（让用户批准一段编不过的代码，只会用一个无效果的决策打断 agent 自己的
-// 改错重试回路）。
+// The bad script path has nothing to do with the port and is completely unchanged: `prepareApproval` cuts off the pop-up window, and the handler returns directly to diagnosis.
+// Do not start or build a run (asking the user to approve a piece of code that cannot be compiled will only interrupt the agent's own decision with an ineffective decision
+// Correct the error and retry the loop).
 
 import {
   CreateWorkflowInputJsonSchema,
@@ -49,24 +49,24 @@ const CREATE_WORKFLOW_TOOL_NAME = "CreateWorkflow";
 const CREATE_WORKFLOW_TIMEOUT_MS = 15_000;
 const CREATE_WORKFLOW_MODEL_BYTES = 24_000;
 
-// 「没执行」的 NOTE 按路径分成两句，各自只说该路径为真的事。合并成一句常量的旧写法
-// （PLACEHOLDER_HINT）在引擎接线后两个断言都成了谎言：它说执行模型仍在开发中、说本工具只做
-// 类型检查，而干净脚本 + 端口在场早已真启动一个后台 run。文案是模型唯一的读者，说谎的代价是
-// 它据此放弃提交或重复提交。
+// The "not executed" NOTE is divided into two sentences according to the path, and each one only says that the path is true. Combined into an old way of writing a constant
+// (PLACEHOLDER_HINT) After wiring the engine, both assertions turned out to be lies: it said that the execution model was still under development, and that the tool only
+// Type checking, while clean script + port presence already started a background run. The copywriter is the only reader of the model, and the cost of lying is
+// It accordingly abandons the commit or resubmits it.
 export const DIAGNOSTICS_NOT_EXECUTED_NOTE =
   "NOTE: The workflow was NOT executed — fix the errors above and resubmit.";
 export const EXECUTION_UNAVAILABLE_NOTE =
   "NOTE: The workflow was NOT executed — workflow execution is not available in this session, so the script was only typechecked.";
 
 const createWorkflowHandler: ToolHandler = async (input, context) => {
-  // 走到这里输入已经过 resolveInput 归一化：`script` 一定在场，两条来源在此完全同形。
-  // `saved` 只是来龙去脉（run 标签兜底与实参持久化读它），执行一个字节都不读它——因此
-  // 一个 hook 若在归一化之后改写 `saved`，是**刻意无效**的，改不了将要跑的东西。
+// The input up to this point has been normalized by resolveInput: `script` must be present, and the two sources are completely isomorphic here.
+// `saved` is just the context (the run tag reads it and the arguments are persisted), the execution does not read a single byte of it - so
+// If a hook rewrites `saved` after normalization, it is **intentionally invalid** and cannot change what will be run.
   const parsed = CreateWorkflowInputSchema.parse(input) as CreateWorkflowInput;
   const script = parsed.script;
   if (script === undefined) {
-    // 到不了：validateInput 已挡掉「两个都不给」，resolveInput 会把 saved 填成 script。
-    // 真发生了说明有人绕过了 executor 的生命周期，说出来好过静默跑一段空脚本。
+// Unreachable: validateInput has blocked "neither", resolveInput will fill saved into script.
+// If it really happens, it means someone has bypassed the executor life cycle. It is better to tell it than to silently run an empty script.
     throw new Error("CreateWorkflow handler received input without a resolved script");
   }
   const saved = parsed.saved;
@@ -74,13 +74,13 @@ const createWorkflowHandler: ToolHandler = async (input, context) => {
 
   const analysis = analyzeScript(script);
   const { diagnostics, ok } = analysis;
-  // 确认窗与持久化输出读的是同一份静态分析：中间没有任何模型调用改写名字。
+// The confirmation window and the persistent output read the same static analysis: there are no model calls in the middle to rewrite the name.
   const causalityGraph = boundGraphOfAnalysis(analysis);
 
-  // 内联脚本的工作副本**无论编译结果如何**都落盘：
-  // 编不过的脚本走不到确认窗，handler 是它唯一必经的地方，不写就等于「唯一需要被编辑的那份
-  // 脚本反而没有文件」。分析排在前面只为取名：没有 `name` 时文件名取第一个阶段名，而阶段名
-  // 在图上。saved 来源的拷贝已在 resolveInput 里写过，`path` 来源不写。
+// A working copy of the inline script is placed **regardless of the compilation result**:
+// A script that cannot be edited cannot reach the confirmation window. The handler is the only place it must pass. Not writing it is equivalent to "the only one that needs to be edited."
+//The script has no file." The analysis is ranked first just for naming: when there is no `name`, the file name takes the first stage name, and the stage name
+// On the graph. The copy of the saved source has been written in resolveInput, but the `path` source has not been written.
   const inlineDraft =
     saved === undefined && parsed.path === undefined
       ? await writeWorkflowDraft({
@@ -96,13 +96,13 @@ const createWorkflowHandler: ToolHandler = async (input, context) => {
       diagnostics,
       ok,
       response: [
-        // 保存的定义编不过是**它的**问题，不是这次调用的输入问题；不点名文件的话，模型
-        // 会以为是自己刚才写错了什么，然后原样重试。
+// The saved definition is just a problem with it, not an input problem with this call; if you don’t name the file, the model
+// You will think that you wrote something wrong just now, and then try again as is.
         saved === undefined
           ? "The workflow script has errors:"
           : `The saved workflow '${saved.name}'${saved.path === undefined ? "" : ` (${saved.path})`} has errors:`,
-        // 有文件就按**文件行**报（行号要能直接粘进一次 `Edit`）；输出里的 `diagnostics` 数组
-        // 保持正文行不变——转录面画的是正文。
+// If there is a file, press **file line** to report (the line number must be directly pasted into `Edit`); the `diagnostics` array in the output
+// Keep the text lines unchanged - the transcription side shows the text.
         ...formatWorkflowDiagnosticLines(diagnostics, location),
         "",
         diagnosticsNote(parsed, location, cwd),
@@ -113,7 +113,7 @@ const createWorkflowHandler: ToolHandler = async (input, context) => {
 
   const port = context.dynamicWorkflowRunPort;
   if (port === undefined) {
-    // 未接线的宿主：保持占位语义。刻意不降级成"假装启动了"——模型据此会去等一个永不到来的通知。
+// Unwired host: maintain placeholder semantics. Deliberately not downgrade to "pretend to be started" - the model will then wait for a notification that never comes.
     return {
       diagnostics,
       ok,
@@ -122,50 +122,50 @@ const createWorkflowHandler: ToolHandler = async (input, context) => {
     } satisfies CreateWorkflowOutput;
   }
 
-  // run 记下的永远是**绝对路径**：它是 run 身份的一部分，而会话的工作目录会变。模型面的写法
-  // 由 `location.described` 负责（同一个绝对路径的另一种写法，不是另一个来源）。
+// What run remembers is always the **absolute path**: it is part of the run identity, and the session's working directory will change. How to write the model surface
+// Responsible for `location.described` (another way of writing the same absolute path, not another source).
   const scriptPath = resolveSubmittedScriptPath(parsed, inlineDraft?.path);
 
-  // 提交失败（编译产物损坏、journal 不可用）向上冒泡成工具调用失败：绝不吞成一个带
-  // backgroundTaskId 的成功输出，那会让后台追踪器去轮询一个不存在的 run。
+// Submission failure (compile product is damaged, journal is unavailable) bubbles up into tool call failure: never swallowed into a band
+// The successful output of backgroundTaskId will cause the background tracker to poll a run that does not exist.
   const submitted = await port.submit(
     {
       scriptText: script,
       cwd: context.workingDirectory,
-      // 可选的展示名一路落到 dwf_run.name（submit → EngineConfig → createRun），不能只留在
-      // 工具行与任务标题的兜底链上——否则跨会话枚举出来的 run 只能是一串裸 runId。
+// The optional display name goes all the way down to dwf_run.name (submit → EngineConfig → createRun), not just left in
+// The link between the tool line and the task title - otherwise the run enumerated across sessions can only be a string of bare runIds.
       ...(parsed.name === undefined ? {} : { name: parsed.name }),
-      // 实参走与 name / scriptText / cwd 完全相同的元数据路：submit → EngineConfig →
-      // createRun 写 dwf_run.args_json → 沙箱注入。内联 run 没有实参，字段整个缺席，
-      // 沙箱侧把缺席解读为 `{}`（不变式 7：`args` 恒有定义）。
-      // 两个来源各有各的落点：`saved` 的在 `saved.args`，`path` 的在顶层 `args`（模型面就是
-      // 这么写的），两者不可能同时在场（`validateInput` 把 `args` 与 `path` 绑死）。
+//The actual parameters follow the same metadata path as name / scriptText / cwd: submit → EngineConfig →
+// createRun writes dwf_run.args_json → sandbox injection. Inline run has no arguments and fields are completely absent.
+// The sandbox side interprets absence as `{}` (Invariant 7: `args` is always defined).
+// Each of the two sources has its own landing point: `saved` is in `saved.args`, `path` is in the top-level `args` (the model surface is
+// written like this), both cannot be present at the same time (`validateInput` ties `args` and `path`).
       ...(() => {
         const args = parsed.args ?? saved?.args;
         return args === undefined ? {} : { args };
       })(),
       parentSessionId: context.sessionId,
       toolCallId: context.toolCallId,
-      // 声明阶段表随提交走进 run-launched，侧栏迷你轨道据此画站点。「同时在跑」表与它
-      // 同源同行：下标指向同一张表，分开算会错位。
+// The declaration stage table goes into run-launched with the submission, and the sidebar mini-track draws the site accordingly. "Running at the same time" means with it
+// Same source and same peer: the subscripts point to the same table, and they will be misaligned if calculated separately.
       ...(() => {
         const phaseNames = createWorkflowPhaseNames(causalityGraph);
         if (phaseNames === undefined) return {};
         const phaseAlongside = createWorkflowPhaseAlongside(causalityGraph);
         return { phaseNames, ...(phaseAlongside === undefined ? {} : { phaseAlongside }) };
       })(),
-      // 并发上界已在 resolveInput 里钳进 `[1, 天花板]`（确认窗显示的就是将要生效的值）；
-      // 缺席即天花板，所以不造空壳键。
+// The concurrency upper bound has been clamped into `[1, ceiling]` in resolveInput (the confirmation window displays the value that will take effect);
+// Absence is the ceiling, so no empty shell keys are created.
       ...(parsed.max_concurrency === undefined ? {} : { maxConcurrency: parsed.max_concurrency }),
-      // 子代理模型同样已在 resolveInput 里解析成规范形（解不出来的调用根本走不到这里），
-      // 所以这里只是把那个字符串拆回结构化选型。缺席即继承会话模型，不造空壳键——端口按
-      // 「字段在场 = 这次 run 显式选过模型」读它。
+// The subagent model has also been parsed into the canonical form in resolveInput (calls that cannot be resolved will not go here at all),
+// So here we just split that string back into structured selection. The session model is inherited when absent, and no empty shell keys are created - port keys
+// "Field present = model explicitly selected in this run" reads it.
       ...(() => {
         const subagentModel = parseWorkflowSubagentModel(parsed.subagent_model);
         return subagentModel === undefined ? {} : { subagentModel };
       })(),
-      // 脚本的家随提交走进 `run-launched`，终态通知与 `GetWorkflowRun` 再从那里读回来。草稿写不下去时字段整个缺席：
-      // 端口按「字段在场 = 这个 run 有个可编辑的文件」读它，一个 undefined 会让那句话变成谎话。
+// The home of the script goes into `run-launched` with the submission, and the final state notification and `GetWorkflowRun` are read back from there. When the draft cannot be written, the entire field is absent:
+// The port reads it as "field present = this run has an editable file", an undefined will make that sentence a lie.
       ...(scriptPath === undefined ? {} : { scriptPath }),
       trace: resolveTraceContext(context),
     },
@@ -177,11 +177,11 @@ const createWorkflowHandler: ToolHandler = async (input, context) => {
   return {
     diagnostics,
     ok,
-    // 文案照 backgrounded Bash（bash-model-content.ts）：给出 id、说明仍在跑、
-    // 明确结果以通知形式回来。占位提示在这条路径上必须消失。
-    // 模型拿到 backgrounded 输出后立刻用 TaskOutput 阻塞等待，
-    // 把异步 run 变成了同步等待——文案必须显式劝阻默认轮询（用户显式要求等待时
-    // TaskOutput 仍然可用，这里只改默认引导，不改工具语义）。
+// Copywriting photo backgrounded Bash (bash-model-content.ts): Give the id and indicate that it is still running.
+//Explicit results are returned in the form of notifications. The placeholder must disappear on this path.
+// After the model gets the backgrounded output, it immediately uses TaskOutput to block and wait.
+// Turn asynchronous run into synchronous wait - copywriting must explicitly discourage default polling (when the user explicitly requests to wait
+// TaskOutput is still available, only the default boot is changed here, and the tool semantics are not changed).
     response: `The workflow script compiled cleanly and the run started in the background with ID: ${runId}. It is still running — you will be notified with the final output when it completes. Do not wait for it or poll it with TaskOutput; continue with other work unless the user asked you to wait.${describeWorkflowConcurrencyLimit(parsed.max_concurrency, port.concurrencyCeiling?.())}${describeWorkflowSubagentModel(parsed.subagent_model)}${location === undefined ? "" : workflowLaunchedScriptSentence(location)}`,
     status: "backgrounded",
     backgroundTaskId: runId,
@@ -190,8 +190,8 @@ const createWorkflowHandler: ToolHandler = async (input, context) => {
 };
 
 /**
- * 这次 run 的脚本文件是哪一个（绝对路径，随提交进 journal）：`path` 来源就是那个文件，
- * `saved` 来源是刚写下的拷贝，内联是刚写下的草稿。三者都可能缺席（草稿写不下去）。
+* Which script file is the run this time (absolute path, enter the journal with submission): `path` source is that file,
+* `saved` source is a freshly written copy, inline is a freshly written draft. All three may be absent (the draft cannot be written).
  */
 function resolveSubmittedScriptPath(
   parsed: CreateWorkflowInput,
@@ -202,7 +202,7 @@ function resolveSubmittedScriptPath(
   return inlineDraft;
 }
 
-/** 脚本文件在模型面的身份；没有文件（草稿写不下去）时缺席，文案随之退回旧的那一套。 */
+/** The identity of the script file in the model; when there is no file (the draft cannot be written), the copywriting will be returned to the old one. */
 function describeScriptLocation(
   parsed: CreateWorkflowInput,
   inlineDraft: string | undefined,
@@ -211,7 +211,7 @@ function describeScriptLocation(
   const absolute = resolveSubmittedScriptPath(parsed, inlineDraft);
   if (absolute === undefined) return undefined;
   return {
-    // `path` 来源的文件是模型自己给的，不是工具刚写下的——动词因此不同。
+// The `path` source file is given by the model itself, not just written by the tool - the verb is therefore different.
     kind: parsed.path === undefined ? "draft" : "path",
     described: describeWorkflowScriptPath(absolute, cwd),
     lineOffset: parsed.script_line_offset ?? 0,
@@ -219,8 +219,8 @@ function describeScriptLocation(
 }
 
 /**
- * 编不过时的 NOTE。三种情形：saved 来源点名它抄自哪个定义，其余有文件的点名那个文件，
- * 没有文件的保留改动之前的老话（那条路径上模型确实只能再内联提交一次）。
+* A timeless NOTE. Three situations: the saved source names which definition it is copied from, and the other files that have files name that file.
+* There is no file to retain the old saying before the change (the model on that path can indeed only be submitted inline once).
  */
 function diagnosticsNote(
   parsed: CreateWorkflowInput,
@@ -236,8 +236,8 @@ function diagnosticsNote(
   if (saved !== undefined) {
     return workflowSavedDraftNote({
       savedName: saved.name,
-      // 定义本身也按模型面的写法给：它接下来若要改定义，走的是 `SaveWorkflow`，但读到一个
-      // 绝对路径而其余路径都是工作区相对的，会让人以为那是另一台机器上的东西。
+// The definition itself is also written as in the model surface: if it wants to change the definition next, it uses `SaveWorkflow`, but reads a
+// The absolute path and the rest of the paths are relative to the workspace will make people think it is something on another machine.
       savedPath:
         saved.path === undefined ? location.described : describeWorkflowScriptPath(saved.path, cwd),
       draft: location.described,
@@ -247,11 +247,11 @@ function diagnosticsNote(
 }
 
 /**
- * 生效的并发上界在结果文案里的一句话（`AmendWorkflow` 共用）。**只在设了上界时出现**：跑在
- * 天花板上的 run 没有可说的，多一句「至多 N 个」只会让模型以为自己设过什么。
+* The effective concurrency upper bound is a sentence in the result copy (common to `AmendWorkflow`). **Only appears when an upper bound is set**: Run on
+* There is nothing to say about the run on the ceiling. Adding "at most N" will only make the model think that it has set something.
  *
- * 正好等于天花板时点明是本机上限——那说明模型要的数被压低了，不说破的话它会把「至多 32」
- * 当成已生效，并在用户追问时复述一个假数。
+* When it is exactly equal to the ceiling, it indicates that it is the upper limit of the machine - it means that the number required by the model is lowered. Otherwise, it will be "up to 32".
+* Treat it as valid and repeat a false number when the user asks.
  */
 export function describeWorkflowConcurrencyLimit(
   limit: number | undefined,
@@ -263,7 +263,7 @@ export function describeWorkflowConcurrencyLimit(
 }
 
 /**
- * 端口契约要求 `trace` 非可选，而 `context.traceContext` 是可选的，所以按离散字段合成。
+* The port contract requires `trace` to be non-optional, and `context.traceContext` is optional, so it is synthesized as a discrete field.
  */
 export function resolveTraceContext(context: ToolExecutionContext): TraceContext {
   return (
@@ -279,15 +279,15 @@ export function resolveTraceContext(context: ToolExecutionContext): TraceContext
 }
 
 /**
- * 判断"运行这段脚本"值不值得打断用户，并构造确认窗要渲染的预览。
+* Determine whether "running this script" is worth interrupting the user, and construct a preview to render in the confirmation window.
  *
- * **对两条来源是同一段代码**：走到这里输入已被 `resolveInput` 归一化，`script` 一定在场，
- * 所以这里既不知道也不需要知道脚本是内联写的还是从磁盘读的。saved run 的确认窗因此与内联
- * 逐字节同形——这正是「同一段脚本经两条路径产出的 display 完全相同」那条测试钉住的东西。
+* **The same code for both sources**: The input reached here has been normalized by `resolveInput`, `script` must be present,
+* So here we neither know nor need to know whether the script is written inline or read from disk. The confirmation window for saved run is therefore the same as the inline
+* Byte-by-byte isomorphism - This is exactly what the test of "the display produced by the same script through two paths is exactly the same" is nailed.
  *
- * 两种失败形态直接放行给 handler 而不弹窗：输入不合 schema、编译不过。让用户去批准一段
- * 编不过的代码，只会用一个不产生任何效果的决策打断 agent 自己的改错重试回路。（解析失败
- * 更早就在 `resolveInput` 里收口了，根本到不了这里。）
+* Two failure modes are directly released to the handler without a pop-up window: the input does not match the schema and cannot be compiled. Let the user approve a paragraph
+* Code that cannot be edited will only interrupt the agent's own error correction and retry loop with a decision that has no effect. (parsing failed
+* I closed it earlier in `resolveInput` and couldn't get here at all. )
  */
 function prepareCreateWorkflowApproval(input: unknown): ToolApprovalGate {
   const parsed = CreateWorkflowInputSchema.safeParse(input);
@@ -296,7 +296,7 @@ function prepareCreateWorkflowApproval(input: unknown): ToolApprovalGate {
   const analysis = analyzeScript(parsed.data.script);
   if (!analysis.ok) return { gate: "proceed" };
 
-  // 弹窗自带标题并以图为主体；display 与直接启动的启动轮元数据同一构造函数。
+// The pop-up window has its own title and uses the picture as the main body; display has the same constructor as the directly launched startup wheel metadata.
   const display = displayOfAnalysis(analysis);
   return { gate: "ask", ...(display ? { display } : {}) };
 }
@@ -307,7 +307,7 @@ export const createWorkflowToolEntry: ToolEntry = {
   metadata: {
     name: CREATE_WORKFLOW_TOOL_NAME,
     description: CREATE_WORKFLOW_TOOL_DESCRIPTION,
-    // 引擎接线后这个调用会启动一个执行子进程与多个 actor 会话；只读声明随执行语义翻面
+// After the engine is wired, this call will start an execution sub-process and multiple actor sessions; the read-only declaration is flipped with execution semantics
     readOnly: false,
     destructive: false,
     concurrentSafe: true,
@@ -318,13 +318,13 @@ export const createWorkflowToolEntry: ToolEntry = {
     needsApproval: true,
   },
   handler: createWorkflowHandler,
-  // 来源二选一只对模型入参成立（归一化后两者同时在场是合法执行态），所以它住在这里而
-  // 不是 schema 上——见 CreateWorkflowInputSchema 的注释。
+//Choose one of the two sources for the model input parameters (after normalization, both are present at the same time, which is a legal execution state), so it lives here and
+// Not on the schema - see comments on CreateWorkflowInputSchema.
   validateInput: (input) => validateCreateWorkflowSource(input),
-  // 全流程唯一一次读盘。此后 hook、权限规则、确认窗与 handler 看到的都是同一份字节。
-  // 天花板同在这里读：钳制必须发生在确认窗之前，否则用户批准的是一个不会生效的数。
-  // 模型目录同在这里读：`subagent_model` 必须在确认窗之前解析成规范形，否则用户批准的是一个
-  // 还没被认出来的名字，而解不出来的调用会在批准之后才失败。
+// Read the disk only once in the whole process. From then on, hooks, permission rules, confirmation windows and handlers all see the same bytes.
+// The ceiling is the same as here: clamping must occur before the confirmation window, otherwise the user approves a number that will not take effect.
+// The model directory is the same as here: `subagent_model` must be parsed into a canonical form before the confirmation window, otherwise the user approves a
+// Names that have not yet been recognized, and calls that cannot be resolved will fail only after approval.
   resolveInput: (input, context) =>
     resolveCreateWorkflowInput(
       input,
@@ -340,7 +340,7 @@ export const createWorkflowToolEntry: ToolEntry = {
   formatModelContent: formatCreateWorkflowModelContent,
   permission: {
     permission: "createWorkflow",
-    // 诊断用，不面向用户：确认窗自己渲染本地化标题，UI 也会过滤读起来像内部信息的 reason。
+// For diagnostic purposes, not for users: the confirmation window renders the localized title itself, and the UI will also filter reasons that read like internal information.
     reason: "createWorkflow.runConfirmation: user must confirm running the analyzed script",
     riskLevel: "low",
     sideEffectScope: "none",
@@ -348,17 +348,17 @@ export const createWorkflowToolEntry: ToolEntry = {
     patternSources: ["toolName"],
     alwaysAllowPatternSources: ["toolName"],
     denyPriority: "beforeAsk",
-    // workflow 是一整块执行 + 模型调用，任何权限模式（含 yolo / plan）都要先问。
+// Workflow is a whole block of execution + model call. Any permission mode (including yolo / plan) must be asked first.
     alwaysAsk: true,
-    // 「每次调用都是不同的脚本」对保存的 workflow 不再成立：按名字
-    // 调用时，同一个名字每次都是"同一个"工作流。但「同一个」工作流也不足以支撑免确认——
-    // 每次仍要确认，理由有两条更硬的：运行一次
-    // 要花钱且有真实副作用；而保存的文件在批准之后随时可能被改动（手改、git pull、别人提交），
-    // 所以"上次批准过这个名字"根本不能推出"这次要跑的还是那段代码"。**持久**确认永不减免。
+// "Every call is a different script" is no longer true for saved workflows: by name
+// When called, the same name is the "same" workflow every time. But the "same" workflow is not enough to support confirmation-free——
+// Still need to confirm every time, there are two more difficult reasons: run it once
+// It costs money and has real side effects; and the saved file may be modified at any time after approval (manual modification, git pull, submission by others),
+// So "this name was approved last time" cannot deduce "the code that will be run this time" cannot be inferred at all. **Durable** Confirmed Never Waives.
     //
-    // 放开的是**会话作用域**：用户看过并批准了本会话第一个脚本之后，
-    // 可以选「Always allow in this session」让本会话后续的 CreateWorkflow 免确认。授权只活在
-    // PermissionService 实例的内存里，重启 / 冷恢复 / `/new` 都从零开始。
+// What is released is **session scope**: after the user has read and approved the first script of this session,
+// You can select "Always allow in this session" to avoid confirmation for subsequent CreateWorkflows in this session. Authorization only lives in
+// In the memory of the PermissionService instance, restart/cold recovery/`/new` starts from zero.
     askOptions: { allowAlways: "session" },
   },
   resultBudget: {

@@ -1,14 +1,14 @@
 // ============================================================
-// GetWorkflowRun 模型面的**情势三块**：`<health>` / `<phases>` / `<subagents>`（+ `<log_tail>`）
+// GetWorkflowRun model surface has three forms: `<health>` / `<phases>` / `<subagents>` (+ `<log_tail>`)
 // ============================================================
-// 从 get-workflow-run-format.ts 拆出：
-// 那里是「一个事实一个块」的骨架，这里是三张**表**——列、对齐和逐相位的措辞自成一块。
+//Tear out from get-workflow-run-format.ts:
+// There's the "one fact per block" skeleton, here are three **tables** - column, alignment, and phase-by-phase wording all in one piece.
 //
-// 两条纪律：
-//   1. 缺席即不写。没有时间戳就没有年龄，没有 `node-progress` 就没有 turn / tool calls，
-//      绝不用 0 顶替「不知道」——`0 tool calls` 是一件事实，而缺席是另一件。
-//   2. 列宽由本次这些行算出来（有上界），不是写死的魔法数：一份只有两个子代理的花名册
-//      不该为了一个不存在的长名字空出二十列。
+//Two disciplines:
+// 1. Absence means no writing. There is no age without timestamps, there are no turn / tool calls without `node-progress`,
+// Never replace "don't know" with 0 - `0 tool calls` is one fact, absence is another.
+// 2. The column width is calculated from these rows (with an upper bound), not a hard-coded magic number: a roster with only two sub-agents
+// You shouldn't leave twenty columns empty for a long name that doesn't exist.
 
 import type {
   GetWorkflowRunOutput,
@@ -22,11 +22,11 @@ import {
   formatWorkflowRunDuration,
 } from "./workflow-run-introspection.js";
 
-/** 列之间的间隔：两个空格。一个空格会让「名字 地址」读成一个词。 */
+/** Spacing between columns: two spaces. A space will make "name address" read as one word. */
 const COLUMN_GAP = "  ";
-/** 对齐列的宽度上界。超过它的值原样写出并让这一行变长，而不是把整张表撑宽。 */
+/** Upper bound on the width of the aligned column. Values ​​beyond it are written as is and make the row longer, rather than stretching the entire table. */
 const MAX_COLUMN_WIDTH = 24;
-/** 任务摘要行的缩进：它从属于上一行，不是新的一行事实。 */
+/** Indentation of the task summary line: it is subordinate to the previous line, not a new line of facts. */
 const TASK_LINE_INDENT = "  ";
 
 function padColumn(value: string, width: number): string {
@@ -40,9 +40,9 @@ function columnWidth(values: readonly string[]): number {
   );
 }
 
-/** 把若干段拼成一行：空段（= 不知道的事实）直接消失，不留下两个连着的间隔。 */
+/** Put several paragraphs into one line: empty paragraphs (= unknown facts) disappear directly, leaving no two consecutive gaps. */
 function joinCells(cells: readonly string[]): string {
-  // 末尾 trim：最后一列的补白会变成行尾空格，而那是一行看不见的噪声（`ahead` 的行全是它）。
+// End trim: The padding of the last column will become the trailing space, which is a line of invisible noise (the rows of `ahead` are all it).
   return cells
     .filter((cell) => cell.length > 0)
     .join(COLUMN_GAP)
@@ -54,11 +54,11 @@ function joinCells(cells: readonly string[]): string {
 // ————————————————————————————————————————————————
 
 /**
- * run 整体还在不在动，一行 `key=value`。
+* The whole run is still running, one line `key=value`.
  *
- * `stalled` 只对活着的 run 有意义（一个终态 run 当然不动了），而终态 run 多出一句
- * **leftover 说明**：下面那些标着 running 的行是进程死在它们下面的残留，不是活的工作。
- * 这是本工具仅有的两处「把不知道说出口」之一——沉默会被读成「它们还在跑」。
+* `stalled` is only meaningful for a living run (a final state run will of course not move), and the final state run has one more sentence
+* **leftover description**: The lines marked running below are the remnants of the process that died below them, not living work.
+* This is one of the only two ways this tool "says what you don't know" - silence will be read as "they are still running".
  */
 export function formatWorkflowRunHealthBlock(run: GetWorkflowRunOutput, terminal: boolean): string {
   const now = run.generatedAt;
@@ -102,7 +102,7 @@ export function formatWorkflowRunHealthBlock(run: GetWorkflowRunOutput, terminal
 // <phases>
 // ————————————————————————————————————————————————
 
-/** 阶段表：一行一个阶段，声明序。`ahead` 的行只有名字和状态——它还没发生过。 */
+/** Stage table: one stage per line, declaration order. The `ahead` line only has the name and status - it hasn't happened yet. */
 export function formatWorkflowRunPhasesBlock(
   run: GetWorkflowRunOutput,
   terminal: boolean,
@@ -127,14 +127,14 @@ export function formatWorkflowRunPhasesBlock(
 }
 
 function phaseRoundsCell(phase: GetWorkflowRunPhase): string {
-  // rounds 为 0 只可能是 `ahead`：一个还没被进入过的阶段说不出「进过几次」。
+// rounds of 0 can only be `ahead`: a stage that has not been entered cannot say "how many times it has been entered".
   if (phase.rounds === 0) return "";
   return `${phase.rounds} round${phase.rounds === 1 ? "" : "s"}`;
 }
 
 function phaseCountsCell(phase: GetWorkflowRunPhase, terminal: boolean): string {
   if (phase.nodesRunning > 0) {
-    // 终态 run 里的「还在跑」是没结算，不是在动。
+// The "still running" in the final state run means that it has not been settled and is not moving.
     return `${phase.nodesSettled} settled, ${phase.nodesRunning} ${terminal ? "unfinished" : "running"}`;
   }
   if (phase.nodesSettled === 0) return "";
@@ -145,8 +145,8 @@ function phaseDurationCell(phase: GetWorkflowRunPhase, now: number, terminal: bo
   if (phase.enteredAt === undefined) return "";
   if (phase.exitedAt !== undefined)
     return formatWorkflowRunDuration(phase.exitedAt - phase.enteredAt);
-  // 没有离开时刻：活着的 run 说「到现在为止」，终态 run 什么也不说——它的离开时刻无人记录，
-  // 拿读时的 now 去减等于把「进程死后的这几个小时」算进那个阶段。
+// There is no departure moment: the living run says "until now", the final run says nothing - its departure moment is not recorded,
+// Subtracting the "now" during reading is equivalent to counting "the few hours after the death of the process" into that stage.
   return terminal ? "" : `${formatWorkflowRunDuration(now - phase.enteredAt)} so far`;
 }
 
@@ -155,11 +155,11 @@ function phaseDurationCell(phase: GetWorkflowRunPhase, now: number, terminal: bo
 // ————————————————————————————————————————————————
 
 /**
- * 花名册：一行一个子代理，外加一行缩进的 `task:`（有任务摘要时）。
+* Roster: one subagent per line, plus an indented line of `task:` (when there is a task summary).
  *
- * 一行的读法是「谁 · 在哪 · 什么相位 · 在哪个阶段 · 正在做什么 · 花了多少 token」，
- * 其中「正在做什么」按相位分叉——在跑的说它的 ask 和工具，在等的说等什么，停驻的说等哪个
- * 问题、等了多久。这正是这个工具存在的理由：模型要能一眼看出「谁卡住了」。
+* The reading of one line is "Who · Where · What phase · At which stage · What is being done · How many tokens are spent",
+* Among them, "what you are doing" is divided according to the phase - the running one says its ask and tools, the waiting one says what it is waiting for, and the parked one says which one it is waiting for.
+* Question, how long have you waited. This is exactly why this tool exists: the model needs to be able to tell at a glance "who is stuck."
  */
 export function formatWorkflowRunSubagentsBlock(run: GetWorkflowRunOutput): string {
   if (run.subagents.length === 0) return "<subagents>No subagents created yet.</subagents>";
@@ -182,7 +182,7 @@ export function formatWorkflowRunSubagentsBlock(run: GetWorkflowRunOutput): stri
   run.subagents.forEach((subagent, index) => {
     lines.push(
       joinCells([
-        // 匿名 actor 不合成兜底名（同 pendingQuestions）：留白，地址列仍对齐。
+// Anonymous actors do not synthesize surnames (same as pendingQuestions): leave blank, the address column is still aligned.
         padColumn(names[index]!, nameWidth),
         padColumn(addresses[index]!, addressWidth),
         padColumn(subagent.state, stateWidth),
@@ -224,7 +224,7 @@ function subagentActivityCell(
 }
 
 function askAddress(ask: NonNullable<GetWorkflowRunSubagent["currentAsk"]>): string {
-  // actorSeq 是 journal 的 0 基列；模型面按人读的 1 基说「第几步」。
+// actorSeq is the 0 base of the journal; the model says "which step" is based on the human-readable 1 base.
   const step = ask.actorSeq === undefined ? "" : ` (step ${ask.actorSeq + 1})`;
   return `${escapeWorkflowRunText(ask.siteId)}@${ask.ordinal}${step}`;
 }
@@ -259,7 +259,7 @@ function waitCell(subagent: GetWorkflowRunSubagent, now: number): string {
     wait.retryAfterMs === undefined
       ? ""
       : `, retry in ${formatWorkflowRunDuration(wait.retryAfterMs)}`;
-  // 「等了多久」贴着原因，「还要等多久」收尾：两个时长挨在一起时读者分不清哪个是哪个。
+// "How long have you been waiting" is followed by the reason, and "How long do you have to wait" is the end: When the two durations are next to each other, the reader cannot tell which one is which.
   return `backoff${after}${forHow}${retry}`;
 }
 
@@ -273,7 +273,7 @@ function settledCell(subagent: GetWorkflowRunSubagent): string {
 // <log_tail>
 // ————————————————————————————————————————————————
 
-/** 叙事尾巴。事件带落库时刻时前缀年龄；老 journal 上没有这一列，那些行就只有序号。 */
+/** Narrative tail. The event is prefixed with the age when it is dropped into the database; the old journal does not have this column, and those rows only have serial numbers. */
 export function formatWorkflowRunLogTailBlock(run: GetWorkflowRunOutput): string {
   if (run.logTail.length === 0) return "<log_tail>No log() narration recorded yet.</log_tail>";
   const lines = run.logTail.map((entry) => {

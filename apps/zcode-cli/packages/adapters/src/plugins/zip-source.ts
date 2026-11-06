@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -169,7 +170,7 @@ async function downloadZipArchive(input: {
   signal?: AbortSignal;
   url: string;
 }): Promise<Uint8Array> {
-  // agent 会封存用户 shell 代理，ZIP 下载必须和其他应用层 fetch 一样读取 captured proxy fallback。
+// The agent will seal the user shell agent. ZIP download must read the captured proxy fallback like other application layer fetch.
   const client = createNodeWebFetchHttpClientAdapter({
     env: process.env,
     maxResponseBytes: ZIP_DOWNLOAD_MAX_BYTES,
@@ -197,7 +198,7 @@ async function downloadZipArchive(input: {
         throw new Error(`Plugin zip download redirect is missing Location header: ${currentUrl}`);
       }
       const redirectUrl = new URL(location, currentUrl);
-      // 跨 CDN origin 继续发送 marketplace 自定义 header 会把内部元数据泄露给跳转目标。
+// Continuing to send marketplace custom headers across CDN origins will leak internal metadata to the redirect target.
       if (redirectUrl.origin !== new URL(currentUrl).origin) {
         currentHeaders = undefined;
       }

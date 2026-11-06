@@ -50,7 +50,7 @@ export function resolveCuaAppIdentity(
   const bundleId = readCuaInputBundleId(input);
   if (!bundleId) return undefined;
   const matches = [...snapshot.values()].filter((app) => app.bundleId === bundleId);
-  // 同一 bundle 可能存在多个进程；没有 PID 时不能猜测具体进程身份。
+// Multiple processes may exist in the same bundle; without PID, the identity of the specific process cannot be guessed.
   return matches.length === 1 ? matches[0] : undefined;
 }
 

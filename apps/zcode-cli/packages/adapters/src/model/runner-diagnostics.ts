@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import type { LanguageModelUsage } from "ai";
 import type { Logger, ModelUsage } from "@zcode/contracts";
 import { ModelFailureReason as ModelFailureReasonValue } from "@zcode/contracts";

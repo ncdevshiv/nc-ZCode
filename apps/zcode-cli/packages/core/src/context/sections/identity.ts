@@ -9,14 +9,14 @@ import { estimateTokens } from "../utils.js";
 const SECURITY_NOTICE =
   "IMPORTANT: Assist with authorized security testing, defensive security, CTF challenges, and educational contexts. Refuse requests for destructive techniques, DoS attacks, mass targeting, supply chain compromise, or detection evasion for malicious purposes. Dual-use security tools (C2 frameworks, credential testing, exploit development) require clear authorization context: pentesting engagements, CTF competitions, security research, or defensive use cases.";
 
-/** 安全 IMPORTANT 行：交互式身份与工作流子代理身份共用，逐字同一份。 */
+/** SECURITY IMPORTANT line: The interactive identity is shared with the workflow subagent identity, verbatim. */
 export function buildSecurityNotice(): string {
   return SECURITY_NOTICE;
 }
 
 /**
- * `# Harness` 块：稳定运行时约束，不属于 output style 可替换的 coding instructions，
- * 也是工作流子代理身份（sections/workflow-actor.ts）逐字复用的那一段。
+* `# Harness` block: Stable runtime constraints, not output style replaceable coding instructions,
+* is also the section where the workflow sub-agent identity (sections/workflow-actor.ts) is reused verbatim.
  */
 export function buildHarnessBlock(): string {
   return [

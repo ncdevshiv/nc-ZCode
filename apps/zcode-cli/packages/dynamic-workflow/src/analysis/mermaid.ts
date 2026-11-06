@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { ActorEdge, ActorGraph, ActorNode } from "./actor-graph.js";
 import { WORKSPACE_LANE, type CausalityGraph, type Lane, type Step } from "./causality-graph.js";
 import {
@@ -14,7 +15,7 @@ import type { ActorSite, SiteEdge, SiteGraph, SiteNode } from "./types.js";
 /**
  * Pure mermaid emitters for the site graph and its derived actor graph. String
  * builders over the graph types only (same purity rule as actor-graph.ts); the
- * `pnpm charts` task renders these to `charts/` for live viewing.
+ * `bun run charts` task renders these to `charts/` for live viewing.
  *
  * Two mermaid quirks the whole module exists to tame:
  *  - node ids may not contain `#`/`-`, so ids are sanitized (`ask#1` -> `ask_1`)

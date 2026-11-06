@@ -1,5 +1,5 @@
-// tui-prompt-handler.ts 顶到 oxlint max-lines 上限（400 行），把 submitPrompt 上
-// 那组「拿到当前 App 就只读转发」的查询方法拆到本文件；公开面仍从 tui-prompt-handler.ts 导出。
+// tui-prompt-handler.ts reaches the upper limit of oxlint max-lines (400 lines) and puts submitPrompt
+// The set of query methods for "read-only forwarding after getting the current App" is split into this file; the public side is still exported from tui-prompt-handler.ts.
 import type { CommandCenterApp } from "./command-center.js";
 import { listAppEffortOptions } from "./command-center/effort-options.js";
 import type { TuiPromptHandler } from "./tui-command-state.js";
@@ -65,14 +65,14 @@ export const attachTuiAppQueries = (
 
   submitPrompt.listWorkflowRuns = async () => {
     const activeApp = await getApp();
-    // 会话级摘要；服务端已按「最近更新在前」给序，读侧不重排（端口注释的裁定）。
+// Session-level summary; the server has been sorted by "most recently updated first", and there is no rearrangement on the reading side (port annotation ruling).
     return (await activeApp.listDynamicWorkflowRuns?.({})) ?? [];
   };
 
   submitPrompt.replayWorkflowRuns = async (input) => {
     const activeApp = await getApp();
-    // 与 v4 冷物化同一条链：journal → 与 live
-    // 同一种进度载荷 → 镜像的共享 reducer。
+// Same chain as v4 cold materialization: journal → and live
+// Same progress payload → mirrored shared reducer.
     return (await activeApp.replayDynamicWorkflowRuns?.(input)) ?? [];
   };
 };

@@ -63,9 +63,9 @@ function applyProtocolPresentationSurface(
 }
 
 /**
- * 进程级 Registry 已就绪后，它就是当前 Environment 的模型事实源。
+* Once the process-level Registry is in place, it is the model source of truth for the current Environment.
  *
- * 旧 workspace snapshot 不再参与 Provider 和 Model 执行。
+* The old workspace snapshot no longer participates in Provider and Model execution.
  */
 function applyProtocolProviderRegistry(
   options: Omit<ZCodeAppOptions, "providerRegistry">,
@@ -134,7 +134,7 @@ export async function runZCodeProtocolAgent(
     | Awaited<ReturnType<typeof startProcessProviderRegistryRuntime>>
     | undefined;
   try {
-    // 数据库准备先于账号、Registry 和遥测，不把远端材料等待混进迁移门禁。
+// Database preparation precedes accounts, registry and telemetry, and does not mix remote material waiting into migration access control.
     const configResult = createConfig({ env: options.env });
     sessionStore = await acquireProtocolStartupResource({
       signal: options.lifecycle?.signal,
@@ -160,7 +160,7 @@ export async function runZCodeProtocolAgent(
       disposeLate: (runtime) => runtime.dispose(),
     });
     options.lifecycle?.signal.throwIfAborted();
-    logger.info("Worker Provider Registry 已就绪", {
+    logger.info("Worker Provider Registry is ready", {
       accountRevision: providerRegistryRuntime.snapshot.sourceRevisions.account,
       configRevision: providerRegistryRuntime.snapshot.sourceRevisions.config,
       event: "zcode_protocol.provider_registry.ready",
@@ -188,22 +188,22 @@ export async function runZCodeProtocolAgent(
             onEvent: (event) => mcpTelemetrySink?.(event),
             onResourceSamples: (samples) => mcpResourceSink?.(samples),
           });
-    // 官方 MCP 身份头端口：连接池构造早于 server，故用惰性 holder 回填。
-    // server 就绪前该端口返回 official_auth_unavailable；HTTP tools/call 会匿名交给服务端
-    // 返回结构化权限错误，stdio 则把 reason 下发给插件。连接与工具发现都不受影响。
+//Official MCP identity header port: The connection pool is constructed earlier than the server, so it is backfilled with a lazy holder.
+// This port returns official_auth_unavailable before the server is ready; HTTP tools/call will be anonymously handed over to the server
+// Return a structured permission error, and stdio will send the reason to the plug-in. Connections and tool discovery are not affected.
     let officialMcpAuthContext: OfficialMcpAuthRequestContext | undefined;
-    // stdio 官方 MCP 没有 url 可供校验，targetOrigin 只能由宿主给出。
-    // 与下面 trustedOrigins 的 resolveZCodeApiOrigin 必须是同一个表达式，否则两侧判定分叉。
+// The official MCP of stdio does not have a url for verification, and the targetOrigin can only be given by the host.
+// It must be the same expression as resolveZCodeApiOrigin of trustedOrigins below, otherwise the judgment on both sides will be forked.
     const resolveZCodeApiOrigin = (): string =>
       resolveRuntimeZCodeEndpointOrigin(options.env ?? process.env);
     const workspaceIdentity = (options.env ?? process.env)[ZCODE_WORKSPACE_IDENTITY_ENV]?.trim();
     const officialMcpAuth = {
       authHeadersPort: createOfficialMcpAuthHeadersPort({
         resolveContext: () => officialMcpAuthContext,
-        // workspaceKey 必须遵守仓库约定 `workspaceIdentity?.trim() || workspacePath`，
-        // 否则同路径不同 identity 的远端 workspace 在审计上下文里无法区分。
-        // 注意：agent 进程当前没有 identity 来源，因此实际多为 undefined，key 退化为 path；
-        // 详见 official-mcp-auth-port.ts 的"剩余缺口"说明。
+// workspaceKey must comply with the warehouse convention `workspaceIdentity?.trim() || workspacePath`,
+// Otherwise, remote workspaces with the same path and different identities cannot be distinguished in the audit context.
+// Note: The agent process currently has no identity source, so the actual value is mostly undefined, and the key degenerates into path;
+// See the "Remaining Gap" description of official-mcp-auth-port.ts for details.
         resolveWorkspace: ({ workspaceIdentity, workspacePath }) => {
           const path = workspacePath ?? options.cwd;
           if (!path) return undefined;
@@ -217,8 +217,8 @@ export async function runZCodeProtocolAgent(
       }),
       resolveZCodeApiOrigin,
       ...(workspaceIdentity ? { workspaceIdentity } : {}),
-      // 信任判定只看一条：目标 origin 等于当前 ZCode API origin（https）。pluginId 不参与。
-      // origin 运行时解析（跟随 production/test 与自建环境），不硬编码域名。
+// Only one thing is considered for trust determination: the target origin is equal to the current ZCode API origin (https). pluginId is not involved.
+// Origin is resolved at runtime (following production/test and self-built environments), without hardcoding the domain name.
       trustedOrigins: createOfficialMcpTrustedOriginRegistry({
         devTrustedOriginsRaw: (options.env ?? process.env)[OFFICIAL_MCP_DEV_TRUSTED_ORIGINS_ENV],
         resolveZCodeApiOrigin,
@@ -254,7 +254,7 @@ export async function runZCodeProtocolAgent(
             activeProviderRegistryRuntime.runtime.registryService,
             activeProviderRegistryRuntime.configuredDefaultModelSelection,
           ),
-          // 只读同进程已应用快照；不为子任务另发 Host RPC，也不在 ModelFactory 偷换模型。
+// Read only the same process that has applied the snapshot; do not send another Host RPC for the subtask, nor secretly change the model in the ModelFactory.
           resolveEffectiveModelSelection: (selection) => {
             const view = modelSelectionFacade.getView(undefined, undefined, { selection });
             return {
@@ -324,7 +324,7 @@ export async function runZCodeProtocolAgent(
         params: samples,
       });
     mcpTelemetrySink = (event) => {
-      // 五分钟资源通知取代旧内存通知；tracker 内部孤儿事实仍保留原判据。
+// The five-minute resource notification replaces the old memory notification; the orphan fact inside the tracker still retains the original criterion.
       if (event.kind === "memory") return;
       connection.send({
         method: zcodeProtocolNotifications.mcpTelemetry,
@@ -379,7 +379,7 @@ export async function runZCodeProtocolAgent(
 function resolveProtocolRuntimeSurface(
   env: NodeJS.ProcessEnv,
 ): "desktop_local_host" | "remote_workspace_host" {
-  // Bug 根因：入口曾无条件覆盖 Host 注入值，远程 SSH/WSL/容器 Trace 被归入本地 Desktop。
+// Root cause of the bug: The entry has unconditionally overwritten the Host injection value, and the remote SSH/WSL/container Trace was classified into the local Desktop.
   return env.ZCODE_TELEMETRY_RUNTIME_SURFACE?.trim() === "remote_workspace_host"
     ? "remote_workspace_host"
     : "desktop_local_host";

@@ -1,8 +1,8 @@
-// 模型配置命令组：switchModelConfig（自旧 server-operations.switchModelConfig 语义搬运）
-// + switchCollaborationMode（additive，UI 模式选择器）
-// + applyRequestedSessionConfig（createSession.config 消费共用件）。
-// 每个命令组一个文件：handler 纯函数 (host, envelope) → CommandResult|undefined，
-// 决策逻辑直驱 core（app.setModel / app.setMode / runtime.emit*），不经旧协议 op。
+// Model configuration command group: switchModelConfig (transported from the old server-operations.switchModelConfig semantics)
+// + switchCollaborationMode(additive, UI mode selector)
+// + applyRequestedSessionConfig (createSession.config consumer commonware).
+// One file per command group: handler pure function (host, envelope) → CommandResult|undefined,
+// Decision logic directly drives core (app.setModel / app.setMode / runtime.emit*), without going through the old protocol op.
 import type { CollaborationMode, ModelSelection } from "@zcode/contracts";
 import type {
   CommandEnvelope,
@@ -14,12 +14,12 @@ import { runSessionModelConfigMutation } from "../../model-config-mutation.js";
 import { requireRecord } from "../record-access.js";
 import type { V4CommandCoreHost, V4SessionRecordView } from "../types.js";
 
-/** 同值切换的 noop reasonCode。 */
+/** Noop reasonCode for switching with the same value. */
 const CONFIG_UNCHANGED = "config.unchanged";
 
 /**
- * 目标 Provider 不在当前 Environment Registry。Gateway 将其映射为 failed ACK；
- * 调用方需要刷新当前 Environment 的 Provider Config，而不是向 Worker 重推 Host Snapshot。
+* The target Provider is not in the current Environment Registry. Gateway maps it as failed ACK;
+* The caller needs to refresh the Provider Config of the current Environment instead of re-pushing the Host Snapshot to the Worker.
  */
 class V4ProviderNotInRegistryError extends Error {
   readonly reasonCode = "provider.notInRegistry";
@@ -29,8 +29,8 @@ class V4ProviderNotInRegistryError extends Error {
 }
 
 /**
- * 切模型前确认目标 Provider 已存在于当前 Environment Registry。`applied:false` 转换为
- * 结构化领域错误（gateway → failed ACK）。Host 未注入能力时保持旧 Entry 行为。
+* Before cutting the model, confirm that the target Provider already exists in the current Environment Registry. `applied:false` converts to
+* Structured field error (gateway → failed ACK). Host maintains the old Entry behavior when no capabilities are injected.
  */
 async function ensureProviderClientReady(
   host: V4CommandCoreHost,
@@ -42,8 +42,8 @@ async function ensureProviderClientReady(
   if (!outcome.available && outcome.reason === "provider_not_in_registry") {
     throw new V4ProviderNotInRegistryError(providerId);
   }
-  // session_not_found 等其余原因：requireRecord 已在 handler 侧先行校验，理论不达；
-  // 兜底不抛（让后续 setModel 走既有路径/报错），避免吞掉真实定位。
+//session_not_found and other reasons: requireRecord has been verified on the handler side first, and the theory is not up to date;
+// Don't throw away the details (let the subsequent setModel take the existing path/report an error) to avoid swallowing the real positioning.
 }
 
 function createModelSelection(provider: string, model: string, thought: string | undefined) {
@@ -63,15 +63,15 @@ function readActualThought(
   return fallbackSelection?.options?.reasoningLevel ?? "";
 }
 
-/** switchCollaborationMode 命令值域（command.ts z.enum 同源；auto 非用户可切不在内）。 */
+/** switchCollaborationMode command value range (command.ts z.enum has the same origin; auto is not included for non-users). */
 const SWITCHABLE_MODES: ReadonlySet<string> = new Set(["build", "edit", "plan", "yolo"]);
 
 /**
- * switchModelConfig：切换会话模型选型。跨模型时 app.setModel 换 provider client + 模型，
- * 同模型时 thought 才是显式思考深度切换，随后补发 ModelSelected——v4 投影的 config 区
- * 更新与中途切换的 modelChange marker 都靠这条事件（reducer onModelSelected）。
+* switchModelConfig: switch session model selection. When crossing models, replace app.setModel with provider client + model.
+* When using the same model, thought is the explicit thinking depth switch, and then the ModelSelected - v4 projected config area is reissued.
+*Updating and switching modelChange marker all rely on this event (reducer onModelSelected).
  *
- * 行为等价说明：旧协议路径无 active turn guard（运行中也允许切换），这里保持一致不加。
+* Description of behavioral equivalence: The old protocol path does not have an active turn guard (switching is also allowed during operation), and is not added here to keep it consistent.
  */
 async function switchModelConfig(
   host: V4CommandCoreHost,
@@ -80,8 +80,8 @@ async function switchModelConfig(
   const payload = envelope.payload as CommandPayloadMap["switchModelConfig"];
   const record = requireRecord(host, envelope.sessionId);
   return runSessionModelConfigMutation(record.app, async () => {
-    // previous 必须在串行化临界区内、setModel 之前快照。registry fallback 可能排在本命令
-    // 前面，若在排队前读取会拿到过期 previous，并让 noop/事件顺序与 runtime 真值分裂。
+// previous must be snapshotted within the serialization critical section and before setModel. registry fallback may be ranked before this command
+// Previously, if you read before queuing, you will get the expired previous, and split the noop/event order from the runtime truth value.
     const previousSelection = record.app.runtime.getSessionModelSelection();
     const previousModelSelection =
       previousSelection &&
@@ -97,13 +97,13 @@ async function switchModelConfig(
     const requestedThought = payload.thought.trim();
     const thoughtChanged =
       Boolean(requestedThought) && requestedThought !== previousSelection?.options?.reasoningLevel;
-    // 同值切换收口：命中 runtime 当前值 → noop ACK（config.unchanged），
-    // 不得以 accepted 静默吞掉——种子对齐后「UI 显示值 = runtime 真值」成立，
-    // 客户端据此区分「已生效」与「本来就是这个值」。
+// Same value switch closure: hit runtime current value → noop ACK (config.unchanged),
+// Cannot be swallowed silently with accepted - after the seeds are aligned, "UI display value = runtime true value" is established.
+// The client uses this to distinguish between "effective" and "originally this value".
     if (!modelIdentityChanged && !thoughtChanged) {
       throw new V4CommandNoopError(CONFIG_UNCHANGED);
     }
-    // setModel 前由当前 Environment Registry 确认目标 Provider 可用。
+// Before setModel, the current Environment Registry confirms that the target Provider is available.
     await ensureProviderClientReady(host, record.app.sessionId, payload.provider);
     let actualThought = previousThought;
     let nextModelSelection: ModelSelection;
@@ -111,8 +111,8 @@ async function switchModelConfig(
       const result = await record.app.setModel(`${payload.provider}/${payload.model}`);
       actualThought = result.thoughtLevel ?? readActualThought(record);
       if (requestedThought && record.app.listThoughtLevels().includes(requestedThought)) {
-        // 用户即使显式选择了与默认值相同的档位，也是一项 pin。必须调用 setter 让
-        // Session Selection 保存这个显式叶子，不能因为 effective 值相同而吞掉意图。
+// This is a pin even if the user explicitly selects the same gear as the default. The setter must be called to let
+// Session Selection saves this explicit leaf and cannot swallow the intent because the effective value is the same.
         const thoughtResult = await record.app.setThoughtLevel(requestedThought);
         actualThought = thoughtResult.thoughtLevel;
       }
@@ -124,7 +124,7 @@ async function switchModelConfig(
           : undefined,
       );
     } else {
-      // provider/model 相同才表示用户显式切 thought；非法值在任何模型变更前失败。
+// Provider/model is the same only if the user explicitly changes it. Thought; illegal values ​​fail before any model changes.
       const result = await record.app.setThoughtLevel(requestedThought);
       actualThought = result.thoughtLevel;
       nextModelSelection = createModelSelection(payload.provider, payload.model, actualThought);
@@ -134,7 +134,7 @@ async function switchModelConfig(
       ...(actualThought ? { effectiveReasoningLevel: actualThought } : {}),
       previousModelSelection,
       supportedThoughtLevels: record.app.listThoughtLevels(),
-      // trace 链路结构透传自 record（会话根 trace），不在命令层另起无关联 traceId。
+// The trace link structure is transparently transmitted from the record (session root trace), and is not associated with the traceId if it is not started at the command layer.
       traceContext: record.traceContext,
     });
     return undefined;
@@ -142,13 +142,13 @@ async function switchModelConfig(
 }
 
 /**
- * switchCollaborationMode：切换 agent 协作模式（plan/build/edit/yolo）。
- * app.setMode 统一更新独立执行状态、持久化并发布 SessionModeChanged，
- * 命令层不再补发第二次事件，
- * v4 投影 reducer onSessionModeChanged 据此更新 config.mode。
- * 同值切换 → noop ACK：静默 return undefined 会被当 accepted，若投影种子缺失
- * 会叠加成「点完全访问没反应」的用户可见问题——CLI 认为已是 yolo
- * 提前返回，投影却还停在种子 build，且客户端无从判别。因此必须显式 ACK。
+* switchCollaborationMode: switch agent collaboration mode (plan/build/edit/yolo).
+* app.setMode uniformly updates independent execution status, persists and publishes SessionModeChanged,
+* The command layer will no longer reissue the second event.
+* v4 projection reducer onSessionModeChanged updates config.mode accordingly.
+* Same value switch → noop ACK: silent return undefined will be regarded as accepted, if the projection seed is missing
+* It will be superimposed into a user-visible problem of "no response when clicking full access" - CLI thinks it is yolo
+* Returned early, but the projection still stopped at the seed build, and the client could not identify it. Therefore an explicit ACK is required.
  */
 async function switchCollaborationMode(
   host: V4CommandCoreHost,
@@ -166,18 +166,18 @@ async function switchCollaborationMode(
 }
 
 /**
- * createSession.config 消费共用件（「createSession.config 必须被消费」）：
- * 以「请求 config 覆盖 runtime 缺省」归并，只对与 runtime 当前值不同的部分生效，
- * 并补发与 switch 命令同源的事件（ModelSelected / SessionModeChanged）——日志自足，
- * 投影经既有 reducer 收口，不依赖第二条写路径。
+* createSession.config consumption sharedware ("createSession.config must be consumed"):
+* Merge with "request config to override runtime default", which will only take effect on the parts that are different from the current runtime value.
+* And reissue events that have the same source as the switch command (ModelSelected / SessionModeChanged) - the log is self-sufficient,
+* The projection has an existing reducer end and does not rely on the second writing path.
  *
- * 为什么走事件而不是直改种子：publisher 在 createSessionRecord 事件接线期间已创建，
- * 种子读的是应用请求 config 之前的 runtime 缺省；事件补发既修正投影，又让
- * 「首发用什么模型」这个事实进日志（冷恢复重放可复原）。首次选型 prev 为空时
- * reducer 不产 modelChange marker（onModelSelected「首次选型不算切换」），无噪音行。
+* Why use the event instead of changing the seed directly: the publisher has been created during the createSessionRecord event wiring.
+* The seed reads the runtime default before the application requests config; event reissue not only corrects the projection, but also allows
+* The fact "what model is used for the first launch" is entered into the log (cold recovery replay can be restored). When the first selection prev is empty
+* reducer does not produce modelChange marker (onModelSelected "The first selection does not count as switching"), no noise.
  *
- * 部分失败语义：会话已创建成功，config 应用失败不应连坐 createSession（record 泄漏
- * 换一个 failed ACK 不值当）——调用方捕获后降级为 warn，会话保持 runtime 缺省。
+* Partial failure semantics: The session has been created successfully, and the failure of config application should not cause createSession (record leak
+* Change to a failed ACK (not worth it) - after the caller catches it, it is downgraded to warn, and the session keeps the runtime default.
  */
 export async function applyRequestedSessionConfig(
   host: V4CommandCoreHost,
@@ -209,8 +209,8 @@ export async function applyRequestedSessionConfig(
       targetThought !==
         (requestedSelection ? previousSelection?.options?.reasoningLevel : previousThought);
     if (targetProvider && targetModel && (modelIdentityChanged || thoughtChanged)) {
-      // 首发 Provider 不在 Registry 时抛 provider.notInRegistry，createSession 处捕获降级为
-      // warn（会话保持 runtime 缺省，不连坐创建），语义与既有 config 应用失败一致。
+// When the first Provider is not in the Registry, provider.notInRegistry is thrown, and the capture at createSession is downgraded to
+// warn (the session keeps the runtime default and is not created continuously), the semantics are consistent with the existing config application failure.
       await ensureProviderClientReady(host, record.app.sessionId, targetProvider);
       let actualThought = previousThought;
       if (modelIdentityChanged) {
@@ -221,13 +221,13 @@ export async function applyRequestedSessionConfig(
         const result = await record.app.setThoughtLevel(targetThought);
         actualThought = result.thoughtLevel;
       } else if (requestedSelection?.options?.reasoningLevel) {
-        // 正式结构化 Selection 的显式 option 必须 fail-closed；只有旧 flat config
-        // 保留“目标不支持则使用默认值”的已发布兼容行为。
+// Explicit options for formally structured Selection must fail-closed; only old flat config
+// Retain the published compatibility behavior of "use default if not supported by target".
         await record.app.setThoughtLevel(targetThought);
       }
       if (modelIdentityChanged || actualThought !== previousThought) {
-        // 草稿预热 config 可能携带上一模型的 thought。目标模型不支持时保留
-        // setModel 已解析出的兼容档位，仍发布目标模型事件，避免创建出 runtime/投影分裂的 session。
+// The draft warm-up config may carry the thought of the previous model. Reserved if the target model does not support it
+// The compatible gear that has been parsed by setModel still publishes the target model event to avoid creating a runtime/projection split session.
         await record.app.runtime.emitModelSelected({
           modelSelection: createModelSelection(
             targetProvider,
@@ -245,7 +245,7 @@ export async function applyRequestedSessionConfig(
     }
   });
 
-  // mode：payload.config.mode 是宽 string（schema default 兼容），值域在此收口。
+// mode: payload.config.mode is a wide string (schema default compatible), and the value range ends here.
   const mode = config.mode;
   if ((mode && SWITCHABLE_MODES.has(mode)) || config.planEnabled !== undefined) {
     await record.app.runtime.setExecutionState(
@@ -257,8 +257,8 @@ export async function applyRequestedSessionConfig(
     );
   }
 
-  // followupMode：runtime 缺省即 queue（投影初值同），仅非缺省值需要显式写——
-  // runtime.setFollowupMode 无同值守卫（无条件追加事件），显式传 "queue" 会产空转 delta。
+// followupMode: The runtime default is queue (the initial projection value is the same), only the non-default value needs to be written explicitly——
+// runtime.setFollowupMode has no identical value guard (unconditional append event), and explicitly passing "queue" will cause idle delta.
   if (config.followupMode && config.followupMode !== "queue") {
     await record.app.setFollowupMode(config.followupMode);
   }

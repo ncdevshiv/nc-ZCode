@@ -1,16 +1,16 @@
 /**
- * 默认开启路径（无 ZCODE_NATIVE_SIDECARS）真实跑一遍：facade 必须命中
- * 打包暂存目录的 release 二进制并与 jsdiff 一致。release 版在「默认开」这条
- * 真实产品路径上必须可用——不是只验证 debug 产物。
+* The default open path (without ZCODE_NATIVE_SIDECARS) is actually run: the facade must hit
+* Package the release binary of the staging directory and make it consistent with jsdiff. The release version is in the "Default enabled" section.
+* Must be available on the real product path - not just verify the debug product.
  *
- * 运行：cd apps/zcode-cli/packages/sidecar && node --import tsx --test test/default_on.test.ts
+* Run: cd apps/zcode-cli/packages/sidecar && node --import tsx --test test/default_on.test.ts
  */
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { after, test } from "node:test";
 import { createTwoFilesPatch, structuredPatch } from "diff";
 
-// 显式清空 flag：验证「默认开」而不是「flag 开」。
+// Explicitly clear flag: verify "default on" rather than "flag on".
 delete process.env.ZCODE_NATIVE_SIDECARS;
 delete process.env.ZCODE_NATIVE_SIDECARS_OFF;
 delete process.env.ZCODE_SIDECAR_DIR;

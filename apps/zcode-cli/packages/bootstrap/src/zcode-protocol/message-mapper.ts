@@ -208,8 +208,8 @@ function mapToolPartMetadata(
   if (!metadata || !Object.prototype.hasOwnProperty.call(metadata, "providerToolName")) {
     return metadata;
   }
-  // providerToolName 只用于 Agent cold hydration 恢复模型原始空名；App 使用
-  // ToolPart.tool 的 non-empty 占位值，不能把内部 provider 字段投影到公共协议。
+// providerToolName is only used for Agent cold hydration to restore the original empty name of the model; App uses
+// The non-empty placeholder value of ToolPart.tool cannot project the internal provider field to the public protocol.
   const visibleMetadata = { ...metadata };
   delete visibleMetadata.providerToolName;
   return Object.keys(visibleMetadata).length > 0 ? visibleMetadata : undefined;
@@ -256,8 +256,8 @@ function mapToolStateMetadata(
     return metadata;
   }
   const protocolMetadata = { ...metadata };
-  // readFileState 携带完整文件快照，只用于 agent resume 内部恢复；
-  // app/remote protocol 只需要展示 metadata，不能把文件内容藏在 tool state metadata 里透出。
+// readFileState carries a complete file snapshot and is only used for agent resume internal recovery;
+// The app/remote protocol only needs to display metadata, and cannot hide the file content in tool state metadata.
   delete protocolMetadata.readFileState;
   return protocolMetadata;
 }
@@ -272,8 +272,8 @@ function mapErrorToolStateMetadata(
   ) {
     return protocolMetadata;
   }
-  // error modelContent 只用于 Agent 精确恢复 provider history，
-  // 不能作为新的 App / remote protocol metadata 暴露。
+// error modelContent is only used for Agent to accurately restore provider history,
+// Cannot be exposed as new App / remote protocol metadata.
   const visibleMetadata = { ...protocolMetadata };
   delete visibleMetadata.modelContent;
   return visibleMetadata;
@@ -289,11 +289,11 @@ function mapCompletedToolStateMetadata(
   ) {
     return protocolMetadata ?? {};
   }
-  // modelContentLayout 只供 Agent 冷恢复重建 tool result 媒体顺序，
-  // completed metadata 原样映射会把内部布局和重复文本带入 App / remote replayable payload。
+// modelContentLayout is only used for Agent cold recovery and reconstruction tool result media sequence,
+// Completed metadata mapping as is will bring internal layout and repeated text into the App / remote replayable payload.
   const visibleMetadata = { ...protocolMetadata };
   delete visibleMetadata.modelContentLayout;
-  // core 的历史/异常 completed tool part 可能没有 metadata，但
-  // ZCode protocol 的 completed tool state 要求 metadata 必须是 object。
+// core's history/exception completed tool part may not have metadata, but
+// The completed tool state of ZCode protocol requires that metadata must be object.
   return visibleMetadata;
 }

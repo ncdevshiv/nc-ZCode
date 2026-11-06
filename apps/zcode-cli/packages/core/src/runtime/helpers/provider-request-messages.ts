@@ -26,7 +26,7 @@ import {
 
 export interface ProviderRequestMessageProjectionResult {
   messages: ModelInputMessage[];
-  /** 仅用于内部归属；runtime metadata 不会进入 `messages`。 */
+/** For internal attribution only; runtime metadata does not go into `messages`. */
   sourceEntries: Array<RuntimeMessageEntry | undefined>;
   diagnostics: {
     bubbledAttachmentEntryCount: number;
@@ -36,8 +36,8 @@ export interface ProviderRequestMessageProjectionResult {
   };
 }
 
-// 相邻 user 合并是 Anthropic provider 的协议序列化责任；
-// MCS/provider projection 保持 provider-neutral，避免影响 OpenAI-compatible 请求形态。
+// Merging adjacent users is the protocol serialization responsibility of the Anthropic provider;
+//MCS/provider projection maintains provider-neutral to avoid affecting OpenAI-compatible request form.
 const ENABLE_MCS_ADJACENT_USER_MERGE = false;
 
 // State changes must keep their causal position relative to older target continuations.
@@ -60,8 +60,8 @@ export function buildProviderRequestMessages(input: {
     ? projectMidConversationSystemEntries(reorderResult.entries, origins)
     : { entries: reorderResult.entries };
   const projectedEntries = moveLegacySystemRemindersAfterToolResultRun(midSystemProjection.entries);
-  // media-budget 在 provider-clean messages 上运行，必须在剥离 metadata 前记录
-  // latest real user 的 projection 后索引，避免用户 literal system-reminder 被误当成 meta。
+// media-budget runs on provider-clean messages, which must be recorded before stripping metadata
+// The latest real user is indexed after projection to prevent the user literal system-reminder from being mistaken for meta.
   const latestRealUserMessageIndex = findLatestRealUserEntryIndex(projectedEntries, origins);
   const renderedMessages = projectedEntries.map(renderProjectedEntryToModelMessage);
   const mergeResult = ENABLE_MCS_ADJACENT_USER_MERGE
@@ -88,7 +88,7 @@ export function buildProviderRequestMessages(input: {
     sourceEntries,
     diagnostics: {
       bubbledAttachmentEntryCount: reorderResult.bubbledAttachmentEntryCount,
-      // 新标记能证明“没有真实用户”；省略索引会让媒体预算按 user role 重新猜来源。
+// New tag to prove "no real user"; omitting the index will make the media budget re-guess the source by user role.
       ...(finalLatestRealUserMessageIndex >= 0 || input.entries.some(isPresentedInput)
         ? { latestRealUserMessageIndex: finalLatestRealUserMessageIndex }
         : {}),
@@ -191,7 +191,7 @@ function renderProjectedEntryToModelMessage(
     }
     const message: ModelInputMessage = {
       role: "user",
-      // incoming 载荷也可能含关闭标签；统一在 provider 包装时转义，canonical 原文不变。
+// The incoming payload may also contain a closing tag; it is escaped when packaged by the provider, and the original text of the canonical remains unchanged.
       content: wrapSystemReminderForSource(source, entry.content),
     };
     if (entry.cacheControl) {
@@ -298,7 +298,7 @@ function finalizeLatestNonSystemMessageCacheControl(
   const latestIndex = findPreviousNonSystemMessageIndex(messages, messages.length - 1);
   if (latestIndex === undefined) return undefined;
 
-  // 但不作为 cache write breakpoint，marker 应前移到 compact prompt 前的真实上下文。
+// But not as a cache write breakpoint, the marker should be moved forward to the real context before the compact prompt.
   const cacheControlIndex =
     options.skipCacheWrite === true
       ? findPreviousNonSystemMessageIndex(messages, latestIndex - 1)

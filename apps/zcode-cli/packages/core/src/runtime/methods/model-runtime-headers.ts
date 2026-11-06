@@ -36,11 +36,11 @@ export function createRefreshRuntimeHeadersBeforeModelAttempt(
   }
 
   return async (attemptInput) => {
-    // Start Plan 的账号鉴权材料按请求刷新，adapter 内部 retry、WebSearch/native tool
-    // 请求和标题/compact 等单独模型请求都必须在每个真实请求 attempt 发送前刷新，
-    // 不能复用进入 adapter 前的旧材料。
-    // 路由身份：主 runtime 报自己的会话；child runtime 拿到的端口由父 runtime 派生
-    // （helpers/child-client-ports.ts），把 sessionId 改写成客户端认识的根会话。
+// Start Plan's account authentication materials are refreshed on request, adapter's internal retry, WebSearch/native tool
+//Requests and individual model requests such as headers/compact must be refreshed before each real request attempt is sent,
+// Old materials before entering the adapter cannot be reused.
+// Routing identity: The main runtime reports its own session; the port obtained by the child runtime is derived from the parent runtime
+// (helpers/child-client-ports.ts), rewrite sessionId to the root session recognized by the client.
     const refreshResult = await runtimeHeadersPort.refreshBeforeModelRequest({
       accountAccess: attemptInput.accountAccess,
       abortSignal: attemptInput.abortSignal ?? input.abortSignal,

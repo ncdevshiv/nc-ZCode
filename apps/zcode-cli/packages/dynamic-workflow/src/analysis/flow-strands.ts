@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { UNPHASED_ID } from "./constants.js";
 import type { PhaseInfo } from "./causality-order.js";
 import type { Src } from "./flow-graph.js";

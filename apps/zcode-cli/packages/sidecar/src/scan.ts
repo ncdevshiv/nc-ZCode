@@ -1,13 +1,13 @@
-//! scan facade：数据根遍历（替代 TS `storage/adapters/fsWalker.ts` 的热路径）。
+//! scan facade: data root traversal (replaces the hot path of TS `storage/adapters/fsWalker.ts`).
 //!
-//! 语义镜像：`entry = {relativePath, bytes, mtimeMs}`（TS `StorageScanEntry`），
-//! 进度走 `scan_entry` / `scan_error` 事件，`scan_done` 终态；根缺失 =
-//! `scan_done.missingRoot=true` 且不产生错误（与 TS「根不存在 = 空根非错误」
-//! 一致）。遍历顺序按 sidecar 的串行语义（与 TS concurrency=1 等价；并发只影响
-//! 顺序，不影响集合——README 差异表）。目录计数 sidecar 不提供，恒为 0 并在此
-//! 显式记录（TS 侧按需可从条目集合派生）。
+//! Semantic mirror: `entry = {relativePath, bytes, mtimeMs}` (TS `StorageScanEntry`),
+//! Progress `scan_entry` / `scan_error` event, `scan_done` final state; root missing =
+//! `scan_done.missingRoot=true` and no error is generated (the same as TS "Root does not exist = empty root is not an error"
+//! consistent). The traversal order follows the serial semantics of sidecar (equivalent to TS concurrency=1; concurrency only affects
+//! Order, does not affect collections - README difference table). Directory count sidecar is not provided, always 0 and here
+//! Explicit record (TS side can be derived from the entry collection on demand).
 //!
-//! cancel：facade 在 AbortSignal 触发时发 `cancel`（按 scanId），事件消费随即收口。
+//! cancel: The facade sends `cancel` (according to scanId) when AbortSignal is triggered, and the event consumption is stopped immediately.
 
 import { sidecarEnabled } from "./config.js";
 import { sidecarPool } from "./pool.js";
@@ -30,7 +30,7 @@ export interface NativeScanError {
 }
 
 export interface NativeScanResult {
-  /** sidecar 不报目录数（只有条目/错误），恒为 0；调用方按需从集合派生。 */
+/** Sidecar does not report the directory number (only entries/errors), which is always 0; the caller derives it from the collection on demand. */
   directoriesScanned: number;
   filesScanned: number;
   missingRoot: boolean;
@@ -52,7 +52,7 @@ export function scanEnabled(): boolean {
 }
 
 /**
- * 扫描一个根目录并收集全部条目（事件驱动收口：`scan` 响应 + `scan_done` 事件）。
+* Scan a root directory and collect all entries (event-driven closure: `scan` response + `scan_done` event).
  */
 export async function nativeScanStorageRoot(
   rootPath: string,
@@ -109,7 +109,7 @@ export async function nativeScanStorageRoot(
       },
       REQUEST_TIMEOUT_MS,
     );
-    // 响应只是 ACK；条目与终态全部走事件，等 scan_done 才算完成。
+//The response is only ACK; all entries and final states are event-driven and will not be completed until scan_done.
     if (options.signal?.aborted) {
       throw new DOMException("storage scan aborted", "AbortError");
     }
@@ -123,7 +123,7 @@ export async function nativeScanStorageRoot(
     };
   } catch (error) {
     if (error instanceof SidecarUnavailableError) {
-      // sidecar 不可用：调用方必须退回 TS walker（本 facade 只保证 TS 可得时可用）。
+// Sidecar is unavailable: the caller must return the TS walker (this facade only guarantees that it will be available when the TS is available).
       globalThis.process.stderr.write(
         `[sidecar:${SCAN_SIDECAR}] ${error.message}; caller must fall back to the TS walker\n`,
       );

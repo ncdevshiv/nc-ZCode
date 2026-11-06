@@ -1,0 +1,20 @@
+[package]
+name = "nc-code-service-core"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Shared service-layer kit for the Rust backend: positional argument decoding, ServiceError, app paths, atomic file writes"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+sha2 = "0.10"
+regex = "1"
+tokio.workspace = true
+nc-code-channels = { path = "../nc-code-channels" }
+nc-code-rpc = { path = "../nc-code-rpc" }
+
+[dev-dependencies]
+tempfile = "3"

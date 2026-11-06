@@ -52,7 +52,7 @@ export function enqueueCancellableRuntimeCommand<
         rejectCommand(createTurnCancelledError(abortSignal?.reason));
         return;
       }
-      // 取消可能撞上 command 刚出队但尚未进入实际执行的窄窗口，先记账让执行侧跳过。
+// Cancellation may hit the narrow window where the command has just been dequeued but has not yet entered the actual execution, so the execution side can skip the accounting first.
       runtime.runtimeCommandQueue.markCancelPending(command.id);
     }
     if (abortSignal?.aborted) {

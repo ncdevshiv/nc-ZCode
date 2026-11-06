@@ -1,0 +1,37 @@
+{
+  "name": "workflow_linear",
+  "scriptHash": "07a78983d0f29c0ecbb9671fa9d08939221d4fa550e94f66915f6afdd8fe7b15",
+  "siteIds": [
+    "actor#1",
+    "ask#1",
+    "world-read#1",
+    "report#1",
+    "artifact#1"
+  ],
+  "lowered": "__host.enterPhase(\"plan\");\nconst planner = __host.createActor(\"actor#1\", \"planner\", \"You are a planning subagent. Produce short, concrete plans.\");\nconst plan = await __host.ask(\"ask#1\", planner, \"Draft a 3-step plan for documenting this repository. Fields: steps (3 short strings), rationale (one sentence).\");\n__host.enterPhase(\"execute\");\nconst readme = await __host.worldRead(\"world-read#1\", \"read\", [\"README.md\"]);\n__host.report(\"report#1\", { readmeBytes: readme.length, planSteps: plan.steps.length });\n// Content-family artifact publishes return a promise (verified: markdown is a content op),\n// so the script awaits it — an unhandled rejection would kill the sandbox child.\nawait __host.publishArtifact(\"artifact#1\", \"markdown\", [\"summary\",\n    \"## Plan\\n\\n\" + plan.steps.map((s, i) => `${i + 1}. ${s}`).join(\"\\n\")]);\nreturn { rationale: plan.rationale, steps: plan.steps };\n",
+  "askSpecs": {
+    "ask#1": {
+      "typed": true,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rationale": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "steps",
+          "rationale"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "generatedBy": "scripts/bench/gen-workflow-fixtures.mjs"
+}

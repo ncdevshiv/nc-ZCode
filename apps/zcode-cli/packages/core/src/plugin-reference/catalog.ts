@@ -1,6 +1,6 @@
-// Session 冻结的 Plugin 身份 catalog 构建。
-// 在 App（Session runtime）创建时由 bootstrap 从 resolveStartupPlugins 的结果构建一次，
-// 之后不随 workspace 配置热更新。
+// Session frozen Plugin identity catalog construction.
+// Constructed once by bootstrap from the result of resolveStartupPlugins when App (Session runtime) is created,
+// There will be no hot updates with the workspace configuration in the future.
 import type {
   PluginMetadata,
   PluginReferenceCatalog,
@@ -34,11 +34,11 @@ function collectDeclaredSubagentNames(plugin: PluginMetadata): string[] {
 }
 
 /**
- * 从 plugin loader 的权威 metadata 构建身份 catalog。
- * - 所有已发现 Plugin（含 disabled）都进入 catalog：disabled 条目支撑
- *   `disabled_in_session` 诊断与 Picker 过滤，不可被引用。
- * - 冲突定义：同 manifest.name 的多个 enabled Plugin 互相标记 conflictingPluginIds
- *   （V1 fail closed 的机器可读依据）。disabled 条目不参与冲突——runtime 名字空间里没有它。
+* Build an identity catalog from the plugin loader's authoritative metadata.
+* - All discovered Plugins (including disabled) are entered into the catalog: disabled entry support
+* `disabled_in_session` diagnostics and Picker filtering, cannot be quoted.
+* - Conflict definition: Multiple enabled Plugins with the same manifest.name mark each other with conflictingPluginIds
+* (machine-readable basis for V1 fail closed). The disabled entry does not participate in conflicts - it is not in the runtime namespace.
  */
 export function buildPluginReferenceCatalog(
   plugins: readonly PluginMetadata[],
@@ -60,8 +60,8 @@ export function buildPluginReferenceCatalog(
       enabled: plugin.enabled,
       conflictingPluginIds: sameNameEnabledIds.filter((id) => id !== plugin.id).sort(),
       skillQualifiedNames: collectDeclaredSkillQualifiedNames(plugin),
-      // mcpServerNames 来自 enabled 分支解析出的 namespaced servers（`plugin:${name}:${server}`）；
-      // disabled Plugin 没有 runtime MCP 名字，保持空数组。
+// mcpServerNames comes from namespaced servers parsed from the enabled branch (`plugin:${name}:${server}`);
+// disabled Plugin has no runtime MCP name and keeps an empty array.
       mcpServerNames: [...plugin.mcpServerNames].sort(),
       subagentNames: collectDeclaredSubagentNames(plugin),
       rootPath: plugin.rootPath,

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "bigmodel",
+    "displayName": "BigModel",
+    "enabled": true,
+    "order": 0
+  },
+  {
+    "id": "zai",
+    "displayName": "Z.ai",
+    "enabled": true,
+    "order": 1
+  }
+]

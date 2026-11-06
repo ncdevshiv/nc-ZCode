@@ -1,0 +1,18 @@
+{
+  "implemented": [
+    "session_id",
+    "model_ref",
+    "automation"
+  ],
+  "notImplemented": [
+    "tool_call_id",
+    "subagent",
+    "ask_user",
+    "plan_mode",
+    "plan",
+    "background",
+    "sessions",
+    "workflow"
+  ],
+  "reason": "Remaining fields require declaring workflow module and richer dependencies."
+}

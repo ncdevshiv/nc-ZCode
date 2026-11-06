@@ -1,0 +1,7 @@
+{
+  "zcodeHostLibCheck": "PASS",
+  "workspaceLibCheck": "PASS",
+  "zcodeHostTests": "FAIL",
+  "workspaceAllTargets": "FAIL",
+  "workspaceTests": "NOT RUN"
+}

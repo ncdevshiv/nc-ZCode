@@ -1,15 +1,15 @@
 /**
- * workflow 内的模型侧错误策略表。
+* Model-side error policy table within workflow.
  *
- * 分类器（failure-classifier.ts）回答的是「主对话要不要自动重试」；这张表回答的是
- * 「workflow 要不要停下来找人」。两张表在 3008/3009/3010（并发上限）上答案相反，这正是
- * 本模块存在的理由：workflow 子代理与工具侧请求持有无上限重试预算（`modelRetryBudget`），
- * 在它们身上，只有**确定性的、需要人来解决的**错误才值得停下 run；其余一切（含分类器判
- * 不可重试的未知业务码、TLS、5xx）一律在内重试，靠 stall 通知做逃生口。
+* The classifier (failure-classifier.ts) answers "Does the main conversation need to be automatically retried?"; this table answers
+* "Would the workflow stop and find someone?" The two tables have opposite answers on 3008/3009/3010 (concurrency limit), which is exactly
+* The reason for the existence of this module: workflow sub-agent and tool-side requests hold an unlimited retry budget (`modelRetryBudget`),
+* On them, only the **deterministic** errors that require people to solve are worth stopping the run; everything else (including classifier judgment
+*Unknown service codes, TLS, 5xx that cannot be retried) will all be retried, and stall notifications will be used as escape hatches.
  *
- * runner（attempt 循环的重试闸门）与 bootstrap driver（把 reject 归成 stopRun / askFailed）
- * 共用**同一个**函数：runner 判 retry 的失败绝不会以 stop 到 driver；runner 判 stop 的失败
- * 到 driver 时策略表必判 stop（同一函数、同一输入）。
+* runner (retry gate of attempt loop) and bootstrap driver (classify reject as stopRun / askFailed)
+* Share the **same** function: the failure of the runner to judge retry will never be reported to the driver as stop; the failure of the runner to judge stop
+* The policy table must determine stop when reaching the driver (same function, same input).
  */
 
 import { ModelErrorCode, ModelFailureReason } from "@zcode/contracts";
@@ -18,7 +18,7 @@ import { isRetryableFailure } from "./failure-classifier.js";
 import type { ModelRetryBudget } from "@zcode/contracts";
 import { isUnboundedRetryBudget } from "./retry-budget.js";
 
-/** `ProviderStop` 的判定键：通知文案表按它选句子（不是按 reason）。 */
+/** The judgment key of `ProviderStop`: informs the copy table to select sentences by it (not by reason). */
 export type WorkflowProviderStopKind =
   | "auth"
   | "not_configured"
@@ -28,10 +28,10 @@ export type WorkflowProviderStopKind =
   | "other";
 
 /**
- * 配额类业务码（Stop 集的一行）。与 failure-provider-business-codes.ts 的
- * TERMINAL_RATE_LIMIT_MAPPING 有意**分开维护**：那张表决定主对话不自动重试，这张表决定
- * workflow 停下来等配额重置 / 充值。1005 在分类器里是 invalid_request，这里必须先按码判
- * 配额再看 reason。
+* Quota business code (one row in the Stop set). with failure-provider-business-codes.ts
+* TERMINAL_RATE_LIMIT_MAPPING is intentionally **maintained separately**: which table determines whether the main conversation will automatically retry, this table determines
+* The workflow stops and waits for quota reset/recharge. 1005 is invalid_request in the classifier. It must be judged by code first.
+* Please refer to reason for quota.
  */
 export const WORKFLOW_QUOTA_PROVIDER_CODES: ReadonlySet<string> = new Set([
   "1005",
@@ -54,7 +54,7 @@ export const WORKFLOW_QUOTA_PROVIDER_CODES: ReadonlySet<string> = new Set([
   "exceeded_current_quota_error",
 ]);
 
-/** 「provider 没配好 / 选型无效」一族的 ModelErrorCode（reason 不一定是 provider_not_configured）。 */
+/** ModelErrorCode of the "provider is not configured / invalid selection" family (reason is not necessarily provider_not_configured). */
 const NOT_CONFIGURED_ERROR_CODES: ReadonlySet<string> = new Set([
   ModelErrorCode.ProviderNotFound,
   ModelErrorCode.ProviderNotConfigured,
@@ -66,14 +66,14 @@ const NOT_CONFIGURED_ERROR_CODES: ReadonlySet<string> = new Set([
 export type WorkflowModelFailurePolicy =
   | { decision: "retry" }
   | { decision: "stop"; kind: WorkflowProviderStopKind }
-  /** core 已压缩失败才会到这里：节点以 `ContextLimit` 失败，脚本可 catch，未 catch 则 errored。 */
+/** This is where core compression fails: the node fails with `ContextLimit`, the script can be caught, otherwise it will be errored. */
   | { decision: "context_exceeded" }
   | { decision: "cancelled" };
 
 /**
- * 策略表本体。输入是分类器的结果（只读 code / reason / retryable）与 provider 业务码。
- * 顺序有意义：取消最先（它不是错误）；配额按**码**判，先于 reason（1005 的 reason 是
- * invalid_request）；其余按 reason / code；表外一切 = retry。
+* Strategy table ontology. The input is the result of the classifier (read-only code / reason / retryable) and provider business code.
+* The order is meaningful: cancel first (it is not an error); quotas are judged by **code**, before reason (the reason of 1005 is
+*invalid_request); the rest is by reason/code; everything outside the table = retry.
  */
 export function resolveWorkflowModelFailurePolicy(
   failure: Pick<ClassifiedModelFailure, "code" | "reason" | "retryable">,
@@ -95,8 +95,8 @@ export function resolveWorkflowModelFailurePolicy(
   }
   if (failure.reason === ModelFailureReason.ContextExceeded)
     return { decision: "context_exceeded" };
-  // 「请求无效」只认 provider 对**请求**的拒绝（3001、HTTP 400/422）。`invalid_model_response`
-  // 也被分类器标成 invalid_request，但那是**响应**解析失败——再问一次很可能就好，归 retry。
+// "Invalid request" only recognizes the provider's rejection of **request** (3001, HTTP 400/422). `invalid_model_response`
+// Also marked as invalid_request by the classifier, but that's a **response** parsing failure - it's probably better to ask again, return to retry.
   if (
     failure.reason === ModelFailureReason.InvalidRequest &&
     failure.code !== ModelErrorCode.InvalidModelResponse
@@ -107,9 +107,9 @@ export function resolveWorkflowModelFailurePolicy(
 }
 
 /**
- * runner 重试闸门的替换点：有界预算照旧读分类器的 `retryable`（主对话一字不动）；无上限
- * 预算（workflow 流量）改读策略表——`retry` 即可重试，`stop` / `context_exceeded` 不重试。
- * 取消由调用方在此之前单独短路（两处 runner 都已如此）。
+* Replacement point for runner retry gate: bounded budget or read classifier's `retryable` (the main dialogue remains unchanged); no upper limit
+* Budget (workflow traffic) change reading policy table - `retry` can be used to retry, `stop` / `context_exceeded` can not be retried.
+* Cancellation is individually short-circuited by the caller before this happens (this is already the case for both runners).
  */
 export function retryAllowedByFailurePolicy(
   failure: ClassifiedModelFailure,
@@ -120,24 +120,24 @@ export function retryAllowedByFailurePolicy(
   return resolveWorkflowModelFailurePolicy(failure, providerCode).decision === "retry";
 }
 
-/** driver 侧从 adapter 错误读出的事实：策略裁决 + 拼 `ProviderStopDetails` 要的字段。 */
+/** Driver side reads the fact from adapter error: policy ruling + spells `ProviderStopDetails` to the required field. */
 export interface WorkflowModelFailureInspection {
   policy: WorkflowModelFailurePolicy;
-  /** contracts `ModelFailureReason` 的值。 */
+/** The value of contracts `ModelFailureReason`. */
   reason: string;
   providerCode?: string;
   providerId?: string;
   modelId?: string;
-  /** adapter 错误的 message（映射过的业务码下就是 provider 原文）。 */
+/** Adapter error message (under the mapped business code is the original text of the provider). */
   rawMessage?: string;
-  /** 配额类且 provider 给了 Retry-After 时的重置时刻（epoch ms）。 */
+/** The reset time (epoch ms) when the quota class is given Retry-After by the provider. */
   resetAt?: number;
 }
 
 /**
- * 按**形状**读 adapter 错误（`AiSdkModelAdapterError`：`name` + `context.reason` …），直接或
- * 一层 `cause` 之内；bootstrap 与 adapters 之间可能存在两份类定义（dist 边界），形状不会漂。
- * 不是模型层错误时返回 undefined（driver 照旧归成 DriverError）。
+* Read adapter error by **shape** (`AiSdkModelAdapterError`: `name` + `context.reason` ...), directly or
+* Within one layer of `cause`; there may be two class definitions (dist boundaries) between bootstrap and adapters, and the shape will not drift.
+* Returns undefined if it is not a model layer error (the driver is still classified as DriverError).
  */
 export function inspectWorkflowModelFailure(
   error: unknown,
@@ -204,7 +204,7 @@ function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
-/** provider 业务码可能是数字（响应体原样）也可能是字符串；统一成字符串键。 */
+/** The provider business code may be a number (response body as it is) or a string; unified into a string key. */
 function codeValue(value: unknown): string | undefined {
   if (typeof value === "number" && Number.isFinite(value)) return String(Math.trunc(value));
   return stringValue(value);

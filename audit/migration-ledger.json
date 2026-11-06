@@ -1,0 +1,96 @@
+{
+  "entries": [
+    {
+      "id": "CAP-SERVICE-CHANNELS",
+      "original": "packages/services channel RPC surface",
+      "rust": "native/crates/zcode-services-* + zcode-app",
+      "status": "IMPLEMENTED_UNVERIFIED",
+      "evidence": "pnpm native:coverage exit 0: 29/29 channels, 325/325 members"
+    },
+    {
+      "id": "CAP-V4-WIRE",
+      "original": "packages/shared zcode-protocol-v4 wire-binary",
+      "rust": "native/crates/zcode-v4-wire",
+      "status": "VERIFIED_PARITY",
+      "evidence": "pnpm golden:check exit 0 (3 fixtures)"
+    },
+    {
+      "id": "CAP-AGENT-HOST",
+      "original": "apps/zcode-cli runtime",
+      "rust": "native/crates/zcode-host",
+      "status": "PARTIAL",
+      "evidence": "751 tests pass, 1 queue race failure, documented deviations"
+    },
+    {
+      "id": "CAP-PROVIDER",
+      "original": "apps/zcode-cli model/adapters",
+      "rust": "native/crates/zcode-provider",
+      "status": "IMPLEMENTED_UNVERIFIED",
+      "evidence": "e2e model calls pass"
+    },
+    {
+      "id": "CAP-TOOLS",
+      "original": "apps/zcode-cli tool handlers (39/40 entries)",
+      "rust": "native/crates/zcode-host/src/tools",
+      "status": "PARTIAL",
+      "evidence": "tool-schemas exit 0; tool-parity parser bug; off-peak disabled"
+    },
+    {
+      "id": "CAP-WORKFLOW",
+      "original": "apps/zcode-cli dynamic-workflow",
+      "rust": "native/crates/zcode-workflow",
+      "status": "PARTIAL",
+      "evidence": "TS compiler front-end still used"
+    },
+    {
+      "id": "CAP-SUBAGENT",
+      "original": "apps/zcode-cli subagent",
+      "rust": "native/crates/zcode-host/src/subagent.rs",
+      "status": "PARTIAL",
+      "evidence": "Foreground + background + profiles partially; boundaries documented"
+    },
+    {
+      "id": "CAP-PLANMODE",
+      "original": "plan mode tools",
+      "rust": "native/crates/zcode-host plan.rs",
+      "status": "VERIFIED_PARITY",
+      "evidence": "plan_mode_e2e 4 tests pass"
+    },
+    {
+      "id": "CAP-OFFPEAK",
+      "original": "off-peak tools",
+      "rust": "native/crates/zcode-services-offpeak",
+      "status": "DISABLED",
+      "evidence": "disabled-features.md; named errors"
+    },
+    {
+      "id": "CAP-REMOTE",
+      "original": "remote content/config",
+      "rust": "native/crates/zcode-services-provider/client",
+      "status": "DISABLED",
+      "evidence": "local defaults only"
+    },
+    {
+      "id": "CAP-CUA",
+      "original": "packages/zcode-cua",
+      "rust": "none",
+      "status": "DISABLED",
+      "evidence": "channels not registered"
+    },
+    {
+      "id": "CAP-DESKTOP",
+      "original": "packages/desktop Electron main",
+      "rust": "native/crates/zcode-shell",
+      "status": "MISSING",
+      "evidence": "desktop still spawns TS host"
+    },
+    {
+      "id": "CAP-QUEUE",
+      "original": "command inbox queue",
+      "rust": "native/crates/zcode-host host_queue",
+      "status": "BROKEN",
+      "evidence": "queued_input_drains_after_active_turn failure"
+    }
+  ],
+  "unverifiedCount": "All service members not individually traced (325)"
+}

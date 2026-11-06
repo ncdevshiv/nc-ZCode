@@ -1,0 +1,86 @@
+{
+  "Bash": {
+    "timeoutMs": {
+      "ts": 120000,
+      "rust": 600000,
+      "reason": "The timeout_ms parameter of the model can be requested for up to 600 000 ms; if the outer layer is killed by 120 000 of TS, a legal long command will be strangled by the host (the 120 000 of TS is just its default value, not the upper limit)"
+    },
+    "maxOutputBytes": {
+      "ts": 10000000,
+      "rust": 65536,
+      "reason": "TS's 10 MB is the row-side budget; this host's toolCall row is already bounded by TS buildToolOutput (32 KiB head/tail), and declaring the row-side budget as 10 MB will not change any visible behavior, but is misleading."
+    },
+    "strategy": {
+      "ts": "artifact",
+      "rust": "truncate",
+      "reason": "TS's artifact strategy will externalize the complete stdout into a product file and then preview it for the model; this host does not have a tool product externalization layer, so it can only truncate and write the originalBytes into the mark. The complete output can still be checked in the background log."
+    }
+  },
+  "Glob": {
+    "strategy": {
+      "ts": "artifact",
+      "rust": "truncate",
+      "reason": "Same as above: there is no product externalization layer, the file list that exceeds the budget is truncated by head and originalBytes is reported, and the model can narrow the pattern by itself"
+    }
+  },
+  "Grep": {
+    "strategy": {
+      "ts": "artifact",
+      "rust": "truncate",
+      "reason": "Same as above: There is no product externalization layer. Matches that exceed the budget are truncated by head and originalBytes are reported. The model can add head_limit/narrow pattern by itself."
+    }
+  },
+  "WebFetch": {
+    "strategy": {
+      "ts": "artifact",
+      "rust": "truncate",
+      "reason": "Same as above: there is no product externalization layer, and the text of the web page that exceeds the budget is truncated by head and originalBytes is reported"
+    }
+  },
+  "TaskOutput": {
+    "strategy": {
+      "ts": "artifact","rust": "truncate",
+      "reason": "Same as above: there is no product externalization layer; the complete output of the background command is originally in sessions/<id>/background/<workId>.log, and the model can use other methods to read the full output."
+    }
+  },
+  "js": {
+    "strategy": {
+      "ts": "artifact",
+      "rust": "truncate",
+      "reason": "Same as above: there is no product externalization layer, and the execution output that exceeds the budget is truncated by tail and originalBytes is reported"
+    }
+  },
+  "Agent": {
+    "strategy": {
+      "ts": "artifact",
+      "rust": "truncate",
+      "reason": "Same as above: There is no product externalization layer, the final message of the subagent is truncated by head and originalBytes is reported, and the full text is still in <subsession>/subagent-output.txt"
+    },
+    "readOnly": {
+      "ts": true,
+      "rust": false,
+      "reason": "TS treats the Agent as read-only/approval-free (the child agent takes away permissions one by one by itself), but the child_deps of this host have unconditional full_access - copying will make the headless/planned mode get an unconstrained child agent; remain fail-closed until the child session inherits the parent session permission mode (Task #23)"
+    },
+    "destructive": {
+      "ts": false,
+      "rust": true,
+      "reason": "Same as readOnly: The child session of this host has fixed full_access. The parent must be declared to modify the workspace, otherwise the plan mode/headless will be bypassed (Task #23)"
+    },
+    "concurrentSafe": {
+      "ts": true,
+      "rust": false,
+      "reason": "The sub-agent registry of this host is a parent session-level singleton, and concurrent startup/settlement of the same parent session requires serialization; the TS side scheduler also has concurrency control and declares different sources (task #23 will be reviewed together)"
+    },
+    "sideEffectScope": {
+      "ts": "session",
+      "rust": "workspace","reason": "The child agent runs the real writing tool in the workspace, and the declared workspace is consistent with the full_access of child_deps; the session declaration of TS is only established under its call-by-call permission model (task #23)"
+    }
+  },
+  "GetWorkflowRun": {
+    "strategy": {
+      "ts": "artifact",
+      "rust": "truncate",
+      "reason": "TS's artifact strategy externalizes complete details into product files and then previews them for the model; this host does not have an object product externalization layer, and details beyond the budget are truncated by head and reported as originalBytes in the tag. The complete facts can still be re-read by runId"
+    }
+  }
+}

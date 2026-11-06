@@ -3,7 +3,7 @@ import { createConnection } from "node:net";
 import type { BrowserClientTransport } from "@zcode/core/browser-client";
 import type { NodeReplRequestMeta, NodeReplSession } from "@zcode/core/repl";
 import type { BrowserCommand, BrowserCommandResult } from "@zcode/shared";
-// 只加载 broker 协议；shared 总入口会在每个 Worker 中初始化无关领域的 schema。
+// Only load the broker protocol; the shared general entry will initialize domain-independent schema in each Worker.
 import {
   NODE_REPL_BROWSER_BROKER_SOCKET_ENV,
   NODE_REPL_BROWSER_BROKER_TOKEN_ENV,
@@ -46,8 +46,8 @@ export function createBrowserBridgeGlobals(input: {
   };
   const assertAvailable = (): ActiveNodeReplCall => {
     const active = assertActive();
-    // 共享 node_repl 子进程会同时服务 main/subagent。即使每次调用都是新内核，
-    // Browser 权限也必须按当前调用的可信 metadata 拒绝，不能从 session id 或代码内容猜测。
+// The shared node_repl sub-process will serve main/subagent at the same time. Even if each call is a new kernel,
+// Browser permissions must also be denied based on the trusted metadata of the current call and cannot be guessed from the session id or code content.
     if (active.requestMeta.runtime_scope === "subagent") {
       throw new Error(BROWSER_UNAVAILABLE_IN_SUBAGENT_MESSAGE);
     }

@@ -56,7 +56,7 @@ export async function resolveToolPermission(
     mode,
     prePlanMode: deps.sessionModePort?.getPrePlanMode(),
     planEnabled: deps.sessionModePort?.isPlanEnabled?.(),
-    // workflow 草稿免确认要按工作目录解析相对路径，见 PermissionService 的
+// The workflow draft requires no confirmation and needs to resolve the relative path according to the working directory. See PermissionService.
     // isPreapprovedWorkflowDraftWrite。
     workingDirectory: deps.getWorkingDirectory(),
   };
@@ -176,15 +176,15 @@ export async function resolveToolPermission(
   let useNormalizedHookModifiedInput = false;
   const permissionWaitStartedAt = Date.now();
   try {
-    // 这里曾经串行 `await runPermissionRequestHooks(...)`，
-    // broker 要等 hook 链返回才启动。同步 PermissionRequest hook（外部审批桥接）阻塞期间，
-    // 确认窗已经渲染（上面的 emitPermissionRequested），但应答 deferred 尚未注册，用户的
-    // 每一次点击都被 resolveInteraction 按幂等语义静默丢弃——确认窗永久死亡。
-    // 修法：hook 链与 broker 并发竞速，先到的决定生效，败者被 abort 且不被等待。
+// Here we have serialized `await runPermissionRequestHooks(...)`,
+// The broker will not start until the hook chain returns. While the synchronous PermissionRequest hook (external approval bridge) is blocked,
+// The confirmation window has been rendered (emitPermissionRequested above), but the response deferred has not yet been registered, and the user's
+// Each click is silently discarded by resolveInteraction according to idempotent semantics - the confirmation window is permanently dead.
+// Modification: The hook chain and the broker compete concurrently, and the decision that comes first takes effect, and the loser is aborted and will not wait.
     const raceOutcome = await racePermissionResponders({
       onHookFailure: (error) => {
-        // hook 链故障只令其退赛：辅助应答方的基础设施故障不应替用户做拒绝决定，
-        // 确认窗继续等待 broker 应答。
+// Hook chain failure only disqualifies it: infrastructure failure on the secondary responder should not make the rejection decision for the user,
+// The confirmation window continues to wait for the broker's response.
         deps.logger?.warn("PermissionRequest hook chain failed; waiting for client decision", {
           ...traceContextToLogContext(traceContext),
           errorMessage: error instanceof Error ? error.message : String(error),
@@ -246,7 +246,7 @@ export async function resolveToolPermission(
       });
       useNormalizedHookModifiedInput = true;
       if (!validateInput(normalizedHookModifiedInput, entry)) {
-        // PermissionRequest hook 可以改写目标路径，修改后的输入不能沿用修改前的权限结果。
+// PermissionRequest hook can rewrite the target path, and the modified input cannot inherit the permission result before modification.
         const recheck = await recheckPermissionHookModifiedInput({
           deps,
           entry,
@@ -388,8 +388,8 @@ export async function resolveToolPermission(
   }
 
   if (resolvedPermission.sessionPermissionUpdates?.length) {
-    // 会话免确认：只进内存里的会话 ruleset，
-    // 与上面的项目级持久化互不可见。
+// Confirmation-free session: only enter the session ruleset in memory,
+// Invisible to the project-level persistence above.
     deps.permissionService.grantSessionPermission(resolvedPermission.sessionPermissionUpdates);
     deps.logger?.info("Session permission granted", {
       ...traceContextToLogContext(traceContext),

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import type { WorkspaceId } from "@zcode/contracts";
 import { buildExecutionStateEntry, readRuntimeExecutionState } from "../execution-state.js";
 import {
@@ -39,8 +40,8 @@ const SUMMARY_SESSION_EVENT_TYPES = new Set<SessionEventType>([
   SessionEventType.ToolCallProgress,
 ]);
 
-// 生产环境只记录会改变 Turn/Session 生命周期的低频事件；stream/progress 仍由
-// 现有 debug 聚合日志覆盖，避免诊断日志和消息流同频刷盘。
+// The production environment only records low-frequency events that will change the Turn/Session life cycle; stream/progress is still controlled by
+// Existing debug aggregate log coverage prevents diagnostic logs and message streams from being flushed at the same time.
 const LIFECYCLE_SESSION_EVENT_TYPES = new Set<SessionEventType>([
   SessionEventType.SessionTitleUpdated,
   SessionEventType.TurnStarted,
@@ -83,9 +84,9 @@ export async function appendEvent(
   event: SessionEvent,
   traceContext: TraceContext,
 ): Promise<void> {
-  // live sink 以前拿到的是 createSessionEvent 默认的 sequenceNumber=0，
-  // 而 replay/read 路径拿到的是 eventStore 补号后的事件，导致同一 session 有两套顺序事实。
-  // 这里只发布已落库事件，让 live、replay、snapshot 的 eventSeq 全部来自同一个 event store。
+// The live sink used to get the default sequenceNumber=0 of createSessionEvent.
+//The replay/read path gets the events after the eventStore's complement number, resulting in two sets of sequence facts for the same session.
+// Only events that have been dropped are published here, so that the eventSeq of live, replay, and snapshot all come from the same event store.
   const shouldLogLifecycle = LIFECYCLE_SESSION_EVENT_TYPES.has(event.type);
   const startedAt = Date.now();
   if (shouldLogLifecycle) {
@@ -213,8 +214,8 @@ function flushSessionEventAppendAggregate(
 ): void {
   const aggregateMap = sessionEventAppendAggregates.get(this);
   aggregateMap?.delete(aggregateKey);
-  // 日志治理原因：model streaming / progress 类事件与 token 流同频，
-  // 逐条写默认日志会把 eventStore 索引复制成巨量 daily log；这里保留 seq 范围和 kind 分布用于定位。
+//Reason for log management: model streaming/progress events are of the same frequency as the token stream.
+// Writing the default log one by one will copy the eventStore index into a huge daily log; the seq range and kind distribution are reserved here for positioning.
   this.logger?.debug("Session event append summary", {
     ...traceContextToLogContext(traceContext),
     event: "event_store.appended.summary",
@@ -299,8 +300,8 @@ async function persistDurableSessionEvent(
         },
       });
     } catch (error) {
-      // 原因：自动结束绝对时间若只在内存 eventStore，CLI 重启会错误重开五分钟窗口。
-      // session entry 使用 interactionId 稳定覆写最新阶段，恢复时只读取最终状态。
+// Reason: If the automatic end absolute time is only in the memory eventStore, the CLI restart will mistakenly reopen the five-minute window.
+// session entry uses interactionId to stably overwrite the latest stage, and only reads the final state when restoring.
       this.logger?.warn("Failed to persist user input auto-resolution state", {
         ...traceContextToLogContext(traceContext),
         errorMessage: error instanceof Error ? error.message : String(error),
@@ -313,10 +314,10 @@ async function persistDurableSessionEvent(
     return;
   }
 
-  // ── session_input 账本：queue/steer 生命周期集中记账 ──
-  // 在事件汇处理（而非各发射点）：TurnSteerQueued/Discarded 有 5+ 个发射点
-  // （steer/编辑重发/单删/清空/resume 清扫），单点接线保证不漏。promotion 在
-  // drain 持久化处原子完成（persistUserPrompt sessionInputId 路径），不经此处。
+// ── session_input ledger: queue/steer life cycle centralized accounting ──
+// Handled in the event sink (not at each emission point): TurnSteerQueued/Discarded has 5+ emission points
+// (steer/edit resend/single delete/clear/resume cleaning), single-point wiring ensures no leakage. promotion in
+// drain is completed atomically at persistence (persistUserPrompt sessionInputId path), not through here.
   if (event.type === SessionEventType.TurnSteerQueued) {
     const payload = event.payload as {
       pendingInputId: string;
@@ -388,12 +389,12 @@ async function persistDurableSessionEvent(
       pendingInputIds: string[];
       reason?: string;
     };
-    // sendQueuedNow 只是在执行权已保留后把项从 queue 投影摘除；此时若把 ledger
-    // 标成 cancelled，会制造 remove→后台 user message promotion 之间的崩溃丢失窗口。
-    // 保持 admitted，随后由 persistUserPrompt 原子置 promoted；若进程先退出，恢复清扫
-    // 会把它明确置 discarded/session_resumed。
+// sendQueuedNow only removes the item from the queue projection after the execution right has been reserved; at this time, if the ledger
+// Marked as canceled, it will create a crash and loss window between remove→background user message promotion.
+// Keep admitted, and then promoted atomically by persistUserPrompt; if the process exits first, cleaning will resume
+// Will explicitly set it to discarded/session_resumed.
     if (payload.reason === "promoted") return;
-    // session_resumed=重启不保留队列（裁决，留痕不静默）；其余用户动作归 cancelled。
+// session_resumed=Restart without retaining the queue (ruling, leaving traces without silence); other user actions are cancelled.
     const status = payload.reason === "session_resumed" ? "discarded" : "cancelled";
     for (const pendingInputId of payload.pendingInputIds) {
       try {
@@ -440,8 +441,8 @@ async function persistDurableSessionEvent(
           created: timestamp,
           updated: timestamp,
         },
-        // goal verifier 生命周期是恢复 UI 轮次和分割线的业务事实；
-        // 只写内存 eventStore 会导致冷启动后 goal iteration/todo 分组丢失。
+// The goal verifier life cycle is a business fact that restores UI turns and dividing lines;
+// Writing only memory eventStore will cause goal iteration/todo grouping to be lost after cold start.
         data: {
           eventId: event.id,
           payload: event.payload,
@@ -547,9 +548,9 @@ export async function notifyEventSinks(
 }
 
 /**
- * 会话是否已进入持久化 store（首条输入 / 外部活动 / 直接启动的启动轮 / 冷恢复任一路径落过行）。
- * 协议层的 session record 以它为 draft 判定的事实源（bootstrap `onSessionEvent` 每条事件对齐一次），
- * 不再靠各命令 handler 各自翻 `record.persistence`。
+* Whether the session has entered the persistent store (any path of first input/external activity/direct startup wheel/cold recovery has fallen through the line).
+* The session record of the protocol layer uses it as the source of fact for draft judgment (bootstrap `onSessionEvent` is aligned once for each event),
+* No longer rely on each command handler to translate `record.persistence` independently.
  */
 export function isSessionPersisted(this: AgentRuntimeInternal): boolean {
   return this.sessionPersisted;
@@ -574,17 +575,17 @@ export async function ensureSessionPersisted(
 
   try {
     const directory = this.workingDirectory;
-    // bootstrap 会用 path.resolve 规范化执行 cwd；过去又把同一个值写入
-    // session.path/directory，导致本地 workspacePath 的末尾 `/` 丢失。冷恢复随后按精确
-    // workspaceKey 查 provider registry 时就会落到另一个身份。持久化必须保留协议入口路径。
+// bootstrap will use path.resolve to normalize cwd execution; the same value was written in the past
+// session.path/directory, causing the `/` at the end of the local workspacePath to be lost. Cold recovery followed by precise
+// When the workspaceKey is checked in the provider registry, it will fall into another identity. Persistence must preserve the protocol entry path.
     const persistedWorkspacePath = this.config.workspacePath ?? directory;
     const title = titleFromInput(input);
     const workspaceIdentity = this.config.memory?.workspaceIdentity?.trim();
     await this.sessionStore.createSession({
       id: this.sessionId,
       projectID: projectIdFromDirectory(directory),
-      // Memory workspaceIdentity 是上游提供的不透明隔离键。这里只做类型品牌化，
-      // 不能调用会改写字符串的 ID 生成器，否则恢复后的 Memory root 会发生漂移。
+// Memory workspaceIdentity is an opaque isolation key provided by upstream. We only do type branding here,
+// Cannot call the ID generator that will rewrite the string, otherwise the restored Memory root will drift.
       workspaceID: this.config.workspaceIdentity ?? (workspaceIdentity as WorkspaceId | undefined),
       parentID: this.config.parentSessionId,
       traceID: traceContext.traceId,
@@ -599,10 +600,10 @@ export async function ensureSessionPersisted(
         mode: this.config.mode ?? "build",
       },
     });
-    // 初始模型过去只写进首条 user message，没有写稳定的 session selection。
-    // 冷恢复从末尾 assistant 反推时只能得到 provider/model，必选 reasoning 会丢失，
-    // Subagent 因此在 hydration 前就无法重新创建 Model。会话创建时同步固定完整选型，
-    // 后续显式切模仍复用同一个稳定 entry 覆盖。
+// The initial model used to only write the first user message, but not the stable session selection.
+// When cold recovery starts from the end of assistant, only provider/model can be obtained, and the required reasoning will be lost.
+// Subagent therefore cannot recreate the Model before hydration. Fixed complete selection synchronized during session creation,
+// Subsequent explicit die cutting still reuses the same stable entry coverage.
     phase = "session_model_selection";
     const initialSelection = this.getSessionModelSelection();
     if (initialSelection) await persistRuntimeModelSelection(this, initialSelection);
@@ -619,10 +620,10 @@ export async function ensureSessionPersisted(
       module: "core.runtime",
       status: "completed",
     });
-    // 之前只把 first_input title 写进 sessionStore 但不 appendEvent，
-    // 导致下游 (z-code services 层的 task index sqlite syncer) 等不到 session.titleUpdated，
-    // 侧边栏一直显示 "New session" 直到后台 LLM 生成 title。这里补一条 source="first_input"
-    // 事件，让 desktop/web/mobile 三端的 syncer 走同一条收敛路径。
+// Previously, only first_input title was written into sessionStore but not appendEvent.
+// As a result, the downstream (task index sqlite syncer of the z-code services layer) cannot wait for session.titleUpdated.
+// The sidebar displays "New session" until the background LLM generates the title. Add a source="first_input" here
+//Event, let the syncer on the three ends of desktop/web/mobile take the same convergence path.
     phase = "session_title_event";
     await this.appendEvent(
       this.createEvent(

@@ -1,0 +1,19 @@
+[package]
+name = "nc-code-rpc"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Channel RPC wire protocol (VS Code-derived) shared by the native backend and the current frontend: binary serialization, 13-byte framing, request/response channels"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+
+[[bench]]
+name = "wire"
+harness = false
+
+[dev-dependencies]
+criterion = { version = "0.7", features = ["html_reports"] }

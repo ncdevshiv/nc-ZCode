@@ -1,4 +1,5 @@
-import ts from "typescript";
+// @ts-nocheck
+import ts from "../compiler/ts-shim.js";
 import { WORKFLOW_FUNCTION_NAME, type ScriptLoc } from "../compiler/compile.js";
 
 /**

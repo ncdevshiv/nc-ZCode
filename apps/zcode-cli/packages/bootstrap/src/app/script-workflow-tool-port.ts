@@ -73,7 +73,7 @@ export function createScriptWorkflowToolPort(deps: ScriptWorkflowToolPortDeps): 
       });
 
       const runtime = deps.getRuntime();
-      // 后台 workflow 已脱离当前 tool call；父 turn 取消不应中止已返回 runId 的任务。
+// The background workflow has been detached from the current tool call; parent turn cancellation should not abort the task that has returned the runId.
       const runAbortController = new AbortController();
       const runPromise = source.scriptPath
         ? runtime.run(

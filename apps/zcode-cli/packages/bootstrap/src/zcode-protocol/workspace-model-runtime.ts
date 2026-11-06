@@ -1,4 +1,4 @@
-/* eslint-disable max-lines -- workspace 模型协议与兼容请求处理仍集中在本文件。 */
+/* eslint-disable max-lines -- workspace model protocol and compatibility request processing are still concentrated in this file. */
 import { createInMemorySessionEventStore } from "@zcode/adapters/storage";
 import type { ModelSelection } from "@zcode/contracts";
 import {
@@ -25,7 +25,7 @@ export async function readWorkspacePresentation(
     workspace: params.workspace,
     mode: "build" as const,
     slashCommands: await listProtocolSlashCommands({
-      // 灰度门是 Host 判定的 workspace 级事实，目录装配读进程缓存。
+//The gray gate is the workspace level fact determined by the Host, and the directory is equipped with a read process cache.
       dynamicWorkflowEnabled: context.appRuntimePreferences.dynamicWorkflowEnabled,
       env: context.deps.env,
       logger: context.logger,
@@ -40,8 +40,8 @@ export async function testProviderModelConnectivity(
   abortSignal?: AbortSignal,
 ) {
   const params = parseParams(zcodeProviderTestModelConnectivityParamsSchema, rawParams);
-  // 旧 Personal Config 跨进程 watcher 可能永久漏掉原子写事件；连接测试若不先
-  // 主动刷新，会反复查询旧 Registry。这里复用正式 Registry refresh，不旁路创建配置事实。
+// The old Personal Config cross-process watcher may permanently miss atomic write events; if the connection test is not done first
+// Active refresh will repeatedly query the old Registry. The formal Registry refresh is reused here and does not bypass the creation of configuration facts.
   await context.deps.refreshProviderRegistry?.("provider-connectivity");
   const active = Array.from(context.sessions.values()).find(
     (record) => record.workspace.workspaceKey === params.workspace.workspaceKey,
@@ -79,12 +79,12 @@ export async function createWorkspaceZCodeApp(
     providerRuntimeHeadersPort,
     runtimeConfig: {
       ...options.runtimeConfig,
-      // createZCodeApp 会把 workingDirectory 规范化为执行 cwd。把协议入口的
-      // workspacePath 单独注入 runtime，session 持久化才能保留本地 workspaceKey 的路径表示。
+// createZCodeApp will normalize workingDirectory to execute cwd. Enter the protocol
+// WorkspacePath is injected into the runtime separately, and session persistence can retain the path representation of the local workspaceKey.
       workspacePath: workspace.workspacePath,
-      // 远端 session 是 shared-host CUA 的第二层隔离边界：不能只传 workspacePath/identity，
-      // 否则同一远端 workspace 的不同 attachment 会复用 Accessibility frame/action 状态。
-      // 放在这个 helper 里而不是各调用点，是为了两条 session 创建路径都拿到同一份隔离键。
+// The remote session is the second layer of isolation boundary of shared-host CUA: you cannot just pass workspacePath/identity.
+// Otherwise, different attachments in the same remote workspace will reuse the Accessibility frame/action state.
+// Put it in this helper instead of each call point, so that both session creation paths can get the same isolation key.
       ...(workspace.remoteSessionId ? { remoteSessionId: workspace.remoteSessionId } : {}),
       ...(workspace.workspaceIdentity
         ? {
@@ -94,8 +94,8 @@ export async function createWorkspaceZCodeApp(
             },
           }
         : {}),
-      // Electron/Protocol 主会话之前没有像 CLI/TUI 那样显式开启模型流式，
-      // 导致主 turn 退回 generateText 非流式请求，遇到返回 SSE 的兼容端点会按 JSON 解析失败。
+// The main session of Electron/Protocol did not explicitly enable model streaming like CLI/TUI.
+// Causes the main turn to return the generateText non-streaming request. If it encounters a compatible endpoint that returns SSE, it will fail to parse according to JSON.
       modelStreaming: options.runtimeConfig?.modelStreaming ?? "on",
     },
   });
@@ -113,9 +113,9 @@ async function ensureSessionModelAvailableUnlocked(
   context: ZCodeProtocolAgentServerContext,
   record: ZCodeProtocolSessionRecord,
 ): Promise<boolean> {
-  // 存量模型失效时不能静默改成 Registry 第一项覆盖用户选择；失效选择保持未绑定，
-  // 由恢复/Composer 的选择校验和首发门禁处理；这里不能再写入另一份默认模型事实。
-  // 保留该过渡入口是为了让旧协议调用方平稳退场。
+// When the existing model fails, it cannot be silently changed to the Registry. The first item overwrites the user's selection; the invalid selection remains unbound.
+// Handled by recovery/Composer's selection checksums and initial access control; another default model fact cannot be written here.
+// This transition entry is retained to allow callers of the old protocol to exit smoothly.
   void context;
   void record;
   return false;

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import {
   ZCODE_PROTOCOL_NAME,
   ZCODE_PROTOCOL_VERSION,
@@ -81,8 +82,8 @@ export async function buildSessionSnapshot(input: {
     input.persistedGoalVerificationEvents ?? [],
     input.target === undefined ? runtimeProjection.target : input.target,
   );
-  // runtime projection 是运行期 eventStore reducer，恢复历史 session 时可能没有
-  // target_changed 账本；session_target 表才是 goal 权威状态，snapshot 必须以 DB 读取值为准。
+// runtime projection is the runtime eventStore reducer, which may not be available when restoring historical sessions.
+// target_changed ledger; the session_target table is the authoritative state of goal, and the snapshot must be based on the DB read value.
   const projectionWithoutTitleFallback =
     input.target === undefined && input.lastError === undefined
       ? persistedGoalProjection
@@ -152,8 +153,8 @@ async function hydrateSnapshotFilePartUrl(
   app: Pick<ZCodeApp, "readToolResultArtifact">,
   part: ReturnType<typeof mapMessageWithParts>["parts"][number],
 ) {
-  // 历史图片附件持久化后只剩 zcode-artifact:// 引用，UI/手机端不能直接渲染。
-  // snapshot 出协议前在 agent 侧回填 data URL，避免把本地 artifact 目录读法泄漏给前端。
+// After the historical image attachment is persisted, only the zcode-artifact:// reference remains, and the UI/mobile terminal cannot render it directly.
+// Backfill the data URL on the agent side before taking the snapshot out of the protocol to avoid leaking the local artifact directory reading method to the front end.
   if (part.type !== "file" || !isImageMime(part.mime) || isUsableDataUrl(part.url)) {
     return part;
   }
@@ -221,8 +222,8 @@ export async function mapSessionSettings(
 ): Promise<ZCodeSessionSettingsState> {
   const thoughtLevels = app.listThoughtLevels();
   const rawCurrentThoughtLevel = app.getThoughtLevel();
-  // setModel 后 runtime 可能短暂保留上一个模型的 thoughtLevel。
-  // 协议 snapshot 是 UI/测试共同事实源，不能返回不在当前模型可选列表里的 current。
+// After setModel, the runtime may temporarily retain the thoughtLevel of the previous model.
+// The protocol snapshot is the common source of truth for UI/testing and cannot return current that is not in the current model's optional list.
   const currentThoughtLevel =
     rawCurrentThoughtLevel && thoughtLevels.includes(rawCurrentThoughtLevel)
       ? rawCurrentThoughtLevel
@@ -254,11 +255,11 @@ export async function mapSessionSettings(
       current: app.getMode(),
     },
     model: {
-      // app/stdio 场景下 provider catalog 属于 app 状态，不应随每次 session/read、
-      // setModel 回包返回完整模型市场；session settings 只需要表达当前运行模型即可。
+// In the app/stdio scenario, the provider catalog belongs to the app state and should not be changed with each session/read,
+// The setModel return package returns the complete model market; session settings only need to express the current running model.
       available: availableModels,
-      // Session 原选择是后续输入解析的依据；字符串和过滤后的档位会丢失原意图。
-      // current 允许暂时不可执行，展示/派发的有效性由公共 Selection View 决定。
+// The original selection of Session is the basis for subsequent input analysis; strings and filtered gears will lose their original intent.
+// current is allowed to be temporarily unexecutable, and the effectiveness of display/dispatch is determined by the public Selection View.
       current: app.runtime.getSessionModelSelection(),
       lastUsed: optionalModelSelectionFromString(currentModel),
     },
@@ -268,8 +269,8 @@ export async function mapSessionSettings(
     thoughtLevel: {
       available: thoughtLevels.map((level) => ({ label: level, value: level })),
       current: currentThoughtLevel,
-      // 云端 reasoning.defaultLevel 只存在于模型事实中，旧 settings
-      // 没有携带默认档位，UI 在 current 为空时只能误选 available[0]。
+// Cloud reasoning.defaultLevel only exists in model facts, old settings
+// Without the default gear, the UI can only mistakenly select available[0] when current is empty.
       ...(defaultThoughtLevel ? { defaultLevel: defaultThoughtLevel } : {}),
       enabled: thoughtLevels.length > 0,
     },
@@ -287,8 +288,8 @@ export function mapSessionInfo(input: {
   workspace: ZCodeWorkspaceRef;
 }): ZCodeSessionInfo {
   const sessionId = String(input.session?.id ?? input.app?.sessionId ?? "unknown");
-  // 刚创建的 protocol session 可能还没有持久化 session 行。
-  // 此时 runtime projection 的时间可能继承 workspace 预热 draft，不能作为正式 session 时间。
+// The newly created protocol session may not have a persisted session line yet.
+// At this time, the runtime projection time may inherit the workspace warm-up draft and cannot be used as the official session time.
   const createdAt =
     input.session?.time.created ??
     input.fallbackCreatedAt ??
@@ -357,18 +358,18 @@ export function mapSessionEvents(
 
 export function shouldExposeSessionEventToProtocol(event: SessionEvent): boolean {
   if (event.type === SessionEventType.StreamingToolLedgerUpdated) {
-    // 性能修复：StreamingToolLedgerUpdated 是 runtime replay 账本，常在 closed/queued/started/committed
-    // 阶段携带同一份完整 tool input。UI 协议流已有 model.streaming/tool.updated 生命周期，
-    // 继续透出会造成大参数反复全量跨进程传输，且 mapper 最终也不会消费这些内部状态。
+//Performance fix: StreamingToolLedgerUpdated is the runtime replay ledger, often in closed/queued/started/committed
+// Each stage carries the same complete tool input. UI protocol flow already has model.streaming/tool.updated life cycle,
+// Continuing to expose will cause large parameters to be transmitted in full across processes repeatedly, and the mapper will eventually not consume these internal states.
     return false;
   }
 
   if (event.type === SessionEventType.DynamicWorkflowRunProgress) {
-    // 与上面同一个 seam、同一个理由：workflow run 事件对 v3 完全同构——v4 面已有权威投影
-    // （workflowRuns 状态键），v3 mapper 不消费这些内部状态，继续透出只是把每个节点相位
-    // 迁移都跨进程搬一遍。**注意与前置特性的偏斜危害不同**：这里的剥离不是为了防丢事件，
-    // 新类型不会被 v3 拒收（mapSessionEventType 的 default 落到 session.updated，其 payload
-    // 是宽松的 jsonObjectSchema），纯粹是带宽与语义干净。
+// The same seam and the same reason as above: the workflow run event is completely isomorphic to v3 - the v4 side has authoritative projection
+// (workflowRuns status key), v3 mapper does not consume these internal states, and continues to reveal just phase each node
+// All migrations are done across processes. **Note that it is different from the deflection hazard of the pre-property feature**: The stripping here is not to prevent loss events.
+// New types will not be rejected by v3 (the default of mapSessionEventType falls to session.updated, and its payload
+// is a loose jsonObjectSchema), purely for bandwidth and clean semantics.
     return false;
   }
 
@@ -379,8 +380,8 @@ export function shouldExposeSessionEventToProtocol(event: SessionEvent): boolean
   const payload = asRecord(event.payload);
   const kind = stringValue(payload.kind);
   const delta = stringValue(payload.delta);
-  // UI 已支持工具参数预览后，tool_input_* 不能再在协议边界丢弃；
-  // 否则 Write/Edit 会在模型思考阶段完全不可见。小包压力由 runtime 合并 delta 控制。
+// After the UI supports tool parameter preview, tool_input_* can no longer be discarded at protocol boundaries;
+// Otherwise Write/Edit will be completely invisible during the model thinking phase. Packet pressure is controlled by the runtime combined delta.
   if (kind === "text_delta" || kind === "reasoning_delta") {
     return Boolean(delta);
   }
@@ -431,8 +432,8 @@ function mapPermissionDeniedPayload(payload: unknown): Record<string, unknown> {
   const record = asRecord(payload);
   return {
     ...record,
-    // PermissionDenied 复用 permission.resolved 协议事件。
-    // 下游投影依赖 decision=deny 才会把已出现的工具卡收口成失败态。
+// PermissionDenied reuses the permission.resolved protocol event.
+//Downstream projection depends on decision=deny to close the existing tool card into a failed state.
     decision: "deny",
   };
 }
@@ -444,8 +445,8 @@ function mapToolCallStartedPayload(
   const record = asRecord(payload);
   return {
     ...record,
-    // ToolCallStarted 的 startedAt 来自 runtime Date 对象；协议跨进程后必须是
-    // 稳定 JSON 值，否则接收侧 strict schema 会把 started 事件当成无效消息丢弃。
+// The startedAt of ToolCallStarted comes from the runtime Date object; the protocol must be
+// Stable the JSON value, otherwise the strict schema on the receiving side will discard the started event as an invalid message.
     startedAt: protocolInstantValue(record.startedAt) ?? eventTimestamp.getTime(),
     kind: "started",
   };
@@ -483,8 +484,8 @@ function mapModelRequestPayload(payload: unknown): Record<string, unknown> {
       result[key] = record[key];
     }
   }
-  // model_request 的 messages 是发给模型的完整上下文，只用于 core 内部追踪。
-  // 之前映射成 session.updated 后会把全量上下文反复推给桌面，工具轮次越多单包越大。
+// The messages of model_request are the complete context sent to the model and are only used for core internal tracking.
+// After previously mapping to session.updated, the full context will be pushed to the desktop repeatedly. The more rounds the tool has, the larger the single package will be.
   return result;
 }
 
@@ -502,8 +503,8 @@ function mapModelNetworkStatusPayload(payload: unknown): Record<string, unknown>
       ...meta,
       zcode: {
         ...zcodeMeta,
-        // 网络重试是模型请求运行态，不属于可持久化消息内容。
-        // 这里通过 app 私有 meta 暴露给旧 task 投影，app 再写入 host runtime snapshot。
+// Network retry is the running state of the model request and does not belong to the persistent message content.
+// Here, the app private meta is exposed to the old task projection, and the app writes the host runtime snapshot.
         apiRetry,
       },
     },
@@ -524,8 +525,8 @@ function mapStreamRecoveryPayload(payload: unknown): Record<string, unknown> {
       ...meta,
       zcode: {
         ...zcodeMeta,
-        // streamRecovery.updated 才是 SSE 断流恢复的核心进度事件。
-        // 之前只在后续 model_request_started 上补 meta，UI 错过该事件时不会显示重试次数。
+// streamRecovery.updated is the core progress event of SSE stream recovery.
+// Previously, meta was only added to the subsequent model_request_started, and the UI would not display the number of retries when the event was missed.
         apiRetry,
       },
     },
@@ -559,16 +560,16 @@ function mapRuntimeState(input: {
   projection: SessionProjection;
   stateRevision: number;
 }): ZCodeSessionRuntimeState {
-  // projection.currentTurnId 是投影最后处理过的 turn，不代表当前仍在运行。
-  // session 恢复/subscribe 快照如果把它回填成 runtime.activeTurnId，会让已 idle/complete 的任务误显示为 thinking。
+// projection.currentTurnId is the last processed turn of the projection, which does not mean it is still running.
+// If the session recovery/subscribe snapshot is backfilled with runtime.activeTurnId, idle/complete tasks will be mistakenly displayed as thinking.
   const activeTurnId = input.activeTurn?.turnId;
   const contextUsage = resolveSessionContextUsage({
     messages: input.messages,
     persistedContextUsageBreakdownEvents: input.persistedContextUsageBreakdownEvents,
     projection: input.projection,
   });
-  // 共享 runtime schema 已用 activeTurnId/activeTurnKind 表达运行中 turn；
-  // mainActive 是旧 UI 派生字段，继续从 CLI 快照写出会让 bootstrap 独立 build 失败。
+// The shared runtime schema has used activeTurnId/activeTurnKind to express running turn;
+// mainActive is an old UI derived field, continuing to write out from the CLI snapshot will cause the bootstrap independent build to fail.
   return {
     activeTurnId: activeTurnId ? String(activeTurnId) : undefined,
     activeTurnKind: input.activeTurn?.kind,
@@ -593,10 +594,10 @@ interface ContextUsageBreakdownCandidate {
 }
 
 /**
- * legacy snapshot 与 V4 usage 窄种子的共享计算口径。
+* Shared computing caliber between legacy snapshot and V4 usage narrow seeds.
  *
- * V4 冷恢复只需要 context usage，过去却通过 full legacy snapshot 间接读取。
- * 抽出纯投影后，两条路径继续共享 active-branch token/cache 与 breakdown 对齐规则。
+* V4 cold recovery only requires context usage, but in the past it was read indirectly through full legacy snapshot.
+* After extracting the pure projection, the two paths continue to share the active-branch token/cache and breakdown alignment rules.
  */
 export function resolveSessionContextUsage(input: {
   messages: readonly MessageWithParts[];
@@ -659,8 +660,8 @@ function latestContextUsageBreakdownFromEvents(
       continue;
     }
     const contextWindow = positiveInteger(payload.contextWindow);
-    // 冷恢复只能从 eventStore 重建 context breakdown；必须用 usage/window 对齐，
-    // 避免把旧分支或 sidecar 模型请求的来源比例挂到当前 task meter 上。
+// Cold recovery can only rebuild context breakdown from eventStore; must be aligned with usage/window,
+// Avoid hanging the source ratio of old branch or sidecar model requests on the current task meter.
     return {
       breakdown: parsed.data,
       ...(contextWindow !== undefined ? { contextWindow } : {}),
@@ -747,9 +748,9 @@ function contextUsageFromPersistedMessages(
           compactPart.compactBoundary.truePostCompactTokenCount ??
             compactPart.compactBoundary.postCompactTokenCount,
         );
-        // 成功 compact 的 usage 持久化在 user summary 的 boundary；
-        // 只扫描 assistant 会越过它并恢复压缩前水位。旧 assistant boundary 和
-        // 不完整历史仍走原有 fallback，且不能把压缩前 cache 重新挂到压缩后水位。
+// The usage of successfully compacted is persisted in the boundary of user summary;
+// Scanning only the assistant will override it and restore the pre-compression water level. old assistant boundary and
+// Incomplete history still uses the original fallback, and the pre-compression cache cannot be re-hung to the post-compression water level.
         if (used !== undefined) {
           return {
             cost: null,
@@ -766,8 +767,8 @@ function contextUsageFromPersistedMessages(
     if (used === undefined) {
       continue;
     }
-    // protocol eventStore 是运行期内存账本，重启 resume 后 projection.contextUsed 会回到 0。
-    // context window 消耗是 input + output；恢复时优先用 provider total，否则用持久化的 input/output 还原 meter。
+//The protocol eventStore is the runtime memory ledger. After restarting resume, projection.contextUsed will return to 0.
+//Context window consumption is input + output; when restoring, provider total is used first, otherwise meter is restored using persistent input/output.
     return {
       ...(cache ? { cache } : {}),
       cost: null,
@@ -851,16 +852,16 @@ function contextCacheUsageFromMessages(
 }
 
 function mapPendingPermission(permission: PendingPermission): ZCodePendingPermission {
-  // display / optionsPolicy 刻意不进 legacy v3 输出。
-  // 根因不是"扩 schema 只能单向兼容"，而是 strict schema 随 packages/shared 打进每个桌面端
-  // 的产物：今天把 zcodePendingPermissionSchema（shared/src/zcode-protocol/index.ts:1139）和
-  // zcodePermissionRequestedEventPayloadSchema（同文件:1536）改成可选，也保护不了已经装出去
-  // 的旧桌面。新 CLI 一旦在 v3 路径上带这两个字段，旧桌面会整份快照解析失败、并用 safeParse
-  // 静默丢弃整个 permission.requested 事件——确认窗本身就没了，这违反"只允许预览降级、
-  // 不允许 gate 降级"。剥离在源头是唯一对版本偏斜安全的做法；legacy 也没有画因果图的界面。
-  // optionsPolicy 的效果仍然生效：它作为 buildProtocolPermissionOptions 的输入裁掉
-  // allow_always，只有裁剪后的 options 列表过协议。会话免确认同样降级为裁剪：
-  // 旧桌面回传的是 response 原文，认不出会话语义（见 toLegacyPermissionOptionsPolicy）。
+// display / optionsPolicy deliberately does not enter legacy v3 output.
+//The root cause is not that "extended schema can only be compatible in one direction", but that strict schema is included in every desktop with packages/shared
+// The product: today put zcodePendingPermissionSchema (shared/src/zcode-protocol/index.ts:1139) and
+// zcodePermissionRequestedEventPayloadSchema (same file: 1536) is changed to optional, and it cannot protect the installed one.
+//'s old desktop. Once the new CLI has these two fields on the v3 path, the old desktop will fail to parse the entire snapshot and use safeParse
+// Silently discard the entire permission.requested event - the confirmation window itself disappears, which violates "Only preview downgrades allowed,
+//Do not allow gate downgrade. Stripping at the source is the only safe way to deal with version skew; legacy does not have an interface for drawing cause and effect diagrams.
+// The effect of optionsPolicy still takes effect: it is clipped as an input to buildProtocolPermissionOptions
+// allow_always, only the trimmed options list passes the protocol. Session confirmation-free is also downgraded to cropping:
+// The old desktop returns the original response text and cannot recognize the session semantics (see toLegacyPermissionOptionsPolicy).
   return {
     input: permission.input,
     ...(permission.origin ? { origin: permission.origin } : {}),
@@ -878,8 +879,8 @@ function mapPendingPermission(permission: PendingPermission): ZCodePendingPermis
 }
 
 function mapPermissionRequestedPayload(payload: unknown): Record<string, unknown> {
-  // 同 mapPendingPermission：这个 payload 是整体 spread 出去的，新字段必须在这里显式解构
-  // 剔除，否则会直接漏进 strict 的 zcodePermissionRequestedEventPayloadSchema。
+// Same as mapPendingPermission: this payload is spread out as a whole, and new fields must be explicitly deconstructed here.
+// Eliminate, otherwise it will leak directly into strict zcodePermissionRequestedEventPayloadSchema.
   const { display: _display, optionsPolicy, ...record } = asRecord(payload);
   const toolName = stringValue(record.toolName) ?? "unknown";
   return {
@@ -1023,8 +1024,8 @@ function withGoalSummaryTitleFallback(
     ...projection,
     target: {
       ...target,
-      // 首条用户请求就是 goal 时，session 标题才是第一轮标题的持久来源；
-      // 老数据可能没有写 target.summaryTitle，恢复后需要用 session.title 补齐首轮标题。
+// When the first user request is the goal, the session title is the persistent source of the first round of titles;
+// The old data may not have target.summaryTitle written. After recovery, session.title needs to be used to complete the first round of titles.
       summaryTitle: session.title,
     },
   };
@@ -1104,17 +1105,17 @@ function buildGoalStats(
   return {
     contextUsed: projection.contextUsed,
     contextWindow: projection.contextWindow,
-    // goal 轮次只能由 verifier 生命周期边界推进；用户消息、TodoWrite
-    // 或手动继续都只是落入当前打开轮次，不能单独开新轮。
+// The goal round can only be advanced by the verifier life cycle boundary; user message, TodoWrite
+// Or manual continuation will only fall into the current open round and cannot open a new round independently.
     iterationCount: activeIterationCount,
-    // active goal run 已由 session_target.active_run_started_at 表达。
-    // 运行中不能再用 assistant 消息推导出的时间当已结算 base，否则 UI 会再叠加 live run 导致切换恢复后双算。
+// active goal run has been expressed by session_target.active_run_started_at.
+// During operation, the time deduced from the assistant message cannot be used as the base has been settled, otherwise the UI will superimpose the live run, causing double counting after the switch is restored.
     timeUsedSeconds:
       target.timeUsedSeconds > 0 || target.activeRunStartedAtMs != null
         ? target.timeUsedSeconds
         : derivedTimeUsedSeconds,
-    // 旧 session_target 行可能没有 tokenBudget；协议 schema 需要稳定 JSON 值，
-    // 与 mapSessionGoal 保持一致用 null 表示未设置预算。
+// Old session_target row may not have tokenBudget; protocol schema needs stable JSON value,
+// Consistent with mapSessionGoal use null to indicate no budget is set.
     tokenBudget: target.tokenBudget ?? null,
     tokensUsed: target.tokensUsed > 0 ? target.tokensUsed : derivedTokensUsed,
     toolCallCount: goalIterations.reduce((sum, iteration) => sum + iteration.toolCallCount, 0),

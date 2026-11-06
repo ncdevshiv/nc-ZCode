@@ -11,18 +11,18 @@ import type {
 } from "./index.js";
 
 /**
- * Runtime 与 Adapter 之间的调用级执行信息。
+* Call-level execution information between Runtime and Adapter.
  *
- * 它不属于业务 ModelRequest，也不允许普通调用方据此改变 Provider 或模型身份。
- * Runtime 只在统一模型调用边界设置，Adapter 在同一异步调用链内读取。
+* It does not belong to the business ModelRequest, nor does it allow ordinary callers to change the Provider or model identity accordingly.
+* Runtime is only set at the unified model call boundary, and Adapter reads within the same asynchronous call chain.
  */
 export interface ModelInvocationContext {
   metadata?: Record<string, unknown>;
   modelCall?: ModelApiCallObservation;
   modelRequestSessionType?: ModelRequestSessionType;
-  /** 重试预算档位；runtime 按 taskType 决定，adapter 据此放宽瞬态失败的放弃条件。 */
+/** Retry the budget gear; the runtime is determined by taskType, and the adapter relaxes the abandonment conditions for transient failures accordingly. */
   modelRetryBudget?: ModelRetryBudget;
-  /** 准入端口；runtime 从 deps 带入，adapter 每次尝试先 acquire。 */
+/** Admission port; runtime is brought in from deps, and the adapter tries to acquire first every time. */
   modelRequestAdmission?: ModelRequestAdmission;
   statusSink?: ModelStatusSink;
   traceContext?: TraceContext;
@@ -43,7 +43,7 @@ export interface ModelInvocationContext {
   }>;
 }
 
-/** Adapter 为单个物理请求 attempt 使用的动态鉴权材料。 */
+/** Adapter Dynamic authentication material used for a single physical request attempt. */
 export interface ModelRequestAuth {
   apiKey?: string;
   headers?: Record<string, string>;
@@ -57,13 +57,13 @@ export interface ModelRequestAuthSourceInput {
   traceContext?: TraceContext;
 }
 
-/** Model 创建时绑定、在每个物理请求 attempt 前解析的执行作用域鉴权来源。 */
+/** Execution scope authentication source bound when Model is created and parsed before each physical request attempt. */
 export interface ModelRequestAuthSource {
   resolve(input: ModelRequestAuthSourceInput): Promise<ModelRequestAuth | undefined>;
 }
 
 export interface ModelRequestDependencies {
-  /** 属性存在表示当前 Model 必须取得请求级鉴权；Source 缺失同样 fail-closed。 */
+/** The existence of the attribute indicates that the current Model must obtain request-level authentication; if the Source is missing, it is also fail-closed. */
   requestAuth?: {
     source?: ModelRequestAuthSource;
   };

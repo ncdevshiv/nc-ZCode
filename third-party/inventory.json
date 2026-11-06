@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "inputHashEncoding": "UTF-8 with CRLF normalized to LF; notice and source snapshot hashes remain byte-exact",
   "scope": "Production dependency union across current workspace projects, copied source/assets and native tools; not a per-installer SBOM or a certification of all licensing obligations.",
-  "noticesSha256": "d2551f51c4e2b7ae8c1e312cb84638e92535b916ea4aecf14b9b478a4d8e4ced",
+  "noticesSha256": "58a539d95cef52eb0ad44dece317e8262b79ba03e6d2bfc12305ac821deee046",
   "inputs": {
     ".agents/skills/agent-browser/references/authentication.md": "e2c3b0f4a1dc1368dee821f03c000d818a48421d09f3872525dddffe73f2112b",
     ".agents/skills/agent-browser/references/commands.md": "17522fc56d742663f47231ff06c4811abc87e12c7f78e11f94d253ddd540a909",
@@ -224,16 +224,16 @@
     ".agents/skills/react-best-practices/rules/server-parallel-nested-fetching.md": "4d9c44e579e1286013acf5cb5f65b04297d2b68909f44f8163804656514a78ff",
     ".agents/skills/react-best-practices/rules/server-serialization.md": "4d025c42043c56e6355196a2e885d168cdb15248d0797146c9db838a57b34946",
     ".agents/skills/react-best-practices/SKILL.md": "b7d246acb440bee224ab33614979a5b8debe5fdb13d0304967aa19358eb69d9f",
-    "apps/zcode-cli/package.json": "6c48017b05d8a7215c5bf7dea12f50edd1487bf5b8b22e11c21703d32e8f7742",
+    "apps/zcode-cli/package.json": "dbe509d9d0fd7a62e5ece1991276622e5958b98d09fe262eee00714a6b3fe93e",
     "apps/zcode-cli/packages/adapters/package.json": "46a6966974e186c0fe14a43609205eacd6e02b7f67bfbb0e0c5c8295c0ef6d7e",
     "apps/zcode-cli/packages/bootstrap/package.json": "dc3412876d944ec233e17c36c6e8e94254ca9b5051f1f8f8bb441b273c63efd4",
-    "apps/zcode-cli/packages/browser-use-plugin/package.json": "b7ecf0a222844419da9a27c66f6bcc0e17bdbb2db187183133c4fb0932b3d59a",
-    "apps/zcode-cli/packages/cli/package.json": "81a0c3dbdff4fb6598ac5b7336578de102c54eef914e06f0f3a65bc1b6e734b9",
+    "apps/zcode-cli/packages/browser-use-plugin/package.json": "be5f4eff73b577ffe9f4e8ca24c5f4946b315a772577966112e9133c26ad195a",
+    "apps/zcode-cli/packages/cli/package.json": "e46923cd22050a688a96adb6d9f7a3d47fca1c8ee9d49b14a0482116e1794d19",
     "apps/zcode-cli/packages/contracts/package.json": "7443f402f58df867ad5f776b2e94823d2b3bb235b16d0155f7a939ba181aa3ac",
     "apps/zcode-cli/packages/core/package.json": "35ac9bdf52014419c78eeccd66fa618c0e78fc7684e1c4d06585fe67d0bf607c",
-    "apps/zcode-cli/packages/core/src/tool/handlers/generated/bash-command-registry.ts": "60fa5acd9f5c357f4e51b1d1e944ee39da92680e4bc5e98dd708f1457fcf612b",
+    "apps/zcode-cli/packages/core/src/tool/handlers/generated/bash-command-registry.ts": "b989c3b361dd08ebde4554e0d48355d554b8df9698bc2498849354d658e1fedb",
     "apps/zcode-cli/packages/debug/package.json": "16e6a402d995d3a56ed6e97665cd81f0dd22f03280350d5e0a70c14a2cc4b2ca",
-    "apps/zcode-cli/packages/dynamic-workflow-runtime/package.json": "f8dab813c3b9f236b593d4d04f1b78e511e15d586cb7dcdd74147e7d1c22ec5c",
+    "apps/zcode-cli/packages/dynamic-workflow-runtime/package.json": "6bb4504e0bc15d5448a35d840f6e57a3a0fdf311d7fd2907041034d72439b581",
     "apps/zcode-cli/packages/dynamic-workflow/package.json": "aac5891463ddeb419ff6f73fc95b7c407964b06f8aeff66b6a9ba4d999164f99",
     "apps/zcode-cli/packages/i18n/package.json": "025e4620d80f39cac3df06249866fcaed531615b6b8a4c4a727c4557066f7b1b",
     "apps/zcode-cli/packages/node-repl-host/package.json": "1f593b58799ead7927275a71bcda496ad4861c491ae639b721830594171fa96b",
@@ -245,9 +245,10 @@
     "apps/zcode-cli/packages/tui/package.json": "097d5896b0b37a455eafaf015f21113dfbea7b05bb3f92666f423f7753720eb1",
     "apps/zcode-cli/tools/prompt-trajectory/package.json": "7f161fc87f36691f01eb8c2034bd89cf28107da36db02bc20e76f059edd36af6",
     "apps/zcode-cli/tools/typescript/package.json": "23d7e50d2089d205ce3022c5bafbb6b3e31d000e41ac678a5934e0b72627cf3a",
-    "package.json": "3a45c9945df4eb707c1a425f920b5364a22be9fe01d041df18917b23cfabd4ea",
+    "bun.lock": "474a6e0888905a3774d8e0bb38c4c8f5c849b28040bf599fd9bf5875a30e3f35",
+    "package.json": "af09291e89be9866b8be4a71a9248760c3d1b0d03a468c9578ba84dd0e7d8627",
     "packages/client/package.json": "e76f441549130dc3e5e68072a36b6cb9044e19a6625f1e813f19a4def2b1b689",
-    "packages/desktop/package.json": "0879fd688068232c541c4bbce3f19161ab675f6ab3aca3bb07025a667d73ec84",
+    "packages/desktop/package.json": "d8428f40a8e3d3fc45109ae0c5a20061674b1906cc8d7a98a927501690e5a3f2",
     "packages/desktop/src/renderer/public/material-icons/3d.svg": "9527b849f0fba57ca7640e2717b3a19cb5f5e046712cbbd8b75d73af338c68fb",
     "packages/desktop/src/renderer/public/material-icons/abap.svg": "1335bd7eb9a0ed49deb622330d680c2e97731726a7a5eee8e4f46dc1e5db4de4",
     "packages/desktop/src/renderer/public/material-icons/abc.svg": "d1a68020e8f020ef29dca5f94dc8613b7ae8fb5b212d8b1cc23b0f975ac7acda",
@@ -1419,7 +1420,7 @@
     "packages/rpc/src/proxy-channel.ts": "ec5b43e6a3a622a88a8aaa6af9cb37dbfe517932ee7f4a337019ec138bb2d513",
     "packages/rpc/src/remote.ts": "a11e072d5df7e1c1ce64814a68f72afc081246b364f0da409b5c9d22bc815957",
     "packages/rpc/src/serialization.ts": "e949418e1cd17cc863c147fc8d1ff15237e1b5f0cb8e3344fd2a9ccfae9d54e7",
-    "packages/server/package.json": "0a6119239c88af79bc766e3c023eb4437105a0d35b03ecca1137d1e688e60a90",
+    "packages/server/package.json": "0abc73fe41a66b02faffc7f7909c5e7d4c67f202f0bc5165f16f491765d665b4",
     "packages/services/package.json": "f22a7ad0b653a7e408de50723a6d986ff886edab2076e917b2c29a416475b1a7",
     "packages/shared/package.json": "6394da63b39d6bf4cabadf803a4f26cf9758de944ac6e0cc5c4f0dc303f66b77",
     "packages/shared/src/zcode-protocol-v4/wire-codec.ts": "ac2494a3acc795c809c94ee9393f50271a9c2a0fd33813459e5ab93842ceef75",
@@ -2665,12 +2666,10 @@
     "packages/web/public/material-icons/zig.svg": "37be0ce02cf471b18d86150b3c38e80caa7c16c49a15078e7db6f1f41788d101",
     "packages/web/public/material-icons/zip.svg": "dad79a45f756542d37abd422502ecfbea15720b92ea1c9d80ef0439ab6b9448a",
     "packages/zcode-cua/package.json": "87f0fe859ffd7539d719bfd6ac4ae2884960ffa80ee29a7a562b52bc805f67c8",
-    "packages/zcode-server-cli/package.json": "6e294c4409cb90863d85b2e3d60f92766b156ccee577ebfeaffcb85e94194004",
+    "packages/zcode-server-cli/package.json": "54721f3fce00d59bdbc83c9ed413be660d06dc18b6ac221e1d1c6c34c52d654e",
     "patches/@ai-sdk__anthropic@3.0.81.patch": "d3a7c381eba7f5157f765a0528003af17cf84544911dfb7412c7800168e01c18",
     "patches/@ai-sdk__openai-compatible@2.0.60.patch": "9632fe9d821b3dc20939ae509cc35b968d90d018bbd1d812390718898182a38b",
     "patches/@arms__rum-electron@0.0.3.patch": "36855354851ea495bc47a03340b0484ff62836b739cad56904b8a69f18e2ae97",
-    "pnpm-lock.yaml": "e52dd7a4a73523dbff653e39e6cc59d6e64a5ed974752529dab2c2c6da21f4e7",
-    "pnpm-workspace.yaml": "f18a18233e82cda1dc40be61bf2ad1bc99de25de63ad0be64bc652761a638372",
     "scripts/license-texts/Apache-2.0.txt": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
     "scripts/native-search-tools-config.mjs": "281d368464f61363fa2d8ab74f416962fe730dd0a0572db5564475f876bb65aa",
     "scripts/remote-native-search-tools-config.mjs": "472322a66f84c7452f96aa9e16e9c4e0600f7c2588a03dc6bc869229161b1cb2",
@@ -2679,12 +2678,24 @@
     "third-party/native-cargo/licenses/adler2-2.0.1/LICENSE-0BSD": "861399f8c21c042b110517e76dc6b63a2b334276c8cf17412fc3c8908ca8dc17",
     "third-party/native-cargo/licenses/adler2-2.0.1/LICENSE-APACHE": "8ada45cd9f843acf64e4722ae262c622a2b3b3007c7310ef36ac1061a30f6adb",
     "third-party/native-cargo/licenses/adler2-2.0.1/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+    "third-party/native-cargo/licenses/aead-0.5.2/LICENSE-APACHE": "b1cf9a3333ca78152b859012cd4a804156e5243e9ca20ad1df7327ba5ea7405c",
+    "third-party/native-cargo/licenses/aead-0.5.2/LICENSE-MIT": "949ab7b3e7140fee216f06fe3a2bd67d68dd511f8ea73c1e01c98cb348e9c8ae",
+    "third-party/native-cargo/licenses/aead-0.6.1/LICENSE-APACHE": "b1cf9a3333ca78152b859012cd4a804156e5243e9ca20ad1df7327ba5ea7405c",
+    "third-party/native-cargo/licenses/aead-0.6.1/LICENSE-MIT": "33b32a251d445c5c03a634e64c53314c55540fc367fabdd45d9b6c8f260c028c",
+    "third-party/native-cargo/licenses/aes-0.8.4/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/aes-0.8.4/LICENSE-MIT": "f7e8ab639afef15573680c97f796166835cbeb3865175882fea41c60d106b733",
+    "third-party/native-cargo/licenses/aes-0.9.3/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/aes-0.9.3/LICENSE-MIT": "25f77efa393854f7c15eaf6a2589a2071db2d7337642742763adb12bdecf0445",
+    "third-party/native-cargo/licenses/aes-gcm-0.10.3/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/aes-gcm-0.10.3/LICENSE-MIT": "3c0dfa33fd2e6976038555b52095699452653b1fcabe113074f14e0848a6b11e",
+    "third-party/native-cargo/licenses/aes-gcm-0.11.1/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/aes-gcm-0.11.1/LICENSE-MIT": "b8c6939380a400f53e11923d50fcc4dd2fa1ba8339fd9d04cda38a0251b6c9b0",
     "third-party/native-cargo/licenses/ahash-0.8.12/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/ahash-0.8.12/LICENSE-MIT": "0444c6991eead6822f7b9102e654448d51624431119546492e8b231db42c48bb",
     "third-party/native-cargo/licenses/aho-corasick-1.1.5/COPYING": "01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f",
     "third-party/native-cargo/licenses/aho-corasick-1.1.5/LICENSE-MIT": "0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f",
     "third-party/native-cargo/licenses/aho-corasick-1.1.5/UNLICENSE": "7e12e5df4bae12cb21581ba157ced20e1986a0508dd10d0e8a4ab9a4cf94e85c",
-    "third-party/native-cargo/licenses/alloc-no-stdlib-2.0.4/LICENSE": "c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae",
+    "third-party/native-cargo/licenses/alloc-no-stdlib-3.0.0/LICENSE": "c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae",
     "third-party/native-cargo/licenses/allocator-api2-0.2.21/LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
     "third-party/native-cargo/licenses/allocator-api2-0.2.21/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
     "third-party/native-cargo/licenses/android_system_properties-0.1.6/LICENSE-APACHE": "216486f29671a4262efe32af6d84a75bef398127f8c5f369b5c8305983887a06",
@@ -2701,6 +2712,10 @@
     "third-party/native-cargo/licenses/anstyle-wincon-3.0.11/LICENSE-MIT": "6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6",
     "third-party/native-cargo/licenses/anyhow-1.0.104/LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
     "third-party/native-cargo/licenses/anyhow-1.0.104/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+    "third-party/native-cargo/licenses/apple-native-keyring-store-1.0.2/LICENSE-APACHE": "78ebc2ea2a1cec9cbec2e1a6fc15e73474fe22bdad7575518e7f4628651d49c4",
+    "third-party/native-cargo/licenses/apple-native-keyring-store-1.0.2/LICENSE-MIT": "157cc607717b1b372a69f6b4526f6ad18c1279af9f3267835cca2943f37bc07d",
+    "third-party/native-cargo/licenses/arboard-3.7.0/LICENSE-APACHE.txt": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+    "third-party/native-cargo/licenses/arboard-3.7.0/LICENSE-MIT.txt": "f35468024534e0f4f16bb94cd0e88c87fbd1314f919c2645a07d350fb77b40c0",
     "third-party/native-cargo/licenses/async-broadcast-0.7.2/LICENSE-APACHE": "e4705ddab847449a2cdcb3c88b005ea10330aa249d9148ca2eef9c84c5d29895",
     "third-party/native-cargo/licenses/async-broadcast-0.7.2/LICENSE-MIT": "24e5860bf589d8501643e6ea51ffb3df66db2867492b09033d486183efbfa970",
     "third-party/native-cargo/licenses/async-channel-2.5.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
@@ -2731,6 +2746,8 @@
     "third-party/native-cargo/licenses/atomic-waker-1.1.2/LICENSE-THIRD-PARTY": "6226d0632e2e1a80c23597e964da9812ae193c535fe058154afb034e94167aa5",
     "third-party/native-cargo/licenses/autocfg-1.5.1/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/autocfg-1.5.1/LICENSE-MIT": "27995d58ad5c1145c1a8cd86244ce844886958a35eb2b78c6b772748669999ac",
+    "third-party/native-cargo/licenses/aws-lc-rs-1.18.2/LICENSE": "b50b376e7d24a0598488b730c3034ffcd0b58dd36c0913a24b9903a3cfd04bf7",
+    "third-party/native-cargo/licenses/aws-lc-sys-0.46.0/LICENSE": "728536b4160e051f86d7c9c388f704866b3d512cd7df97ac3516c65279523c4e",
     "third-party/native-cargo/licenses/axum-0.8.9/LICENSE": "6a13bc24a100a6812f053879ec51b126b103af7cda6dbf48c4188722da44da9f",
     "third-party/native-cargo/licenses/axum-core-0.5.6/LICENSE": "008c87afcd2e626eaf564093250bed06dd7efb5732113264bba3dda8f1c556a1",
     "third-party/native-cargo/licenses/base64-0.13.1/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
@@ -2755,11 +2772,15 @@
     "third-party/native-cargo/licenses/bitflags-2.13.2/LICENSE-MIT": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb",
     "third-party/native-cargo/licenses/block-buffer-0.10.4/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
     "third-party/native-cargo/licenses/block-buffer-0.10.4/LICENSE-MIT": "d5c22aa3118d240e877ad41c5d9fa232f9c77d757d4aac0c2f943afc0a95e0ef",
+    "third-party/native-cargo/licenses/block-buffer-0.12.1/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/block-buffer-0.12.1/LICENSE-MIT": "98181e7249d0c01737645ec982499ce99a0f07eb8f7d625b8840d799d10dbc01",
+    "third-party/native-cargo/licenses/block-padding-0.4.2/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/block-padding-0.4.2/LICENSE-MIT": "98181e7249d0c01737645ec982499ce99a0f07eb8f7d625b8840d799d10dbc01",
     "third-party/native-cargo/licenses/blocking-1.7.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/blocking-1.7.0/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
-    "third-party/native-cargo/licenses/brotli-8.0.4/LICENSE.BSD-3-Clause": "c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae",
-    "third-party/native-cargo/licenses/brotli-8.0.4/LICENSE.MIT": "3d180008e36922a4e8daec11c34c7af264fed5962d07924aea928c38e8663c94",
-    "third-party/native-cargo/licenses/brotli-decompressor-5.0.3/LICENSE": "c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae",
+    "third-party/native-cargo/licenses/brotli-9.1.1/LICENSE.BSD-3-Clause": "c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae",
+    "third-party/native-cargo/licenses/brotli-9.1.1/LICENSE.MIT": "3d180008e36922a4e8daec11c34c7af264fed5962d07924aea928c38e8663c94",
+    "third-party/native-cargo/licenses/brotli-decompressor-6.2.0/LICENSE": "c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae",
     "third-party/native-cargo/licenses/bs58-0.5.1/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/bs58-0.5.1/LICENSE-MIT": "42d3bf7e7d4d49d72c0555d14ed99c3ee7ce9ce3cbffbc38bbafe8c103f50969",
     "third-party/native-cargo/licenses/bumpalo-3.20.3/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
@@ -2783,14 +2804,19 @@
     "third-party/native-cargo/licenses/camino-1.2.6/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
     "third-party/native-cargo/licenses/candle-core-0.9.2/LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
     "third-party/native-cargo/licenses/cargo_metadata-0.19.2/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
-    "third-party/native-cargo/licenses/cargo_toml-0.22.3/LICENSE": "ee874098519e956c23a3c5c7e20581f8e9b1d70aa05eb178f983be9775090a2f",
+    "third-party/native-cargo/licenses/cargo_toml-1.0.1/LICENSE": "ee874098519e956c23a3c5c7e20581f8e9b1d70aa05eb178f983be9775090a2f",
     "third-party/native-cargo/licenses/cargo-platform-0.1.9/LICENSE-APACHE": "8ada45cd9f843acf64e4722ae262c622a2b3b3007c7310ef36ac1061a30f6adb",
     "third-party/native-cargo/licenses/cargo-platform-0.1.9/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+    "third-party/native-cargo/licenses/cast-0.3.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/cast-0.3.0/LICENSE-MIT": "005b3f9b4687364514bbaea2a25e96d54ce6a59277d157386e8259cbcae8e095",
     "third-party/native-cargo/licenses/castaway-0.2.4/LICENSE": "f98e09091d5ae02b2f2ec1ead4f7f28c4c44d1cb98b078739ba67091637e170c",
+    "third-party/native-cargo/licenses/cbc-0.2.1/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/cbc-0.2.1/LICENSE-MIT": "63af4bea227c94d021e99427f6ca3a4b8efddadcca93ab6130f708cf6138cf68",
     "third-party/native-cargo/licenses/cc-1.4.7/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/cc-1.4.7/LICENSE-MIT": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397",
     "third-party/native-cargo/licenses/cesu8-1.1.0/COPYRIGHT-RUST.txt": "5ca77347e58205d3b543c04a9c5bdd11d20a9f3108a7b246640edffa999b5f35",
-    "third-party/native-cargo/licenses/cfb-0.7.3/LICENSE": "ebaac853b53fec0ed475796f533ce676912a4df9ad9d8a621fa76d5060591e10",
+    "third-party/native-cargo/licenses/cfb-0.14.0/LICENSE": "ebaac853b53fec0ed475796f533ce676912a4df9ad9d8a621fa76d5060591e10",
+    "third-party/native-cargo/licenses/cfg_aliases-0.1.1/LICENSE": "31b94860253d8ec7b4529f51901044d3b459d6292d996504a36b1bae3a36a812",
     "third-party/native-cargo/licenses/cfg_aliases-0.2.2/LICENSE": "31b94860253d8ec7b4529f51901044d3b459d6292d996504a36b1bae3a36a812",
     "third-party/native-cargo/licenses/cfg-expr-0.15.8/LICENSE-APACHE": "8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90",
     "third-party/native-cargo/licenses/cfg-expr-0.15.8/LICENSE-MIT": "090a294a492ab2f41388252312a65cf2f0e423330b721a68c6665ac64766753b",
@@ -2799,6 +2825,13 @@
     "third-party/native-cargo/licenses/chacha20-0.10.2/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
     "third-party/native-cargo/licenses/chacha20-0.10.2/LICENSE-MIT": "b8c6939380a400f53e11923d50fcc4dd2fa1ba8339fd9d04cda38a0251b6c9b0",
     "third-party/native-cargo/licenses/chrono-0.4.45/LICENSE.txt": "946c9835d8034d24404f8cfec5f4654cee5dad17e944afc3d06d742cf2882831",
+    "third-party/native-cargo/licenses/ciborium-0.2.2/LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "third-party/native-cargo/licenses/ciborium-io-0.2.2/LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "third-party/native-cargo/licenses/ciborium-ll-0.2.2/LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "third-party/native-cargo/licenses/cipher-0.4.4/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/cipher-0.4.4/LICENSE-MIT": "5c7bd92d1f096f12203dc1b601e3cb17484fa1b023e30b6b8edcc80e416237ec",
+    "third-party/native-cargo/licenses/cipher-0.5.2/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/cipher-0.5.2/LICENSE-MIT": "950d712c518a02fcb7cff96950aee304a1cc5283361712c980ea21e8d6d669a5",
     "third-party/native-cargo/licenses/clap_builder-4.6.7/LICENSE-APACHE": "249fdb6694467dd615b259f7ddde07be3f8ae5a72cecebb0e24f6629af4215fe",
     "third-party/native-cargo/licenses/clap_builder-4.6.7/LICENSE-MIT": "6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6",
     "third-party/native-cargo/licenses/clap_derive-4.6.7/LICENSE-APACHE": "249fdb6694467dd615b259f7ddde07be3f8ae5a72cecebb0e24f6629af4215fe",
@@ -2807,6 +2840,10 @@
     "third-party/native-cargo/licenses/clap_lex-1.1.1/LICENSE-MIT": "6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6",
     "third-party/native-cargo/licenses/clap-4.6.7/LICENSE-APACHE": "249fdb6694467dd615b259f7ddde07be3f8ae5a72cecebb0e24f6629af4215fe",
     "third-party/native-cargo/licenses/clap-4.6.7/LICENSE-MIT": "6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6",
+    "third-party/native-cargo/licenses/cmake-0.1.58/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/cmake-0.1.58/LICENSE-MIT": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397",
+    "third-party/native-cargo/licenses/cmov-0.5.4/LICENSE-APACHE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "third-party/native-cargo/licenses/cmov-0.5.4/LICENSE-MIT": "70c9d40f1f9545c3f133b8a67206e89da850f6468eed072281bb3701514114a9",
     "third-party/native-cargo/licenses/color_quant-1.1.0/LICENSE": "592dc80f1a865d20d61a2006a2d29ce34a2bc28cd7e868ab300fdeed6da154ca",
     "third-party/native-cargo/licenses/colorchoice-1.0.5/LICENSE-APACHE": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
     "third-party/native-cargo/licenses/colorchoice-1.0.5/LICENSE-MIT": "6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6",
@@ -2819,6 +2856,12 @@
     "third-party/native-cargo/licenses/concurrent-queue-2.5.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/concurrent-queue-2.5.0/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
     "third-party/native-cargo/licenses/console-0.15.11/LICENSE": "2022c11b24fc1e50fa06a5959e40198a3464f560729ad3d00139abb8a328362d",
+    "third-party/native-cargo/licenses/const-oid-0.10.2/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/const-oid-0.10.2/LICENSE-MIT": "73b9dc2e79c7308998dd30296e073aefaefb944a68fb89aa412c23c0edcabcaa",
+    "third-party/native-cargo/licenses/const-random-0.1.18/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/const-random-0.1.18/LICENSE-MIT": "ff8f68cb076caf8cefe7a6430d4ac086ce6af2ca8ce2c4e5a2004d4552ef52a2",
+    "third-party/native-cargo/licenses/const-random-macro-0.1.16/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/const-random-macro-0.1.16/LICENSE-MIT": "ff8f68cb076caf8cefe7a6430d4ac086ce6af2ca8ce2c4e5a2004d4552ef52a2",
     "third-party/native-cargo/licenses/cookie-0.18.2/LICENSE-APACHE": "2773e20df8f4c52a026b5b578c7f2457341f5aa3fb6612fd87e1d2e1bd8f48ad",
     "third-party/native-cargo/licenses/cookie-0.18.2/LICENSE-MIT": "f28420c1906af38be726cd7842798f0194b27c41d6051c0d1e9ee348b8a4a0ea",
     "third-party/native-cargo/licenses/core_detect-1.0.0/LICENSE-APACHE": "769f80b5bcb42ed0af4e4d2fd74e1ac9bf843cb80c5a29219d1ef3544428a6bb",
@@ -2832,12 +2875,18 @@
     "third-party/native-cargo/licenses/core-graphics-0.25.0/LICENSE-MIT": "62065228e42caebca7e7d7db1204cbb867033de5982ca4009928915e4095f3a3",
     "third-party/native-cargo/licenses/core-graphics-types-0.2.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/core-graphics-types-0.2.0/LICENSE-MIT": "62065228e42caebca7e7d7db1204cbb867033de5982ca4009928915e4095f3a3",
+    "third-party/native-cargo/licenses/cpubits-0.1.1/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/cpubits-0.1.1/LICENSE-MIT": "003736bc98408b53511b9cc8ff5d1af3bf0a8f17d53841cc39d8ab1b96a195b0",
     "third-party/native-cargo/licenses/cpufeatures-0.2.17/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
     "third-party/native-cargo/licenses/cpufeatures-0.2.17/LICENSE-MIT": "ae9baa7beea910273c2f384c2a6b721fb7bd02bda3436074a1072e4ee689f985",
     "third-party/native-cargo/licenses/cpufeatures-0.3.1/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
     "third-party/native-cargo/licenses/cpufeatures-0.3.1/LICENSE-MIT": "73b9dc2e79c7308998dd30296e073aefaefb944a68fb89aa412c23c0edcabcaa",
     "third-party/native-cargo/licenses/crc32fast-1.5.2/LICENSE-APACHE": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
     "third-party/native-cargo/licenses/crc32fast-1.5.2/LICENSE-MIT": "61d383b05b87d78f94d2937e2580cce47226d17823c0430fbcad09596537efcf",
+    "third-party/native-cargo/licenses/criterion-0.7.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/criterion-0.7.0/LICENSE-MIT": "4594f18866be94a3ce309ed8f94d92699f5b87739b76e1216addca75f5253fa7",
+    "third-party/native-cargo/licenses/criterion-plot-0.6.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/criterion-plot-0.6.0/LICENSE-MIT": "4594f18866be94a3ce309ed8f94d92699f5b87739b76e1216addca75f5253fa7",
     "third-party/native-cargo/licenses/crossbeam-channel-0.5.17/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/crossbeam-channel-0.5.17/LICENSE-MIT": "5734ed989dfca1f625b40281ee9f4530f91b2411ec01cb748223e7eb87e201ab",
     "third-party/native-cargo/licenses/crossbeam-channel-0.5.17/LICENSE-THIRD-PARTY": "b16db96b93b1d7cf7bea533f572091ec6bca3234fbe0a83038be772ff391a44c",
@@ -2850,13 +2899,20 @@
     "third-party/native-cargo/licenses/crunchy-0.2.4/LICENSE": "3eab77734a181b2a2e8418af9004f960f715f04aac4d76a26cf774f63a7b13d1",
     "third-party/native-cargo/licenses/crypto-common-0.1.7/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
     "third-party/native-cargo/licenses/crypto-common-0.1.7/LICENSE-MIT": "3521672491a3479422d5fe1aca6645dd2984090f85da6e5205abfb18fb7a6897",
+    "third-party/native-cargo/licenses/crypto-common-0.2.2/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/crypto-common-0.2.2/LICENSE-MIT": "d2e7ec5355c96eeade56b09187ceb48a6a30299da3ce7531a66d3d11405ab963",
     "third-party/native-cargo/licenses/cssparser-0.31.2/LICENSE": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85",
-    "third-party/native-cargo/licenses/cssparser-0.36.0/LICENSE": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85",
+    "third-party/native-cargo/licenses/cssparser-0.37.0/LICENSE": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85",
     "third-party/native-cargo/licenses/cssparser-macros-0.6.1/LICENSE": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85",
-    "third-party/native-cargo/licenses/ctor-0.8.0/LICENSE-APACHE": "a8ad31b1c3f40dca5a84119351b8fa8ddc868edd77fad8a8ebf6d8f2d16fa4ae",
-    "third-party/native-cargo/licenses/ctor-0.8.0/LICENSE-MIT": "bccaa8b6c09f94e81f06696e179dbe058464bbdfbc823b6d49cada1d71e84ac3",
-    "third-party/native-cargo/licenses/ctor-proc-macro-0.0.7/LICENSE-APACHE": "a8ad31b1c3f40dca5a84119351b8fa8ddc868edd77fad8a8ebf6d8f2d16fa4ae",
-    "third-party/native-cargo/licenses/ctor-proc-macro-0.0.7/LICENSE-MIT": "bccaa8b6c09f94e81f06696e179dbe058464bbdfbc823b6d49cada1d71e84ac3",
+    "third-party/native-cargo/licenses/cssparser-macros-0.7.1/LICENSE": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85",
+    "third-party/native-cargo/licenses/ctor-1.0.13/LICENSE-APACHE": "a8ad31b1c3f40dca5a84119351b8fa8ddc868edd77fad8a8ebf6d8f2d16fa4ae",
+    "third-party/native-cargo/licenses/ctor-1.0.13/LICENSE-MIT": "bccaa8b6c09f94e81f06696e179dbe058464bbdfbc823b6d49cada1d71e84ac3",
+    "third-party/native-cargo/licenses/ctr-0.10.1/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/ctr-0.10.1/LICENSE-MIT": "63af4bea227c94d021e99427f6ca3a4b8efddadcca93ab6130f708cf6138cf68",
+    "third-party/native-cargo/licenses/ctr-0.9.2/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/ctr-0.9.2/LICENSE-MIT": "63af4bea227c94d021e99427f6ca3a4b8efddadcca93ab6130f708cf6138cf68",
+    "third-party/native-cargo/licenses/ctutils-0.4.5/LICENSE-APACHE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "third-party/native-cargo/licenses/ctutils-0.4.5/LICENSE-MIT": "91585c36e4fb9ab4ca0d3dfac5d66d3c0c62cc51f640a0e1196542daf2267eae",
     "third-party/native-cargo/licenses/darling_core-0.20.11/LICENSE": "8ea93490d74a5a1b1af3ff71d786271b3f1e5f0bea79ac16e02ec533cef040d6",
     "third-party/native-cargo/licenses/darling_core-0.24.1/LICENSE": "8ea93490d74a5a1b1af3ff71d786271b3f1e5f0bea79ac16e02ec533cef040d6",
     "third-party/native-cargo/licenses/darling_macro-0.20.11/LICENSE": "8ea93490d74a5a1b1af3ff71d786271b3f1e5f0bea79ac16e02ec533cef040d6",
@@ -2865,6 +2921,7 @@
     "third-party/native-cargo/licenses/darling-0.24.1/LICENSE": "8ea93490d74a5a1b1af3ff71d786271b3f1e5f0bea79ac16e02ec533cef040d6",
     "third-party/native-cargo/licenses/dary_heap-0.3.9/LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
     "third-party/native-cargo/licenses/dary_heap-0.3.9/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+    "third-party/native-cargo/licenses/data-encoding-2.11.1/LICENSE": "b68ad1a3367b825447089e1f8d6829b97f47a89eb78d2f4ebaef4672f5606186",
     "third-party/native-cargo/licenses/dbus-0.9.12/LICENSE-APACHE": "453745410e3be8cf25d56872ea2aec975a78e6c9f217443d0bf908a5bce7c8ff",
     "third-party/native-cargo/licenses/dbus-0.9.12/LICENSE-MIT": "de3911c2d98c8bd2d701ee721347053d9b55995a11f9a8c955e44d3ca1b376bf",
     "third-party/native-cargo/licenses/defmt-1.1.1/LICENSE-APACHE": "8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90",
@@ -2884,22 +2941,24 @@
     "third-party/native-cargo/licenses/derive_more-impl-2.1.1/LICENSE": "8a35369f3ca263b3c62fbb5032947e53b6bfebc6c8a4d1bb982de1c069f6fba5",
     "third-party/native-cargo/licenses/digest-0.10.7/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
     "third-party/native-cargo/licenses/digest-0.10.7/LICENSE-MIT": "9e0dfd2dd4173a530e238cb6adb37aa78c34c6bc7444e0e10c1ab5d8881f63ba",
-    "third-party/native-cargo/licenses/dirs-6.0.0/LICENSE-APACHE": "d3174ad63e721d4c9dccb8ad4320848992d314369bc46319720b5802c9153fe9",
-    "third-party/native-cargo/licenses/dirs-6.0.0/LICENSE-MIT": "6a2e0ade09a7d5f816f11566fee2b151b32235a7fad52b41d49cce96f833c1a9",
+    "third-party/native-cargo/licenses/digest-0.11.3/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/digest-0.11.3/LICENSE-MIT": "af59cea35d7f5e2777a713b8d155d65efa2c339eb43f3c14e868c6ac8506edad",
+    "third-party/native-cargo/licenses/dirs-7.0.0/LICENSE-APACHE": "d3174ad63e721d4c9dccb8ad4320848992d314369bc46319720b5802c9153fe9",
+    "third-party/native-cargo/licenses/dirs-7.0.0/LICENSE-MIT": "6a2e0ade09a7d5f816f11566fee2b151b32235a7fad52b41d49cce96f833c1a9",
     "third-party/native-cargo/licenses/dirs-sys-0.5.0/LICENSE-APACHE": "d3174ad63e721d4c9dccb8ad4320848992d314369bc46319720b5802c9153fe9",
     "third-party/native-cargo/licenses/dirs-sys-0.5.0/LICENSE-MIT": "6a2e0ade09a7d5f816f11566fee2b151b32235a7fad52b41d49cce96f833c1a9",
     "third-party/native-cargo/licenses/displaydoc-0.2.7/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/displaydoc-0.2.7/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
-    "third-party/native-cargo/licenses/dom_query-0.27.0/LICENSE": "7554701d1e74fc434f68c522b1dd743c8c16d816a4b761b5213f367b898884c8",
+    "third-party/native-cargo/licenses/dlv-list-0.5.2/LICENSE-APACHE": "95bd3988beee069fa2848f648dab43cc6e0b2add2ad6bcb17360caf749802bcc",
+    "third-party/native-cargo/licenses/dlv-list-0.5.2/LICENSE-MIT": "77adcddfe9e50acd2df63ddbb8e566bb8d34b4d02a9d92e7a5c1b9c2225eda9f",
+    "third-party/native-cargo/licenses/dom_query-0.28.0/LICENSE": "7554701d1e74fc434f68c522b1dd743c8c16d816a4b761b5213f367b898884c8",
+    "third-party/native-cargo/licenses/downcast-rs-1.2.1/LICENSE-APACHE": "8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90",
+    "third-party/native-cargo/licenses/downcast-rs-1.2.1/LICENSE-MIT": "fb252fecf98d9af8f1d9201c5860319a514f5a8a24700dc84fc6ea287a7a4958",
     "third-party/native-cargo/licenses/dpi-0.1.2/LICENSE": "6dc0e068dcf3a5bc8e054205b85b7720e1d49265bbc64bf515d2cf79197df69a",
     "third-party/native-cargo/licenses/dpi-0.1.2/LICENSE-LIBM-MIT": "9eff396a99bafd208e7126602420d6864f6066c08b84485a5b032320a9c01997",
     "third-party/native-cargo/licenses/dtoa-1.0.11/LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
     "third-party/native-cargo/licenses/dtoa-1.0.11/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
     "third-party/native-cargo/licenses/dtoa-short-0.3.5/LICENSE": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5",
-    "third-party/native-cargo/licenses/dtor-0.3.0/LICENSE-APACHE": "a8ad31b1c3f40dca5a84119351b8fa8ddc868edd77fad8a8ebf6d8f2d16fa4ae",
-    "third-party/native-cargo/licenses/dtor-0.3.0/LICENSE-MIT": "bccaa8b6c09f94e81f06696e179dbe058464bbdfbc823b6d49cada1d71e84ac3",
-    "third-party/native-cargo/licenses/dtor-proc-macro-0.0.6/LICENSE-APACHE": "a8ad31b1c3f40dca5a84119351b8fa8ddc868edd77fad8a8ebf6d8f2d16fa4ae",
-    "third-party/native-cargo/licenses/dtor-proc-macro-0.0.6/LICENSE-MIT": "bccaa8b6c09f94e81f06696e179dbe058464bbdfbc823b6d49cada1d71e84ac3",
     "third-party/native-cargo/licenses/dunce-1.0.5/LICENSE": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
     "third-party/native-cargo/licenses/dyn-clone-1.0.20/LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
     "third-party/native-cargo/licenses/dyn-clone-1.0.20/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
@@ -2931,6 +2990,7 @@
     "third-party/native-cargo/licenses/erased-serde-0.4.10/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
     "third-party/native-cargo/licenses/errno-0.3.14/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/errno-0.3.14/LICENSE-MIT": "8764a597675778ddfd4e25f81b08a05dbcf089ac05662df7613fe67f150e3aa2",
+    "third-party/native-cargo/licenses/error-code-3.4.0/LICENSE": "c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566",
     "third-party/native-cargo/licenses/esaxx-rs-0.1.10/LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
     "third-party/native-cargo/licenses/euclid-0.20.14/COPYRIGHT": "ec82b96487e9e778ee610c7ab245162464782cfa1f555c2299333f8dbe5c036a",
     "third-party/native-cargo/licenses/euclid-0.20.14/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
@@ -2953,8 +3013,11 @@
     "third-party/native-cargo/licenses/feed-rs-2.4.0/LICENSE-MIT": "585ce41ccb25491e0c8121b726b8737d0b020c7ff4e7ea5d7a7b33043004c0d6",
     "third-party/native-cargo/licenses/field-offset-0.3.6/LICENSE-APACHE": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9",
     "third-party/native-cargo/licenses/field-offset-0.3.6/LICENSE-MIT": "9dd44491b4cf95dcfa2963943b3ae91bff9a78d13049a9e0b53e0d0b0a9c8f4e",
+    "third-party/native-cargo/licenses/filedescriptor-0.8.3/LICENSE.md": "191c46fcf52061382b1c51a70311eb9081381cc158e5899f3739473a9432185b",
     "third-party/native-cargo/licenses/find-msvc-tools-0.1.13/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/find-msvc-tools-0.1.13/LICENSE-MIT": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397",
+    "third-party/native-cargo/licenses/fixedbitset-0.5.7/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/fixedbitset-0.5.7/LICENSE-MIT": "ce592787ff2321feab698a4c612237f4378cc658ebb1d472913e5802cc47afb4",
     "third-party/native-cargo/licenses/flate2-1.1.10/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/flate2-1.1.10/LICENSE-MIT": "025436edff4cfcdde17a5811fdea78892d8482efd1abdec5a17872d07a4f2112",
     "third-party/native-cargo/licenses/float8-0.6.1/LICENSE": "b40bb09c7b3b6f697a8920cf9d2cb3ff8cfcf77a0fcb6d264a92842b43c4dcae",
@@ -2970,9 +3033,12 @@
     "third-party/native-cargo/licenses/foreign-types-shared-0.3.1/LICENSE-MIT": "333ea3aaa3cadb819f4acd9f9153f9feee060a995ca8710f32bc5bd9a4b91734",
     "third-party/native-cargo/licenses/form_urlencoded-1.2.2/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/form_urlencoded-1.2.2/LICENSE-MIT": "20c7855c364d57ea4c97889a5e8d98470a9952dade37bd9248b9a54431670e5e",
+    "third-party/native-cargo/licenses/fs_extra-1.3.0/LICENSE": "251ea8ccb1205ce5fa847d6e264d6b6753af62de2cecf2fd9abc0eb02c7c83fc",
     "third-party/native-cargo/licenses/fsevent-sys-4.1.0/LICENSE": "c4d64f0ce17c85d4a14e22d224fbbd76dbb1e03eb38f0d3c209fb38bdc8dc646",
     "third-party/native-cargo/licenses/futf-0.1.5/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/futf-0.1.5/LICENSE-MIT": "60a7062291b01ba068f300612cdbdc20382ac1d4934f07bcdd7167c15299f309",
+    "third-party/native-cargo/licenses/futures-0.3.34/LICENSE-APACHE": "275c491d6d1160553c32fd6127061d7f9606c3ea25abfad6ca3f6ed088785427",
+    "third-party/native-cargo/licenses/futures-0.3.34/LICENSE-MIT": "6652c868f35dfe5e8ef636810a4e576b9d663f3a17fb0f5613ad73583e1b88fd",
     "third-party/native-cargo/licenses/futures-channel-0.3.34/LICENSE-APACHE": "275c491d6d1160553c32fd6127061d7f9606c3ea25abfad6ca3f6ed088785427",
     "third-party/native-cargo/licenses/futures-channel-0.3.34/LICENSE-MIT": "6652c868f35dfe5e8ef636810a4e576b9d663f3a17fb0f5613ad73583e1b88fd",
     "third-party/native-cargo/licenses/futures-core-0.3.34/LICENSE-APACHE": "275c491d6d1160553c32fd6127061d7f9606c3ea25abfad6ca3f6ed088785427",
@@ -3010,6 +3076,7 @@
     "third-party/native-cargo/licenses/gemm-f32-0.19.0/LICENSE": "d64f878c89bd5f1e5ada7e4aad57690b122727cf5229b7b87ea1980c188da1d9",
     "third-party/native-cargo/licenses/gemm-f64-0.19.0/LICENSE": "d64f878c89bd5f1e5ada7e4aad57690b122727cf5229b7b87ea1980c188da1d9",
     "third-party/native-cargo/licenses/generic-array-0.14.7/LICENSE": "ad4fcfaf8d5b12b97409c137a03d4a4e4b21024c65c54f976cc3b609c1bd5b0f",
+    "third-party/native-cargo/licenses/gethostname-1.1.0/LICENSE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/getopts-0.2.24/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/getopts-0.2.24/LICENSE-MIT": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb",
     "third-party/native-cargo/licenses/getrandom-0.2.17/LICENSE-APACHE": "aaff376532ea30a0cd5330b9502ad4a4c8bf769c539c87ffe78819d188a18ebf",
@@ -3018,6 +3085,10 @@
     "third-party/native-cargo/licenses/getrandom-0.3.4/LICENSE-MIT": "29e9fe5074bd27e0e5d5d110394fbbcd841baee2651a3c4b4560a632702cede4",
     "third-party/native-cargo/licenses/getrandom-0.4.3/LICENSE-APACHE": "aaff376532ea30a0cd5330b9502ad4a4c8bf769c539c87ffe78819d188a18ebf",
     "third-party/native-cargo/licenses/getrandom-0.4.3/LICENSE-MIT": "523a42c25d245dde9c015f882cec7f4555aad883382a6cf19b4b7d9b2cd5419b",
+    "third-party/native-cargo/licenses/ghash-0.5.1/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/ghash-0.5.1/LICENSE-MIT": "c0fabcc308b450cb6fe62c9f56fae6abbeb9768eb80d992484c857d744846c2e",
+    "third-party/native-cargo/licenses/ghash-0.6.0/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/ghash-0.6.0/LICENSE-MIT": "b8c6939380a400f53e11923d50fcc4dd2fa1ba8339fd9d04cda38a0251b6c9b0",
     "third-party/native-cargo/licenses/gif-0.14.2/LICENSE-APACHE": "769f80b5bcb42ed0af4e4d2fd74e1ac9bf843cb80c5a29219d1ef3544428a6bb",
     "third-party/native-cargo/licenses/gif-0.14.2/LICENSE-MIT": "77257f3d2181236b1aee78920238062ae64efe13c5d858b2db126e79c9e1b14f",
     "third-party/native-cargo/licenses/gio-0.18.4/COPYRIGHT": "dae402989de65164815b7e2b6bc2b9576285434c3785934c8b6ece0fa055960d",
@@ -3041,6 +3112,8 @@
     "third-party/native-cargo/licenses/half-2.7.1/LICENSE-MIT": "508a77d2e7b51d98adeed32648ad124b7b30241a8e70b2e72c99f92d8e5874d1",
     "third-party/native-cargo/licenses/hashbrown-0.12.3/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/hashbrown-0.12.3/LICENSE-MIT": "ff8f68cb076caf8cefe7a6430d4ac086ce6af2ca8ce2c4e5a2004d4552ef52a2",
+    "third-party/native-cargo/licenses/hashbrown-0.14.5/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/hashbrown-0.14.5/LICENSE-MIT": "ff8f68cb076caf8cefe7a6430d4ac086ce6af2ca8ce2c4e5a2004d4552ef52a2",
     "third-party/native-cargo/licenses/hashbrown-0.15.5/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/hashbrown-0.15.5/LICENSE-MIT": "ff8f68cb076caf8cefe7a6430d4ac086ce6af2ca8ce2c4e5a2004d4552ef52a2",
     "third-party/native-cargo/licenses/hashbrown-0.16.1/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
@@ -3057,10 +3130,14 @@
     "third-party/native-cargo/licenses/hermit-abi-0.5.3/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
     "third-party/native-cargo/licenses/hex-0.4.3/LICENSE-APACHE": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
     "third-party/native-cargo/licenses/hex-0.4.3/LICENSE-MIT": "f7bdb3426d045cd50efd4953026e3eb5a83d0199f458a075602611b9344da5b9",
+    "third-party/native-cargo/licenses/hkdf-0.13.0/LICENSE-APACHE": "59013a5c8d3a19c26a457579105915a5d51bb0c09d579f8cdedf12e4203c3018",
+    "third-party/native-cargo/licenses/hkdf-0.13.0/LICENSE-MIT": "d288f9c9b4590446ec18c22ead8f8b5a12a3d4025b68f62dc9015063eb9cca69",
+    "third-party/native-cargo/licenses/hmac-0.13.0/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/hmac-0.13.0/LICENSE-MIT": "9e0dfd2dd4173a530e238cb6adb37aa78c34c6bc7444e0e10c1ab5d8881f63ba",
     "third-party/native-cargo/licenses/html5ever-0.27.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/html5ever-0.27.0/LICENSE-MIT": "86dd7f026f916daf7511e39951ad8ea8cf55a8db67ae64060dacf829761c18f3",
-    "third-party/native-cargo/licenses/html5ever-0.38.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
-    "third-party/native-cargo/licenses/html5ever-0.38.0/LICENSE-MIT": "86dd7f026f916daf7511e39951ad8ea8cf55a8db67ae64060dacf829761c18f3",
+    "third-party/native-cargo/licenses/html5ever-0.39.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/html5ever-0.39.0/LICENSE-MIT": "86dd7f026f916daf7511e39951ad8ea8cf55a8db67ae64060dacf829761c18f3",
     "third-party/native-cargo/licenses/http-1.5.0/LICENSE-APACHE": "8bb1b50b0e5c9399ae33bd35fab2769010fa6c14e8860c729a52295d84896b7a",
     "third-party/native-cargo/licenses/http-1.5.0/LICENSE-MIT": "dc91f8200e4b2a1f9261035d4c18c33c246911a6c0f7b543d75347e61b249cff",
     "third-party/native-cargo/licenses/http-body-1.1.0/LICENSE": "248378d0a3383c173fb925f17141b88e71580b3ba17ddc6ac3d2a344683232ab",
@@ -3070,6 +3147,8 @@
     "third-party/native-cargo/licenses/httparse-1.10.1/LICENSE-MIT": "391a5396cec6230bfabd4ef4eb2350eb895bc5efce377a2218f5702ed020d3e3",
     "third-party/native-cargo/licenses/httpdate-1.0.3/LICENSE-APACHE": "4d10fe5f3aa176b05b229a248866bad70b834c173f1252a814ff4748d8a13837",
     "third-party/native-cargo/licenses/httpdate-1.0.3/LICENSE-MIT": "934887691e05d69d7c86ad3f2c360980fa30c15b035e351f3c9865e99da4debc",
+    "third-party/native-cargo/licenses/hybrid-array-0.4.15/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/hybrid-array-0.4.15/LICENSE-MIT": "70c9d40f1f9545c3f133b8a67206e89da850f6468eed072281bb3701514114a9",
     "third-party/native-cargo/licenses/hyper-1.11.1/LICENSE": "2d01890414494742ba4a509fcec8efa40f6d8be22cbd72be7cff08d6fda4ec89",
     "third-party/native-cargo/licenses/hyper-rustls-0.27.10/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/hyper-rustls-0.27.10/LICENSE-ISC": "7cfafc877eccc46c0e346ccbaa5c51bb6b894d2b818e617d970211e232785ad4",
@@ -3079,7 +3158,7 @@
     "third-party/native-cargo/licenses/iana-time-zone-0.1.65/LICENSE-MIT": "da28ccc6b158fc2d8cccc74e99794b1cff1d29bd7bbeb019442fcf0c04c6cad9",
     "third-party/native-cargo/licenses/iana-time-zone-haiku-0.1.2/LICENSE-APACHE": "696759d65dfe558ff7d9f031c76db19ec5c0767470fb67c4e8d990820d1e99c9",
     "third-party/native-cargo/licenses/iana-time-zone-haiku-0.1.2/LICENSE-MIT": "da28ccc6b158fc2d8cccc74e99794b1cff1d29bd7bbeb019442fcf0c04c6cad9",
-    "third-party/native-cargo/licenses/ico-0.5.0/LICENSE": "41ca90213441b294e7517d5858f0cc85bc12e19ec044001b45bc213de461d33b",
+    "third-party/native-cargo/licenses/ico-0.6.0/LICENSE": "41ca90213441b294e7517d5858f0cc85bc12e19ec044001b45bc213de461d33b",
     "third-party/native-cargo/licenses/icu_collections-2.3.0/LICENSE": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2",
     "third-party/native-cargo/licenses/icu_locale_core-2.3.0/LICENSE": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2",
     "third-party/native-cargo/licenses/icu_normalizer_data-2.3.0/LICENSE": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2",
@@ -3101,15 +3180,21 @@
     "third-party/native-cargo/licenses/indexmap-2.14.2/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/indexmap-2.14.2/LICENSE-MIT": "ecc269ef87fd38a1d98e30bfac9ba964a9dbd9315c3770fed98d4d7cb5882055",
     "third-party/native-cargo/licenses/indicatif-0.17.11/LICENSE": "2022c11b24fc1e50fa06a5959e40198a3464f560729ad3d00139abb8a328362d",
-    "third-party/native-cargo/licenses/infer-0.19.0/LICENSE": "270b0d81891aa44c7e8726cf9432dade9556a01c848bacd2f3ef839c9c1a1859",
+    "third-party/native-cargo/licenses/infer-0.22.0/LICENSE": "270b0d81891aa44c7e8726cf9432dade9556a01c848bacd2f3ef839c9c1a1859",
     "third-party/native-cargo/licenses/inotify-0.11.5/LICENSE": "7f78b31de4e7a3e2ac8de40e2b409eda313f03637aa62b8416fbde9bdc5ce4c9",
     "third-party/native-cargo/licenses/inotify-sys-0.1.8/LICENSE": "f68878c9ca61b25d4b2c470de571cb85ce97804a62bb153607f7e0e0d2684c8a",
+    "third-party/native-cargo/licenses/inout-0.1.4/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/inout-0.1.4/LICENSE-MIT": "304b898acad7f02e03d6d8832d682a3b43ee729ab5d3a069af5a36979083b6b4",
+    "third-party/native-cargo/licenses/inout-0.2.5/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/inout-0.2.5/LICENSE-MIT": "a07fcacc3c60de4dc0fab10ac9d6aaba7379974e28451c99da7f7df09c25b28c",
     "third-party/native-cargo/licenses/ipnet-2.12.2/LICENSE-APACHE": "87d9feb9238c6bd8e0024fc4733b06cff036f89f36d93b7df1c8a0549bbb7a5b",
     "third-party/native-cargo/licenses/ipnet-2.12.2/LICENSE-MIT": "47dc9ff29128ddfb4d6a0435383c9f89120bc374dbcc1dd00b933a0b28aa7865",
     "third-party/native-cargo/licenses/is_terminal_polyfill-1.70.2/LICENSE-APACHE": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
     "third-party/native-cargo/licenses/is_terminal_polyfill-1.70.2/LICENSE-MIT": "6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6",
     "third-party/native-cargo/licenses/is-docker-0.2.0/LICENSE": "7377e48a67377f0baa9ccee6425e125eb7b96d5b8e706f4c99479ca4ffa21b77",
     "third-party/native-cargo/licenses/is-wsl-0.4.0/LICENSE": "7377e48a67377f0baa9ccee6425e125eb7b96d5b8e706f4c99479ca4ffa21b77",
+    "third-party/native-cargo/licenses/itertools-0.13.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/itertools-0.13.0/LICENSE-MIT": "7576269ea71f767b99297934c0b2367532690f8c4badc695edf8e04ab6a1e545",
     "third-party/native-cargo/licenses/itertools-0.14.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/itertools-0.14.0/LICENSE-MIT": "7576269ea71f767b99297934c0b2367532690f8c4badc695edf8e04ab6a1e545",
     "third-party/native-cargo/licenses/itoa-1.0.18/LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
@@ -3137,16 +3222,24 @@
     "third-party/native-cargo/licenses/jni-sys-0.3.1/LICENSE-MIT": "1d85bd754b04ceec93e98e890edd1fa3c6a22e81bcb32135806beeccefa51cd1",
     "third-party/native-cargo/licenses/jni-sys-0.4.1/LICENSE-APACHE": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
     "third-party/native-cargo/licenses/jni-sys-0.4.1/LICENSE-MIT": "1d85bd754b04ceec93e98e890edd1fa3c6a22e81bcb32135806beeccefa51cd1",
+    "third-party/native-cargo/licenses/jobserver-0.1.35/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/jobserver-0.1.35/LICENSE-MIT": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397",
     "third-party/native-cargo/licenses/js-sys-0.3.105/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/js-sys-0.3.105/LICENSE-MIT": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397",
-    "third-party/native-cargo/licenses/json-patch-3.0.1/LICENSE-APACHE": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
-    "third-party/native-cargo/licenses/json-patch-3.0.1/LICENSE-MIT": "87f7527b1066337751f7f4d717089bf514ff8f7ee7d66c4c5b891b09e744ec11",
-    "third-party/native-cargo/licenses/jsonptr-0.6.3/LICENSE-APACHE": "2cf31f2ae7f3feba667d50fc1d4d21ecf217703c04c3068b83c9a73b6dde723a",
-    "third-party/native-cargo/licenses/jsonptr-0.6.3/LICENSE-MIT": "2bc107bdc18a74263d20bdefdb8073e17bc1a01b6b374dc5835683a33ee5ba7d",
-    "third-party/native-cargo/licenses/keyboard-types-0.7.0/LICENSE-APACHE": "769f80b5bcb42ed0af4e4d2fd74e1ac9bf843cb80c5a29219d1ef3544428a6bb",
-    "third-party/native-cargo/licenses/keyboard-types-0.7.0/LICENSE-MIT": "31dbbab009f1b2e59a1622d5955dfafc38ebe834000215b49d954c6f85fe927c",
+    "third-party/native-cargo/licenses/json-patch-4.2.0/LICENSE-APACHE": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+    "third-party/native-cargo/licenses/json-patch-4.2.0/LICENSE-MIT": "87f7527b1066337751f7f4d717089bf514ff8f7ee7d66c4c5b891b09e744ec11",
+    "third-party/native-cargo/licenses/jsonptr-0.7.1/LICENSE-APACHE": "2cf31f2ae7f3feba667d50fc1d4d21ecf217703c04c3068b83c9a73b6dde723a",
+    "third-party/native-cargo/licenses/jsonptr-0.7.1/LICENSE-MIT": "2bc107bdc18a74263d20bdefdb8073e17bc1a01b6b374dc5835683a33ee5ba7d",
+    "third-party/native-cargo/licenses/keyboard-types-0.8.3/LICENSE-APACHE": "769f80b5bcb42ed0af4e4d2fd74e1ac9bf843cb80c5a29219d1ef3544428a6bb",
+    "third-party/native-cargo/licenses/keyboard-types-0.8.3/LICENSE-MIT": "31dbbab009f1b2e59a1622d5955dfafc38ebe834000215b49d954c6f85fe927c",
+    "third-party/native-cargo/licenses/keyring-4.2.0/LICENSE-APACHE": "78ebc2ea2a1cec9cbec2e1a6fc15e73474fe22bdad7575518e7f4628651d49c4",
+    "third-party/native-cargo/licenses/keyring-4.2.0/LICENSE-MIT": "157cc607717b1b372a69f6b4526f6ad18c1279af9f3267835cca2943f37bc07d",
+    "third-party/native-cargo/licenses/keyring-core-1.0.1/LICENSE-APACHE": "78ebc2ea2a1cec9cbec2e1a6fc15e73474fe22bdad7575518e7f4628651d49c4",
+    "third-party/native-cargo/licenses/keyring-core-1.0.1/LICENSE-MIT": "157cc607717b1b372a69f6b4526f6ad18c1279af9f3267835cca2943f37bc07d",
     "third-party/native-cargo/licenses/kqueue-1.2.1/LICENSE": "9dc7535841863372cb757676c5acd69c010572a85df23d3467d6bb3cc2829e84",
     "third-party/native-cargo/licenses/kqueue-sys-1.1.2/LICENSE": "9dc7535841863372cb757676c5acd69c010572a85df23d3467d6bb3cc2829e84",
+    "third-party/native-cargo/licenses/lazy_static-1.5.1/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/lazy_static-1.5.1/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
     "third-party/native-cargo/licenses/libappindicator-0.9.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/libappindicator-0.9.0/LICENSE-MIT": "eb227437252b2a7a9c1fc342c93ade1f3d7ce38cc6dd754f613db07d53ceff0b",
     "third-party/native-cargo/licenses/libc-0.2.189/LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
@@ -3178,8 +3271,8 @@
     "third-party/native-cargo/licenses/macro_rules_attribute-proc_macro-0.2.3/LICENSE-ZLIB": "1c41c0e19caa2c20b0adfeb8219b606b21b7c63914aa3ae74ae3e091d7ce09ca",
     "third-party/native-cargo/licenses/markup5ever-0.12.1/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/markup5ever-0.12.1/LICENSE-MIT": "86dd7f026f916daf7511e39951ad8ea8cf55a8db67ae64060dacf829761c18f3",
-    "third-party/native-cargo/licenses/markup5ever-0.38.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
-    "third-party/native-cargo/licenses/markup5ever-0.38.0/LICENSE-MIT": "86dd7f026f916daf7511e39951ad8ea8cf55a8db67ae64060dacf829761c18f3",
+    "third-party/native-cargo/licenses/markup5ever-0.39.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/markup5ever-0.39.0/LICENSE-MIT": "86dd7f026f916daf7511e39951ad8ea8cf55a8db67ae64060dacf829761c18f3",
     "third-party/native-cargo/licenses/matchit-0.8.4/LICENSE": "de701d0618d694feb1af90f02181a1763d9b0bdeb70a3a592781e529077dba65",
     "third-party/native-cargo/licenses/matchit-0.8.4/LICENSE.httprouter": "162ce11ad71338d0a0c6ebaf5c48af72c6ae237b468859d3656fe2d9ed3f3a85",
     "third-party/native-cargo/licenses/md-5-0.10.6/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
@@ -3212,9 +3305,9 @@
     "third-party/native-cargo/licenses/monostate-impl-0.1.18/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
     "third-party/native-cargo/licenses/moxcms-0.8.1/LICENSE-APACHE.md": "90bf2d659c43045111b65c733ab2a6d4cbcb422a098368c8c58a9ba3db4ed0c5",
     "third-party/native-cargo/licenses/moxcms-0.8.1/LICENSE.md": "2aa92cada6431e75615e3fe6cb1a9082c98f777d48ae1c087c0da0e37f7b8bff",
-    "third-party/native-cargo/licenses/muda-0.19.3/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
-    "third-party/native-cargo/licenses/muda-0.19.3/LICENSE-MIT": "2ab5537b8c0cb1d475e2145b6a7994b04e7c71e6e5bd836f7f9c47c221a5ad9a",
-    "third-party/native-cargo/licenses/muda-0.19.3/LICENSE.spdx": "b99f9d43803f2ac979c50949df630bd8eeaf2fcd1b9fdb9093710d70f5dfb63d",
+    "third-party/native-cargo/licenses/muda-0.20.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/muda-0.20.0/LICENSE-MIT": "2ab5537b8c0cb1d475e2145b6a7994b04e7c71e6e5bd836f7f9c47c221a5ad9a",
+    "third-party/native-cargo/licenses/muda-0.20.0/LICENSE.spdx": "b99f9d43803f2ac979c50949df630bd8eeaf2fcd1b9fdb9093710d70f5dfb63d",
     "third-party/native-cargo/licenses/multiversion_no_op-1.0.0/COPYRIGHT": "d2a809eafabba137f508bea16a1b93d8ff24df7da6f38129d830db9bc118bdfe",
     "third-party/native-cargo/licenses/multiversion_no_op-1.0.0/LICENSE-APACHE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
     "third-party/native-cargo/licenses/multiversion_no_op-1.0.0/LICENSE-MIT": "3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c",
@@ -3223,10 +3316,16 @@
     "third-party/native-cargo/licenses/multiversion-macros-0.9.0/LICENSE-APACHE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
     "third-party/native-cargo/licenses/multiversion-macros-0.9.0/LICENSE-MIT": "3c92a19e541755a97e51b4c963aa4335bbf93b64574dfbc36a5636c2899f3ab9",
     "third-party/native-cargo/licenses/new_debug_unreachable-1.0.6/LICENSE-MIT": "f7715d38a3fa1b4ac97c5729740752505a39cb92ee83ab5b102aeb5eaa7cdea4",
+    "third-party/native-cargo/licenses/nix-0.28.0/LICENSE": "66e3ee1fa7f909ad3c612d556f2a0cdabcd809ad6e66f3b0605015ac64841b70",
     "third-party/native-cargo/licenses/nom-7.1.3/LICENSE": "4dbda04344456f09a7a588140455413a9ac59b6b26a1ef7cdf9c800c012d87f0",
+    "third-party/native-cargo/licenses/nom-8.0.0/LICENSE": "4dbda04344456f09a7a588140455413a9ac59b6b26a1ef7cdf9c800c012d87f0",
     "third-party/native-cargo/licenses/notify-8.2.0/LICENSE-CC0": "e0456cbab4f7b5e7203e678faff37eadbdfef02e822db3b7a52a1dd9d3dc514a",
+    "third-party/native-cargo/licenses/notify-rust-4.18.2/LICENSE-Apache": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+    "third-party/native-cargo/licenses/notify-rust-4.18.2/LICENSE-MIT": "d848c165548bd3f33419b71c3c3bb7cacec620d93383483393410688cba68431",
     "third-party/native-cargo/licenses/notify-types-2.1.0/LICENSE-APACHE": "b5b413d7421d728c14f33d78198d6e255a0018beef717d78c4c3f6188be3dfb4",
     "third-party/native-cargo/licenses/notify-types-2.1.0/LICENSE-MIT": "b63e167d61ced1d872a588c5ac764b0dda477d62209dc4f6b6bfea5517d0a24c",
+    "third-party/native-cargo/licenses/ntapi-0.4.3/LICENSE-APACHE": "cf90d659de5c1e6418267ab8043b756e65508ee5d8d50b29eb2d2fe444c2c3eb",
+    "third-party/native-cargo/licenses/ntapi-0.4.3/LICENSE-MIT": "11a7964ccc0dd115d16720ab1d826c5d03e52838748ffaba3d21bae8bcacd82a",
     "third-party/native-cargo/licenses/num_cpus-1.17.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/num_cpus-1.17.0/LICENSE-MIT": "391a5396cec6230bfabd4ef4eb2350eb895bc5efce377a2218f5702ed020d3e3",
     "third-party/native-cargo/licenses/num_enum_derive-0.7.6/LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
@@ -3235,10 +3334,20 @@
     "third-party/native-cargo/licenses/num_enum-0.7.6/LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
     "third-party/native-cargo/licenses/num_enum-0.7.6/LICENSE-BSD": "0be96d891d00e0ae0df75d7f3289b12871c000a1f5ac744f3b570768d4bb277c",
     "third-party/native-cargo/licenses/num_enum-0.7.6/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+    "third-party/native-cargo/licenses/num-0.4.3/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/num-0.4.3/LICENSE-MIT": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb",
+    "third-party/native-cargo/licenses/num-bigint-0.4.8/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/num-bigint-0.4.8/LICENSE-MIT": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb",
     "third-party/native-cargo/licenses/num-complex-0.4.6/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/num-complex-0.4.6/LICENSE-MIT": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb",
     "third-party/native-cargo/licenses/num-conv-0.2.2/LICENSE-Apache": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
     "third-party/native-cargo/licenses/num-conv-0.2.2/LICENSE-MIT": "e2e245f2b566d0bfafb0f6a04c16b82d710c4e6e7d799e39bb4ef6e541b85b98",
+    "third-party/native-cargo/licenses/num-integer-0.1.47/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/num-integer-0.1.47/LICENSE-MIT": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb",
+    "third-party/native-cargo/licenses/num-iter-0.1.46/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/num-iter-0.1.46/LICENSE-MIT": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb",
+    "third-party/native-cargo/licenses/num-rational-0.4.2/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/num-rational-0.4.2/LICENSE-MIT": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb",
     "third-party/native-cargo/licenses/num-traits-0.2.19/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/num-traits-0.2.19/LICENSE-MIT": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb",
     "third-party/native-cargo/licenses/once_cell_polyfill-1.70.2/LICENSE-APACHE": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
@@ -3247,12 +3356,17 @@
     "third-party/native-cargo/licenses/once_cell-1.21.4/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
     "third-party/native-cargo/licenses/onig_sys-69.9.3/LICENSE.md": "71f321038b088358004bee991635ac09e4c703bec467d3c30c06992c0595f189",
     "third-party/native-cargo/licenses/onig-6.5.3/LICENSE.md": "e9c1238c5beb73c6cc130160418968058b21d486a7a445f0ceff27d51fbfdc44",
+    "third-party/native-cargo/licenses/oorandom-11.1.5/LICENSE-MIT": "e3f96201e81ea40ed151ec06694dd5b1d9e6b94a74f47a1c45779c4b8a293888",
+    "third-party/native-cargo/licenses/opaque-debug-0.3.1/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/opaque-debug-0.3.1/LICENSE-MIT": "f59f5a78193597e04fd932ee9af86254d14d08be5c9d0e003ab888feccce2161",
     "third-party/native-cargo/licenses/open-5.4.4/LICENSE.md": "e63690624d604aa626c3c62b6ead1a9f4a916d2260ac8132022acbafe2556045",
     "third-party/native-cargo/licenses/openssl-probe-0.2.1/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/openssl-probe-0.2.1/LICENSE-MIT": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397",
     "third-party/native-cargo/licenses/option-ext-0.2.0/LICENSE.txt": "66a3107d5ad6a058aab753eaac2047ccb2ed0e39465dd0fe5844da3e300d5172",
+    "third-party/native-cargo/licenses/ordered-multimap-0.7.3/LICENSE": "047c1d2f1c28c30ced89bd0740ff251d8f51512e81b142711f958a0551729ec4",
     "third-party/native-cargo/licenses/ordered-stream-0.2.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/ordered-stream-0.2.0/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+    "third-party/native-cargo/licenses/os_pipe-1.2.3/LICENSE": "8f71659370c5268d9a1dc962a46232540e8fca63462586d8efaa95aab492a208",
     "third-party/native-cargo/licenses/pango-0.18.3/COPYRIGHT": "dae402989de65164815b7e2b6bc2b9576285434c3785934c8b6ece0fa055960d",
     "third-party/native-cargo/licenses/pango-0.18.3/LICENSE": "8cf56d10131ce201cf69ab74b111d3ebac1acca3833d7efb39ae357224b70edb",
     "third-party/native-cargo/licenses/pango-sys-0.18.0/LICENSE": "8cf56d10131ce201cf69ab74b111d3ebac1acca3833d7efb39ae357224b70edb",
@@ -3271,6 +3385,8 @@
     "third-party/native-cargo/licenses/pathdiff-0.2.3/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
     "third-party/native-cargo/licenses/percent-encoding-2.3.2/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/percent-encoding-2.3.2/LICENSE-MIT": "b38f11f6096706e6de553dabe2a7ed142d59b6fa8c97e290c67496154745cdd5",
+    "third-party/native-cargo/licenses/petgraph-0.8.3/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/petgraph-0.8.3/LICENSE-MIT": "7576269ea71f767b99297934c0b2367532690f8c4badc695edf8e04ab6a1e545",
     "third-party/native-cargo/licenses/phf_codegen-0.11.3/LICENSE": "0ab4d106b6faac07fb6a051815fd1b4d862d730895e2d7d7358c2f13565e7a38",
     "third-party/native-cargo/licenses/phf_codegen-0.13.1/LICENSE": "0ab4d106b6faac07fb6a051815fd1b4d862d730895e2d7d7358c2f13565e7a38",
     "third-party/native-cargo/licenses/phf_generator-0.11.3/LICENSE": "0ab4d106b6faac07fb6a051815fd1b4d862d730895e2d7d7358c2f13565e7a38",
@@ -3288,17 +3404,23 @@
     "third-party/native-cargo/licenses/pkg-config-0.3.34/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/pkg-config-0.3.34/LICENSE-MIT": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397",
     "third-party/native-cargo/licenses/plist-1.10.1/LICENCE": "5b0ae40d1a35f7ae6591a28e44771240e6a88cb03a66c9189a45b9681639b466",
-    "third-party/native-cargo/licenses/png-0.17.16/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
-    "third-party/native-cargo/licenses/png-0.17.16/LICENSE-MIT": "eaf40297c75da471f7cda1f3458e8d91b4b2ec866e609527a13acfa93b638652",
+    "third-party/native-cargo/licenses/plotters-0.3.7/LICENSE": "1e881ecf2862d01e6e5bc2b861e46886d2a6fb01499c0c508a209a7271b13cf2",
+    "third-party/native-cargo/licenses/plotters-backend-0.3.7/LICENSE": "1e881ecf2862d01e6e5bc2b861e46886d2a6fb01499c0c508a209a7271b13cf2",
+    "third-party/native-cargo/licenses/plotters-svg-0.3.7/LICENSE": "1e881ecf2862d01e6e5bc2b861e46886d2a6fb01499c0c508a209a7271b13cf2",
     "third-party/native-cargo/licenses/png-0.18.1/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/png-0.18.1/LICENSE-MIT": "eaf40297c75da471f7cda1f3458e8d91b4b2ec866e609527a13acfa93b638652",
     "third-party/native-cargo/licenses/polling-3.11.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/polling-3.11.0/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+    "third-party/native-cargo/licenses/polyval-0.6.2/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/polyval-0.6.2/LICENSE-MIT": "a291b6910744d262a9e953c3b5868d74510e20161359f649a11e1791fde84fcd",
+    "third-party/native-cargo/licenses/polyval-0.7.3/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/polyval-0.7.3/LICENSE-MIT": "b8c6939380a400f53e11923d50fcc4dd2fa1ba8339fd9d04cda38a0251b6c9b0",
     "third-party/native-cargo/licenses/pom-1.1.0/LICENSE": "2fb01e6708ea9d53e8b7e74bd82af23bce5256f19f4de93915027a53173c50d8",
     "third-party/native-cargo/licenses/portable-atomic-1.15.0/LICENSE-APACHE": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
     "third-party/native-cargo/licenses/portable-atomic-1.15.0/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
     "third-party/native-cargo/licenses/portable-atomic-util-0.2.8/LICENSE-APACHE": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
     "third-party/native-cargo/licenses/portable-atomic-util-0.2.8/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+    "third-party/native-cargo/licenses/portable-pty-0.9.0/LICENSE.md": "191c46fcf52061382b1c51a70311eb9081381cc158e5899f3739473a9432185b",
     "third-party/native-cargo/licenses/postscript-0.14.1/LICENSE.md": "7887d2aceab31d91abc135a3de469ec548b66a8c6f000252fd2203857347eae8",
     "third-party/native-cargo/licenses/potential_utf-0.1.6/LICENSE": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2",
     "third-party/native-cargo/licenses/powerfmt-0.2.0/LICENSE-Apache": "155420c6403d4e0fca34105e3c03fdd6939b64c393c7ec6f95f5b72c5474eab0",
@@ -3392,10 +3514,12 @@
     "third-party/native-cargo/licenses/reqwest-0.12.28/LICENSE-MIT": "47d4e1803702728e03d30f8a848ae2249ba274bbd9f8443e803f7924d83cd371",
     "third-party/native-cargo/licenses/reqwest-0.13.5/LICENSE-APACHE": "751963a8b88c0e3a9f27e98933079fbcf09b9998b2c13ac49c2e4d58444520d6",
     "third-party/native-cargo/licenses/reqwest-0.13.5/LICENSE-MIT": "dd87e27dfbaa888cb77ea34592648a7743636b8dce07e49543bddda0fcfc73bc",
+    "third-party/native-cargo/licenses/rfd-0.17.2/LICENSE": "65fc947f4bac882a2cd104ef73c246b1b037059df9f2b3a58b7f77f0b9e56071",
     "third-party/native-cargo/licenses/ring-0.17.14/LICENSE": "b3d734001a94efff3579978d953391aa7115f877657d25eb54037a43875d078a",
     "third-party/native-cargo/licenses/ring-0.17.14/LICENSE-BoringSSL": "005fc765ddc5115da796cca915baa9557abae13ff35e0a47c47affc56f6c414d",
     "third-party/native-cargo/licenses/ring-0.17.14/LICENSE-other-bits": "f025ccfb7dfb6bdfedc75ca0f67acc69e6fb4998143d834f7c2f38a29989680f",
     "third-party/native-cargo/licenses/rusqlite-0.37.0/LICENSE": "c10c1f27337546471e5f7e4e97fdd398b35b9d4e126115dcd22de8d8e65abf6f",
+    "third-party/native-cargo/licenses/rust-ini-0.21.3/LICENSE": "ccf6244964385d34fef3799aa7792e9f8d35517de026f39a4f43f0e89b2079eb",
     "third-party/native-cargo/licenses/rustc_version-0.4.1/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/rustc_version-0.4.1/LICENSE-MIT": "c9a75f18b9ab2927829a208fc6aa2cf4e63b8420887ba29cdb265d6619ae82d5",
     "third-party/native-cargo/licenses/rustc-hash-2.1.3/LICENSE-APACHE": "95bd3988beee069fa2848f648dab43cc6e0b2add2ad6bcb17360caf749802bcc",
@@ -3431,6 +3555,8 @@
     "third-party/native-cargo/licenses/scopeguard-1.2.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/scopeguard-1.2.0/LICENSE-MIT": "fb77f0a9c53e473abe5103c8632ef9f0f2874d4fb3f17cb2d8c661aab9cee9d7",
     "third-party/native-cargo/licenses/scraper-0.20.0/LICENSE": "0dc03cebb50aac8948974693a3863a04acb23f50247109da51c48881e90acbce",
+    "third-party/native-cargo/licenses/secret-service-5.2.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/secret-service-5.2.0/LICENSE-MIT": "074585dbaf488db540c26f7b20f36053a157d7580bb1c390dc9f6afdb017c83a",
     "third-party/native-cargo/licenses/security-framework-3.7.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/security-framework-3.7.0/LICENSE-MIT": "91e934255ba3b2f21103d68c5581c23ef34aa95c4628e4405b8c901935e11c69",
     "third-party/native-cargo/licenses/security-framework-sys-2.17.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
@@ -3463,18 +3589,32 @@
     "third-party/native-cargo/licenses/serde_with_macros-3.23.0/LICENSE-MIT": "7576269ea71f767b99297934c0b2367532690f8c4badc695edf8e04ab6a1e545",
     "third-party/native-cargo/licenses/serde_with-3.23.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/serde_with-3.23.0/LICENSE-MIT": "7576269ea71f767b99297934c0b2367532690f8c4badc695edf8e04ab6a1e545",
+    "third-party/native-cargo/licenses/serde_yaml-0.9.34+deprecated/LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+    "third-party/native-cargo/licenses/serde_yaml-0.9.34+deprecated/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
     "third-party/native-cargo/licenses/serde-1.0.229/LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
     "third-party/native-cargo/licenses/serde-1.0.229/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
     "third-party/native-cargo/licenses/serde-untagged-0.1.9/LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
     "third-party/native-cargo/licenses/serde-untagged-0.1.9/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+    "third-party/native-cargo/licenses/serial2-0.2.38/LICENSE-APACHE": "da4d60bfcfd15870aa69e0d0891796d7075a860c54e7b38ec5ccd353c66049ed",
+    "third-party/native-cargo/licenses/serial2-0.2.38/LICENSE-BSD": "8db3a8bca21e298fa56df51250b723d4253755966a5c7a92f8027cdd3aaf5972",
     "third-party/native-cargo/licenses/serialize-to-javascript-0.1.2/LICENSE-APACHE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
     "third-party/native-cargo/licenses/serialize-to-javascript-0.1.2/LICENSE-MIT": "e53a7165e8bc3ced5e5628404b3d2d28ecc14ad720f1c09ba28385d5151ecf93",
     "third-party/native-cargo/licenses/serialize-to-javascript-impl-0.1.2/LICENSE-APACHE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
     "third-party/native-cargo/licenses/serialize-to-javascript-impl-0.1.2/LICENSE-MIT": "e53a7165e8bc3ced5e5628404b3d2d28ecc14ad720f1c09ba28385d5151ecf93",
     "third-party/native-cargo/licenses/servo_arc-0.4.3/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/servo_arc-0.4.3/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+    "third-party/native-cargo/licenses/sha1-0.10.7/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/sha1-0.10.7/LICENSE-MIT": "b4eb00df6e2a4d22518fcaa6a2b4646f249b3a3c9814509b22bd2091f1392ff1",
+    "third-party/native-cargo/licenses/sha1-0.11.0/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/sha1-0.11.0/LICENSE-MIT": "831e0f43ad0bf014c1c4fec5767aae470434c1d66d6e671be2d823e729063e25",
     "third-party/native-cargo/licenses/sha2-0.10.9/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
     "third-party/native-cargo/licenses/sha2-0.10.9/LICENSE-MIT": "b4eb00df6e2a4d22518fcaa6a2b4646f249b3a3c9814509b22bd2091f1392ff1",
+    "third-party/native-cargo/licenses/sha2-0.11.1/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/sha2-0.11.1/LICENSE-MIT": "831e0f43ad0bf014c1c4fec5767aae470434c1d66d6e671be2d823e729063e25",
+    "third-party/native-cargo/licenses/shared_library-0.1.9/LICENSE-APACHE": "c144680885b29e4719e2a51f0aab5439a1e02d980692b5aaf086cae12727f28b",
+    "third-party/native-cargo/licenses/shared_library-0.1.9/LICENSE-MIT": "1c07d19ccbe2578665ab7d8c63f71559f890eb8d2a82fa39d0206b7a3414064f",
+    "third-party/native-cargo/licenses/shell-words-1.1.1/LICENSE-APACHE": "848d7bf14c618c39f1e29fcac2318a2fcc4254045ba7e2f6f5fa799e057225cb",
+    "third-party/native-cargo/licenses/shell-words-1.1.1/LICENSE-MIT": "f76b7831ee8f42d3ac38919101e4ceb9f56aeb7796cdfe8a5ef52e26acedcbbf",
     "third-party/native-cargo/licenses/shlex-2.0.1/LICENSE-APACHE": "553fffcd9b1cb158bc3e9edc35da85ca5c3b3d7d2e61c883ebcfa8a65814b583",
     "third-party/native-cargo/licenses/shlex-2.0.1/LICENSE-MIT": "4455bf75a91154108304cb283e0fea9948c14f13e20d60887cf2552449dea3b1",
     "third-party/native-cargo/licenses/signal-hook-registry-1.4.8/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
@@ -3498,6 +3638,10 @@
     "third-party/native-cargo/licenses/stable_deref_trait-1.2.1/LICENSE-MIT": "5e05b024f653a5ce199e77cbbbd42fb5553562ec714b819421ed0c3e552a75d7",
     "third-party/native-cargo/licenses/static_assertions-1.1.0/LICENSE-APACHE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
     "third-party/native-cargo/licenses/static_assertions-1.1.0/LICENSE-MIT": "ea084a2373ebc1f0902c09266e7bf25a05ab3814c1805bb017ffa7308f90c061",
+    "third-party/native-cargo/licenses/static_vcruntime-3.0.0/LICENSE": "b9290e9d37bc53272ff4f3fb392c1762169fc0a8b797d164803049c81eacb48c",
+    "third-party/native-cargo/licenses/static_vcruntime-3.0.0/LICENSE-APACHE": "e3ba223bb1423f0aad8c3dfce0fe3148db48926d41e6fbc3afbbf5ff9e1c89cb",
+    "third-party/native-cargo/licenses/static_vcruntime-3.0.0/LICENSE-MIT": "748c208045a6f00734dbc85a1c0e401c9a25e1f83fc756e99916750dbd2469a7",
+    "third-party/native-cargo/licenses/static_vcruntime-3.0.0/LICENSE-ZLIB": "c1ff532091cac33bdecedf7268ff4f9bc3ddcffba494249fb723033e9e782f1a",
     "third-party/native-cargo/licenses/string_cache_codegen-0.5.4/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/string_cache_codegen-0.5.4/LICENSE-MIT": "62065228e42caebca7e7d7db1204cbb867033de5982ca4009928915e4095f3a3",
     "third-party/native-cargo/licenses/string_cache_codegen-0.6.1/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
@@ -3508,8 +3652,8 @@
     "third-party/native-cargo/licenses/string_cache-0.9.0/LICENSE-MIT": "62065228e42caebca7e7d7db1204cbb867033de5982ca4009928915e4095f3a3",
     "third-party/native-cargo/licenses/strsim-0.11.1/LICENSE": "1e697ce8d21401fbf1bddd9b5c3fd4c4c79ae1e3bdf51f81761c85e11d5a89cd",
     "third-party/native-cargo/licenses/subtle-2.6.1/LICENSE": "d1fc1bc0d155df60b2e7705b6b2ae02a05c96f948e1cec6e2fb86360b09f346b",
-    "third-party/native-cargo/licenses/swift-rs-1.0.8/LICENSE-APACHE": "908a661cf763bddfa04f2739bea561be62a246f03ad53fcb2272d3ddbd1d943f",
-    "third-party/native-cargo/licenses/swift-rs-1.0.8/LICENSE-MIT": "f3c3e9f4febe81ff14ccc233c344e6e60051290d1c1e5a2c670d63cc3608a5bb",
+    "third-party/native-cargo/licenses/swift-rs-1.0.9/LICENSE-APACHE": "908a661cf763bddfa04f2739bea561be62a246f03ad53fcb2272d3ddbd1d943f",
+    "third-party/native-cargo/licenses/swift-rs-1.0.9/LICENSE-MIT": "f3c3e9f4febe81ff14ccc233c344e6e60051290d1c1e5a2c670d63cc3608a5bb",
     "third-party/native-cargo/licenses/syn-1.0.109/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/syn-1.0.109/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
     "third-party/native-cargo/licenses/syn-2.0.119/LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
@@ -3519,16 +3663,37 @@
     "third-party/native-cargo/licenses/sync_wrapper-1.0.2/LICENSE": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
     "third-party/native-cargo/licenses/synstructure-0.14.0/LICENSE": "219920e865eee70b7dcfc948a86b099e7f4fe2de01bcca2ca9a20c0a033f2b59",
     "third-party/native-cargo/licenses/sysctl-0.6.0/LICENSE-MIT": "53c2dcd4a0105784749459719bc59d759bb8dbb28939fd742645ac543416b556",
+    "third-party/native-cargo/licenses/sysinfo-0.33.1/LICENSE": "1f14f9ce70a5fdedab449bb32cd7d3f20e6e9d18c2a2b74221fc203db8684d43",
     "third-party/native-cargo/licenses/system-deps-6.2.2/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/system-deps-6.2.2/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
-    "third-party/native-cargo/licenses/tao-0.35.3/LICENSE": "6dc0e068dcf3a5bc8e054205b85b7720e1d49265bbc64bf515d2cf79197df69a",
-    "third-party/native-cargo/licenses/tao-0.35.3/LICENSE.spdx": "02b6448337b757772d90e5f31caaa0f9e6afaad2221c01771d0a3deaa4d4196c",
+    "third-party/native-cargo/licenses/tao-0.37.2/LICENSE": "6dc0e068dcf3a5bc8e054205b85b7720e1d49265bbc64bf515d2cf79197df69a",
+    "third-party/native-cargo/licenses/tao-0.37.2/LICENSE.spdx": "02b6448337b757772d90e5f31caaa0f9e6afaad2221c01771d0a3deaa4d4196c",
     "third-party/native-cargo/licenses/tao-macros-0.1.4/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/tao-macros-0.1.4/LICENSE-MIT": "ca52f53b2ee0b6a96d77d8ae0cb1b4624080dd0274c97f1cece24efaf4e145f2",
     "third-party/native-cargo/licenses/tao-macros-0.1.4/LICENSE.spdx": "8f96817f33d08e1248cec9eb99fa8407c246d0c5a27f971aa4feada07634a3b4",
     "third-party/native-cargo/licenses/target-lexicon-0.12.16/LICENSE": "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5",
+    "third-party/native-cargo/licenses/tauri-2.12.5/LICENSE-APACHE-2.0": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+    "third-party/native-cargo/licenses/tauri-2.12.5/LICENSE-MIT": "9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d",
+    "third-party/native-cargo/licenses/tauri-build-2.7.4/LICENSE-APACHE-2.0": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+    "third-party/native-cargo/licenses/tauri-build-2.7.4/LICENSE-MIT": "9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d",
+    "third-party/native-cargo/licenses/tauri-codegen-2.7.4/LICENSE-APACHE-2.0": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+    "third-party/native-cargo/licenses/tauri-codegen-2.7.4/LICENSE-MIT": "9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d",
+    "third-party/native-cargo/licenses/tauri-macros-2.7.4/LICENSE-APACHE-2.0": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+    "third-party/native-cargo/licenses/tauri-macros-2.7.4/LICENSE-MIT": "9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d",
+    "third-party/native-cargo/licenses/tauri-plugin-clipboard-manager-2.5.0/LICENSE.spdx": "eb8a6c84630461b352badcab1dbe5d0168c56d377358b2b8c86b51003272d5ef",
+    "third-party/native-cargo/licenses/tauri-plugin-deep-link-2.6.3/LICENSE.spdx": "eb8a6c84630461b352badcab1dbe5d0168c56d377358b2b8c86b51003272d5ef",
+    "third-party/native-cargo/licenses/tauri-plugin-dialog-2.8.4/LICENSE.spdx": "eb8a6c84630461b352badcab1dbe5d0168c56d377358b2b8c86b51003272d5ef",
+    "third-party/native-cargo/licenses/tauri-plugin-fs-2.7.1/LICENSE.spdx": "eb8a6c84630461b352badcab1dbe5d0168c56d377358b2b8c86b51003272d5ef",
+    "third-party/native-cargo/licenses/tauri-plugin-notification-2.8.0/LICENSE.spdx": "eb8a6c84630461b352badcab1dbe5d0168c56d377358b2b8c86b51003272d5ef",
     "third-party/native-cargo/licenses/tauri-plugin-opener-2.5.5/LICENSE.spdx": "eb8a6c84630461b352badcab1dbe5d0168c56d377358b2b8c86b51003272d5ef",
+    "third-party/native-cargo/licenses/tauri-runtime-2.12.2/LICENSE-APACHE-2.0": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+    "third-party/native-cargo/licenses/tauri-runtime-2.12.2/LICENSE-MIT": "9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d",
+    "third-party/native-cargo/licenses/tauri-runtime-wry-2.12.3/LICENSE-APACHE-2.0": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+    "third-party/native-cargo/licenses/tauri-runtime-wry-2.12.3/LICENSE-MIT": "9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d",
+    "third-party/native-cargo/licenses/tauri-utils-2.10.2/LICENSE-APACHE-2.0": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+    "third-party/native-cargo/licenses/tauri-utils-2.10.2/LICENSE-MIT": "9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d",
     "third-party/native-cargo/licenses/tauri-winres-0.3.6/LICENSE": "d9fa6b0e6fed50d4961b9c931587af6bd127df13e9473418d3e324f427db4f06",
+    "third-party/native-cargo/licenses/tauri-winrt-notification-0.8.1/LICENSE.spdx": "a212bb763e1d415210f9d345a4c0bb896571b997f3599a92de16281acafc989b",
     "third-party/native-cargo/licenses/tempfile-3.27.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/tempfile-3.27.0/LICENSE-MIT": "8b427f5bc501764575e52ba4f9d95673cf8f6d80a86d0d06599852e1a9a20a36",
     "third-party/native-cargo/licenses/tendril-0.4.3/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
@@ -3550,7 +3715,10 @@
     "third-party/native-cargo/licenses/time-core-0.1.9/LICENSE-MIT": "2537228d9a1b44a5dc595241349cae7090b326c8de165aaf89bfddef4a00d0fc",
     "third-party/native-cargo/licenses/time-macros-0.2.32/LICENSE-Apache": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
     "third-party/native-cargo/licenses/time-macros-0.2.32/LICENSE-MIT": "2537228d9a1b44a5dc595241349cae7090b326c8de165aaf89bfddef4a00d0fc",
+    "third-party/native-cargo/licenses/tiny-keccak-2.0.2/LICENSE": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
     "third-party/native-cargo/licenses/tinystr-0.8.4/LICENSE": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2",
+    "third-party/native-cargo/licenses/tinytemplate-1.2.1/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/tinytemplate-1.2.1/LICENSE-MIT": "b6d10b8851a36aa6ec9612a186e56c2fcea0ad7db7b90c3dda1d16ae27c0077e",
     "third-party/native-cargo/licenses/tinyvec-1.13.3/LICENSE-APACHE.md": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
     "third-party/native-cargo/licenses/tinyvec-1.13.3/LICENSE-MIT.md": "fd80a26fbb3f644af1fa994134446702932968519797227e07a1368dea80f0bc",
     "third-party/native-cargo/licenses/tinyvec-1.13.3/LICENSE-ZLIB.md": "84b34dd7608f7fb9b17bd588a6bf392bf7de504e2716f024a77d89f1b145a151",
@@ -3559,11 +3727,11 @@
     "third-party/native-cargo/licenses/tokio-macros-2.7.2/LICENSE": "0b83dc40cba89b9922bb84b0a9c7d2768ce37c1d7e138b7424fd4549915778c9",
     "third-party/native-cargo/licenses/tokio-rustls-0.26.5/LICENSE-APACHE": "cc117d90b498b32b11a886f279b359da16a73c3b01efbb2f5cc004b20262334e",
     "third-party/native-cargo/licenses/tokio-rustls-0.26.5/LICENSE-MIT": "e20fa2b8e0a2565f24a792b94b4bf4b6c2b9d36f781d8a9516e218a036e6677a",
+    "third-party/native-cargo/licenses/tokio-tungstenite-0.24.0/LICENSE": "fdd55e2b2da854b0fbdc1e607df7c2ba1e1ebf91ecb77c515511ebeef972bc8f",
+    "third-party/native-cargo/licenses/tokio-tungstenite-0.29.0/LICENSE": "fdd55e2b2da854b0fbdc1e607df7c2ba1e1ebf91ecb77c515511ebeef972bc8f",
     "third-party/native-cargo/licenses/tokio-util-0.7.19/LICENSE": "253cd04c6714889df2d32f3f64d669179a1c95c76ac43c40882c52eb06bc3552",
     "third-party/native-cargo/licenses/toml_datetime-0.6.3/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/toml_datetime-0.6.3/LICENSE-MIT": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397",
-    "third-party/native-cargo/licenses/toml_datetime-0.7.5+spec-1.1.0/LICENSE-APACHE": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
-    "third-party/native-cargo/licenses/toml_datetime-0.7.5+spec-1.1.0/LICENSE-MIT": "6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6",
     "third-party/native-cargo/licenses/toml_datetime-1.1.1+spec-1.1.0/LICENSE-APACHE": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
     "third-party/native-cargo/licenses/toml_datetime-1.1.1+spec-1.1.0/LICENSE-MIT": "6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6",
     "third-party/native-cargo/licenses/toml_edit-0.19.15/LICENSE-APACHE": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
@@ -3578,8 +3746,6 @@
     "third-party/native-cargo/licenses/toml_writer-1.1.2+spec-1.1.0/LICENSE-MIT": "6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6",
     "third-party/native-cargo/licenses/toml-0.8.2/LICENSE-APACHE": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
     "third-party/native-cargo/licenses/toml-0.8.2/LICENSE-MIT": "6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6",
-    "third-party/native-cargo/licenses/toml-0.9.12+spec-1.1.0/LICENSE-APACHE": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
-    "third-party/native-cargo/licenses/toml-0.9.12+spec-1.1.0/LICENSE-MIT": "6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6",
     "third-party/native-cargo/licenses/toml-1.1.6+spec-1.1.0/LICENSE-APACHE": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
     "third-party/native-cargo/licenses/toml-1.1.6+spec-1.1.0/LICENSE-MIT": "6efb0476a1cc085077ed49357026d8c173bf33017278ef440f222fb9cbcb66e6",
     "third-party/native-cargo/licenses/tower-0.5.3/LICENSE": "4249c8e6c5ebb85f97c77e6457c6fafc1066406eb8f1ef61e796fbdc5ff18482",
@@ -3589,10 +3755,17 @@
     "third-party/native-cargo/licenses/tracing-0.1.44/LICENSE": "898b1ae9821e98daf8964c8d6c7f61641f5f5aa78ad500020771c0939ee0dea1",
     "third-party/native-cargo/licenses/tracing-attributes-0.1.31/LICENSE": "898b1ae9821e98daf8964c8d6c7f61641f5f5aa78ad500020771c0939ee0dea1",
     "third-party/native-cargo/licenses/tracing-core-0.1.36/LICENSE": "898b1ae9821e98daf8964c8d6c7f61641f5f5aa78ad500020771c0939ee0dea1",
-    "third-party/native-cargo/licenses/tray-icon-0.24.2/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
-    "third-party/native-cargo/licenses/tray-icon-0.24.2/LICENSE-MIT": "2ab5537b8c0cb1d475e2145b6a7994b04e7c71e6e5bd836f7f9c47c221a5ad9a",
-    "third-party/native-cargo/licenses/tray-icon-0.24.2/LICENSE.spdx": "6c1e5d0ccf5e8951401cb964036ae664d52fc8d1148173b53bc54fc534f5d404",
+    "third-party/native-cargo/licenses/tray-icon-0.25.1/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/tray-icon-0.25.1/LICENSE-MIT": "2ab5537b8c0cb1d475e2145b6a7994b04e7c71e6e5bd836f7f9c47c221a5ad9a",
+    "third-party/native-cargo/licenses/tray-icon-0.25.1/LICENSE.spdx": "6c1e5d0ccf5e8951401cb964036ae664d52fc8d1148173b53bc54fc534f5d404",
+    "third-party/native-cargo/licenses/tree_magic_mini-3.2.2/LICENSE": "a7cea8a5a56ba02950d098a7c56eed312fc745ceecd437e4aad2f7f8d38661b8",
     "third-party/native-cargo/licenses/try-lock-0.2.5/LICENSE": "c816a0749cdc6bf062a5111c159723de51b2bfac66a1dac2655abd9e6b1583eb",
+    "third-party/native-cargo/licenses/tungstenite-0.24.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/tungstenite-0.24.0/LICENSE-MIT": "7fea0ee51a4ca5d5cea7464135fd55e8b09caf3a61da3d451ac8a22af95c033f",
+    "third-party/native-cargo/licenses/tungstenite-0.29.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/tungstenite-0.29.0/LICENSE-MIT": "7fea0ee51a4ca5d5cea7464135fd55e8b09caf3a61da3d451ac8a22af95c033f",
+    "third-party/native-cargo/licenses/tungstenite-0.30.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/tungstenite-0.30.0/LICENSE-MIT": "7fea0ee51a4ca5d5cea7464135fd55e8b09caf3a61da3d451ac8a22af95c033f",
     "third-party/native-cargo/licenses/typed-path-0.12.3/LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
     "third-party/native-cargo/licenses/typed-path-0.12.3/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
     "third-party/native-cargo/licenses/typeid-1.0.3/LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
@@ -3620,12 +3793,17 @@
     "third-party/native-cargo/licenses/unicode-width-0.2.2/COPYRIGHT": "23860c2a7b5d96b21569afedf033469bab9fe14a1b24a35068b8641c578ce24d",
     "third-party/native-cargo/licenses/unicode-width-0.2.2/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/unicode-width-0.2.2/LICENSE-MIT": "7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0",
+    "third-party/native-cargo/licenses/universal-hash-0.5.1/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/universal-hash-0.5.1/LICENSE-MIT": "6b50510a0400c72172355cc5d2ba0f2c5c2eb33149b8f96539dc345fdc484920",
+    "third-party/native-cargo/licenses/universal-hash-0.6.1/LICENSE-APACHE": "a9040321c3712d8fd0b09cf52b17445de04a23a10165049ae187cd39e5c86be5",
+    "third-party/native-cargo/licenses/universal-hash-0.6.1/LICENSE-MIT": "efa52eb70a774b62c50cf50f5e57e2625c29d375d09b91132f4f020e47b9944e",
+    "third-party/native-cargo/licenses/unsafe-libyaml-0.2.11/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
     "third-party/native-cargo/licenses/untrusted-0.9.0/LICENSE.txt": "7abd9b6960dcf7d4d0a48606a5b71bfe37d472db68d70637f3a58a56785f1621",
     "third-party/native-cargo/licenses/ureq-2.12.1/LICENSE-APACHE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
     "third-party/native-cargo/licenses/ureq-2.12.1/LICENSE-MIT": "7e5886959f67f8c75063a9d55cd3cb08c5a8cbea9a944fa1df2d4ae038f53721",
     "third-party/native-cargo/licenses/url-2.5.8/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/url-2.5.8/LICENSE-MIT": "b38f11f6096706e6de553dabe2a7ed142d59b6fa8c97e290c67496154745cdd5",
-    "third-party/native-cargo/licenses/urlpattern-0.3.0/LICENSE": "5cf1c9dc617e4cad7fa03181ff893601ad5243aa3be527ef39034e1cd6377676",
+    "third-party/native-cargo/licenses/urlpattern-0.6.0/LICENSE": "5cf1c9dc617e4cad7fa03181ff893601ad5243aa3be527ef39034e1cd6377676",
     "third-party/native-cargo/licenses/utf-8-0.7.6/LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
     "third-party/native-cargo/licenses/utf-8-0.7.6/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
     "third-party/native-cargo/licenses/utf8_iter-1.0.4/COPYRIGHT": "c30152c94a6d75e021adbc52b3a52470366a46edb917e17deae3259251af244c",
@@ -3666,6 +3844,12 @@
     "third-party/native-cargo/licenses/wasm-streams-0.4.2/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
     "third-party/native-cargo/licenses/wasm-streams-0.5.0/LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
     "third-party/native-cargo/licenses/wasm-streams-0.5.0/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+    "third-party/native-cargo/licenses/wayland-backend-0.3.17/LICENSE.txt": "1cb6f4dee8c649f175736380495f0af0c753c87f22d50931692968bb24bf2161",
+    "third-party/native-cargo/licenses/wayland-client-0.31.15/LICENSE.txt": "1cb6f4dee8c649f175736380495f0af0c753c87f22d50931692968bb24bf2161",
+    "third-party/native-cargo/licenses/wayland-protocols-0.32.13/LICENSE.txt": "1cb6f4dee8c649f175736380495f0af0c753c87f22d50931692968bb24bf2161",
+    "third-party/native-cargo/licenses/wayland-protocols-wlr-0.3.12/LICENSE.txt": "1cb6f4dee8c649f175736380495f0af0c753c87f22d50931692968bb24bf2161",
+    "third-party/native-cargo/licenses/wayland-scanner-0.31.11/LICENSE.txt": "1cb6f4dee8c649f175736380495f0af0c753c87f22d50931692968bb24bf2161",
+    "third-party/native-cargo/licenses/wayland-sys-0.31.11/LICENSE.txt": "1cb6f4dee8c649f175736380495f0af0c753c87f22d50931692968bb24bf2161",
     "third-party/native-cargo/licenses/web_atoms-0.2.6/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/web_atoms-0.2.6/LICENSE-MIT": "86dd7f026f916daf7511e39951ad8ea8cf55a8db67ae64060dacf829761c18f3",
     "third-party/native-cargo/licenses/web-sys-0.3.105/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
@@ -3683,9 +3867,9 @@
     "third-party/native-cargo/licenses/winapi-util-0.1.11/COPYING": "01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f",
     "third-party/native-cargo/licenses/winapi-util-0.1.11/LICENSE-MIT": "cb3c929a05e6cbc9de9ab06a4c57eeb60ca8c724bef6c138c87d3a577e27aa14",
     "third-party/native-cargo/licenses/winapi-util-0.1.11/UNLICENSE": "7e12e5df4bae12cb21581ba157ced20e1986a0508dd10d0e8a4ab9a4cf94e85c",
-    "third-party/native-cargo/licenses/window-vibrancy-0.6.0/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
-    "third-party/native-cargo/licenses/window-vibrancy-0.6.0/LICENSE-MIT": "617b85f62a4f1b6a62d3d9f28f6d7003b7f68a70b7675a8174bbcc68401ac62d",
-    "third-party/native-cargo/licenses/window-vibrancy-0.6.0/LICENSE.spdx": "7ccef0d35e8507fa02d7e904a5277d62723f9ec576d52f6a865cab7b4dbf12ad",
+    "third-party/native-cargo/licenses/window-vibrancy-0.8.1/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/window-vibrancy-0.8.1/LICENSE-MIT": "617b85f62a4f1b6a62d3d9f28f6d7003b7f68a70b7675a8174bbcc68401ac62d",
+    "third-party/native-cargo/licenses/window-vibrancy-0.8.1/LICENSE.spdx": "7ccef0d35e8507fa02d7e904a5277d62723f9ec576d52f6a865cab7b4dbf12ad",
     "third-party/native-cargo/licenses/windows_aarch64_gnullvm-0.42.2/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
     "third-party/native-cargo/licenses/windows_aarch64_gnullvm-0.42.2/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
     "third-party/native-cargo/licenses/windows_aarch64_gnullvm-0.52.6/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
@@ -3732,26 +3916,48 @@
     "third-party/native-cargo/licenses/windows_x86_64_msvc-0.52.6/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
     "third-party/native-cargo/licenses/windows_x86_64_msvc-0.53.1/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
     "third-party/native-cargo/licenses/windows_x86_64_msvc-0.53.1/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+    "third-party/native-cargo/licenses/windows-0.57.0/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+    "third-party/native-cargo/licenses/windows-0.57.0/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
     "third-party/native-cargo/licenses/windows-0.61.3/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
     "third-party/native-cargo/licenses/windows-0.61.3/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+    "third-party/native-cargo/licenses/windows-0.62.2/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+    "third-party/native-cargo/licenses/windows-0.62.2/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
     "third-party/native-cargo/licenses/windows-collections-0.2.0/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
     "third-party/native-cargo/licenses/windows-collections-0.2.0/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+    "third-party/native-cargo/licenses/windows-collections-0.3.2/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+    "third-party/native-cargo/licenses/windows-collections-0.3.2/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+    "third-party/native-cargo/licenses/windows-core-0.57.0/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+    "third-party/native-cargo/licenses/windows-core-0.57.0/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
     "third-party/native-cargo/licenses/windows-core-0.61.2/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
     "third-party/native-cargo/licenses/windows-core-0.61.2/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
     "third-party/native-cargo/licenses/windows-core-0.62.2/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
     "third-party/native-cargo/licenses/windows-core-0.62.2/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
     "third-party/native-cargo/licenses/windows-future-0.2.1/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
     "third-party/native-cargo/licenses/windows-future-0.2.1/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+    "third-party/native-cargo/licenses/windows-future-0.3.2/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+    "third-party/native-cargo/licenses/windows-future-0.3.2/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+    "third-party/native-cargo/licenses/windows-implement-0.57.0/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+    "third-party/native-cargo/licenses/windows-implement-0.57.0/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
     "third-party/native-cargo/licenses/windows-implement-0.60.2/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
     "third-party/native-cargo/licenses/windows-implement-0.60.2/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+    "third-party/native-cargo/licenses/windows-interface-0.57.0/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+    "third-party/native-cargo/licenses/windows-interface-0.57.0/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
     "third-party/native-cargo/licenses/windows-interface-0.59.3/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
     "third-party/native-cargo/licenses/windows-interface-0.59.3/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
     "third-party/native-cargo/licenses/windows-link-0.1.3/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
     "third-party/native-cargo/licenses/windows-link-0.1.3/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
     "third-party/native-cargo/licenses/windows-link-0.2.1/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
     "third-party/native-cargo/licenses/windows-link-0.2.1/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+    "third-party/native-cargo/licenses/windows-native-keyring-store-1.1.0/LICENSE-APACHE": "78ebc2ea2a1cec9cbec2e1a6fc15e73474fe22bdad7575518e7f4628651d49c4",
+    "third-party/native-cargo/licenses/windows-native-keyring-store-1.1.0/LICENSE-MIT": "157cc607717b1b372a69f6b4526f6ad18c1279af9f3267835cca2943f37bc07d",
     "third-party/native-cargo/licenses/windows-numerics-0.2.0/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
     "third-party/native-cargo/licenses/windows-numerics-0.2.0/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+    "third-party/native-cargo/licenses/windows-numerics-0.3.1/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+    "third-party/native-cargo/licenses/windows-numerics-0.3.1/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+    "third-party/native-cargo/licenses/windows-registry-0.6.1/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+    "third-party/native-cargo/licenses/windows-registry-0.6.1/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+    "third-party/native-cargo/licenses/windows-result-0.1.2/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+    "third-party/native-cargo/licenses/windows-result-0.1.2/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
     "third-party/native-cargo/licenses/windows-result-0.3.4/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
     "third-party/native-cargo/licenses/windows-result-0.3.4/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
     "third-party/native-cargo/licenses/windows-result-0.4.1/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
@@ -3778,26 +3984,36 @@
     "third-party/native-cargo/licenses/windows-targets-0.53.5/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
     "third-party/native-cargo/licenses/windows-threading-0.1.0/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
     "third-party/native-cargo/licenses/windows-threading-0.1.0/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
+    "third-party/native-cargo/licenses/windows-threading-0.2.1/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
+    "third-party/native-cargo/licenses/windows-threading-0.2.1/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
     "third-party/native-cargo/licenses/windows-version-0.1.7/license-apache-2.0": "c16f8dcf1a368b83be78d826ea23de4079fe1b4469a0ab9ee20563f37ff3d44b",
     "third-party/native-cargo/licenses/windows-version-0.1.7/license-mit": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383",
     "third-party/native-cargo/licenses/winnow-0.5.40/LICENSE-MIT": "cb5aedb296c5246d1f22e9099f925a65146f9f0d6b4eebba97fd27a6cdbbab2d",
-    "third-party/native-cargo/licenses/winnow-0.7.15/LICENSE-MIT": "cb5aedb296c5246d1f22e9099f925a65146f9f0d6b4eebba97fd27a6cdbbab2d",
     "third-party/native-cargo/licenses/winnow-1.0.4/LICENSE-MIT": "cb5aedb296c5246d1f22e9099f925a65146f9f0d6b4eebba97fd27a6cdbbab2d",
+    "third-party/native-cargo/licenses/winreg-0.10.1/LICENSE": "ea021d8c6383c84d19c15ce90d3b1602cf448fdcc0bf3772c98e43c7bf1bf1d1",
     "third-party/native-cargo/licenses/winreg-0.55.0/LICENSE": "ea021d8c6383c84d19c15ce90d3b1602cf448fdcc0bf3772c98e43c7bf1bf1d1",
     "third-party/native-cargo/licenses/wit-bindgen-0.57.1/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
     "third-party/native-cargo/licenses/wit-bindgen-0.57.1/LICENSE-Apache-2.0_WITH_LLVM-exception": "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5",
     "third-party/native-cargo/licenses/wit-bindgen-0.57.1/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+    "third-party/native-cargo/licenses/wl-clipboard-rs-0.9.5/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/wl-clipboard-rs-0.9.5/LICENSE-MIT": "d0235d2a1f657b6fd18fd4ce98988348969a9284d94281b6d117830aa259a07a",
     "third-party/native-cargo/licenses/writeable-0.6.4/LICENSE": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2",
-    "third-party/native-cargo/licenses/wry-0.55.1/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
-    "third-party/native-cargo/licenses/wry-0.55.1/LICENSE-MIT": "ef88893533af22ffbb68ceef0724ba1389518df26165a34f3c99ad30b884df4f",
-    "third-party/native-cargo/licenses/wry-0.55.1/LICENSE.spdx": "26235c41e314fb0da35b33b2bb5bcbc4dd523839f8eeca52efcd43586f441fb5",
+    "third-party/native-cargo/licenses/wry-0.57.1/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "third-party/native-cargo/licenses/wry-0.57.1/LICENSE-MIT": "ef88893533af22ffbb68ceef0724ba1389518df26165a34f3c99ad30b884df4f",
+    "third-party/native-cargo/licenses/wry-0.57.1/LICENSE.spdx": "26235c41e314fb0da35b33b2bb5bcbc4dd523839f8eeca52efcd43586f441fb5",
     "third-party/native-cargo/licenses/x11-2.21.0/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
     "third-party/native-cargo/licenses/x11-dl-2.21.0/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+    "third-party/native-cargo/licenses/x11rb-0.13.2/LICENSE-APACHE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "third-party/native-cargo/licenses/x11rb-0.13.2/LICENSE-MIT": "a72561f47c1f665535930f606739d9098a6186802d5e2e8ec491faf00f4add5b",
+    "third-party/native-cargo/licenses/x11rb-protocol-0.13.2/LICENSE-APACHE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "third-party/native-cargo/licenses/x11rb-protocol-0.13.2/LICENSE-MIT": "a72561f47c1f665535930f606739d9098a6186802d5e2e8ec491faf00f4add5b",
     "third-party/native-cargo/licenses/yoke-0.8.3/LICENSE": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2",
     "third-party/native-cargo/licenses/yoke-derive-0.8.3/LICENSE": "f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2",
     "third-party/native-cargo/licenses/zbus_macros-5.19.0/LICENSE": "260e4ff3fc493695880c90774283eb1e3d018f898fabe655bbd52dd2cbd2fcad",
     "third-party/native-cargo/licenses/zbus_names-4.3.4/LICENSE": "260e4ff3fc493695880c90774283eb1e3d018f898fabe655bbd52dd2cbd2fcad",
     "third-party/native-cargo/licenses/zbus-5.19.0/LICENSE": "260e4ff3fc493695880c90774283eb1e3d018f898fabe655bbd52dd2cbd2fcad",
+    "third-party/native-cargo/licenses/zbus-secret-service-keyring-store-1.0.1/LICENSE-APACHE": "78ebc2ea2a1cec9cbec2e1a6fc15e73474fe22bdad7575518e7f4628651d49c4",
+    "third-party/native-cargo/licenses/zbus-secret-service-keyring-store-1.0.1/LICENSE-MIT": "157cc607717b1b372a69f6b4526f6ad18c1279af9f3267835cca2943f37bc07d",
     "third-party/native-cargo/licenses/zcheapstr-1.1.0/LICENSE": "59871bb1612f8a0569655c10b995636827eceab42c6578cebdc45ad2922e0142",
     "third-party/native-cargo/licenses/zerocopy-0.8.57/LICENSE-APACHE": "9d185ac6703c4b0453974c0d85e9eee43e6941009296bb1f5eb0b54e2329e9f3",
     "third-party/native-cargo/licenses/zerocopy-0.8.57/LICENSE-BSD": "83c1763356e822adde0a2cae748d938a73fdc263849ccff6b27776dff213bd32",
@@ -3815,6 +4031,7 @@
     "third-party/native-cargo/licenses/zip-7.2.0/LICENSE": "04dc52136d82400b11df5f474949863a70a5d05d2278dec45b99c479494450a6",
     "third-party/native-cargo/licenses/zlib-rs-0.6.8/LICENSE": "e72111c52b7d96ebe25348dee19f0744f444d3c95ae6b1ecb6ccaecc5bce05ba",
     "third-party/native-cargo/licenses/zmij-1.0.23/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+    "third-party/native-cargo/licenses/zopfli-0.8.4/COPYING": "018b1cb87efdf7a04c2fcc13d57ed63f62149113fb207b27ea13430d64f13513",
     "third-party/native-cargo/licenses/zune-core-0.5.3/LICENSE-APACHE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
     "third-party/native-cargo/licenses/zune-core-0.5.3/LICENSE-MIT": "d30047bca3b516639339a3c279bb84c3483124fb5a9dafe3c75056a85090e745",
     "third-party/native-cargo/licenses/zune-core-0.5.3/LICENSE-ZLIB": "d201d14804d3bcd3b944147173175e4abfbd838b7c8069b6bd3452496bf13e6c",
@@ -3824,7 +4041,7 @@
     "third-party/native-cargo/licenses/zvariant_derive-5.15.0/LICENSE": "260e4ff3fc493695880c90774283eb1e3d018f898fabe655bbd52dd2cbd2fcad",
     "third-party/native-cargo/licenses/zvariant_utils-4.2.0/LICENSE": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
     "third-party/native-cargo/licenses/zvariant-5.15.0/LICENSE": "260e4ff3fc493695880c90774283eb1e3d018f898fabe655bbd52dd2cbd2fcad",
-    "third-party/native-cargo/sources.json": "0027d8032f84be650636655b3dbe57a646f35f4b0555813de597bf50cb13db1e",
+    "third-party/native-cargo/sources.json": "621ee1bd909ffd31cc37241090342f1dc86e7293ec3666c61da3cef016c014cd",
     "third-party/native-search/licenses/00373c9bf56a894b2ed67586596bc1e8b0630cabbaf1ab46c75fc754b6bcd1ce.txt": "00373c9bf56a894b2ed67586596bc1e8b0630cabbaf1ab46c75fc754b6bcd1ce",
     "third-party/native-search/licenses/01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f.txt": "01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f",
     "third-party/native-search/licenses/029d615cc92cc216eeefa50fea59bb9838e8e8f22a9f19ec5ee224a31ec9f383.txt": "029d615cc92cc216eeefa50fea59bb9838e8e8f22a9f19ec5ee224a31ec9f383",
@@ -3940,7 +4157,7 @@
     "third-party/native-search/licenses/f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af.txt": "f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af",
     "third-party/native-search/licenses/f9c375a1be4a41f7b70301dd83c91cb89e41567478859b77eef375a52d782505.txt": "f9c375a1be4a41f7b70301dd83c91cb89e41567478859b77eef375a52d782505",
     "third-party/native-search/sources.json": "5a7b2d7abf5bd5f310712710cbbd0ca70dc9491e723cbf070b5c696fe155a962",
-    "third-party/npm-overrides.json": "08e2b41ea681c0058e7430f8d285e0693433af2ead0b0bc96d80aecbe7ecad19",
+    "third-party/npm-overrides.json": "5a17f6867ee8bad3791524ccd28e24fb678259ecd235c276c72a9cf9ebff330c",
     "third-party/runtime/node-22.16.0-LICENSE.txt": "1ae62e2015784ba438db7b04ebd33f3c4ff3efdb824c111c4ececd99945fd52d",
     "third-party/runtime/node-24.14.0-LICENSE.txt": "4573185d56580da2b890ba34a85a409257640f1c5632eade4300137266194d18",
     "third-party/runtime/sources.json": "b27bc8d81aeb71108e523602364ffbb6a1b19c2d5d47733fd43094b769006741",
@@ -3983,7 +4200,6 @@
     "third-party/upstream/5f787c1dee3c56547f09ccc2906ab5f5293c4d8dd6c8654e573216c38e908dbd.txt": "5f787c1dee3c56547f09ccc2906ab5f5293c4d8dd6c8654e573216c38e908dbd",
     "third-party/upstream/66aa9feab8bb39aceebd69f2a357015d57ceab486d3c7a19ff8d3d4110a6d101.txt": "66aa9feab8bb39aceebd69f2a357015d57ceab486d3c7a19ff8d3d4110a6d101",
     "third-party/upstream/6ae13df543a24b3fb18c25182cf4f084132f799ea9225410f7037888401b7469.txt": "6ae13df543a24b3fb18c25182cf4f084132f799ea9225410f7037888401b7469",
-    "third-party/upstream/6f7e6eae2a2afbaa67b266650f7342e7bf8e82cb57f6ab98148b3d6e0fb4450a.txt": "6f7e6eae2a2afbaa67b266650f7342e7bf8e82cb57f6ab98148b3d6e0fb4450a",
     "third-party/upstream/75815e3bf6484201a3c3d17a1bbf10f2e8e3237f84df10a2357ea896db2a81d6.txt": "75815e3bf6484201a3c3d17a1bbf10f2e8e3237f84df10a2357ea896db2a81d6",
     "third-party/upstream/8405932022a556380c2d8c272eff154a923feb197233f348ce5f7334fb0a5ede.txt": "8405932022a556380c2d8c272eff154a923feb197233f348ce5f7334fb0a5ede",
     "third-party/upstream/8802fecf9da4367bc23bcf20b21cc143785fc6c92b152f3fa7fbe6ce08d344d6.txt": "8802fecf9da4367bc23bcf20b21cc143785fc6c92b152f3fa7fbe6ce08d344d6",
@@ -4049,18 +4265,6 @@
       ]
     },
     {
-      "name": "@ai-sdk/gateway",
-      "version": "3.0.96",
-      "license": "Apache-2.0",
-      "repository": "git+https://github.com/vercel/ai.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "b4f9adb7c568904834d0dd6cc98d16c390d21ca32fc17ae7a267715269bd5529"
-        }
-      ]
-    },
-    {
       "name": "@ai-sdk/openai-compatible",
       "version": "2.0.60",
       "license": "Apache-2.0",
@@ -4080,22 +4284,6 @@
       "notices": [
         {
           "member": "LICENSE",
-          "sha256": "b4f9adb7c568904834d0dd6cc98d16c390d21ca32fc17ae7a267715269bd5529"
-        }
-      ]
-    },
-    {
-      "name": "@ai-sdk/provider-utils",
-      "version": "4.0.23",
-      "license": "Apache-2.0",
-      "repository": "git+https://github.com/vercel/ai.git",
-      "notices": [
-        {
-          "member": "src/to-json-schema/zod3-to-json-schema/LICENSE",
-          "sha256": "6dd0d97acd4d13f4608a0f530f0487e0ff20812888bd1803aecfaaa17ff0f849"
-        },
-        {
-          "member": "https://raw.githubusercontent.com/vercel/ai/@ai-sdk/provider-utils@4.0.23/LICENSE",
           "sha256": "b4f9adb7c568904834d0dd6cc98d16c390d21ca32fc17ae7a267715269bd5529"
         }
       ]
@@ -4149,18 +4337,6 @@
       "version": "3.0.14",
       "license": "Apache-2.0",
       "repository": "https://github.com/vercel/ai",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "b4f9adb7c568904834d0dd6cc98d16c390d21ca32fc17ae7a267715269bd5529"
-        }
-      ]
-    },
-    {
-      "name": "@ai-sdk/provider",
-      "version": "3.0.8",
-      "license": "Apache-2.0",
-      "repository": "git+https://github.com/vercel/ai.git",
       "notices": [
         {
           "member": "LICENSE",
@@ -4846,34 +5022,6 @@
         {
           "member": "LICENSE",
           "sha256": "34f85f5d41bc28cd790bf7d11be0f3478980cb5f75b49fda3c33667429d0e7f4"
-        }
-      ]
-    },
-    {
-      "name": "@egjs/hammerjs",
-      "version": "2.0.17",
-      "license": "MIT",
-      "repository": "git://github.com/naver/hammer.js.git",
-      "notices": [
-        {
-          "member": "LICENSE.md",
-          "sha256": "68e3fbc87924b2ca7f6a10d52be2ee83e86f7d2f28e74f343795e8f9e58f3ec1"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "24601581852c22ee64603c980589723298f3a10fe52e1279bec400f7fd9a4d22"
-        }
-      ]
-    },
-    {
-      "name": "@electron/get",
-      "version": "2.0.3",
-      "license": "MIT",
-      "repository": "https://github.com/electron/get",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "edab8abb78d9c5b36944c3e00aebf6a90eb32378993f49ac8a3904007029c629"
         }
       ]
     },
@@ -7494,18 +7642,6 @@
     },
     {
       "name": "@shikijs/core",
-      "version": "4.0.2",
-      "license": "MIT",
-      "repository": "git+https://github.com/shikijs/shiki.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "7a9d8d01038aeacf9e5bcdabbddf2a7815200dce9fc1118468cc553e00ae3eee"
-        }
-      ]
-    },
-    {
-      "name": "@shikijs/core",
       "version": "4.1.0",
       "license": "MIT",
       "repository": "git+https://github.com/shikijs/shiki.git",
@@ -7519,22 +7655,6 @@
     {
       "name": "@shikijs/engine-javascript",
       "version": "3.23.0",
-      "license": "MIT",
-      "repository": "git+https://github.com/shikijs/shiki.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "7a9d8d01038aeacf9e5bcdabbddf2a7815200dce9fc1118468cc553e00ae3eee"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "daf005969aac8cb4283b3777361f0244f4cce898b9a983a60b7f0d9e96f559bf"
-        }
-      ]
-    },
-    {
-      "name": "@shikijs/engine-javascript",
-      "version": "4.0.2",
       "license": "MIT",
       "repository": "git+https://github.com/shikijs/shiki.git",
       "notices": [
@@ -7567,22 +7687,6 @@
     {
       "name": "@shikijs/engine-oniguruma",
       "version": "3.23.0",
-      "license": "MIT",
-      "repository": "git+https://github.com/shikijs/shiki.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "7a9d8d01038aeacf9e5bcdabbddf2a7815200dce9fc1118468cc553e00ae3eee"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "daf005969aac8cb4283b3777361f0244f4cce898b9a983a60b7f0d9e96f559bf"
-        }
-      ]
-    },
-    {
-      "name": "@shikijs/engine-oniguruma",
-      "version": "4.0.2",
       "license": "MIT",
       "repository": "git+https://github.com/shikijs/shiki.git",
       "notices": [
@@ -7615,22 +7719,6 @@
     {
       "name": "@shikijs/langs",
       "version": "3.23.0",
-      "license": "MIT",
-      "repository": "git+https://github.com/shikijs/shiki.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "7a9d8d01038aeacf9e5bcdabbddf2a7815200dce9fc1118468cc553e00ae3eee"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "daf005969aac8cb4283b3777361f0244f4cce898b9a983a60b7f0d9e96f559bf"
-        }
-      ]
-    },
-    {
-      "name": "@shikijs/langs",
-      "version": "4.0.2",
       "license": "MIT",
       "repository": "git+https://github.com/shikijs/shiki.git",
       "notices": [
@@ -7662,18 +7750,6 @@
     },
     {
       "name": "@shikijs/primitive",
-      "version": "4.0.2",
-      "license": "MIT",
-      "repository": "git+https://github.com/shikijs/shiki.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "7a9d8d01038aeacf9e5bcdabbddf2a7815200dce9fc1118468cc553e00ae3eee"
-        }
-      ]
-    },
-    {
-      "name": "@shikijs/primitive",
       "version": "4.1.0",
       "license": "MIT",
       "repository": "git+https://github.com/shikijs/shiki.git",
@@ -7687,22 +7763,6 @@
     {
       "name": "@shikijs/themes",
       "version": "3.23.0",
-      "license": "MIT",
-      "repository": "git+https://github.com/shikijs/shiki.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "7a9d8d01038aeacf9e5bcdabbddf2a7815200dce9fc1118468cc553e00ae3eee"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "daf005969aac8cb4283b3777361f0244f4cce898b9a983a60b7f0d9e96f559bf"
-        }
-      ]
-    },
-    {
-      "name": "@shikijs/themes",
-      "version": "4.0.2",
       "license": "MIT",
       "repository": "git+https://github.com/shikijs/shiki.git",
       "notices": [
@@ -7766,22 +7826,6 @@
     },
     {
       "name": "@shikijs/types",
-      "version": "4.0.2",
-      "license": "MIT",
-      "repository": "git+https://github.com/shikijs/shiki.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "7a9d8d01038aeacf9e5bcdabbddf2a7815200dce9fc1118468cc553e00ae3eee"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "daf005969aac8cb4283b3777361f0244f4cce898b9a983a60b7f0d9e96f559bf"
-        }
-      ]
-    },
-    {
-      "name": "@shikijs/types",
       "version": "4.1.0",
       "license": "MIT",
       "repository": "git+https://github.com/shikijs/shiki.git",
@@ -7805,18 +7849,6 @@
         {
           "member": "LICENSE.md",
           "sha256": "b5cb7ff7859e7d282d98fc43ab081b0dda5dc659dc3385cf65740c759a7e6a6c"
-        }
-      ]
-    },
-    {
-      "name": "@sindresorhus/is",
-      "version": "4.6.0",
-      "license": "MIT",
-      "repository": "sindresorhus/is",
-      "notices": [
-        {
-          "member": "license",
-          "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
         }
       ]
     },
@@ -7925,22 +7957,6 @@
         {
           "member": "LICENSE",
           "sha256": "f5ecc63f26b1bf790f68fd8e4a84376385b19b9246100dc93a5b6ba9bf17f964"
-        }
-      ]
-    },
-    {
-      "name": "@szmarczak/http-timer",
-      "version": "4.0.6",
-      "license": "MIT",
-      "repository": "git+https://github.com/szmarczak/http-timer.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "0194571d45a06ea2a22ceb51f981e3be92525966d28847dbc0d9982603bf90de"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "daf005969aac8cb4283b3777361f0244f4cce898b9a983a60b7f0d9e96f559bf"
         }
       ]
     },
@@ -8057,18 +8073,6 @@
         {
           "member": "LICENSE",
           "sha256": "c2a4cfb69592431f4b3a179c114909bb76a979d5748c19ca595c94133c623b12"
-        }
-      ]
-    },
-    {
-      "name": "@types/cacheable-request",
-      "version": "6.0.3",
-      "license": "MIT",
-      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
         }
       ]
     },
@@ -8505,18 +8509,6 @@
       ]
     },
     {
-      "name": "@types/hammerjs",
-      "version": "2.0.46",
-      "license": "MIT",
-      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
-        }
-      ]
-    },
-    {
       "name": "@types/hast",
       "version": "3.0.4",
       "license": "MIT",
@@ -8529,32 +8521,8 @@
       ]
     },
     {
-      "name": "@types/http-cache-semantics",
-      "version": "4.2.0",
-      "license": "MIT",
-      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
-        }
-      ]
-    },
-    {
       "name": "@types/katex",
       "version": "0.16.8",
-      "license": "MIT",
-      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
-        }
-      ]
-    },
-    {
-      "name": "@types/keyv",
-      "version": "3.1.4",
       "license": "MIT",
       "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
       "notices": [
@@ -8602,18 +8570,6 @@
     },
     {
       "name": "@types/node",
-      "version": "24.12.2",
-      "license": "MIT",
-      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
-        }
-      ]
-    },
-    {
-      "name": "@types/node",
       "version": "25.6.0",
       "license": "MIT",
       "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
@@ -8649,44 +8605,8 @@
       ]
     },
     {
-      "name": "@types/react-dom",
-      "version": "19.2.3",
-      "license": "MIT",
-      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
-        }
-      ]
-    },
-    {
       "name": "@types/react",
       "version": "18.3.28",
-      "license": "MIT",
-      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
-        }
-      ]
-    },
-    {
-      "name": "@types/react",
-      "version": "19.2.14",
-      "license": "MIT",
-      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
-        }
-      ]
-    },
-    {
-      "name": "@types/responselike",
-      "version": "1.0.3",
       "license": "MIT",
       "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
       "notices": [
@@ -8769,18 +8689,6 @@
       ]
     },
     {
-      "name": "@types/yauzl",
-      "version": "2.10.3",
-      "license": "MIT",
-      "repository": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
-        }
-      ]
-    },
-    {
       "name": "@ungap/structured-clone",
       "version": "1.3.0",
       "license": "ISC",
@@ -8805,18 +8713,6 @@
         {
           "member": "README.md (license section)",
           "sha256": "ff847eb3406eb54f1b3e41d83b4e531dae4c2d80cf049a6620a1b623dcf7d68c"
-        }
-      ]
-    },
-    {
-      "name": "@vercel/oidc",
-      "version": "3.1.0",
-      "license": "Apache-2.0",
-      "repository": "git+https://github.com/vercel/vercel.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "b070d77bfb2c52a1dd6996de0ce5f64c49a0ca55c889b163a963ddf5cb001ee2"
         }
       ]
     },
@@ -8977,18 +8873,6 @@
         {
           "member": "LICENSE",
           "sha256": "8d8c55319c7729d57be811c747452636688d54f19701ee0752b6b15ad3771d9a"
-        }
-      ]
-    },
-    {
-      "name": "ai",
-      "version": "6.0.159",
-      "license": "Apache-2.0",
-      "repository": "git+https://github.com/vercel/ai.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "b4f9adb7c568904834d0dd6cc98d16c390d21ca32fc17ae7a267715269bd5529"
         }
       ]
     },
@@ -9365,18 +9249,6 @@
       ]
     },
     {
-      "name": "boolean",
-      "version": "3.2.0",
-      "license": "MIT",
-      "repository": "git://github.com/thenativeweb/boolean.git",
-      "notices": [
-        {
-          "member": "LICENSE.txt",
-          "sha256": "8e4aa1aef825c37d6f74d4b867dccb7b059b66c75ecdedc74834e2f403568a27"
-        }
-      ]
-    },
-    {
       "name": "border-beam",
       "version": "1.0.1",
       "license": "MIT",
@@ -9529,38 +9401,6 @@
       ]
     },
     {
-      "name": "cacheable-lookup",
-      "version": "5.0.4",
-      "license": "MIT",
-      "repository": "git+https://github.com/szmarczak/cacheable-lookup.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "b35de79efc88b23c73dd431df6075bed0890db0db1544ee3d57b046aa7a8e72b"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "daf005969aac8cb4283b3777361f0244f4cce898b9a983a60b7f0d9e96f559bf"
-        }
-      ]
-    },
-    {
-      "name": "cacheable-request",
-      "version": "7.0.4",
-      "license": "MIT",
-      "repository": "lukechilds/cacheable-request",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "861908ec818ff6142fdd6c4b66d6264c206d3d5a46003b1342e1853a9a85abac"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "4f6bff47d23de042c99fb8f97a4a4193390d0f7fef2443b6aef8945aa8147b79"
-        }
-      ]
-    },
-    {
       "name": "call-bind-apply-helpers",
       "version": "1.0.2",
       "license": "MIT",
@@ -9653,6 +9493,18 @@
         {
           "member": "LICENSE",
           "sha256": "45d31799d0db956cc3eb5469346abbd9b7025babc5ff29fab10d7095da992ef1"
+        }
+      ]
+    },
+    {
+      "name": "chalk",
+      "version": "4.1.2",
+      "license": "MIT",
+      "repository": "chalk/chalk",
+      "notices": [
+        {
+          "member": "license",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
         }
       ]
     },
@@ -9873,22 +9725,6 @@
       ]
     },
     {
-      "name": "clone-response",
-      "version": "1.0.3",
-      "license": "MIT",
-      "repository": "git+https://github.com/sindresorhus/clone-response.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "861908ec818ff6142fdd6c4b66d6264c206d3d5a46003b1342e1853a9a85abac"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "4f6bff47d23de042c99fb8f97a4a4193390d0f7fef2443b6aef8945aa8147b79"
-        }
-      ]
-    },
-    {
       "name": "clsx",
       "version": "2.1.1",
       "license": "MIT",
@@ -10049,22 +9885,6 @@
         {
           "member": "LICENSE",
           "sha256": "04512a63dce4d2d506ad612dc0bd7681ccf6e3655f7b6eaef7dfac8323d1ec0b"
-        }
-      ]
-    },
-    {
-      "name": "component-emitter",
-      "version": "1.3.1",
-      "license": "MIT",
-      "repository": "https://github.com/sindresorhus/component-emitter.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "0f0b408b8b871d983e767528c6dc51e0ad7efaa022890c449fe2b2e1ee24dbb7"
-        },
-        {
-          "member": "Readme.md (license section)",
-          "sha256": "daf005969aac8cb4283b3777361f0244f4cce898b9a983a60b7f0d9e96f559bf"
         }
       ]
     },
@@ -10329,22 +10149,6 @@
         {
           "member": "README.md (license section)",
           "sha256": "a20aed7ab3446ca948bbf8400896b758c119736b94b2229c09389399c26e2e7a"
-        }
-      ]
-    },
-    {
-      "name": "cssfilter",
-      "version": "0.0.10",
-      "license": "MIT",
-      "repository": "https://github.com/leizongmin/js-css-filter.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "6b16a2f12f0ebe66e6940b7cc7fc0100bde0e5738b1f2007d6147950019dbe56"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "bd1e69233912e0a8706fd2ecfb9670c6bb74d7833da3bbbcff9f0feac4fd53dd"
         }
       ]
     },
@@ -10921,18 +10725,6 @@
       ]
     },
     {
-      "name": "decompress-response",
-      "version": "6.0.0",
-      "license": "MIT",
-      "repository": "sindresorhus/decompress-response",
-      "notices": [
-        {
-          "member": "license",
-          "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
-        }
-      ]
-    },
-    {
       "name": "dedent",
       "version": "1.7.2",
       "license": "MIT",
@@ -10989,34 +10781,6 @@
       ]
     },
     {
-      "name": "defer-to-connect",
-      "version": "2.0.1",
-      "license": "MIT",
-      "repository": "git+https://github.com/szmarczak/defer-to-connect.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "0194571d45a06ea2a22ceb51f981e3be92525966d28847dbc0d9982603bf90de"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "daf005969aac8cb4283b3777361f0244f4cce898b9a983a60b7f0d9e96f559bf"
-        }
-      ]
-    },
-    {
-      "name": "define-data-property",
-      "version": "1.1.4",
-      "license": "MIT",
-      "repository": "git+https://github.com/ljharb/define-data-property.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "b41d08bc3624d8c436fc80237d73ebb361985a67f4504bbcd703e5ca2b27254c"
-        }
-      ]
-    },
-    {
       "name": "define-lazy-prop",
       "version": "3.0.0",
       "license": "MIT",
@@ -11025,18 +10789,6 @@
         {
           "member": "license",
           "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
-        }
-      ]
-    },
-    {
-      "name": "define-properties",
-      "version": "1.2.1",
-      "license": "MIT",
-      "repository": "git://github.com/ljharb/define-properties.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "00d402c2bbe7c67369bd01ce2c16b8ed46ccc949a1ee2d6bb8f9606afa8c7434"
         }
       ]
     },
@@ -11117,18 +10869,6 @@
       "version": "1.1.0",
       "license": "MIT",
       "repository": "https://github.com/thekashey/detect-node",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "54b32293ea560d22cd9b62af9b2cda1a030d910a48c6601d227c5ff2338d95f8"
-        }
-      ]
-    },
-    {
-      "name": "detect-node",
-      "version": "2.1.0",
-      "license": "MIT",
-      "repository": "https://github.com/iliakan/detect-node",
       "notices": [
         {
           "member": "LICENSE",
@@ -11385,26 +11125,6 @@
       ]
     },
     {
-      "name": "electron",
-      "version": "41.0.3",
-      "license": "MIT",
-      "repository": "https://github.com/electron/electron",
-      "notices": [
-        {
-          "member": "dist/LICENSE",
-          "sha256": "5154e165bd6c2cc0cfbcd8916498c7abab0497923bafcd5cb07673fe8480087d"
-        },
-        {
-          "member": "LICENSE",
-          "sha256": "5154e165bd6c2cc0cfbcd8916498c7abab0497923bafcd5cb07673fe8480087d"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "56a37896ff6edec2b75b41465b66dd768f2d294c315255164898ca3e685bbd30"
-        }
-      ]
-    },
-    {
       "name": "embla-carousel-react",
       "version": "8.6.0",
       "license": "MIT",
@@ -11501,22 +11221,6 @@
         {
           "member": "README.md (license section)",
           "sha256": "7c59ffc1bdc8ebb3145afe526c0afb0d63e2b1a3233ce239eb3f62a6a79b0e2e"
-        }
-      ]
-    },
-    {
-      "name": "end-of-stream",
-      "version": "1.4.5",
-      "license": "MIT",
-      "repository": "git://github.com/mafintosh/end-of-stream.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "3fe8d55a98dbf260eace67c00cf9bc53edb46234e840098a0b93df3096b97fb6"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "daf005969aac8cb4283b3777361f0244f4cce898b9a983a60b7f0d9e96f559bf"
         }
       ]
     },
@@ -11649,18 +11353,6 @@
       ]
     },
     {
-      "name": "es6-error",
-      "version": "4.1.1",
-      "license": "MIT",
-      "repository": "https://github.com/bjyoungblood/es6-error.git",
-      "notices": [
-        {
-          "member": "LICENSE.md",
-          "sha256": "9f655c5baa5a6f254d1e87f27e14d04acaff4bd0b489ea3c2f33723919da2f44"
-        }
-      ]
-    },
-    {
       "name": "escalade",
       "version": "3.2.0",
       "license": "MIT",
@@ -11701,18 +11393,6 @@
         {
           "member": "Readme.md (license section)",
           "sha256": "ab27fc045f7a02ee0f02640e290b14a849a6a9d3dac2c5e6a4f986d303543809"
-        }
-      ]
-    },
-    {
-      "name": "escape-string-regexp",
-      "version": "4.0.0",
-      "license": "MIT",
-      "repository": "sindresorhus/escape-string-regexp",
-      "notices": [
-        {
-          "member": "license",
-          "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
         }
       ]
     },
@@ -11953,18 +11633,6 @@
       ]
     },
     {
-      "name": "extract-zip",
-      "version": "2.0.1",
-      "license": "BSD-2-Clause",
-      "repository": "maxogden/extract-zip",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "77b2de947c65f3062fb347118ca198ca50898ead84a8509d8153fa65741f029b"
-        }
-      ]
-    },
-    {
       "name": "fast-deep-equal",
       "version": "3.1.3",
       "license": "MIT",
@@ -12041,18 +11709,6 @@
         {
           "member": "README.md (license section)",
           "sha256": "ba9493d367402925a7705f85f597583fd894561efb8717ab6ad56d9ebc17ba14"
-        }
-      ]
-    },
-    {
-      "name": "fd-slicer",
-      "version": "1.1.0",
-      "license": "MIT",
-      "repository": "git://github.com/andrewrk/node-fd-slicer.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "176d95320d565cb034d8323797b6cd6160238f625453687f98aad2085c46c3b3"
         }
       ]
     },
@@ -12285,22 +11941,6 @@
       ]
     },
     {
-      "name": "fs-extra",
-      "version": "8.1.0",
-      "license": "MIT",
-      "repository": "https://github.com/jprichardson/node-fs-extra",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "1e76029602ae9b21cc4e612db2496d92febed882ba13ba745f8b3309e85f9d39"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "99418da6b0279959da793d62433978847d00236e852c4be780f384b7f506d425"
-        }
-      ]
-    },
-    {
       "name": "function-bind",
       "version": "1.1.2",
       "license": "MIT",
@@ -12414,18 +12054,6 @@
     },
     {
       "name": "get-stream",
-      "version": "5.2.0",
-      "license": "MIT",
-      "repository": "sindresorhus/get-stream",
-      "notices": [
-        {
-          "member": "license",
-          "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
-        }
-      ]
-    },
-    {
-      "name": "get-stream",
       "version": "6.0.1",
       "license": "MIT",
       "repository": "sindresorhus/get-stream",
@@ -12497,30 +12125,6 @@
       ]
     },
     {
-      "name": "global-agent",
-      "version": "3.0.0",
-      "license": "BSD-3-Clause",
-      "repository": "https://github.com/gajus/global-agent",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "ba98e94118579117505f6f11fd9a4354c5e65ece03b4898d8b8f7785efcd25c1"
-        }
-      ]
-    },
-    {
-      "name": "globalthis",
-      "version": "1.0.4",
-      "license": "MIT",
-      "repository": "git://github.com/ljharb/System.global.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "acfaf437865d82f0fa9b9cdcae8b550bed8d011adaa5b42d973191caf99f62a8"
-        }
-      ]
-    },
-    {
       "name": "gopd",
       "version": "1.2.0",
       "license": "MIT",
@@ -12529,18 +12133,6 @@
         {
           "member": "LICENSE",
           "sha256": "d90bf0a089da4cf43d644ed240a0b3825dcdb705e64e38371d56995a4cc9e4c5"
-        }
-      ]
-    },
-    {
-      "name": "got",
-      "version": "11.8.6",
-      "license": "MIT",
-      "repository": "sindresorhus/got",
-      "notices": [
-        {
-          "member": "license",
-          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
         }
       ]
     },
@@ -12585,14 +12177,18 @@
       ]
     },
     {
-      "name": "has-property-descriptors",
-      "version": "1.0.2",
+      "name": "has-flag",
+      "version": "4.0.0",
       "license": "MIT",
-      "repository": "git+https://github.com/inspect-js/has-property-descriptors.git",
+      "repository": "sindresorhus/has-flag",
       "notices": [
         {
-          "member": "LICENSE",
-          "sha256": "0f0ca96f50793990031ebc488a38f7292ff70bce8ab6a8e5eeda674abc32ccdf"
+          "member": "license",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        },
+        {
+          "member": "readme.md (license section)",
+          "sha256": "0b8c7c0c5579b689ab841976b473ebe9269aa46347fc1295431e0fc3f2452d36"
         }
       ]
     },
@@ -12945,18 +12541,6 @@
       ]
     },
     {
-      "name": "http-cache-semantics",
-      "version": "4.2.0",
-      "license": "BSD-2-Clause",
-      "repository": "git+https://github.com/kornelski/http-cache-semantics.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "ab868ad5a2ef5068560d9cd3b2180ec63c140bb4c5cae1ba779d300a0ac74fa3"
-        }
-      ]
-    },
-    {
       "name": "http-errors",
       "version": "2.0.1",
       "license": "MIT",
@@ -12997,22 +12581,6 @@
         {
           "member": "LICENSE",
           "sha256": "71368fd0f5b4129191e9afcd1e1ef2dc89a9090d3e4d80bbab92dafd032b3bef"
-        }
-      ]
-    },
-    {
-      "name": "http2-wrapper",
-      "version": "1.0.3",
-      "license": "MIT",
-      "repository": "git+https://github.com/szmarczak/http2-wrapper.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "0194571d45a06ea2a22ceb51f981e3be92525966d28847dbc0d9982603bf90de"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "daf005969aac8cb4283b3777361f0244f4cce898b9a983a60b7f0d9e96f559bf"
         }
       ]
     },
@@ -13629,18 +13197,6 @@
       ]
     },
     {
-      "name": "isomorphic.js",
-      "version": "0.2.5",
-      "license": "MIT",
-      "repository": "git+https://github.com/dmonad/isomorphic.js.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "dd6488c9c1a4ce2dc978ecee067e5b6a725b52e6057a450b24f1a23bc373b057"
-        }
-      ]
-    },
-    {
       "name": "jimp",
       "version": "1.6.1",
       "license": "MIT",
@@ -13737,22 +13293,6 @@
       ]
     },
     {
-      "name": "json-buffer",
-      "version": "3.0.1",
-      "license": "MIT",
-      "repository": "git://github.com/dominictarr/json-buffer.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "715f1f0f2eb7688e53e4e958acdc7fc9e365ae3eaf26efc2604b93cc65fdc3f5"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "daf005969aac8cb4283b3777361f0244f4cce898b9a983a60b7f0d9e96f559bf"
-        }
-      ]
-    },
-    {
       "name": "json-parse-even-better-errors",
       "version": "2.3.1",
       "license": "MIT",
@@ -13809,18 +13349,6 @@
       ]
     },
     {
-      "name": "json-stringify-safe",
-      "version": "5.0.1",
-      "license": "ISC",
-      "repository": "git://github.com/isaacs/json-stringify-safe",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b"
-        }
-      ]
-    },
-    {
       "name": "json5",
       "version": "2.2.3",
       "license": "MIT",
@@ -13833,22 +13361,6 @@
         {
           "member": "README.md (license section)",
           "sha256": "09ebd9927f40b8b47880fa9ad15bd2e09ca95a6d52668767c2b0f01550920357"
-        }
-      ]
-    },
-    {
-      "name": "jsonfile",
-      "version": "4.0.0",
-      "license": "MIT",
-      "repository": "git@github.com:jprichardson/node-jsonfile.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "a9801fb52ba22ef808682a094da8a7a480584b7ed0dfd0d888ab543616335031"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "e61af02e143359d84791b8386297b57a0739d9f545e253757bec1ef00952ca23"
         }
       ]
     },
@@ -13905,42 +13417,6 @@
         {
           "member": "README.md (license section)",
           "sha256": "2bac2a40e8df7bcf69fa8fe096eb2a345f00f351440be38659ba25062b821fb8"
-        }
-      ]
-    },
-    {
-      "name": "keycharm",
-      "version": "0.4.0",
-      "license": "(Apache-2.0 OR MIT)",
-      "repository": "https://github.com/AlexDM0/keycharm",
-      "notices": [
-        {
-          "member": "LICENSE-APACHE-2.0",
-          "sha256": "7a1da246f5e03ea6f987021848a3ff9d9e9a86a54adf96a216f2ee57a9a762d6"
-        },
-        {
-          "member": "LICENSE-MIT",
-          "sha256": "7909cb1efaa8bd800a6d33d73cb9538bfe56a7da61c1fd8b4afb9ddd557ec044"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "1a7471ca96e17d08d390ff3b0c23ccbbff29390483add7577ae75c799d494b59"
-        }
-      ]
-    },
-    {
-      "name": "keyv",
-      "version": "4.5.4",
-      "license": "MIT",
-      "repository": "git+https://github.com/jaredwray/keyv.git",
-      "notices": [
-        {
-          "member": "README.md (license section)",
-          "sha256": "7c52c9115673b3e47e2a78c9c911558b7b2f23b144a3927e5fa862e1409727ba"
-        },
-        {
-          "member": "https://registry.npmjs.org/keyv/4.5.4",
-          "sha256": "6f7e6eae2a2afbaa67b266650f7342e7bf8e82cb57f6ab98148b3d6e0fb4450a"
         }
       ]
     },
@@ -14089,22 +13565,6 @@
       ]
     },
     {
-      "name": "lib0",
-      "version": "0.2.117",
-      "license": "MIT",
-      "repository": "git+https://github.com/dmonad/lib0.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "5446db1e43fe52faf3faab7e9959fe3762ac11bdc61c0945934c498affd52d73"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "2a88c16bef1c3bef4a5bd265bd61ea2e30b19d0a501e12e1d5d79e523ca4836c"
-        }
-      ]
-    },
-    {
       "name": "lie",
       "version": "3.3.0",
       "license": "MIT",
@@ -14249,22 +13709,6 @@
         {
           "member": "LICENSE",
           "sha256": "4eb7543b08d955a6d23fcc224601d43ff566e775be918805e26210d7f6eb4893"
-        }
-      ]
-    },
-    {
-      "name": "lowercase-keys",
-      "version": "2.0.0",
-      "license": "MIT",
-      "repository": "sindresorhus/lowercase-keys",
-      "notices": [
-        {
-          "member": "license",
-          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
-        },
-        {
-          "member": "readme.md (license section)",
-          "sha256": "0b8c7c0c5579b689ab841976b473ebe9269aa46347fc1295431e0fc3f2452d36"
         }
       ]
     },
@@ -14421,18 +13865,6 @@
         {
           "member": "README.md (license section)",
           "sha256": "9432aa108cccae3962e4d284c49478ba528fb74e0fb68c4af719e8a338bb15da"
-        }
-      ]
-    },
-    {
-      "name": "matcher",
-      "version": "3.0.0",
-      "license": "MIT",
-      "repository": "sindresorhus/matcher",
-      "notices": [
-        {
-          "member": "license",
-          "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
         }
       ]
     },
@@ -15429,34 +14861,6 @@
       ]
     },
     {
-      "name": "mimic-response",
-      "version": "1.0.1",
-      "license": "MIT",
-      "repository": "sindresorhus/mimic-response",
-      "notices": [
-        {
-          "member": "license",
-          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
-        },
-        {
-          "member": "readme.md (license section)",
-          "sha256": "0b8c7c0c5579b689ab841976b473ebe9269aa46347fc1295431e0fc3f2452d36"
-        }
-      ]
-    },
-    {
-      "name": "mimic-response",
-      "version": "3.1.0",
-      "license": "MIT",
-      "repository": "sindresorhus/mimic-response",
-      "notices": [
-        {
-          "member": "license",
-          "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
-        }
-      ]
-    },
-    {
       "name": "minimatch",
       "version": "10.2.5",
       "license": "BlueOak-1.0.0",
@@ -15545,22 +14949,6 @@
         {
           "member": "README.md (license section)",
           "sha256": "daf005969aac8cb4283b3777361f0244f4cce898b9a983a60b7f0d9e96f559bf"
-        }
-      ]
-    },
-    {
-      "name": "moment",
-      "version": "2.30.1",
-      "license": "MIT",
-      "repository": "https://github.com/moment/moment.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "8f38f320bbf5eb84c08e08676f7ee1d2204ebe5797f6a090d077329cf212fca3"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "99a0638a7421918cd7265336281089bca327701b2911140879b199f4349c0435"
         }
       ]
     },
@@ -15809,18 +15197,6 @@
       ]
     },
     {
-      "name": "normalize-url",
-      "version": "6.1.0",
-      "license": "MIT",
-      "repository": "sindresorhus/normalize-url",
-      "notices": [
-        {
-          "member": "license",
-          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
-        }
-      ]
-    },
-    {
       "name": "npm-run-path",
       "version": "4.0.1",
       "license": "MIT",
@@ -15885,18 +15261,6 @@
         {
           "member": "readme.markdown (license section)",
           "sha256": "04694eacd112f4a979f1dd1c7a1c365ea2d721f505eb0464bd05838d80933c34"
-        }
-      ]
-    },
-    {
-      "name": "object-keys",
-      "version": "1.1.1",
-      "license": "MIT",
-      "repository": "git://github.com/ljharb/object-keys.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "5640e5cbe2e9f57f6ccfdd8dbfbeadb875495bdbcb69d2666ce3177ccd0942e4"
         }
       ]
     },
@@ -16057,18 +15421,6 @@
         {
           "member": "LICENSE",
           "sha256": "d06a69cefbdd9135436ff8e36ea5c32f07fc27c629063aa411f811efe7c30359"
-        }
-      ]
-    },
-    {
-      "name": "p-cancelable",
-      "version": "2.1.1",
-      "license": "MIT",
-      "repository": "sindresorhus/p-cancelable",
-      "notices": [
-        {
-          "member": "license",
-          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
         }
       ]
     },
@@ -16757,22 +16109,6 @@
       ]
     },
     {
-      "name": "progress",
-      "version": "2.0.3",
-      "license": "MIT",
-      "repository": "git://github.com/visionmedia/node-progress",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "d7d2a7786de7c7cfd96f920c6f12927d74e1d2a861ca4498bf465c3bc3f4c21c"
-        },
-        {
-          "member": "Readme.md (license section)",
-          "sha256": "daf005969aac8cb4283b3777361f0244f4cce898b9a983a60b7f0d9e96f559bf"
-        }
-      ]
-    },
-    {
       "name": "prompts",
       "version": "2.4.2",
       "license": "MIT",
@@ -16797,22 +16133,6 @@
         {
           "member": "README.md (license section)",
           "sha256": "ca980af9aad75880631440fc14082e1a217b1ea3e615cf715469468bee6a8ef4"
-        }
-      ]
-    },
-    {
-      "name": "propagating-hammerjs",
-      "version": "3.0.0",
-      "license": "MIT",
-      "repository": "https://github.com/josdejong/propagating-hammerjs.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "ac9579e0acfe1f27d342adb5c61fe3dafe7bff388e0200d6d3f951a3e37f42dd"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "daf005969aac8cb4283b3777361f0244f4cce898b9a983a60b7f0d9e96f559bf"
         }
       ]
     },
@@ -16901,22 +16221,6 @@
       ]
     },
     {
-      "name": "pump",
-      "version": "3.0.4",
-      "license": "MIT",
-      "repository": "git://github.com/mafintosh/pump.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "3fe8d55a98dbf260eace67c00cf9bc53edb46234e840098a0b93df3096b97fb6"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "daf005969aac8cb4283b3777361f0244f4cce898b9a983a60b7f0d9e96f559bf"
-        }
-      ]
-    },
-    {
       "name": "qrcode",
       "version": "1.5.4",
       "license": "MIT",
@@ -16957,18 +16261,6 @@
         {
           "member": "README.md (license section)",
           "sha256": "a3c7d5b41af742dce5b55e0b2cb165c39b857e3d48e51ed2ee1e66afe3b82887"
-        }
-      ]
-    },
-    {
-      "name": "quick-lru",
-      "version": "5.1.1",
-      "license": "MIT",
-      "repository": "sindresorhus/quick-lru",
-      "notices": [
-        {
-          "member": "license",
-          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
         }
       ]
     },
@@ -17071,18 +16363,6 @@
     {
       "name": "react-is",
       "version": "16.13.1",
-      "license": "MIT",
-      "repository": "https://github.com/facebook/react.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "52412d7bc7ce4157ea628bbaacb8829e0a9cb3c58f57f99176126bc8cf2bfc85"
-        }
-      ]
-    },
-    {
-      "name": "react-is",
-      "version": "18.3.1",
       "license": "MIT",
       "repository": "https://github.com/facebook/react.git",
       "notices": [
@@ -17589,22 +16869,6 @@
       ]
     },
     {
-      "name": "resolve-alpn",
-      "version": "1.2.1",
-      "license": "MIT",
-      "repository": "git+https://github.com/szmarczak/resolve-alpn.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "03b347a3d13b0e5bdb8fc5edeed0286b1be51441c6490a90710692d227136e0d"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "daf005969aac8cb4283b3777361f0244f4cce898b9a983a60b7f0d9e96f559bf"
-        }
-      ]
-    },
-    {
       "name": "resolve-from",
       "version": "4.0.0",
       "license": "MIT",
@@ -17617,22 +16881,6 @@
         {
           "member": "readme.md (license section)",
           "sha256": "0b8c7c0c5579b689ab841976b473ebe9269aa46347fc1295431e0fc3f2452d36"
-        }
-      ]
-    },
-    {
-      "name": "responselike",
-      "version": "2.0.1",
-      "license": "MIT",
-      "repository": "https://github.com/sindresorhus/responselike.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "2c4e066228dbca96c8c6e8bef5377306f227ffa1d87a18a218b230e13ac5d39e"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "4f6bff47d23de042c99fb8f97a4a4193390d0f7fef2443b6aef8945aa8147b79"
         }
       ]
     },
@@ -17689,18 +16937,6 @@
         {
           "member": "README.md (license section)",
           "sha256": "64c4e000fb5924d18ea114fdbf7c32d1eb3db896cd25c15973f1ad1efbbfeb0d"
-        }
-      ]
-    },
-    {
-      "name": "roarr",
-      "version": "2.15.4",
-      "license": "BSD-3-Clause",
-      "repository": "git@github.com:gajus/roarr.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "ba98e94118579117505f6f11fd9a4354c5e65ece03b4898d8b8f7785efcd25c1"
         }
       ]
     },
@@ -17897,22 +17133,6 @@
       ]
     },
     {
-      "name": "semver-compare",
-      "version": "1.0.0",
-      "license": "MIT",
-      "repository": "git://github.com/substack/semver-compare.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "435a6722c786b0a56fbe7387028f1d9d3f3a2d0fb615bb8fee118727c3f59b7b"
-        },
-        {
-          "member": "readme.markdown (license section)",
-          "sha256": "4d8a73c1024e09c8b323a225d3a7880156ba5a4b9a8d56c9f4fd4202384b110f"
-        }
-      ]
-    },
-    {
       "name": "semver",
       "version": "6.3.1",
       "license": "ISC",
@@ -17949,18 +17169,6 @@
         {
           "member": "README.md (license section)",
           "sha256": "6acb5236fdb284e239fdd9aa3e939067b28373d09c241ce7aab38d2d01f0e495"
-        }
-      ]
-    },
-    {
-      "name": "serialize-error",
-      "version": "7.0.1",
-      "license": "MIT",
-      "repository": "sindresorhus/serialize-error",
-      "notices": [
-        {
-          "member": "license",
-          "sha256": "5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3"
         }
       ]
     },
@@ -18083,22 +17291,6 @@
     {
       "name": "shiki",
       "version": "3.23.0",
-      "license": "MIT",
-      "repository": "git+https://github.com/shikijs/shiki.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "7a9d8d01038aeacf9e5bcdabbddf2a7815200dce9fc1118468cc553e00ae3eee"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "5664c680d8430d77e20c55742343ded09ac1f50d72f24eb5bd5e37ce95af1ae0"
-        }
-      ]
-    },
-    {
-      "name": "shiki",
-      "version": "4.0.2",
       "license": "MIT",
       "repository": "git+https://github.com/shikijs/shiki.git",
       "notices": [
@@ -18321,22 +17513,6 @@
         {
           "member": "readme.md (license section)",
           "sha256": "64a574420fb94c697fafecb00f684df486d228c66ecfdc497b1455ae319f4fbe"
-        }
-      ]
-    },
-    {
-      "name": "sprintf-js",
-      "version": "1.1.3",
-      "license": "BSD-3-Clause",
-      "repository": "https://github.com/alexei/sprintf.js.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "f8287e4dd9480be58c56aca4a55c23b782c43a86e69aabad78fff4df0d29edef"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "b0103765a1ddbb08ac290cf214f00caabac645d7f8702d22677d0b766f7b7729"
         }
       ]
     },
@@ -18617,14 +17793,14 @@
       ]
     },
     {
-      "name": "sumchecker",
-      "version": "3.0.1",
-      "license": "Apache-2.0",
-      "repository": "git+https://github.com/malept/sumchecker.git",
+      "name": "supports-color",
+      "version": "7.2.0",
+      "license": "MIT",
+      "repository": "chalk/supports-color",
       "notices": [
         {
-          "member": "LICENSE",
-          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+          "member": "license",
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
         }
       ]
     },
@@ -18693,18 +17869,6 @@
         {
           "member": "README.md (license section)",
           "sha256": "b00bea22a7af04273de43cf955ebb2f37d4feaee5fdedafab1fadd5fa1b3ca57"
-        }
-      ]
-    },
-    {
-      "name": "tailwindcss",
-      "version": "4.2.2",
-      "license": "MIT",
-      "repository": "https://github.com/tailwindlabs/tailwindcss.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985"
         }
       ]
     },
@@ -18994,22 +18158,6 @@
     },
     {
       "name": "type-fest",
-      "version": "0.13.1",
-      "license": "(MIT OR CC0-1.0)",
-      "repository": "sindresorhus/type-fest",
-      "notices": [
-        {
-          "member": "license",
-          "sha256": "64a93ffc0a06a2266dbb57ed7ebe3b56ba66ab337b6347fabdbf86c76819fbae"
-        },
-        {
-          "member": "readme.md (license section)",
-          "sha256": "ee8ce2b628da002780228222081dd7353fb050ca452de937983a369a1d80c418"
-        }
-      ]
-    },
-    {
-      "name": "type-fest",
       "version": "5.5.0",
       "license": "(MIT OR CC0-1.0)",
       "repository": "sindresorhus/type-fest",
@@ -19041,18 +18189,6 @@
         {
           "member": "README.md (license section)",
           "sha256": "c70c6de97aba1fcb301343a4afdbde5ddb84f32c9aa56f1f59d63a2bc2ae2c74"
-        }
-      ]
-    },
-    {
-      "name": "typescript",
-      "version": "5.9.3",
-      "license": "Apache-2.0",
-      "repository": "https://github.com/microsoft/TypeScript.git",
-      "notices": [
-        {
-          "member": "LICENSE.txt",
-          "sha256": "a7d00bfd54525bc694b6e32f64c7ebcf5e6b7ae3657be5cc12767bce74654a47"
         }
       ]
     },
@@ -19121,18 +18257,6 @@
         {
           "member": "README.md (license section)",
           "sha256": "d274cc11a7f8b98caff978f6b5acdfd72de3ba6a2c3c20ea3bd984fcde194201"
-        }
-      ]
-    },
-    {
-      "name": "undici-types",
-      "version": "7.16.0",
-      "license": "MIT",
-      "repository": "git+https://github.com/nodejs/undici.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27"
         }
       ]
     },
@@ -19325,22 +18449,6 @@
         {
           "member": "readme.md (license section)",
           "sha256": "3d0339f36ada73cc5c1832994ec0be2c9e77e3a91afad459af826df73a82616a"
-        }
-      ]
-    },
-    {
-      "name": "universalify",
-      "version": "0.1.2",
-      "license": "MIT",
-      "repository": "git+https://github.com/RyanZim/universalify.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "3fda5977c0904e226190b4e21d64340c1731e2142d6fe5f3dee0090a216b8b63"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "daf005969aac8cb4283b3777361f0244f4cce898b9a983a60b7f0d9e96f559bf"
         }
       ]
     },
@@ -19693,26 +18801,6 @@
       ]
     },
     {
-      "name": "vis-data",
-      "version": "8.0.4",
-      "license": "(Apache-2.0 OR MIT)",
-      "repository": "git+https://github.com/visjs/vis-data.git",
-      "notices": [
-        {
-          "member": "LICENSE-APACHE-2.0",
-          "sha256": "1509904280a272780fd69c04b858f512cf216f8e3464a0dd98d8f34416feced9"
-        },
-        {
-          "member": "LICENSE-MIT",
-          "sha256": "1f65085e54c036645082257618db2c7b787e68c3b02485e214ecd09e0834ee8f"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "b65d7e3f0eeeb733aa844271af3c9383f55e78979bbbcb5a3df13fbd34868b8c"
-        }
-      ]
-    },
-    {
       "name": "vis-timeline",
       "version": "8.5.1",
       "license": "(Apache-2.0 OR MIT)",
@@ -19733,22 +18821,6 @@
         {
           "member": "README.md (license section)",
           "sha256": "322be9edf6bc7e286f5e8a3e9cc166cf36d1d1e3a76da2e88aae624bc715bd82"
-        }
-      ]
-    },
-    {
-      "name": "vis-util",
-      "version": "6.0.0",
-      "license": "(Apache-2.0 OR MIT)",
-      "repository": "https://github.com/visjs/vis-util.git",
-      "notices": [
-        {
-          "member": "LICENSE-APACHE-2.0",
-          "sha256": "1509904280a272780fd69c04b858f512cf216f8e3464a0dd98d8f34416feced9"
-        },
-        {
-          "member": "LICENSE-MIT",
-          "sha256": "b88d2c1898485a909bfd92d1a2a676c266db5384d7153f3bdb80caebb7038351"
         }
       ]
     },
@@ -20042,22 +19114,6 @@
     },
     {
       "name": "ws",
-      "version": "8.18.0",
-      "license": "MIT",
-      "repository": "git+https://github.com/websockets/ws.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "2b29dcfe0d6471f7e8c92c5fb38c9f93edee10330937055440192f1832b1ecef"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "c63ef91c14f147f837c11850187ac35794e22e192ee846ad0daffb55e13a86cd"
-        }
-      ]
-    },
-    {
-      "name": "ws",
       "version": "8.20.0",
       "license": "MIT",
       "repository": "git+https://github.com/websockets/ws.git",
@@ -20121,22 +19177,6 @@
         {
           "member": "LICENSE",
           "sha256": "e368bc4263b466cf98c225af15e300549e00da8859416a4536109e9654d434a8"
-        }
-      ]
-    },
-    {
-      "name": "xss",
-      "version": "1.0.15",
-      "license": "MIT",
-      "repository": "git://github.com/leizongmin/js-xss.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "93dbf94b858812876168fbd4de2da2251ad21d9856a09347ecdbb0aaa56a6e89"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "1cf3dcaa49fda51f1faba28900a4bfc53df411226e87c84c4a099620ed4b9ff5"
         }
       ]
     },
@@ -20254,18 +19294,6 @@
     },
     {
       "name": "yauzl",
-      "version": "2.10.0",
-      "license": "MIT",
-      "repository": "https://github.com/thejoshwolfe/yauzl.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "b303783d5eb7ca50b853ffa5f145e4e7998fab339831d848f507ca6cd970577a"
-        }
-      ]
-    },
-    {
-      "name": "yauzl",
       "version": "3.3.0",
       "license": "MIT",
       "repository": "git+https://github.com/thejoshwolfe/yauzl.git",
@@ -20285,22 +19313,6 @@
         {
           "member": "LICENSE",
           "sha256": "b303783d5eb7ca50b853ffa5f145e4e7998fab339831d848f507ca6cd970577a"
-        }
-      ]
-    },
-    {
-      "name": "yjs",
-      "version": "13.6.30",
-      "license": "MIT",
-      "repository": "https://github.com/yjs/yjs.git",
-      "notices": [
-        {
-          "member": "LICENSE",
-          "sha256": "341baa53605ed85d6f95782322854cca56c655ebc7fd4712649b8e7afc6020ff"
-        },
-        {
-          "member": "README.md (license section)",
-          "sha256": "8ab1d1c64be7c9016c6fda6b12cb359cc57b48a21bc4e664ded0ce59e66ce743"
         }
       ]
     },
@@ -20477,11 +19489,11 @@
       "files": [
         {
           "file": "packages/ui/src/components/ui/GlmMonochromeIcon.tsx",
-          "sha256": "f1691224d23be4359e1a79bcd81b9dd5ee19c0177b3a4bf750332c620b98ae5c"
+          "sha256": "42a8fbf15562fa4ac935a920cd9a9bb31c984d23e08331ba19c6d8174cc5a223"
         },
         {
           "file": "packages/ui/src/components/ui/README.md",
-          "sha256": "75b3a7d95cb683c0e97d4212af3a984359031f9b1f0c5d373b2c9ed38e4bda40"
+          "sha256": "05610a7a90f17c5548af8d6be4341f32a1f983288418ea2a10470e4031f57174"
         },
         {
           "file": "packages/ui/src/components/ui/ZCodeAboutLogo.tsx",
@@ -20493,7 +19505,7 @@
         },
         {
           "file": "packages/ui/src/components/ui/alert-dialog.tsx",
-          "sha256": "3dd074ddbfcefdad6a6c231b6cf055bbcd5fce40bf8feecc6950b60d9ab53b81"
+          "sha256": "bbb24197b2b9e1a6dd4f5f600ef416d9127a66ca0cc7078ddd8ab6ced3a8eab8"
         },
         {
           "file": "packages/ui/src/components/ui/alert.tsx",
@@ -20513,7 +19525,7 @@
         },
         {
           "file": "packages/ui/src/components/ui/button.tsx",
-          "sha256": "3bf0b1573c940999f875a1dd5e67a32e7d9bcb3e320774fa8277f5c00748b32b"
+          "sha256": "30c0e05a69d862e13becddfb14b3a4e74720abf1bccd95a99d5316a73cdeb069"
         },
         {
           "file": "packages/ui/src/components/ui/card.tsx",
@@ -20521,7 +19533,7 @@
         },
         {
           "file": "packages/ui/src/components/ui/chart.tsx",
-          "sha256": "272efec5aa60d34665104b45341d9f2b8cad4480070bca91e9d5409713b6fecd"
+          "sha256": "53ba9d45e0b7469032edb6ec4e9501a71eb3325412da3c39f936f9121b67e2fd"
         },
         {
           "file": "packages/ui/src/components/ui/checkbox.tsx",
@@ -20529,39 +19541,39 @@
         },
         {
           "file": "packages/ui/src/components/ui/code-viewer.tsx",
-          "sha256": "dfccd2feaccc62af84f3e92dc5b8e25e7025b6c64cbd16f177586b1dc763affe"
+          "sha256": "23d35cd9af0fd0d85de22898cb3a38c6138ee54f876b30828dd9b7c4e44b6503"
         },
         {
           "file": "packages/ui/src/components/ui/collapsible.tsx",
-          "sha256": "e00f7ad26cc4c168f8c6b20e6078512807ddca05e375e47b6c9dbbd50fcbef52"
+          "sha256": "aacb5c57be0eb5b35c34268b61d48f36e1c6721d53f62ff4164795fa8ed84db1"
         },
         {
           "file": "packages/ui/src/components/ui/command.tsx",
-          "sha256": "7c754bc80704163ce505d08d961a5a4b3e57107e7d53ea319483a896d448cbdb"
+          "sha256": "03e61cca2e7880aa4dae9da0c7b1587f2f11820c68554c1578d14abfbbc15083"
         },
         {
           "file": "packages/ui/src/components/ui/context-menu.tsx",
-          "sha256": "3820461fd68ca7a345fc919ab356bdefbbead23abb3ac0f4e8d46898f7522a6f"
+          "sha256": "c1b0a3a641ad5f2d96cae997c7374dae9e8c50a3b00d3a26af47e9790361fcb4"
         },
         {
           "file": "packages/ui/src/components/ui/dialog.tsx",
-          "sha256": "53dc10761bd894a5e86278d9354aac47920c81b4aab8b414b840af095f7c0b31"
+          "sha256": "606b7a42e5af3e0fa0f82b7a3382fa59c0a68afa2ec47d5a19ddc71d10020312"
         },
         {
           "file": "packages/ui/src/components/ui/diff-viewer.tsx",
-          "sha256": "f02208b316e6dc4043ed1794455422bc74cdd521285fcac5a2c0d589c2eb9af2"
+          "sha256": "f7c6e3c34a115a9be92fdcc8ebf04cf4ff1eacfeef224533aaff64358ed6d460"
         },
         {
           "file": "packages/ui/src/components/ui/dropdown-menu.tsx",
-          "sha256": "34c5b79489756aa3467ec26d2b44587f3d47eafcb2cb16402686aac15e4debdb"
+          "sha256": "95d17ee733b4cc0ebfdd6f8302034d5407c683b6f94dc5aca55a80cdd40e99a9"
         },
         {
           "file": "packages/ui/src/components/ui/flip-metric-value.tsx",
-          "sha256": "ce2d6cf063003e1023191b0fa4e3eb9b365e04a14eb0d498b897326600bf4071"
+          "sha256": "90f67a751588cc1e3cf14acf5cf555018d35e627cda33cfd6cca26e0eca0f57f"
         },
         {
           "file": "packages/ui/src/components/ui/highlighted-lightweight-diff-preview.tsx",
-          "sha256": "c04bb6009683ab74cb72ff8f1e1157ffbdd06be4a46dc3c725c63e0bc43fea72"
+          "sha256": "ffdc29d908e6b645d26aa27eb87fb53ae4a5a61613a9c8e4ceb007c63647fe74"
         },
         {
           "file": "packages/ui/src/components/ui/hover-card.tsx",
@@ -20577,7 +19589,7 @@
         },
         {
           "file": "packages/ui/src/components/ui/kbd.tsx",
-          "sha256": "a7fabb33892c759337ae5c936d3b62f27fb2356a5a6340dbff8bfbac6f0a359f"
+          "sha256": "44b8770e737229021413944b37698f2a6eed7bd4a2ff25baf82febf2b8cfb593"
         },
         {
           "file": "packages/ui/src/components/ui/label.tsx",
@@ -20585,23 +19597,23 @@
         },
         {
           "file": "packages/ui/src/components/ui/lightweight-diff-preview.tsx",
-          "sha256": "7d1ff2a02815d988f5ffd2d6549848920c98488a4dba43f67ba9d81a3da49d01"
+          "sha256": "53d7872783b515d3644e143ce1d42e58bd4f9e2998eb85eef74fe68271c6fea0"
         },
         {
           "file": "packages/ui/src/components/ui/pdf-viewer.tsx",
-          "sha256": "19ba82ab97a84599bb99178de85a4d5c6a89da6924ba55a0dc14f33286187fdc"
+          "sha256": "bb49c1ea2b64ec99ad5d0518befb200559e7dd0e7d73d389bbb4cdd78037fd42"
         },
         {
           "file": "packages/ui/src/components/ui/popover.tsx",
-          "sha256": "e23c9238865ba7e85965ebed89e7328cfbdbbdcc2264156c775d51e9e264b484"
+          "sha256": "e7fe4b8c459d34f96f58a67e3922b8247b60e6025569437469294c989387d060"
         },
         {
           "file": "packages/ui/src/components/ui/pptx-preview-viewer.tsx",
-          "sha256": "64d7ed9e83cad0e98ba56ff2c49be2db335aedca4230b207cba5a383a15cb93d"
+          "sha256": "423e61926c66f213ddb66414bb75b84ede45ae6065889f922b8089701f83af9a"
         },
         {
           "file": "packages/ui/src/components/ui/pptx-selection-action-bar.tsx",
-          "sha256": "6e7187b7f527e4a97df117cc0df85d2dd8f4408d7415aec2e4907db39a331efd"
+          "sha256": "0ad91e8aa09bbe2eea47f8838bc42d35bb563a6552accab80332da46d3c49706"
         },
         {
           "file": "packages/ui/src/components/ui/progress.tsx",
@@ -20609,7 +19621,7 @@
         },
         {
           "file": "packages/ui/src/components/ui/resizable.tsx",
-          "sha256": "83425c34fb76c35276e6dbf8d7ad0ee860b4536ba9d4cfd8e8a60aec3b7cabc4"
+          "sha256": "2b02e04e6a948968c2f64a893a0e48ce4113449f9239eb142b282555c1d66fc7"
         },
         {
           "file": "packages/ui/src/components/ui/scroll-area.tsx",
@@ -20617,11 +19629,11 @@
         },
         {
           "file": "packages/ui/src/components/ui/scroll-fade-viewport.tsx",
-          "sha256": "50e5984232b6a7d59e872aab4ebb36ae837e2865e3a770adbc234b61c2531da1"
+          "sha256": "ca96b3553a73ecc9f8030a97523f55e7a891dca634b04e7eccec73945c4ce296"
         },
         {
           "file": "packages/ui/src/components/ui/select.tsx",
-          "sha256": "e6d73ae0bf6916256fd86005d8a94e3dfb004c8107f51882cfd2d52e7751ca09"
+          "sha256": "cd317ce93deeacafc4c612d175c21c89f6dfaad016f722e6dcc1495d5289a802"
         },
         {
           "file": "packages/ui/src/components/ui/separator.tsx",
@@ -20645,7 +19657,7 @@
         },
         {
           "file": "packages/ui/src/components/ui/toast.tsx",
-          "sha256": "0f8894c6fc30e4cec44caa4cffe70e111f9c41ff9bf3699ec8e91696ea631671"
+          "sha256": "40d726d6499a8d1176d02771932f66188bc69b73ee4f0dfc6cd67b6c5ddfc990"
         },
         {
           "file": "packages/ui/src/components/ui/tooltip.tsx",
@@ -20653,11 +19665,11 @@
         },
         {
           "file": "packages/ui/src/components/ui/usePdfZoomOverlay.ts",
-          "sha256": "c8c91b003ce2fded32c7a2369dc6eac43aa4b9dc9c830a0f5ceccb21d366b610"
+          "sha256": "464150506ec89809411a0e9166220c7260ecf8dd1501e9b63dd401c4fe6482d4"
         },
         {
           "file": "packages/ui/src/styles.css",
-          "sha256": "22d5b58e44cdebdbe7154c418ee05fef6dde689e384f0dd590d4057739487be7"
+          "sha256": "2d6ce62c279a76f4860aa5c14eb0f6a61bd830c4f7cc4117551767fa1a38c3e8"
         }
       ]
     },
@@ -20827,7 +19839,7 @@
         },
         {
           "file": "packages/ui/src/components/ai-elements/attachments.tsx",
-          "sha256": "7a847ce6c8ac9dc630481a82dd20a5e9e00949bf710a41fea1d32a18123011d8"
+          "sha256": "6b4e643f384f6125b73ca86d6c253fc7835ffcc439fc7ace18e273e3dc4ae0b6"
         },
         {
           "file": "packages/ui/src/components/ai-elements/canvas.tsx",
@@ -20843,7 +19855,7 @@
         },
         {
           "file": "packages/ui/src/components/ai-elements/code-block.tsx",
-          "sha256": "ae4f975537ebb9c8ef905b7b9de39bc37180f81511bffc027dc4da1929037f18"
+          "sha256": "b7600334dcb648daf2dd99748ea6a24e5a3a86c4a056d6bc659571ba892f8dfb"
         },
         {
           "file": "packages/ui/src/components/ai-elements/commit.tsx",
@@ -20859,7 +19871,7 @@
         },
         {
           "file": "packages/ui/src/components/ai-elements/context.tsx",
-          "sha256": "9f9a766dcab0010b1483b5276f9d5f4b4c3b31bd85434731fc7ce4d8bf9913f7"
+          "sha256": "ef9985f965bc8cc18e7f96a84aca6190a582cd06c5437843eb0b523d46650a6d"
         },
         {
           "file": "packages/ui/src/components/ai-elements/controls.tsx",
@@ -20867,11 +19879,11 @@
         },
         {
           "file": "packages/ui/src/components/ai-elements/conversation.tsx",
-          "sha256": "1fda6a3c198ae104e8736b70992e9ce8549f667a942246d9a9762be8f4431e3a"
+          "sha256": "6e6b7df4d9311b5a1a4e1afc252e33de7525ca9897ee650b81a99809f7e0185c"
         },
         {
           "file": "packages/ui/src/components/ai-elements/diagram-preview-dialog.tsx",
-          "sha256": "cc142f8808370897dfc40cd7aea3f1aa42fd07ce471a7fbb284d9ae728b1299a"
+          "sha256": "213a90088c8cc32402efb2b3775217b5f4bfdca5ee0aa27a3170a8064131e275"
         },
         {
           "file": "packages/ui/src/components/ai-elements/edge.tsx",
@@ -20879,7 +19891,7 @@
         },
         {
           "file": "packages/ui/src/components/ai-elements/image-preview-dialog.tsx",
-          "sha256": "47d4ecdefc84d39f2deda93119ce400b36224276bb6c7dab6a914868914ac8de"
+          "sha256": "68774872d6dee86f48801458bbf68c1e000fd35b32f07a14171cd6c7d83afa4c"
         },
         {
           "file": "packages/ui/src/components/ai-elements/image-thumbnail-gallery.tsx",
@@ -20895,23 +19907,23 @@
         },
         {
           "file": "packages/ui/src/components/ai-elements/markdown-image.tsx",
-          "sha256": "aedf797b19d4f5d37fc7e8833b2824a9d1a1a4fca440b69519b43a43eb122e90"
+          "sha256": "ac582c5757253ca207d71c0fbd1083b674a5e0bceb9704a8535ec4ca303211e7"
         },
         {
           "file": "packages/ui/src/components/ai-elements/markdown-list.tsx",
-          "sha256": "ecf50ad4f48cd460ddcf90db7b463671f915d8c22c7cb8e7760ff3b02282c7f1"
+          "sha256": "db6c610ce4fc1dd1b02086807b0c56fad873d8df5328659e06ea73cc47f50c42"
         },
         {
           "file": "packages/ui/src/components/ai-elements/markdown-table.tsx",
-          "sha256": "612d78092eaeb950931070fff2a194a244e84c5c2d63c6df645e6b91391953da"
+          "sha256": "9b536a8e4458d6c7a71e7178972adb664554361465f77f7c982ea5506342d653"
         },
         {
           "file": "packages/ui/src/components/ai-elements/mermaid-block.tsx",
-          "sha256": "4cc6783097a6ecbb1896ee1f3dd1d89115ca81f3efb15d9fbabcf448063818ae"
+          "sha256": "4962bf69546159f459b9a4a4ffd6fb55a40769ee1fdf35a2215deaad353eba16"
         },
         {
           "file": "packages/ui/src/components/ai-elements/message.tsx",
-          "sha256": "6c35829ed11321e850cd59e20c1c88fdd452e8e2d9b5da45f808371021aabf99"
+          "sha256": "ecd43975863befd4ccf12bdd0760d552f208861a40abe8ca8b7317a935550f2d"
         },
         {
           "file": "packages/ui/src/components/ai-elements/node.tsx",
@@ -20947,15 +19959,15 @@
         },
         {
           "file": "packages/ui/src/components/ai-elements/prompt-input.tsx",
-          "sha256": "68a92e07c27774e9c1d63bccd12ec3ff38b4f89dd245b20bfffbbd052e6101c4"
+          "sha256": "52cb90635eb4029b38dbb95194940f0b4c7a7c5c6bec5e98743607de260fafa9"
         },
         {
           "file": "packages/ui/src/components/ai-elements/queue.tsx",
-          "sha256": "9d84f6e15708519ec65e258d9843dc5f4d76f106fc85155f7dcf51f89474b695"
+          "sha256": "9451f053ad4d3f7d52d3df30df952d71412b99207e72208a9438d8ce8341c0b1"
         },
         {
           "file": "packages/ui/src/components/ai-elements/reasoning.tsx",
-          "sha256": "a10a38c7b3ca633e9b5480ad94f9c7a1fdd52bc5526ae0801e3e6ed141f2b604"
+          "sha256": "7ad6dea5cce454246b47c644277b5a530bcf789fa2a4903fb0325851b0f099f9"
         },
         {
           "file": "packages/ui/src/components/ai-elements/sandbox.tsx",
@@ -20963,7 +19975,7 @@
         },
         {
           "file": "packages/ui/src/components/ai-elements/shimmer.tsx",
-          "sha256": "5d06ffdff80a13453a0b61b67f588c48d838a20d9be2cd319ca2a97d441b3127"
+          "sha256": "a0b54ec3469f84fc5c930e693c5cc0d4557aff51afc4755f0f1636aa7b51e2fd"
         },
         {
           "file": "packages/ui/src/components/ai-elements/snippet.tsx",
@@ -20975,7 +19987,7 @@
         },
         {
           "file": "packages/ui/src/components/ai-elements/streamdown-controls.ts",
-          "sha256": "13dc740d133c75a9d6eec6e23e673b29d0361a87ba4ee0e7d44a4b7ad047984a"
+          "sha256": "e2dcff69513cf334d82ba700613fe35ae94971cedd73cb0b7116b217a63ef2cc"
         },
         {
           "file": "packages/ui/src/components/ai-elements/suggestion.tsx",
@@ -20987,7 +19999,7 @@
         },
         {
           "file": "packages/ui/src/components/ai-elements/terminal.tsx",
-          "sha256": "da19fdbdeaaf682b50db23ccd8ba2a5fc6fa43dc2337bd1a3a0c4b8f52677f44"
+          "sha256": "b1aab2bcd7996b8c488cc8165c54fa5bec93984de9b35953305f623f6f4754f8"
         },
         {
           "file": "packages/ui/src/components/ai-elements/test-results.tsx",
@@ -20995,7 +20007,7 @@
         },
         {
           "file": "packages/ui/src/components/ai-elements/tool.tsx",
-          "sha256": "c4ca6fee5ecb3cfa597e8e99a2786c1bca28a6af36c4e8d05626b979e0f5963c"
+          "sha256": "5a19939b5d11c9c7c8b376d8e8a7b91065a4ef76c3c367b62a725d3a2e16bb31"
         },
         {
           "file": "packages/ui/src/components/ai-elements/toolbar.tsx",
@@ -21533,7 +20545,7 @@
       "files": [
         {
           "file": "apps/zcode-cli/packages/core/src/tool/handlers/generated/bash-command-registry.ts",
-          "sha256": "60fa5acd9f5c357f4e51b1d1e944ee39da92680e4bc5e98dd708f1457fcf612b"
+          "sha256": "b989c3b361dd08ebde4554e0d48355d554b8df9698bc2498849354d658e1fedb"
         }
       ]
     },
@@ -21600,7 +20612,7 @@
         },
         {
           "file": "packages/desktop/src/renderer/public/material-icons/agent.svg",
-          "sha256": "7eb73d94734d655fed25fe6f82eabc8c2b572865415659f1382466054b46ccbb"
+          "sha256": "848322717a1bb599c6545286e0fefdeb5f5126c6af87494e0dcd5d672e619760"
         },
         {
           "file": "packages/desktop/src/renderer/public/material-icons/amplify.svg",
@@ -22156,7 +21168,7 @@
         },
         {
           "file": "packages/desktop/src/renderer/public/material-icons/docx.svg",
-          "sha256": "2d19ec83e3cba9194dc0d4beb846fea25c3ddc11bea1768b88ea334a4b897d73"
+          "sha256": "ddb9b96559c14a9f2f1642a5118bf94d4dcea01ce1f1070af1307430e8a1d1d4"
         },
         {
           "file": "packages/desktop/src/renderer/public/material-icons/dotjs.svg",
@@ -24304,7 +23316,7 @@
         },
         {
           "file": "packages/desktop/src/renderer/public/material-icons/folder.svg",
-          "sha256": "bb1bcddac3bdd54bdd88afdcd4406dbf9aa7076bb4b21652306f25bada93085e"
+          "sha256": "e936a797aedc085d264f11db0f144a4c9ed37ed72aff03fe6191c9485fc18a6b"
         },
         {
           "file": "packages/desktop/src/renderer/public/material-icons/font.svg",
@@ -25204,7 +24216,7 @@
         },
         {
           "file": "packages/desktop/src/renderer/public/material-icons/pptx.svg",
-          "sha256": "c5e6b7fff252abc8df154da78e59d3e225d5715468f0459aa9ad4c746c73ff24"
+          "sha256": "1427469506e06e152e383b0a3790feedf67c46f4dddea629a1572a4a423dcf8c"
         },
         {
           "file": "packages/desktop/src/renderer/public/material-icons/pre-commit.svg",
@@ -26096,7 +25108,7 @@
         },
         {
           "file": "packages/desktop/src/renderer/public/material-icons/xlsx.svg",
-          "sha256": "5cda3decabc9cde5f0089e95aaf9a1800de013c3cc10b088863e9a4a3eeb88ef"
+          "sha256": "7dcf85b37d6a717be6344ce50d68171ede4f92d3e6601d0eb1766eead5cee2c6"
         },
         {
           "file": "packages/desktop/src/renderer/public/material-icons/xmake.svg",
@@ -26184,7 +25196,7 @@
         },
         {
           "file": "packages/web/public/material-icons/agent.svg",
-          "sha256": "7eb73d94734d655fed25fe6f82eabc8c2b572865415659f1382466054b46ccbb"
+          "sha256": "848322717a1bb599c6545286e0fefdeb5f5126c6af87494e0dcd5d672e619760"
         },
         {
           "file": "packages/web/public/material-icons/amplify.svg",
@@ -26740,7 +25752,7 @@
         },
         {
           "file": "packages/web/public/material-icons/docx.svg",
-          "sha256": "2d19ec83e3cba9194dc0d4beb846fea25c3ddc11bea1768b88ea334a4b897d73"
+          "sha256": "ddb9b96559c14a9f2f1642a5118bf94d4dcea01ce1f1070af1307430e8a1d1d4"
         },
         {
           "file": "packages/web/public/material-icons/dotjs.svg",
@@ -28888,7 +27900,7 @@
         },
         {
           "file": "packages/web/public/material-icons/folder.svg",
-          "sha256": "bb1bcddac3bdd54bdd88afdcd4406dbf9aa7076bb4b21652306f25bada93085e"
+          "sha256": "e936a797aedc085d264f11db0f144a4c9ed37ed72aff03fe6191c9485fc18a6b"
         },
         {
           "file": "packages/web/public/material-icons/font.svg",
@@ -29788,7 +28800,7 @@
         },
         {
           "file": "packages/web/public/material-icons/pptx.svg",
-          "sha256": "c5e6b7fff252abc8df154da78e59d3e225d5715468f0459aa9ad4c746c73ff24"
+          "sha256": "1427469506e06e152e383b0a3790feedf67c46f4dddea629a1572a4a423dcf8c"
         },
         {
           "file": "packages/web/public/material-icons/pre-commit.svg",
@@ -30680,7 +29692,7 @@
         },
         {
           "file": "packages/web/public/material-icons/xlsx.svg",
-          "sha256": "5cda3decabc9cde5f0089e95aaf9a1800de013c3cc10b088863e9a4a3eeb88ef"
+          "sha256": "7dcf85b37d6a717be6344ce50d68171ede4f92d3e6601d0eb1766eead5cee2c6"
         },
         {
           "file": "packages/web/public/material-icons/xmake.svg",
@@ -30827,11 +29839,11 @@
       "files": [
         {
           "file": "packages/rpc/src/buffer.ts",
-          "sha256": "6bc6a44e6abd088f72d57616d9556d78ce078b6f3813bf75402dde386781492c"
+          "sha256": "04d7ef7a007a7873b004198b2e12f7ffbb2fb859d041bbdd8cae093886c34c42"
         },
         {
           "file": "packages/rpc/src/channelClient.ts",
-          "sha256": "d2504929253ebb18f020e6f35e51a3741190558875d18a47192f9af78ca3f8ac"
+          "sha256": "e315c0bcc600d3ec7acd205393c37262ae67198e0f7672475c38c690969f6646"
         },
         {
           "file": "packages/rpc/src/channelServer.ts",
@@ -30851,63 +29863,63 @@
         },
         {
           "file": "packages/rpc/src/foundation.ts",
-          "sha256": "b4874401965e7bad7e84245a2fc5960657a349b146f355ac7343562fa724da9f"
+          "sha256": "b63aa5390e66526a76df7e6a9eb06c200749f3d244f3bbbc48779cef71cf2d18"
         },
         {
           "file": "packages/rpc/src/index.ts",
-          "sha256": "6a5adcfb0e6c7a7d385e10fede09c3e9c808e3555c27b938091868cdf0c3fbef"
+          "sha256": "b83110b902ccf9577b9a676ebe449054c98c39a1915d2c5de0417142a3ea62e7"
         },
         {
           "file": "packages/rpc/src/ipc.ts",
-          "sha256": "2ec3dfe0654a68300dbed7afd5ac436b563abf983d6e0f59a2b028469fdf71ef"
+          "sha256": "c83702318a1295d43d84b270e7807e3666941855162bd92a893213f38b1d0d17"
         },
         {
           "file": "packages/rpc/src/logging-middleware.ts",
-          "sha256": "20edfd8e5d054097186f2498ec4e9c08c61740ed003fc69eecea8176a15fe025"
+          "sha256": "cda4a5c802d0029233f8a92c16adf63f9a6995bb4c0888f91577a32fef49e093"
         },
         {
           "file": "packages/rpc/src/network-telemetry-middleware.ts",
-          "sha256": "18a7cde46e6c65e0138af0623d07bf883ce278acf44654bc5144ecaadd36a536"
+          "sha256": "dae17569f1f73b77a345381c6865de4d9a9850af5d703c390a8832dd7f466938"
         },
         {
           "file": "packages/rpc/src/persistent-protocol.ts",
-          "sha256": "80609595b89188272d743e557502c6cad3858f828acae31c2ef64206bb3c8978"
+          "sha256": "69c8dfadd769f6c9ded294741b08fc746db15568da07d2c1ee8638675195578a"
         },
         {
           "file": "packages/rpc/src/protocol.ts",
-          "sha256": "aafc0c098c75fcba4519fad2ecbee7e025d5d8a27c15c87e5ccb4ca6ce554670"
+          "sha256": "e6556cfe0eb32bcb4add1023951179eb2d52bf992d7716ffff36588daaed83b0"
         },
         {
           "file": "packages/rpc/src/proxy-channel.ts",
-          "sha256": "ec5b43e6a3a622a88a8aaa6af9cb37dbfe517932ee7f4a337019ec138bb2d513"
+          "sha256": "482c4f3795f76b4b0400fccf078511eec2acf1f469c2abe12a6709b34261a284"
         },
         {
           "file": "packages/rpc/src/remote.ts",
-          "sha256": "a11e072d5df7e1c1ce64814a68f72afc081246b364f0da409b5c9d22bc815957"
+          "sha256": "4640eb07f0f36aba2cf1d0260be5bb12fcf8780e03e88405a52c033d1a4ba50f"
         },
         {
           "file": "packages/rpc/src/serialization.ts",
-          "sha256": "e949418e1cd17cc863c147fc8d1ff15237e1b5f0cb8e3344fd2a9ccfae9d54e7"
+          "sha256": "1d2d3173ae78b8bea066c05b655fbf2bd6545c77453e849a9c63a856a45f6df5"
         },
         {
           "file": "packages/rpc/examples/01-basic-ipc.ts",
-          "sha256": "bb4423c1642918846010f9307262c379536ca9541d79df6ebba120b5cf792f3e"
+          "sha256": "2d2c6931206bbe69f15c5918877197cf27002405372d6f8014e2df6602a9acb8"
         },
         {
           "file": "packages/rpc/examples/02-proxy-channel.ts",
-          "sha256": "66dda9aec12cd46da8a56560cb765a3de590917bbc40f329185e6fd05a388fff"
+          "sha256": "5772ee35aa71fb3b5b5a8c2ee96715d4dce61264acf7eb736eb3b6cc4896ac09"
         },
         {
           "file": "packages/rpc/examples/03-ipc-server-client.ts",
-          "sha256": "9b873f565b4a3426ee3a5338a975cb6ab76e29af094cf6bbee4f7030f872f758"
+          "sha256": "1bb551c01c99f9a25a96d719dd319e0cf1a370046bf114012a1bd3f2bb22120e"
         },
         {
           "file": "packages/rpc/examples/04-remote-connection.ts",
-          "sha256": "fe43a2d631ba54a1cf63a86e344b6e2e58d83c2e8c95f2f8b7371f63e6442541"
+          "sha256": "e23ba5e323c37adb38e347a140e9887090a63a1adb3877596837e5fa972d3bde"
         },
         {
           "file": "packages/shared/src/zcode-protocol-v4/wire-codec.ts",
-          "sha256": "ac2494a3acc795c809c94ee9393f50271a9c2a0fd33813459e5ab93842ceef75"
+          "sha256": "3c089371d1447c2637009221d1270fff74486385488cfafb85693109ad72c314"
         }
       ]
     },
@@ -30928,7 +29940,7 @@
       "files": [
         {
           "file": "packages/ui/src/lib/builtinSkillI18n.ts",
-          "sha256": "9640e8db6813244029e85b7569845cf2c098bd9b92dcb1d98befb3211280f7e4"
+          "sha256": "ff16d6be2ba50f6740a2dbc292874afa046c57e5a43eff7f2cebc82179b53ccf"
         },
         {
           "file": "apps/zcode-cli/packages/superpowers-plugin/LICENSE",
@@ -31259,7 +30271,7 @@
     {
       "package": "@arms/rum-electron@0.0.3",
       "file": "patches/@arms__rum-electron@0.0.3.patch",
-      "sha256": "36855354851ea495bc47a03340b0484ff62836b739cad56904b8a69f18e2ae97"
+      "sha256": "dc88933f5ea4f4b902101d61f1ec3aa264962357ee456d70f597af8fea719e99"
     },
     {
       "package": "@ai-sdk/openai-compatible@2.0.60",
@@ -31493,14 +30505,6 @@
         "sourceTreeUrl": "https://api.github.com/repos/nteract/ansi-to-react/git/trees/145140971e9d83ccac32265f24b1c55dea437896?recursive=1",
         "upstreamLicenseFiles": []
       }
-    },
-    {
-      "package": "keyv@4.5.4",
-      "file": "third-party/upstream/6f7e6eae2a2afbaa67b266650f7342e7bf8e82cb57f6ab98148b3d6e0fb4450a.txt",
-      "sha256": "6f7e6eae2a2afbaa67b266650f7342e7bf8e82cb57f6ab98148b3d6e0fb4450a",
-      "source": "https://registry.npmjs.org/keyv/4.5.4",
-      "evidenceKind": "publisher-license-identifier-and-standard-terms",
-      "license": "MIT"
     },
     {
       "package": "@arms/rum-browser@0.1.8",
@@ -31842,10 +30846,6 @@
       "reason": "Original version-specific publisher copyright/license material remains incomplete."
     },
     {
-      "id": "keyv@4.5.4",
-      "reason": "Original version-specific publisher copyright/license material remains incomplete."
-    },
-    {
       "id": "@arms/rum-browser@0.1.8",
       "reason": "Original version-specific publisher copyright/license material remains incomplete."
     },
@@ -31874,7 +30874,11 @@
       "reason": "No license file found in the crate source snapshot."
     },
     {
-      "id": "alloc-stdlib@0.2.4",
+      "id": "alloc-stdlib@0.3.0",
+      "reason": "No license file found in the crate source snapshot."
+    },
+    {
+      "id": "anes@0.1.6",
       "reason": "No license file found in the crate source snapshot."
     },
     {
@@ -31887,6 +30891,10 @@
     },
     {
       "id": "candle-transformers@0.9.2",
+      "reason": "No license file found in the crate source snapshot."
+    },
+    {
+      "id": "clipboard-win@5.4.3",
       "reason": "No license file found in the crate source snapshot."
     },
     {
@@ -31922,6 +30930,14 @@
       "reason": "No license file found in the crate source snapshot."
     },
     {
+      "id": "mac-notification-sys@0.6.15",
+      "reason": "No license file found in the crate source snapshot."
+    },
+    {
+      "id": "nct-browser@0.2.0",
+      "reason": "No license file found in the crate source snapshot."
+    },
+    {
       "id": "nct-core@0.2.0",
       "reason": "No license file found in the crate source snapshot."
     },
@@ -31951,6 +30967,10 @@
     },
     {
       "id": "ndk@0.9.0",
+      "reason": "No license file found in the crate source snapshot."
+    },
+    {
+      "id": "ndk-context@0.1.1",
       "reason": "No license file found in the crate source snapshot."
     },
     {
@@ -31998,6 +31018,10 @@
       "reason": "No license file found in the crate source snapshot."
     },
     {
+      "id": "objc2-core-video@0.3.2",
+      "reason": "No license file found in the crate source snapshot."
+    },
+    {
       "id": "objc2-encode@4.1.0",
       "reason": "No license file found in the crate source snapshot."
     },
@@ -32014,7 +31038,15 @@
       "reason": "No license file found in the crate source snapshot."
     },
     {
+      "id": "objc2-javascript-core@0.3.2",
+      "reason": "No license file found in the crate source snapshot."
+    },
+    {
       "id": "objc2-quartz-core@0.3.2",
+      "reason": "No license file found in the crate source snapshot."
+    },
+    {
+      "id": "objc2-security@0.3.2",
       "reason": "No license file found in the crate source snapshot."
     },
     {
@@ -32066,7 +31098,7 @@
       "reason": "No license file found in the crate source snapshot."
     },
     {
-      "id": "selectors@0.36.1",
+      "id": "selectors@0.38.0",
       "reason": "No license file found in the crate source snapshot."
     },
     {
@@ -32074,35 +31106,7 @@
       "reason": "No license file found in the crate source snapshot."
     },
     {
-      "id": "tauri@2.11.6",
-      "reason": "No license file found in the crate source snapshot."
-    },
-    {
-      "id": "tauri-build@2.6.3",
-      "reason": "No license file found in the crate source snapshot."
-    },
-    {
-      "id": "tauri-codegen@2.6.3",
-      "reason": "No license file found in the crate source snapshot."
-    },
-    {
-      "id": "tauri-macros@2.6.3",
-      "reason": "No license file found in the crate source snapshot."
-    },
-    {
-      "id": "tauri-plugin@2.6.3",
-      "reason": "No license file found in the crate source snapshot."
-    },
-    {
-      "id": "tauri-runtime@2.11.3",
-      "reason": "No license file found in the crate source snapshot."
-    },
-    {
-      "id": "tauri-runtime-wry@2.11.4",
-      "reason": "No license file found in the crate source snapshot."
-    },
-    {
-      "id": "tauri-utils@2.9.3",
+      "id": "tauri-plugin@2.7.2",
       "reason": "No license file found in the crate source snapshot."
     },
     {
@@ -32110,27 +31114,7 @@
       "reason": "No license file found in the crate source snapshot."
     },
     {
-      "id": "unic-char-property@0.9.0",
-      "reason": "No license file found in the crate source snapshot."
-    },
-    {
-      "id": "unic-char-range@0.9.0",
-      "reason": "No license file found in the crate source snapshot."
-    },
-    {
-      "id": "unic-common@0.9.0",
-      "reason": "No license file found in the crate source snapshot."
-    },
-    {
-      "id": "unic-ucd-ident@0.9.0",
-      "reason": "No license file found in the crate source snapshot."
-    },
-    {
-      "id": "unic-ucd-version@0.9.0",
-      "reason": "No license file found in the crate source snapshot."
-    },
-    {
-      "id": "webview2-com@0.38.2",
+      "id": "webview2-com@0.39.1",
       "reason": "No license file found in the crate source snapshot."
     },
     {
@@ -32138,7 +31122,7 @@
       "reason": "No license file found in the crate source snapshot."
     },
     {
-      "id": "webview2-com-sys@0.38.2",
+      "id": "webview2-com-sys@0.39.1",
       "reason": "No license file found in the crate source snapshot."
     },
     {

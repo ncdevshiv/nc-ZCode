@@ -35,10 +35,8 @@ const asarCliPath = resolve(
 const runtimeModuleLookupRoots = [
   desktopRoot,
   workspaceRoot,
-  resolve(desktopRoot, "node_modules", ".pnpm", "node_modules"),
-  resolve(workspaceRoot, "node_modules", ".pnpm", "node_modules"),
 ];
-const pnpmCommand = "pnpm";
+const bunCommand = "bun";
 const DEFAULT_TARGET_OS = "mac";
 const DEFAULT_TARGET_ARCH = "arm64";
 const desktopDistDir = process.env.ZCODE_DESKTOP_DIST_DIR || "dist";
@@ -244,15 +242,15 @@ function printHelp() {
   console.log(`桌面端打包脚本
 
 用法:
-  pnpm bundle:desktop
-  pnpm bundle:desktop -- --os mac --arch x64
-  pnpm bundle:desktop -- linux arm64
+  bun run bundle:desktop
+  bun run bundle:desktop -- --os mac --arch x64
+  bun run bundle:desktop -- linux arm64
 
 参数:
   --os, -o <mac|win|linux>     目标操作系统，默认 mac
   --arch, -a <x64|arm64>       目标 CPU 架构，默认 arm64
   --skip-prepare               跳过 prepare:runtime-assets
-  --skip-build                 跳过 pnpm build
+  --skip-build                 跳过 bun run build
   --dry-run                    只打印最终命令，不执行打包
   -h, --help                   查看帮助
 
@@ -476,7 +474,7 @@ async function runElectronBuilderWithRetry(args, envPatch) {
 
   for (let attempt = 1; attempt <= electronBuilderRetryCount; attempt += 1) {
     console.log(
-      `[bundle] > ${pnpmCommand} ${args.join(" ")} ${attempt > 1 ? `(retry ${attempt}/${electronBuilderRetryCount})` : ""}`.trim(),
+      `[bundle] > ${bunCommand} ${args.join(" ")} ${attempt > 1 ? `(retry ${attempt}/${electronBuilderRetryCount})` : ""}`.trim(),
     );
 
     const mergedEnv = {
@@ -484,13 +482,13 @@ async function runElectronBuilderWithRetry(args, envPatch) {
       ...retryEnvPatch,
     };
     const result = await new Promise((resolvePromise) => {
-      const child = spawn(pnpmCommand, args, {
+      const child = spawn(bunCommand, args, {
         cwd: desktopRoot,
         env: mergedEnv,
         stdio: ["inherit", "pipe", "pipe"],
         // spawn-command 已经不再导出 resolveSpawnCommand，也不希望这里把 pnpm 再改写成 *.cmd。
         // 直接复用同一套 runtime 选项，让 Windows 仍通过 shell 解析 shim，避免 CI dry-run / 真打包在模块加载阶段崩掉。
-        ...resolveSpawnRuntimeOptions(pnpmCommand),
+        ...resolveSpawnRuntimeOptions(bunCommand),
       });
 
       let outputBuffer = "";
@@ -545,7 +543,7 @@ async function runElectronBuilderWithRetry(args, envPatch) {
       result.combinedOutput,
       result.error?.message,
       typeof result.status === "number"
-        ? `${pnpmCommand} ${args.join(" ")} failed with code ${result.status}`
+        ? `${bunCommand} ${args.join(" ")} failed with code ${result.status}`
         : null,
     ]
       .filter(Boolean)
@@ -585,7 +583,7 @@ async function runElectronBuilderWithRetry(args, envPatch) {
       }
 
       throw new Error(
-        `${pnpmCommand} ${args.join(" ")} failed with code ${result.status ?? "unknown"}`,
+        `${bunCommand} ${args.join(" ")} failed with code ${result.status ?? "unknown"}`,
       );
     }
 
@@ -701,7 +699,7 @@ function verifyPackagedRuntimeDependencies(os, arch) {
 async function main() {
   const { os, arch, skipPrepare, skipBuild, dryRun } = parseArgs(process.argv.slice(2));
   const buildArgs = [
-    "exec",
+    "x",
     "electron-builder",
     "--config",
     "electron-builder.config.js",
@@ -720,16 +718,16 @@ async function main() {
   };
 
   if (dryRun) {
-    console.log(`[bundle] dry-run: ${pnpmCommand} ${buildArgs.join(" ")}`);
+    console.log(`[bundle] dry-run: ${bunCommand} ${buildArgs.join(" ")}`);
     process.exit(0);
   }
 
   if (!skipPrepare) {
-    run(pnpmCommand, ["prepare:runtime-assets"], buildEnv);
+    run(bunCommand, ["run", "prepare:runtime-assets"], buildEnv);
   }
 
   if (!skipBuild) {
-    run(pnpmCommand, ["build"], buildEnv);
+    run(bunCommand, ["run", "build"], buildEnv);
   }
 
   await runTimedAsync("bundle:electron-builder", () =>

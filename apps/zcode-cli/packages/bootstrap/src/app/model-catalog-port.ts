@@ -1,84 +1,84 @@
 // ============================================================
-// ModelCatalogPort 的宿主实现：Provider Registry → 工具层看得见的模型目录
+// Host implementation of ModelCatalogPort: Provider Registry → model directory visible to the tool layer
 // ============================================================
-// 端口契约见 contracts/src/interfaces/model-catalog.port.ts。存在的理由只有一个：
-// `CreateWorkflow` / `AmendWorkflow` 的 `subagent_model` 要把用户说的模型名解析成一次
-// workflow run 的子代理选型，而 core 看不见 provider 注册表。本模块把「有哪些模型」这件宿主
-// 事实递过去，解析本身留在 core 的纯函数里。
+// For the port contract, see contracts/src/interfaces/model-catalog.port.ts. There is only one reason for existence:
+// `Subagent_model` of `CreateWorkflow` / `AmendWorkflow` needs to parse the model name mentioned by the user once
+//Sub-agent selection for workflow run, and core cannot see the provider registry. This module hosts the "what models are there"
+// The facts are passed over, and the parsing itself remains in the pure function of core.
 //
-// 与 provider-registry-selection.ts 的 `listRegistryBackedModels` 是同一份注册表的**两张脸**：
-// 那边产出 GUI picker 的 `ZCodeModelOption`（带 label / maxOutputTokens / 格式属性），这边产出
-// 工具层要的窄条目。刻意不共用一个投影函数——两张脸的字段集与在场规则各自独立，硬要合并只会
-// 让一次为 picker 做的改动悄悄改掉模型解析的判据。共用的是**默认档位那条规则**（见下）。
+// `listRegistryBackedModels` of provider-registry-selection.ts are the **two faces** of the same registry:
+// The GUI picker's `ZCodeModelOption` (with label / maxOutputTokens / format attributes) is output there, and it is output here
+// Narrow items for tool layer. Deliberately not sharing the same projection function - the field sets and presence rules of the two faces are independent, forcing them to merge will only
+// Let a change for picker quietly change the criteria for model parsing. What is shared is the **default gear rule** (see below).
 
 import type { ModelCatalogEntry, ModelCatalogPort } from "@zcode/contracts";
 import type { ModelSelection } from "@zcode/shared/model-selection";
 import type { ProviderRegistryModelSource } from "./provider-registry-model-runtime.js";
 
 interface ModelCatalogPortDeps {
-  /** 进程的 Provider Registry。**整个对象**存下来，绝不在这里 `getView()` 一次存成快照。 */
+/** Provider Registry for the process. **The entire object** is saved, never a snapshot here `getView()`. */
   registry: ProviderRegistryModelSource;
   /**
-   * 会话**当前**的模型选择（`runtime.getSessionModelSelection()`）。与 registry 同理是函数而
-   * 不是值：`current` 是每次列举那一刻的事实，用户可以在两次工具调用之间换主模型。
+* The session's **current** model selection (`runtime.getSessionModelSelection()`). Similar to registry, it is a function
+* Not a value: `current` is a fact at the moment of each enumeration, the user can change the main model between tool calls.
    */
   currentSelection: () => ModelSelection | undefined;
 }
 
 /**
- * 造 {@link ModelCatalogPort}。
+* Create {@link ModelCatalogPort}.
  *
- * **`listModels()` 每次调用都现读 `registry.getView()`**，绝不缓存——这不是性能取舍，是
- * stale provider registry 的直接教训：子代理抱着父会话构造那一刻的
- * provider 适配器不放，用户中途改了 provider 之后，子代理仍在对着一个已经不存在的配置
- * 发请求。一份构造期冻结的目录会让 `subagent_model` 解析挑中一个此刻已被删掉的模型，而
- * 失败要等到子代理第一次开口才炸——离用户按下确认已经很远了。视图本身是内存对象，
- * 重读它不是 I/O。
+* **`listModels()` reads `registry.getView()`** now on every call and never caches - this is not a performance trade-off;
+* Direct lessons from stale provider registry: the moment when the child agent holds the parent session constructor
+* The provider adapter is not released. After the user changes the provider midway, the sub-agent is still facing a configuration that no longer exists.
+* Send a request. A directory frozen during construction will cause `subagent_model` to parse and pick a model that has now been deleted, and
+* Failure will not occur until the subagent speaks for the first time - long before the user presses confirmation. The view itself is a memory object,
+* Reread it is not I/O.
  */
 export function createModelCatalogPort(deps: ModelCatalogPortDeps): ModelCatalogPort {
   return {
     listModels(): ModelCatalogEntry[] {
-      // 这一行就是上面那条纪律的全部实现。任何把它提到闭包外的「优化」都在重演同一问题。
+// This line is the entire implementation of the above discipline. Any "optimization" that takes it outside of closures is reproducing the same problem.
       const view = deps.registry.getView();
       const current = deps.currentSelection();
       return view.providers.flatMap((provider) =>
         provider.models.map((model): ModelCatalogEntry => {
           const reasoning = model.config.optionSpecs.reasoningLevel;
-          // 档位表**复制**而不是原样递出：注册表的 values 是 readonly 视图的一部分，
-          // 端口契约给的是一个普通可读数组，让调用方拿到一份不会随注册表变动的副本。
+// The gear table is **copied** rather than handed out as is: the values ​​of the registry are part of the readonly view,
+// The port contract gives a common readable array, allowing the caller to get a copy that will not change with the registry.
           const reasoningLevels = [...reasoning.values];
-          // 默认档位 = 最后一档，与 provider-registry-selection.ts 的 `toModelOption`
-          // （GUI picker 的 `reasoning.defaultLevel`）**同一条规则**。两处给出不同的默认，
-          // 就会出现「picker 里默认 high、`subagent_model` 不写档位时默认 low」这种只有用户
-          // 会发现的偏差。没有档位的模型整个字段缺席（空数组 + 无默认）。
+//Default gear = the last gear, and `toModelOption` of provider-registry-selection.ts
+// (GUI picker's `reasoning.defaultLevel`) **Same rule**. Different defaults are given in two places,
+// There will be a "default high in picker, `subagent_model` defaults to low when no gear is written" type that only users can
+// Deviations that will be found. Models without gears have the entire field absent (empty array + no default).
           const defaultReasoningLevel = reasoning.values.at(-1);
           const contextWindow = model.config.properties.contextWindow;
-          // `providerName` 在注册表里是 `string | null | undefined`（config-service.ts 把空串
-          // 归一成 `null`），而端口契约上是 `string | undefined`。三种「没名字」在这里合成
-          // **一个**答案：键缺席。绝不放一个 `null` 或空串过去——它会原样印进 ListModels 的
-          // 那一行，而读侧要的是「没取过名字就退回 providerId」。
+// `providerName` is `string | null | undefined` in the registry (config-service.ts replaces the empty string
+// Normalized to `null`), while the port contract is `string | undefined`. Three kinds of "unnamed" are synthesized here
+// **A** answer: key is absent. Never pass a `null` or empty string - it will be printed into ListModels unchanged
+// That line, what the reader wants is "Return providerId without taking the name".
           const providerLabel = provider.providerName?.trim();
           return {
             providerId: provider.providerId,
             modelId: model.modelId,
-            // provider 的人类可读名；没取过就缺席（读侧退回 providerId），不在这里兜成
-            // providerId——那会让「有没有取过名字」这件事在端口上消失。
+// The human-readable name of the provider; if it is not retrieved, it will be absent (the providerId will be returned on the reading side), so it is not covered here.
+// providerId - that will make the "has it been named" thing disappear on the port.
             ...(providerLabel ? { providerLabel } : {}),
             reasoningLevels,
             ...(defaultReasoningLevel === undefined ? {} : { defaultReasoningLevel }),
             ...(contextWindow === undefined ? {} : { contextWindow }),
-            // 身份两段相等即当前选择；options 不是身份的一部分（与 workflow-actor-model.ts
-            // 的 pin 比对同一条判据）。整张表至多一条为真。
+// The two parts of the identity are equal, which is the current selection; options are not part of the identity (similar to workflow-actor-model.ts
+// The pins are compared to the same criterion). At most one item in the entire table is true.
             current:
               current !== undefined &&
               current.providerId === provider.providerId &&
               current.modelId === model.modelId,
-            // `disabledReason` 刻意**恒缺席**：本宿主今天没有这条事实的来源。GUI 的模型列表
-            // 走同一份注册表（listRegistryBackedModels → toModelOption），那条路也从不写这个
-            // 字段；`registry.validateSelection()` 也不是来源——我们枚举的每一条都来自注册表
-            // 视图本身，按构造必然校验通过。仓库里唯一产出 disabledReason 的地方在
-            // packages/services 的桌面端 legacy 配置迁移里，够不到这份注册表。将来真有了
-            // 「配了但不可用」的判据（缺密钥、被策略禁用），补在这里即可，端口契约不用动。
+// `disabledReason` Deliberate **constant absence**: This host has no source of this fact today. Model list for GUI
+// Take the same registry (listRegistryBackedModels → toModelOption), and never write this in that path
+// Fields; `registry.validateSelection()` is also not a source - every item we enumerate comes from the registry
+// The view itself must pass the verification according to the construction. The only place in the warehouse that produces disabledReason is
+// This registry cannot be reached in the desktop legacy configuration migration of packages/services. There really is a future
+//Criteria for "configured but unavailable" (missing key, disabled by policy), just fill in here, and the port contract does not need to be touched.
           };
         }),
       );

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import {
   zcodePluginsConfigureParamsSchema,
   zcodePluginsResetConfigParamsSchema,
@@ -53,7 +54,7 @@ import { resolveOfficialPluginHostMcpServerNames } from "../app/official-plugin-
 import { createConfig, resolvePath, type ConfigResult } from "@zcode/adapters/config";
 import { parseParams, type ZCodeProtocolAgentServerContext } from "./server-types.js";
 
-// 把 CLI 的 PluginMetadata 投影成协议可序列化的 ZCodePluginInfo (只保留 UI 需要的字段)。
+// Project the CLI's PluginMetadata into the protocol-serializable ZCodePluginInfo (retaining only the fields required by the UI).
 function toPluginInfo(plugin: PluginMetadata, configResult?: ConfigResult): ZCodePluginInfo {
   const hostMcpServerNames = resolveOfficialPluginHostMcpServerNames(plugin.id);
   const configuredOptions = Object.fromEntries(
@@ -75,14 +76,14 @@ function toPluginInfo(plugin: PluginMetadata, configResult?: ConfigResult): ZCod
     enabled: plugin.enabled,
     source: plugin.source,
     marketplace: plugin.marketplace,
-    // manifest 的作者/主页回退字段（商店 listing 优先）。
+// Author/home page fallback field for manifest (store listing takes precedence).
     ...(plugin.author !== undefined ? { author: plugin.author } : {}),
     ...(plugin.authorUrl !== undefined ? { authorUrl: plugin.authorUrl } : {}),
     ...(plugin.homepage !== undefined ? { homepage: plugin.homepage } : {}),
     skillCount: plugin.skillCount,
     skillRootCount: plugin.skillRootCount,
     commandRootCount: plugin.commandRootCount,
-    // 权威组件清单随 list 下发，名称+描述由 loader 枚举（与启用态无关），供详情 UI 直接展示。
+// The list of authoritative components is delivered with the list, and the name + description is enumerated by the loader (independent of the enabled state) for direct display in the detailed UI.
     components: plugin.components.map((group) => ({
       kind: group.kind,
       items: group.items.map((item) => ({
@@ -108,7 +109,7 @@ function resolveInlinePluginRootSource(
   configResult: ConfigResult,
 ): "user" | "workspace" | undefined {
   const resolvedPluginRoot = normalizePluginRootForComparison(pluginRootPath);
-  // Workspace 优先：同一路径同时出现在两层配置时，项目声明是更高优先级的归属证据。
+// Workspace priority: When the same path appears in two-tier configurations at the same time, the project statement is the ownership evidence of the higher priority.
   if (
     configResult.sources.plugins.dirs.workspace.some(
       (rootPath) => normalizePluginRootForComparison(rootPath) === resolvedPluginRoot,
@@ -131,10 +132,10 @@ function createPluginConfigView(
   workspacePath: string,
   configScope: "user" | "workspace" | undefined,
 ): ConfigResult {
-  // Settings 的 User 与 Workspace 现在是同一批 Host Plugin 的两个配置视图。
-  // User 视图若继续加载 project config，会把 Workspace override 投影成 User 当前值；
-  // 不传 workingDirectory 可保留 User/default 层，同时仍由调用方的 workspacePath 决定
-  // package storage 和相对执行上下文。
+// User and Workspace of Settings are now two configuration views of the same batch of Host Plugin.
+// If the User view continues to load project config, Workspace override will be projected into the current value of User;
+// Not passing workingDirectory can retain the User/default layer, and it is still determined by the caller's workspacePath.
+// package storage and relative execution context.
   return createConfig({
     env: context.deps?.env,
     ...(configScope === "user" ? {} : { workingDirectory: workspacePath }),
@@ -184,8 +185,8 @@ function normalizePluginRootForComparison(
   platform: NodeJS.Platform = process.platform,
 ): string {
   const resolvedRoot = resolvePath(rootPath);
-  // Windows 路径不区分大小写，且配置与 loader 可能分别返回正斜杠和反斜杠。
-  // 若直接做字符串比较，会把同一个 Workspace plugins.dirs 根误判为无归属。
+// Windows paths are not case-sensitive, and the configuration and loader may return forward slashes and backslashes respectively.
+// If string comparison is performed directly, the same Workspace plugins.dirs root will be misjudged as unowned.
   return platform === "win32" ? resolvedRoot.replaceAll("\\", "/").toLowerCase() : resolvedRoot;
 }
 
@@ -240,7 +241,7 @@ export async function setPluginEnabled(
     scope: params.scope,
     workingDirectory: params.workspace.workspacePath,
   });
-  // 启用配置写入当前不可回滚；若取消在 IO 期间到达，只阻断后续响应和 UI 写入。
+// Enable configuration writing is currently not rollable; if cancellation arrives during IO, only subsequent responses and UI writing will be blocked.
   abortSignal?.throwIfAborted();
   return {
     plugin: {
@@ -386,15 +387,15 @@ export async function updatePlugin(
     if (params.marketplace) return record.marketplace === params.marketplace;
     return true;
   });
-  // 与 uninstall 一样把整个重装循环串行化到同一 storageRoot 的 in-process 锁里，
-  // 避免并发 update/install 交错读改写 installed_plugins.json / cache。
+//Serialize the entire reinstallation cycle into the in-process lock of the same storageRoot like uninstall.
+// Avoid concurrent update/install interleaved reading and rewriting installed_plugins.json/cache.
   return withPluginStorageLock(pluginStorageRoot, async () => {
     const installedPlugins: ZCodeInstalledPluginSummary[] = [];
     const dependencyClosure: string[] = [];
-    // 聚合每条记录重装产生的诊断：installZCodeMarketplacePlugin 失败时不抛错，而是返回
-    // CLI 形态的 PluginDiagnostic（见其错误分支的 toMarketplaceInstallDiagnostic），
-    // 这里逐条经协议侧 toPluginDiagnostic 投影成 ZCodePluginDiagnostic 回传，
-    // 让失败的重装显式暴露，而不是静默"成功"。
+// Aggregate the diagnosis generated by reinstallation of each record: do not throw an error when installZCodeMarketplacePlugin fails, but return
+// PluginDiagnostic in CLI form (see toMarketplaceInstallDiagnostic in its error branch),
+// Here, each item is projected to ZCodePluginDiagnostic via protocol side toPluginDiagnostic and returned.
+// Make failed reinstalls explicit, rather than silently "successful".
     const diagnostics: ZCodePluginDiagnostic[] = [];
     for (const record of installed) {
       const result = await installZCodeMarketplacePlugin({
@@ -412,8 +413,8 @@ export async function updatePlugin(
   });
 }
 
-// 恢复一个被抑制（"卸载"）的内置插件：清除 suppressedBuiltins 标记并立即重新 seed。
-// bootstrap 侧的同名函数被别名为 restoreBuiltinPluginCore，避免与本协议处理器重名。
+// Restore a suppressed ("uninstalled") builtin: clear the suppressedBuiltins flag and reseed immediately.
+// The function with the same name on the bootstrap side is aliased as restoreBuiltinPluginCore to avoid duplication of names with this protocol processor.
 export async function restoreBuiltinPlugin(
   context: ZCodeProtocolAgentServerContext,
   rawParams: unknown,

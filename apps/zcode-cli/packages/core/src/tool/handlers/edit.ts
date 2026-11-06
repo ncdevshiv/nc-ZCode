@@ -1,4 +1,4 @@
-/* eslint-disable max-lines -- Edit 工具需要集中维护文本匹配、read-before-edit 与写回状态，避免 bugfix 期间拆分扩大行为面。 */
+/* eslint-disable max-lines -- The Edit tool needs to centrally maintain text matching, read-before-edit and write-back status to avoid splitting and expanding the behavioral surface during bugfixing. */
 // ============================================================
 // Edit Tool Handler
 // ============================================================
@@ -109,8 +109,8 @@ const editHandler: ToolHandler = async (input, context) => {
   }
 
   if (!file_path) {
-    // 空路径由共享 path-policy 抛出普通异常，绕过了 Edit 自己维护的
-    // code + message 失败契约，导致 provider-visible 内容丢失 tool_use_error envelope。
+// The empty path throws a common exception by the shared path-policy, bypassing the one maintained by Edit itself.
+// code + message fails the contract, causing the provider-visible content to be lost tool_use_error envelope.
     return editFailure(EditErrorCode.INVALID_PATH, "Tool path must not be empty");
   }
 
@@ -447,7 +447,7 @@ function hasReadStateChanged(
 ): boolean {
   const currentMtimeMs = currentRead.revision?.mtimeMs;
   if (lastRead.mtimeMs !== undefined && currentMtimeMs !== undefined) {
-    // 亚毫秒级精度，只在当前文件的整数毫秒晚于 Read 记录或大小变化时判 stale，减少误报。
+// Sub-millisecond accuracy, stale is determined only when the integer millisecond of the current file is later than the Read record or the size changes, reducing false positives.
     const normalizedCurrentMtimeMs = normalizeReadFileStateMtimeMs(currentMtimeMs);
     const normalizedLastReadMtimeMs = normalizeReadFileStateMtimeMs(lastRead.mtimeMs);
     const mtimeAdvanced =
@@ -533,7 +533,7 @@ async function writeEditResult(input: {
     oldContent: input.originalFile,
     newContent: contentToWrite,
   });
-  // perf 里 totalBytes/maxFileBytes 语义相同，缓存结果避免大文件编辑时重复扫描新内容。
+// The semantics of totalBytes/maxFileBytes in perf are the same, and the cached results avoid repeated scanning of new content when editing large files.
   const newContentBytes = fileByteCount(contentToWrite);
 
   return attachToolExecutionTelemetry(
@@ -628,7 +628,7 @@ function replaceLiteral(
   replacement: string,
   replaceAll: boolean,
 ): string {
-  // String.replace 的字符串 replacement 会把 $$/$& 当特殊 token；
+// The string replacement of String.replace will treat $$/$& as special tokens;
   return replaceAll
     ? content.replaceAll(search, () => replacement)
     : content.replace(search, () => replacement);

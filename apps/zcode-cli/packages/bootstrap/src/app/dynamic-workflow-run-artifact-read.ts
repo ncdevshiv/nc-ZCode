@@ -1,30 +1,30 @@
 // ============================================================
-// 用户面产物的字节读回（DynamicWorkflowRunPort.readArtifact 的实现体）
+// Read back the bytes of user plane products (implementation of DynamicWorkflowRunPort.readArtifact)
 // ============================================================
 //
-// ⚠ 术语：这里的 artifact 是脚本经 `artifact.*` 发布给**用户**看的产出（journal
-// `kind = "artifact"` 的行），**不是**引擎内部的 `RunSettlement.artifact`（脚本顶层返回值，
-// 端口上叫 `output` / `result`）。
+// ⚠ Terminology: The artifact here is the output (journal) published by the script to **users** via `artifact.*`
+// `kind = "artifact"` line), **not** the engine internal `RunSettlement.artifact` (the top-level return value of the script,
+// The port is called `output` / `result`).
 //
-// 从 dynamic-workflow-run-service.ts 拆出（那个文件已在 max-lines 的既有欠账里，不再加码），
-// 与把 driver 的发布路径拆成 workflow-artifact-publish.ts 是同一条理由：读一次字节
-// 要走「授权 → 定位 → store」三步，每一步都有一条必须写下来的纪律。
+// Remove from dynamic-workflow-run-service.ts (that file is already in the existing debt of max-lines and will not be added),
+// It’s the same reason as splitting the driver’s publishing path into workflow-artifact-publish.ts: read a byte once
+// It takes three steps: "Authorization → Positioning → Store". Each step has a discipline that must be written down.
 //
-// **授权链**（与 attachmentRead 同一条纪律）：
+// **Authorization chain** (same discipline as attachmentRead):
 //
-//   调用方给的 (runId, artifactId, version)
+// Given by the caller (runId, artifactId, version)
 //        │
-//        ├─① runId 的 dwf_run 行存在吗？                     否 ⇒ undefined
-//        ├─② 该行的 parent_session_id == 本服务的父会话吗？   否 ⇒ undefined
-//        ├─③ journal 里有 (artifactId, version) 的 completed  否 ⇒ undefined
-//        │    artifact 行吗？
-//        ├─④ 那行的记录上有 uri 吗？（预置看板没有）          否 ⇒ undefined
-//        └─⑤ 拿**行上的** uri 去 store 读
+// ├─① Does the dwf_run line for runId exist?                     No ⇒ undefined
+// ├─② Is the parent_session_id of this row == the parent session of this service?   No ⇒ undefined
+// ├─③ The journal contains (artifactId, version) completed No ⇒ undefined
+// │ artifact OK?
+// ├─④ Is there a uri in the record of that row? (There is no preset billboard) No ⇒ undefined
+// └─⑤ Take the ** uri on the ** line and read it in the store
 //
-// 第 ⑤ 步是全部要点：renderer 传来的 id 只用于**在 journal 里查行**，从不直接成为路径。
-// 中间任何一步失败都回 undefined 而不是抛错——「没有这个版本」「不是你的 run」「这是个看板」
-// 对调用方是同一个业务事实（网关归一成 not found），把它们区分开只会告诉一个越权的调用方
-// 它猜对了哪一半。
+// Step 5 is the whole point: the id passed by the renderer is only used to **look up rows in the journal** and never directly becomes a path.
+// If any step in the middle fails, undefined will be returned instead of throwing an error - "There is no such version" "It is not your run" "This is a Kanban board"
+// It is the same business fact for the caller (the gateway is normalized to not found), distinguishing them will only tell an unauthorized caller
+// Which half did it guess correctly.
 
 import type {
   DynamicWorkflowRunArtifactBytes,
@@ -39,19 +39,19 @@ import {
 
 interface WorkflowArtifactReadDeps {
   journal: JournalStorePort;
-  /** 本服务的父会话（= 本 app 的会话）。授权链第 ② 步的比对对象。 */
+/** The parent session of this service (= the session of this app). The comparison object in step ② of the authorization chain. */
   parentSessionId: string;
   /**
-   * 字节的家。**可选**：纯 replay / 无 store 的装配拿不到字节，此时整条读回缺席
-   * （与 driver 侧 `ArtifactStoreUnavailable` 是同一个装配事实的两个表现）。
+* Home of Bytes. **Optional**: Pure replay/no store assembly cannot get the bytes, and the entire line is read back in this case.
+* (with driver-side `ArtifactStoreUnavailable` being two representations of the same assembly fact).
    */
   artifactStore?: ToolArtifactStorePort;
 }
 
 /**
- * 读某个产物版本的全部字节。分块归网关（≤ 512 KiB 一块），这里一次返回整份——上限
- * 20 MiB 与 attachment 同级，与「读一次算一次授权」比起来，把授权链切进分块循环里
- * 只会让每一块都要重走一遍 journal。
+* Read all bytes of a product version. Return to the gateway in chunks (≤ 512 KiB per block), where the entire portion is returned at once - the upper limit
+* 20 MiB is at the same level as attachment. Compared with "one read counts as one authorization", the authorization chain is cut into the block loop.
+* It will only make the journal run through again for each piece.
  */
 export async function readWorkflowArtifactBytes(
   deps: WorkflowArtifactReadDeps,
@@ -60,41 +60,41 @@ export async function readWorkflowArtifactBytes(
   version: number,
 ): Promise<DynamicWorkflowRunArtifactBytes | undefined> {
   const store = deps.artifactStore;
-  // 二进制读回是**可选成员**：不带它的 store 不得退回文本读再解码——那正是
-  // 记录在 ToolBinaryArtifactReadResult 上的那条 bug（office 文件被当 utf8 解码即损坏）。
+// Binary readback is an **optional member**: a store without it must not return text to read and then decode - that's exactly
+// The bug recorded on ToolBinaryArtifactReadResult (the office file is damaged when it is decoded as utf8).
   if (store?.readToolResultBinaryArtifact === undefined) return undefined;
 
-  // ①②：run 存在且属于本会话。getRun 在引擎端口上，不需要内省能力探测。
+// ①②: run exists and belongs to this session. getRun is on the engine port and does not require introspection capability detection.
   const run = deps.journal.getRun(runId);
   if (run === undefined) return undefined;
-  // parent_session_id 为 NULL 的老行**不放行**：设计上要求 sessionId 等于该 run 的
-  // parentSessionId，而 NULL 意味着没有这个东西可比——「无从判定」不是「判定通过」。
+//Old rows whose parent_session_id is NULL are **not released**: The design requires sessionId to be equal to that of the run
+// parentSessionId, and NULL means there is no such thing to compare - "unable to determine" does not mean "passed".
   if (run.parentSessionId === undefined || run.parentSessionId !== deps.parentSessionId) {
     return undefined;
   }
 
-  // ③④：在 journal 里定位那一行，拿行上的 uri。
+// ③④: Locate that row in the journal and get the uri on the row.
   const located = locateArtifactVersion(deps.journal, runId, artifactId, version);
   if (located === undefined) return undefined;
 
-  // ⑤：只有走到这里才碰 store，而喂给它的是**行上的** uri。
+// ⑤: The store is only touched when you get here, and what is fed to it is the uri on the ** line.
   const result = await store.readToolResultBinaryArtifact({ uri: located.uri });
   return {
     bytes: result.bytes,
-    // contentType 取 **journal 记录**上的值而不是 store 按文件名再推的那份：记录里的是
-    // driver 按扩展名表算出、`opts.contentType` 可覆盖的那一个，也正是 UI 分派渲染器的
-    // 精确匹配契约。store 的推断表只认 8 种扩展名，用它会让 `.csv` 变成 application/json。
+// contentType takes the value on the **journal record** instead of the one pushed by the store by file name: the value in the record is
+// The driver calculates the one that `opts.contentType` can override according to the extension table, which is also the one that the UI dispatches the renderer to.
+// Exactly match the contract. The store's inference table only recognizes 8 extensions, and using it will turn `.csv` into application/json.
     contentType: located.contentType ?? result.contentType,
   };
 }
 
 /**
- * 在 journal 里找 `(artifactId, version)` 的那条 **completed** artifact 行，并取出它的
- * `uri` 与 `contentType`。
+* Find the **completed** artifact line of `(artifactId, version)` in the journal and take out its
+* `uri` and `contentType`.
  *
- * 只认 completed：失败的发布不认领 id / 种类 / 版本，它的 `result` 是空的，
- * 放行只会拿一个 undefined 的 uri 去读。预置看板的记录没有 `uri`（它没有字节，它的数据是
- * journal 里的标签 report 行）——同样在这里被挡掉，调用方拿到 undefined。
+* Only recognized completed: The failed release does not claim the id / type / version, and its `result` is empty.
+* Release will only read an undefined uri. The record of the preset kanban board does not have `uri` (it has no bytes, its data is
+* Label report line in journal) - it is also blocked here, and the caller gets undefined.
  */
 function locateArtifactVersion(
   journal: JournalStorePort,

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import { basename, isFileSystemPortError, resolvePath } from "../deps.js";
 import { VIDEO_INPUT_MAX_BYTES } from "@zcode/contracts";
 import type {
@@ -162,7 +163,7 @@ export async function resolveInlineMediaAttachment(
       sizeBytes: attachment.sizeBytes,
     });
   }
-  // 空 payload 曾绕过视频大小校验并被持久化，导致实时与冷恢复消息形态不一致。
+// The empty payload bypassed the video size verification and was persisted, resulting in inconsistency between real-time and cold recovery message forms.
   if (videoData.sizeBytes === 0) {
     return resolvedPlaceholderAttachment(attachment, placeholder, "attachment_video_invalid", {
       filename: attachment.filename,
@@ -441,7 +442,7 @@ async function resolveLocalVideoAttachment(
     );
   } catch (error) {
     if (isFileSystemPortError(error) && error.code === "too_large") {
-      // 外层 stat 后文件仍可能增长；以读取端的 maxBytes 结果为最终边界。
+// The file may still grow after the outer stat; the maxBytes result on the reading end is the final boundary.
       return resolvedPathReferenceAttachment(attachment, attachment.path!, {
         filename,
         mime,
@@ -451,7 +452,7 @@ async function resolveLocalVideoAttachment(
     }
     return localMediaReadFailure(attachment, filename, mime, source);
   }
-  // 文件可能在 stat 后被清空，必须以实际读取结果判断是否为有效视频。
+//The file may be cleared after stat, and the actual reading result must be used to determine whether it is a valid video.
   if (read.bytesRead === 0) {
     return resolvedPlaceholderAttachment(attachment, attachment.path!, "attachment_video_invalid", {
       filename,

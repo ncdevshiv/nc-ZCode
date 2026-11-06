@@ -1,0 +1,56 @@
+# nc-code backend: what `G:\nc-sdk\ai-sdk` can and cannot be used for
+
+Audited 2026-10-31. The question came from the owner: the backend is being rewritten in Rust,
+and there is a 30-crate pure-Rust SDK next to it — what can we actually take from it?
+
+Method: read the workspace manifest and every crate's code (not its README): public types and
+traits with file:line, dependency lists, test counts split unit/integration, `todo!()` /
+`unimplemented!()` counts, and which crates the workspace itself references. Numbers below come
+from that read. Nothing in this document is a guess about maturity; where a claim matters, the
+file is named.
+
+## Headline facts about the SDK
+
+| fact | evidence |
+| --- | --- |
+| 30 members, MIT, `edition = "2024"`, `rust-version = "1.85"`, version 0.1.0 | `ai-sdk/Cargo.toml:3-41`, `LICENSE` |
+| zero `todo!()` / `unimplemented!()` in the whole workspace | grep over all `.rs` |
+| no `[features]` blocks anywhere, so nothing can be trimmed at build time | every crate manifest |
+| `tokio` pinned to `features = ["full"]` workspace-wide, `reqwest` with rustls/multipart/brotli | `Cargo.toml:49-51` |
+| every public surface flows through one `AiError` enum (647 lines in `ai-errors`) — adopting a piece means adopting that taxonomy | `crates/ai-errors/src/lib.rs` |
+| `ai-workflows`, `ai-orchestra`, `ai-protocols`, `ai-analytics`, `ai-edge`, `ai-voice`, `ai-web`, `ai-computer`, `ai-cli`, `ai-devtools` are referenced **only** by the `ai-sdk` facade; `ai-sidecar` and `ai-storage-ncdb` by nothing | reference graph computed from manifests |
+| `ai-storage-ncdb` hard-codes five path deps outside its own workspace (`nc-core = { path = "../../../../nc-db/crates/core" }`) and cannot build standalone | `ai-storage-ncdb/Cargo.toml:24-28` |
+| test counts: ai-orchestra 74+9, ai-providers 72+16 (17 credential-gated `#[ignore]`), ai-discovery 44+31, ai-runtime 44+4 (+ criterion), ai-protocols 27+0, ai-agents 15+8, **ai-workflows 10+0**, ai-rag 33+0, ai-storage 8+0, ai-core 9+0 | `#[test]` / `#[tokio::test]` per crate |
+
+## Verdicts
+
+Adopt = depend on it. Behaviour = take the design, write the code ourselves. Refuse = do neither,
+with the reason.
+
+| SDK crate | verdict | why |
+| --- | --- | --- |
+| `ai-workflows` | **refuse** | It is the closest overlap with our engine and the weakest crate in the SDK: 10 unit tests, no integration tests, 888 lines in one file. Its resume is name-keyed memoization in `state["nodes"]` (`ai-workflows/src/lib.rs:306`), so two steps with the same name alias silently; suspend is **error-as-control-flow** — an unanswered `Pause` writes a checkpoint and returns `Err(AiError::Workflow(…))` (`:383-387`); `CheckpointStore` is a single overwrite per workflow id (`:187-191`) with no append-only order, no sequence and no crash-consistency contract; and parallel branches run inside synthetic children built with `checkpoint: false, checkpoint_store: None` whose state is dropped (`:399-420`), so a parallel subtree can neither be resumed nor checkpointed. Our engine journals `(siteId, ordinal)` first, replays completed nodes on resume, assigns monotone event sequences, and has an append-only SQLite store — see `zcode-workflow/src/journal/sqlite.rs` and `tests/nws_interpret_e2e.rs::a_completed_run_resumes_from_the_journal_without_re_running_the_world`. There is nothing here to take that we do not already do with stronger guarantees. |
+| `ai-agents` | **refuse** | Its HITL `request_confirmation(tool, args) -> bool` and `AgentState::AwaitingInput` map onto things we own with different contracts: our ask/submit loop has repair attempts, nudge, escalation parked as a real question with `qid` and resolution (`types.rs::WorkflowReportSink`, `escalation-raised/resolved` events), and our subagents are sessions with their own transcript, permission grant and row projection (`zcode-host/src/subagent.rs`). `resume(conversation_id, input)` (`ai-agents/src/agent.rs:506`) replays **conversation history** from `Memory`, not an execution position — that is not resume in our sense. There is no handoff/routing abstraction at all (grep `handoff|transfer_to|route_to` → none), so our named agent profiles have no counterpart. |
+| `ai-orchestra` | **behaviour, deferred** | The interesting part is real and well tested: `Watchdog::evaluate` (`ai-orchestra/src/watchdog.rs:315-361`) turns deadline expiry into reassignment, no-progress into retry, and a repeated output-hash tail into *respawn amended*, over a `ProgressLedger`. We observe stalls (`run-stalled` events, `RunStallInfo`) but take no action, so "detect a repeating no-progress tail and amend the run" is a genuine candidate behaviour for us. Not adopted now: its mailbox is in-memory only (`mailbox.rs:107-156`, no persistence), `planner.rs` is 79 lines of trait with the implementations elsewhere, and the fourth watchdog rule (`BudgetBurn`) is disabled unless a flag is set (`:23,:28,:349`). Revisit when parked-question and stall handling are specified together. |
+| `ai-tools` | **refuse** | `Tool{name, description, input_schema(), required_permissions(), execute(args, &ToolContext)}` (`ai-tools/src/lib.rs:66-79`) is a smaller contract than our registry, which carries 303 verified metadata facts (side-effect scope, concurrency safety, output caps, timeouts) and a parity gate against the TypeScript tool surface. Two details decide it: `ToolContext.deadline` is a **dead field** — `run_tool` (`:82-105`) never checks it and the agent passes `deadline: None` (`ai-agents/src/agent.rs:761`) — and its schema validation handles only `type/required/enum/properties/items` and explicitly ignores unknown keywords (`ai-tools/src/schema.rs:16-19`), so `minimum`, `pattern` and `format` silently pass. Our typed asks must reject a payload that invents or misshapes a field; that is the repair loop's whole input. |
+| `ai-protocols` (MCP/A2A) | **behaviour: adopt version negotiation** | Two findings. (1) Its MCP client takes a `tokio::io::DuplexStream` (`ai-protocols/src/mcp.rs:958`) and the crate contains **no `Command::new` / `Stdio::` at all** — there is no subprocess stdio transport, which is the one our host needs (`zcode-host/src/mcp.rs:78-81` spawns the server and speaks JSON-RPC over its stdio). (2) Its spec plumbing is substantive and ours is thin: `with_supported_versions`, `discover_and_negotiate`, `unsupported_versions`, error codes `-32020/-32021/-32022` (`:288, :1237, :1357, :58-60`). We pin `protocolVersion: "2025-06-18"` in the initialize request (`mcp.rs:130-138`) and never negotiate what the server answers. **Action: implement the negotiation behaviour in our client** — send supported versions, honour the server's choice, fail with a named reason on no-overlap. Its A2A surface has no consumer in our product, and its HTTP server is a hand-rolled raw-TCP read of one 64 KiB buffer with `split("\r\n\r\n")` and no body-length handling (`mcp_http.rs:269-277`) — not something to put in a shipped path. |
+| `ai-runtime` | **refuse, with one test idea** | The cleanest crate in the SDK (44+4 tests, criterion bench, only depends on ai-core/errors/observability) and the one we most nearly had a use for — and we already own every piece of it: `RetryPolicy` with `Retry-After` precedence then exponential backoff plus jitter (`ai-runtime/src/retry.rs:105-124`) vs our `calculate_retry_delay` with the same precedence, a 5-minute sanity cap and off-peak queue clamping (`zcode-provider/src/retry.rs:21,148-170`), exercised through the executor (`executor.rs:479,687`); its per-key `ConcurrencyLimiter` (`concurrency.rs:27-39`) vs our process-level cap governance that emits `concurrency-changed` with provider keys, cooldowns and last-good/last-bad (`types.rs::ConcurrencyChange`); its `race`/`fallback` vs NWS deliberately having no race, because a race has no deterministic journal identity. The idea worth taking is its `chaos.rs` (`:153`) — a deterministic fault-injecting HTTP server. Our provider tests script SSE responses; a fault server that emits 429-with-Retry-After, mid-stream breaks and slow headers would test the transport rules we already claim. Write that harness ourselves; do not take the dependency for it. |
+| `ai-providers` | **refuse** | Provider-neutral in the right way (three `impl Provider`: OpenAI-compatible, Anthropic, Gemini; `create_provider_with_api` forces a dialect for custom gateways), which is a point in its favour — but our provider stack owns the pieces the product depends on: the desktop provider store handoff (`zcode-host/src/provider_handoff.rs`), model catalog and reasoning levels, OAuth/account flows we refuse in the native path with named reasons, off-peak scheduling, and the parity gates. Adding a second provider stack would create two owners of the same credential and routing decisions. |
+| `ai-storage` / `ai-rag` / `ai-memory` | **refuse for now** | Honest implementations, not stubs (`KeyValueStore`/`DocumentStore`/`VectorStore` with a working `SqliteStore` and a brute-force cosine `InMemoryVectorStore` — no ANN index; BM25 + reciprocal-rank fusion in `ai-rag/src/hybrid.rs`). Our persistence is a fixed schema with owned writers (session store, transcript JSONL, workflow journal), so a generic store cannot replace any of it, and RAG has no consumer in the product today. If retrieval is specced, re-audit `ai-rag` then — it is 33 unit tests with no integration coverage, so it would need its own verification pass. |
+| `ai-core` / `ai-types` / `ai-errors` / `ai-observability` | **refuse** | They are the tax every other crate charges: one `AiError` taxonomy, `StreamEvent` shapes, and observability spans. Taking them means our errors and events become a projection of the SDK's, which is backwards for a backend whose wire formats are pinned by the protocol and the journal. |
+| `ai-discovery`, `ai-analytics`, `ai-edge`, `ai-voice`, `ai-web`, `ai-computer`, `ai-cli`, `ai-devtools`, `ai-sidecar`, `ai-stream`, `ai-codegen`, `ai-mcp`-* | **out of scope** | No surface in the current product consumes them. `ai-computer` (computer-use) and `ai-voice` would be feature decisions, not reuse decisions. `ai-cli` pulls non-workspace `ratatui 0.30` / `crossterm 0.29`. |
+
+## Consequence for this pass
+
+**No new runtime dependency was added.** The reason is stated rather than implied: for every
+crate that overlaps what the backend now does — workflow graph, agents, tools, MCP, retry and
+concurrency, providers, storage — the backend already has an owner with tests, benchmarks and a
+parity gate, and the SDK's version of the same layer would become a second owner of the same
+decision. The two things worth taking are behaviours we can implement in a day each: MCP protocol
+version negotiation, and a deterministic fault-injecting HTTP harness for the provider retry and
+off-peak rules. Both are tracked in the task list, not silently assumed.
+
+Edition and toolchain are not blockers: the SDK asks for Rust 1.85 with edition 2024 and the
+native workspace is already at `rust-version = "1.97"`, so it would build here. The blockers are
+architectural (single error taxonomy, no feature flags, `tokio` full-features, one crate with
+out-of-workspace path deps) and ownership (the row above).

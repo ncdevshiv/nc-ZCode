@@ -146,7 +146,7 @@ export function buildContextUsageSnapshot(
   const messageBreakdown = this.buildMessageRoleBreakdown(options.messages);
   const conversationMessageBreakdown = this.buildMessageRoleBreakdown(
     options.messages.filter(
-      // 根因：新轮通知带 wrapper，但并未计入 ContextBuilder sections；按可信来源计回 Messages，避免漏算。
+// Root cause: The new round of notifications has a wrapper, but it is not included in the ContextBuilder sections; Messages are calculated back according to trusted sources to avoid omissions.
       (message, index) =>
         message.role !== "system" &&
         (!isMetaUserContextMessage(message) ||
@@ -246,8 +246,8 @@ export function buildContextUsageSnapshot(
     skills: skillDetails,
     messageBreakdown,
     warnings: [
-      "当前 token 来自本地估算，不是 provider count；tool schema 的真实 token 取决于 provider 序列化。",
-      "Messages 分类不重复计算 system role 或 meta user context，因为它们已按 sections 单独统计。",
+      "The current token comes from a local estimate, not the provider count; the tool schema's real token depends on provider serialization.",
+      "The Messages category does not double-count system role or meta user context because they are already counted separately by sections.",
     ],
   };
 }

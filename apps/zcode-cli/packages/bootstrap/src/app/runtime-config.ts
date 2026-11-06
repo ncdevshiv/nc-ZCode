@@ -61,13 +61,13 @@ export function resolveAppRuntimeConfig(input: {
   } = input;
   const userInstructions = options.runtimeConfig?.userInstructions ?? { workingDirectory };
   const registrySelection = resolveInitialRegistrySelection(options);
-  // 恢复历史不等于开始执行：失效/缺失选择保持未绑定，不能借 configured default 补齐。
+// Restoring history does not mean starting execution: invalid/missing selections remain unbound and cannot be filled by configured default.
   const initialModelSelection = options.resume
     ? registrySelection?.selection
     : (options.runtimeConfig?.modelSelection ?? registrySelection?.selection);
-  // 空白会话先创建、再应用本次 Submission 的选择；强制初始默认模型会
-  // 让未配置 default 的用户在 switch/send 前就创建失败。未绑定 Runtime 可以存在，
-  // 真正执行仍由 admission/ModelFactory 校验完整选择，不能在这里偷偷选择 Registry 首项。
+// A blank session is created first and then the selection of this Submission is applied; forcing the initial default model will
+// Let users who are not configured with default fail to create before switch/send. Unbound runtimes can exist,
+// The actual execution is still determined by the admission/ModelFactory verification and complete selection, and the first Registry item cannot be secretly selected here.
   const requestedTitleGeneration = options.runtimeConfig?.titleGeneration;
   const requestedTitleModelSelection = requestedTitleGeneration?.modelSelection;
   const titleGeneration =
@@ -75,21 +75,21 @@ export function resolveAppRuntimeConfig(input: {
       ? undefined
       : {
           ...requestedTitleGeneration,
-          // 标题生成 sidecar 默认 15s 在慢模型/代理链路下容易超时，
-          // 入口层统一补 60s，避免旧 core 默认值或空配置让桌面端继续回落到 15s。
+// Title generation sidecar defaults to 15s, which is prone to timeout under slow model/proxy links.
+// The entry layer will uniformly add 60 seconds to prevent the old core default value or empty configuration from causing the desktop side to continue to fall back to 15 seconds.
           timeoutMs: requestedTitleGeneration.timeoutMs ?? 60_000,
-          // 空 titleGeneration 表示启用默认标题生成，模型必须跟随会话当前模型。
-          // 如果这里在草稿 session 创建时固化另一份标题模型，之后切模型只会更新主链路，
-          // 首发时的 generate title sidecar 会继续使用切换前的旧 provider/model。
+// Empty titleGeneration indicates that default title generation is enabled, and the model must follow the current model of the session.
+// If another title model is solidified here when the draft session is created, then switching the model will only update the main link.
+// The first generate title sidecar will continue to use the old provider/model before the switch.
           ...(requestedTitleModelSelection
             ? {
                 modelSelection: requestedTitleModelSelection,
               }
             : {}),
         };
-  // Protocol session/create 传入的 mcp.servers 只包含 UI MCP 设置里的用户配置，
-  // 不包含插件注册的 MCP。宿主内建 server 最后合并并保留其 identity，避免用户或第三方
-  // 用同名配置劫持 mcp__node_repl__*；普通 plugin MCP 仍允许显式用户配置覆盖。
+// Protocol session/create The incoming mcp.servers only contains the user configuration in the UI MCP settings.
+// MCP that does not contain plugin registration. The host's built-in server is finally merged and retains its identity to avoid users or third parties
+// Hijack mcp__node_repl__* with a configuration of the same name; normal plugin MCP still allows explicit user configuration overrides.
   const configuredMcpServers = {
     ...pluginMcpServers,
     ...(options.runtimeConfig?.mcp?.servers ?? configResult.config.mcp.servers),
@@ -101,12 +101,12 @@ export function resolveAppRuntimeConfig(input: {
   );
   const cuaBridgeServerNames = new Set(trustedOfficialCuaServerNames);
   if (pluginRuntimeFeatures?.computerUse === true && configuredMcpServers.node_repl) {
-    // node_repl 需要 broker 注入，但不是 CUA MCP server。注入资格与官方 CUA 图片
-    // authority 必须分开；把它塞进 trustedOfficialCuaServerNames 会让整个
-    // 通用 node_repl 结果被误送进 exact-raster gate，Browser 截图和 console 日志都会失败。
+// node_repl requires broker injection, but not CUA MCP server. Inject qualifications with official CUA pictures
+// authority must be separated; tucking it into trustedOfficialCuaServerNames makes the entire
+// The general node_repl result is mistakenly sent to the exact-raster gate, and Browser screenshots and console logs will fail.
     cuaBridgeServerNames.add("node_repl");
   }
-  // 产品决定 workspace MCP 开箱即用：project 作用域 MCP 默认 trusted，并自动连接。
+// Product decision workspace MCP is available out of the box: project scope MCP is trusted by default and connects automatically.
   const untrustedProjectMcpServers = new Set<string>();
   const autoConnectMcpServers = omitMcpServers(
     configuredMcpServers,
@@ -122,10 +122,10 @@ export function resolveAppRuntimeConfig(input: {
       resolveBashTimeoutPolicy(options.env ?? process.env),
     mode: options.runtimeConfig?.mode ?? persistedMode ?? configResult.config.permission.mode,
     modelSelection: initialModelSelection,
-    // 仅接受显式传入的会话级工具面（ZCode Protocol session/create 或 CLI
-    // --allowed-tools/--disallowed-tools）。不要从 config.permission.allowedTools
-    // 回落：那个键的既有语义是“免审批清单”，把它投影到注册面会让老配置里
-    // 只写了几个 allowedTools 的用户突然丢失其余全部工具。
+// Only accept explicit session-level toolfaces (ZCode Protocol session/create or CLI
+// --allowed-tools/--disallowed-tools). Do not use config.permission.allowedTools
+// Fallback: The existing semantics of that key is "approval-free list", projecting it to the registration page will make the old configuration
+// A user who only wrote a few allowedTools suddenly loses all the rest.
     toolAllowlist: options.runtimeConfig?.toolAllowlist,
     toolDisallowlist: options.runtimeConfig?.toolDisallowlist,
     embeddedSearchBackend:

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Workflow schema and types share one contract surface to avoid drift. */
 import { z } from "zod";
 
 export * from "./script.js";

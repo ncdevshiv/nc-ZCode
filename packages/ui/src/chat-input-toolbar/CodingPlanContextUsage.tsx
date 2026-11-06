@@ -305,6 +305,8 @@ export function ChatCodingPlanUsageRemainingPanel({
   const primaryQuotaMeters = quotaMeters.filter((meter) => meter.key !== "mcp");
   const mcpQuotaMeter = quotaMeters.find((meter) => meter.key === "mcp");
   const quotaGridCount = Math.min(primaryQuotaMeters.length + (mcpQuotaMeter ? 1 : 0), 3);
+  // Quota UI tied to ZCode disabled
+  return null;
   const quotaResetDialog = buildCodingPlanQuotaResetDialogConfig({
     fiveHourEnabled: Boolean(fiveHourTokenLimit),
     fiveHourQuotaFull,

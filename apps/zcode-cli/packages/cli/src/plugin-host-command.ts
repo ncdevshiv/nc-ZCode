@@ -20,13 +20,13 @@ export function isPluginHostInvocation(argv: readonly string[]): boolean {
   return argv[0] === ZCODE_PLUGIN_HOST_COMMAND;
 }
 
-// __zcode-plugin-host 在 agent 子进程里运行 official plugin 的 MCP server（server.js）。
-// CLI 入口 main.ts 的 applyCliRuntimeEnvSanitization 会先把 broker token 从 process.env 剔除进
-// 进程内 capture；因此这里是恢复 bearer token 的最后一道宿主边界。capture 本身只证明某个
-// Agent 进程曾收到过 Helper 凭据，不能证明当前传入的 server 就是官方 zcode-cua：
-// 只凭存在 capture 就把 token 恢复给任意 server path，第三方/被替换的插件可借此取得 CUA
-// broker 的 TCC 能力。必须同时验证 resolver 权威写入的 plugin id、完整的捕获凭据组，
-// 以及 canonical broker socket；任一字段不匹配都在 import 之前拒绝，避免加载不受信模块后再暴露 token。
+// __zcode-plugin-host runs the MCP server (server.js) of the official plugin in the agent sub-process.
+// applyCliRuntimeEnvSanitization of CLI entry main.ts will first remove the broker token from process.env.
+// In-process capture; therefore this is the last host boundary to restore the bearer token. capture itself only proves a certain
+// The Agent process has received Helper credentials, which cannot prove that the currently passed in server is the official zcode-cua:
+// Restore the token to any server path simply by virtue of the existence of capture. Third-party/replaced plug-ins can use this to obtain CUA.
+// TCC capabilities of broker. The plugin id written authoritatively by the resolver and the complete set of capture credentials must be verified at the same time.
+// And canonical broker socket; if any field does not match, it will be rejected before import to avoid exposing the token after loading untrusted modules.
 export async function runPluginHostCommand(ctx: RunContext, argv: string[]): Promise<number> {
   if (argv.length < 1) {
     ctx.stderr.write(`Usage: ${HOST_USAGE}\n`);
@@ -53,8 +53,8 @@ export async function runPluginHostCommand(ctx: RunContext, argv: string[]): Pro
 
     const originalArgv = process.argv;
     const originalBrokerSocket = process.env[ZCODE_CUA_BROKER_SOCKET_ENV_KEY];
-    // shared node_repl 把同一凭据组恢复到环境，由 broker bridge 读取；旧的独立 CUA
-    // MCP 不再拥有执行入口。
+// shared node_repl restores the same credential group to the environment, read by the broker bridge; old standalone CUA
+// MCP no longer has an execution entry.
     process.argv = [process.execPath, serverPath, ...serverArgs];
     if (capturedBrokerCredentials.socket && process.env[ZCODE_CUA_NODE_REPL_HOST_ENV_KEY] === "1") {
       process.env[ZCODE_CUA_BROKER_SOCKET_ENV_KEY] = capturedBrokerCredentials.socket;
@@ -85,14 +85,14 @@ function assertCapturedBrokerLaunchIsAuthorized(credentials: CapturedBrokerCrede
   if (!hasCapturedCredentials) return;
 
   const pluginId = process.env[ZCODE_PLUGIN_ID_ENV_KEY]?.trim().toLowerCase();
-  // 凭据组里已经没有 token 了：broker 全平台改为身份模式（Helper 按对端代码签名裁决连接），
-  // shared/runtimeEnv.ts 的 CapturedCuaBrokerCredentials 只有 socket + pluginAuthority
-  // (+ refreshMarker)。这里不能再读 `credentials.token`；token 已从凭据组移除，
-  // 残留读取方只能靠 CLI 自己的 typecheck 发现（根 `pnpm typecheck` 不含 apps/zcode-cli）。
-  // socket + pluginAuthority 必须成对（authority 是 bootstrap 写入 node_repl 配置的 provenance
-  // 随机数，core 据此认官方 server）；捕获侧本就只在成对时落快照，半组会清空并 fail-closed。
-  // 校验也不能要求 token 齐全——身份模式凭据没有 token，强校验会让 node_repl 宿主启动即
-  // 退出（"connection closed during the server/discover probe"），工具面为空。
+// There is no token in the credential group: the broker changes the entire platform to identity mode (Helper determines the connection based on the peer code signature),
+// CapturedCuaBrokerCredentials of shared/runtimeEnv.ts only has socket + pluginAuthority
+// (+ refreshMarker). `credentials.token` can no longer be read here; token has been removed from the credentials group.
+// Residual readers can only be discovered by the CLI's own typecheck (the root `pnpm typecheck` does not include apps/zcode-cli).
+// socket + pluginAuthority must be paired (authority is the provenance written by bootstrap into the node_repl configuration
+// Random number, core recognizes the official server accordingly); the captured side copy will only take snapshots when paired, and half of the group will be cleared and fail-closed.
+// Verification cannot require complete tokens - identity mode credentials do not have tokens, strong verification will allow the node_repl host to start immediately
+// Exit ("connection closed during the server/discover probe"), the tool surface is empty.
   if (
     credentials.socket === undefined ||
     credentials.pluginAuthority === undefined ||

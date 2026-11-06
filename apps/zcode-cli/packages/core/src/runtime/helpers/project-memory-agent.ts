@@ -33,7 +33,7 @@ export function captureProjectMemoryAgentContext(
   runtime: AgentRuntimeInternal,
   input: {
     memoryRoot: string;
-    /** Extraction 继承产生该工作的 Turn Model。 */
+/** Extraction inherits the Turn Model that produced the job. */
     model?: Model;
     operation: ModelApiOperation;
     traceContext: TraceContext;
@@ -45,8 +45,8 @@ export function captureProjectMemoryAgentContext(
       selection: runtime.getSessionModelSelection(),
     });
   const model = withModelInvocationContext(baseModel, (request) => ({
-    // Extraction 是 transcript 的消费者；不把它自己的请求写回同一 model-io 目录，
-    // 避免后台链路占用 rollout 槽位并在后续 Extraction 中自反馈。
+// Extraction is a consumer of transcript; does not write its own requests back to the same model-io directory,
+// Prevent the background link from occupying the rollout slot and self-feedback in subsequent Extraction.
     metadata: {
       ...traceContextToLogContext(input.traceContext),
       querySource: input.operation,
@@ -64,9 +64,9 @@ export function captureProjectMemoryAgentContext(
   return {
     causation: runtime.agentTelemetry.captureCausation(),
     memoryRoot: input.memoryRoot,
-    // Extraction 会跨异步边界消费这份成员浅快照；它依赖 RuntimeMessageEntry
-    // 进入 MessageHistory 后保持不可变。后续只能 append、整体 replace 或 copy-on-write，
-    // 禁止原地修改共享的 entry/message/content，否则会污染已调度的 Memory 上下文。
+// Extraction will consume this member shallow snapshot across asynchronous boundaries; it relies on RuntimeMessageEntry
+// Remain immutable after entering MessageHistory. Subsequent operations can only be append, overall replace or copy-on-write.
+// It is forbidden to modify the shared entry/message/content in place, otherwise it will pollute the scheduled Memory context.
     providerEntries: [...runtime.messageHistory.borrowReadOnlyRuntimeEntries()],
     midConversationSystem: runtime.config.midConversationSystem,
     model,
@@ -116,8 +116,8 @@ export function createProjectMemoryAgentToolExecutor(
     model: context.model,
     permissionBroker: createDenyPermissionBroker(),
     permissionService: new PermissionService(defaultPermissionConfig),
-    // Memory agent 必须继承 Main 已完成的 Read；否则 provider context 说文件已读，
-    // Edit 执行边界却会拒绝同一文件，和基线的 cloned tool context 不一致。
+// Memory agent must inherit Main's completed Read; otherwise provider context says the file has been read,
+// Edit execution boundary will reject the same file, which is inconsistent with the baseline cloned tool context.
     readFileState: new Map(context.readFileState),
     registry: runtime.registry,
     runtimeScope: "main",

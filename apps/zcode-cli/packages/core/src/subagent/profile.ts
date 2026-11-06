@@ -82,7 +82,7 @@ export function createBuiltInExploreAgentProfile(
 export function isBuiltInExploreAgentProfile(
   profile: Pick<AgentProfile, "name" | "source">,
 ): boolean {
-  // 用户/项目 profile 可以同名覆盖内置 Explore，不能只按名称套用内置行为。
+//User/project profiles can override the built-in Explore with the same name, but cannot apply built-in behaviors just by name.
   return profile.name === EXPLORE_AGENT_TYPE && profile.source === "built-in";
 }
 
@@ -119,7 +119,7 @@ export function createBuiltInGeneralPurposeAgentProfile(
     name: DEFAULT_SUBAGENT_TYPE,
     description:
       "General-purpose agent for researching complex questions, searching for code, and executing multi-step tasks. When you are searching for a keyword or file and are not confident that you will find the right match in the first few tries use this agent to perform the search for you.",
-    // 内置子智能体使用显式身份色，避免 UI 按名称 hash 后把 general-purpose 显示为红色。
+// The built-in sub-agent uses explicit identity color to prevent the UI from displaying the general-purpose in red after hashing by name.
     color: "blue",
     injectAgentsMd: true,
     ...(options.modelSelection ? { modelSelection: options.modelSelection } : {}),
@@ -180,8 +180,8 @@ export function parseAgentProfileFromMarkdown(input: {
   const modelSelection = resolveProfileModelSelection(frontmatter);
   const color = normalizeColor(scalarString(frontmatter.color));
   const parsedPermissionMode = normalizePermissionMode(scalarString(frontmatter.permissionMode));
-  // 项目级 subagent markdown 属于仓库输入，不能通过 frontmatter 把
-  // child runtime 提升到 bypass/yolo；权限模式只接受用户级或受信插件配置。
+// Project-level subagent markdown belongs to the warehouse input and cannot be passed through frontmatter
+// Child runtime promoted to bypass/yolo; permission mode only accepts user-level or trusted plugin configuration.
   const permissionMode = input.source === "project" ? undefined : parsedPermissionMode;
   const maxTurns = normalizePositiveInteger(frontmatter.maxTurns);
   const memory = parseAgentMemoryScope(frontmatter.memory);

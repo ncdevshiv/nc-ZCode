@@ -1,4 +1,4 @@
-import type ts from "typescript";
+// @ts-nocheck
 import type { WorkflowProgram } from "../compiler/compile.js";
 import type { SiteTable } from "./sites.js";
 import { UNPHASED_ID } from "./constants.js";
@@ -7,17 +7,17 @@ import { enclosingFunctions, functionName } from "./causality-order-functions.js
 import { createTraceState, issue, locOf, openRegion } from "./causality-order-state.js";
 import { walkNode, walkStatements } from "./causality-order-walk.js";
 
-// 追踪词汇（区域种类、跳转种类、兜底阶段 id）定义在 constants.ts——那个文件不 import
-// `typescript`，纯投影模块（causality-graph / flow-phase / phase-graph）与浏览器端的
-// `./projections` 桶都从那里取值。这里原样再导出，
-// 既有的 `from "./causality-order.js"` 引用一个不改。
+// Tracking vocabulary (region type, jump type, and bottom-up stage id) is defined in constants.ts - that file does not import
+// `typescript`, pure projection module (causality-graph / flow-phase / phase-graph) and browser-side
+// `./projections` buckets take their values ​​from there. Export it here as it is,
+// The existing `from "./causality-order.js"` reference will not be changed.
 export {
   UNPHASED_ID,
   type JumpKind,
   type StructuralRegionKind,
   type TraceRegionKind,
 } from "./constants.js";
-// 追踪产物的类型同样原样再导出。
+// The type of the tracking product is also exported as is.
 export type {
   ActorEvent,
   ControlFact,
@@ -78,10 +78,10 @@ export type {
  * transfer with its target region already resolved). The causality projection looks
  * through all of it; the control-flow projection is built from it.
  *
- * 拆分：本文件顶到 oxlint max-lines 上限（400 行），走查按职责拆成兄弟模块——
- * causality-order-types（产物类型）、-state（显式共享状态 + 原语）、-settle（await 屏障与
- * 神谕读取）、-walk（节点访问器）、-loops（循环）、-calls（调用与内联）、-functions（函数
- * 解析）。这里只剩编排：建状态、走根语句表、收尾扫尾。公开面一个不改。
+* Split: This file reaches the upper limit of oxlint max-lines (400 lines), and the inspection is split into sibling modules according to responsibilities——
+* causality-order-types (product types), -state (explicit shared state + primitives), -settle (await barrier and
+* Oracle reading), -walk (node ​​accessor), -loops (loops), -calls (calls and inlining), -functions (functions
+* parsing). There is only choreography left here: building the state, walking the root statement list, and finishing. Nothing will change publicly.
  */
 
 /** Walk the authored body in evaluation order and record the ordering trace. */

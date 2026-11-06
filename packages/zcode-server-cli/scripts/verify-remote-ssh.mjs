@@ -6,7 +6,7 @@
  * 用法：
  *   node scripts/verify-remote-ssh.mjs [--target linux-x64|linux-arm64] [--keep]
  *
- * 前置：docker 可用；已运行 `pnpm --filter @zcode/server-cli stage --target <target>`。
+ * 前置：docker 可用；已运行 `bun run --filter @zcode/server-cli stage --target <target>`。
  * `--keep` 保留容器与隧道供手工调试（脚本会打印连接方式）。
  */
 import { spawn } from "node:child_process";
@@ -97,7 +97,7 @@ async function main() {
   });
   await run("ls", [releaseArchive], { quiet: true }).catch(() => {
     throw new Error(
-      `Release archive missing: ${releaseArchive}; run pnpm --filter @zcode/server-cli stage --target ${target}`,
+      `Release archive missing: ${releaseArchive}; run bun run --filter @zcode/server-cli stage --target ${target}`,
     );
   });
 

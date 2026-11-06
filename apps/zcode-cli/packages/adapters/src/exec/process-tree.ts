@@ -20,8 +20,8 @@ export function terminateGenericPosixProcessGroup(child: ChildProcess): void {
   }
 
   setTimeout(() => {
-    // 组长 exit 后，负 PGID 仍可能命中持有 pipe 的孙进程；仅当进程组
-    // 确认不存在时才跳过 escalation。
+// After the group leader exits, the negative PGID may still hit the grandchild process holding the pipe; only if the process group
+// Skip escalation only when it is confirmed that it does not exist.
     if (!isPosixProcessGroupAlive(child.pid!)) return;
     try {
       process.kill(-child.pid!, "SIGKILL");
@@ -48,14 +48,14 @@ async function killPosixProcessTree(rootPid: number, signal: NodeJS.Signals): Pr
     try {
       process.kill(rootPid, signal);
     } catch {
-      // 根进程可能已退出；仍继续处理快照后代。
+// The root process may have exited; processing of snapshot descendants continues.
     }
   }
   for (const pid of descendants) {
     try {
       process.kill(pid, signal);
     } catch {
-      // 后代可能已自然退出或已被同组信号回收。
+// Descendants may have exited naturally or been recycled by the same set of signals.
     }
   }
 }
@@ -71,7 +71,7 @@ async function collectPosixDescendantPids(rootPid: number): Promise<Set<number>>
       }),
     ]);
   } catch {
-    // ps 失败时按空后代集合退化，根进程组信号仍会继续。
+// When ps fails, it will degenerate according to the empty descendant set, and the root process group signal will still continue.
     return new Set();
   }
 

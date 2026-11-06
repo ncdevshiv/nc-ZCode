@@ -1,26 +1,26 @@
 // ============================================================
-// Dynamic Workflow Run Service：journal 能力探测与 store 窄化
+// Dynamic Workflow Run Service: journal capability detection and store narrowing
 // ============================================================
-// dynamic-workflow-run-service.ts 顶到 oxlint max-lines 上限（400 行），把 journal /
-// task link store 的结构性窄化与四组能力探测拆到本文件；公开面仍从 dynamic-workflow-run-service.ts
-// 导出。
+// dynamic-workflow-run-service.ts reaches the upper limit of oxlint max-lines (400 lines), and replaces journal /
+// The structural narrowing of the task link store and the four sets of capability detection are split into this file; the public side is still from dynamic-workflow-run-service.ts
+// Export.
 //
-// 这里的每一条探测都遵守同一条纪律：store 是端口、实现可替换，所以按能力探测而不是 instanceof；
-// 缺席即**可见降级**（对应读面不实现 / 回空 / 不构造），绝不静默退回内存实现。
+// Every detection here follows the same discipline: store is a port and the implementation is replaceable, so it is detected based on capabilities rather than instanceof;
+// Absence means **visible downgrade** (corresponding to the reading surface not being implemented/returning to empty/not being constructed), and will never be silently returned to the memory implementation.
 
 import type { DwfRunIntrospectionQueries, DwfRunSessionListItem } from "@zcode/adapters/storage";
 import type { CreateSessionTaskLinkInput, Logger, SessionStorePort } from "@zcode/contracts";
 import type { JournalStorePort, RunRecord } from "@zcode/dynamic-workflow";
 
-/** task link 落库面（生产是 SqliteSessionStore；测试传 spy）。 */
+/** Task link is dropped into the library (production is SqliteSessionStore; testing is passed to spy). */
 export interface DynamicWorkflowTaskLinkStore {
   createSessionTaskLink(input: CreateSessionTaskLinkInput): Promise<unknown>;
 }
 
 /**
- * task link 落库面的结构性窄化。与 {@link resolveDynamicWorkflowJournalStore} 同一处理：
- * store 是端口，实现可替换，所以按能力探测而不是 instanceof。缺失时跳过建 link——
- * actor 会话本身仍落库，只是会话树里少一条归属边（可降级，不影响 run 的正确性）。
+* task link Structural narrowing of the storage area. Same processing as {@link resolveDynamicWorkflowJournalStore}:
+* store is a port, and the implementation is replaceable, so it is detected by capabilities instead of instanceof. Skip building link when missing——
+* The actor session itself is still in the database, but there is one less belonging edge in the session tree (can be downgraded, without affecting the correctness of the run).
  */
 export function isDynamicWorkflowTaskLinkStore(
   store: SessionStorePort | undefined,
@@ -32,8 +32,8 @@ export function isDynamicWorkflowTaskLinkStore(
 }
 
 /**
- * 从 session store 里窄化出 dwf journal。结构性判断而非 instanceof——store 是端口，
- * 实现可替换（precedent: isScriptWorkflowStore，script-workflow-utils.ts）。
+* Narrow out the dwf journal from the session store. Structural judgment rather than instanceof - store is a port,
+* Implement replaceable (precedent: isScriptWorkflowStore, script-workflow-utils.ts).
  */
 export function resolveDynamicWorkflowJournalStore(
   sessionStore: SessionStorePort | undefined,
@@ -43,8 +43,8 @@ export function resolveDynamicWorkflowJournalStore(
     | (SessionStorePort & { workflowJournalStore?: () => JournalStorePort })
     | undefined;
   if (typeof candidate?.workflowJournalStore !== "function") {
-    // 可见降级：端口不构造 → CreateWorkflow 回占位诊断。绝不退回内存 journal——
-    // 那会让 run 看起来跑起来了，却在进程退出时把一切静默丢掉。
+// Visible downgrade: Port not constructed → CreateWorkflow returns to placeholder diagnostics. Never return the memory journal——
+// That will make run appear to be running, but silently throw everything away when the process exits.
     logger?.info?.("Dynamic workflow run service disabled: session store has no dwf journal", {
       event: "dynamic_workflow.run_service.unavailable",
       module: "bootstrap.app",
@@ -56,26 +56,26 @@ export function resolveDynamicWorkflowJournalStore(
 }
 
 /**
- * 宿主侧的 journal 面：引擎端口 + 孤儿收敛与枚举用的窄查询。
+* Host side journal side: engine port + narrow query for orphan convergence and enumeration.
  *
- * 刻意**不加宽**引擎的 {@link JournalStorePort}：引擎只按 runId 读写自己那一行，从不按父会话
- * 找 run——这两条查询是宿主的需求，加进领域端口等于要求每个 journal 实现都为引擎不做的事
- * 负责（内存实现就不提供它们）。与 {@link isDynamicWorkflowTaskLinkStore} 同一处理：能力探测
- * 而不是 instanceof，store 是端口、实现可替换。
+* Deliberately ** not widening ** the engine's {@link JournalStorePort}: the engine only reads and writes its own row according to runId, never according to the parent session
+* Find run - these two queries are the requirements of the host. Adding the domain port is equivalent to requiring each journal implementation to do things that the engine does not do.
+* responsible (the memory implementation does not provide them). Same processing as {@link isDynamicWorkflowTaskLinkStore}: capability detection
+* Instead of instanceof, store is a port, implementation replaceable.
  */
 interface DynamicWorkflowJournalStore extends JournalStorePort {
   listNonTerminalRuns(parentSessionId: string): RunRecord[];
   /**
-   * 某父会话名下的 run，最近更新在前，最多 limit 条（枚举面，服务 listRunsForSession）。
+* Runs under the name of a certain parent session, most recently updated first, up to limit items (enumeration surface, service listRunsForSession).
    *
-   * 回 {@link DwfRunSessionListItem} 而不是 `RunRecord`：`RunRecord` 刻意不带时间（引擎不
-   * 关心），而枚举面要报 `updatedAt`。窄投影不读 `result_json`（无界产物，列表不展示），
-   * 但**保留 failure**——`resumable` 的谓词依赖 failure.code。
+* Return {@link DwfRunSessionListItem} instead of `RunRecord`: `RunRecord` is deliberately not timed (the engine does not
+* care), and the enumeration side should report `updatedAt`. Narrow projection does not read `result_json` (unbounded product, list is not displayed),
+* But **keep failure** - the predicate of `resumable` depends on failure.code.
    */
   listRunsByParentSession(parentSessionId: string, limit: number): DwfRunSessionListItem[];
 }
 
-/** journal 是否带孤儿收敛所需的窄查询（生产的 SQLite 实现带，引擎的内存实现不带）。 */
+/** Whether the journal has narrow queries required for orphan convergence (the production SQLite implementation does, the engine's memory implementation does not). */
 export function supportsNonTerminalRunQuery(
   journal: JournalStorePort,
 ): journal is JournalStorePort & Pick<DynamicWorkflowJournalStore, "listNonTerminalRuns"> {
@@ -84,7 +84,7 @@ export function supportsNonTerminalRunQuery(
   );
 }
 
-/** journal 是否带枚举窄查询。两条查询独立探测：缺一条只降级对应的读面，不连坐。 */
+/** Whether journal has enumeration narrow query. Two queries are detected independently: if one is missing, only the corresponding reading surface will be downgraded, not consecutively. */
 export function supportsRunEnumeration(
   journal: JournalStorePort,
 ): journal is JournalStorePort & Pick<DynamicWorkflowJournalStore, "listRunsByParentSession"> {
@@ -94,19 +94,19 @@ export function supportsRunEnumeration(
 }
 
 /**
- * 带 run 内省查询的 journal（`ListWorkflowRuns` / `GetWorkflowRun` 的取数底座）。
+* Journal with run introspection query (the access base of `ListWorkflowRuns` / `GetWorkflowRun`).
  *
- * 签名的**唯一来源**是 adapters 的 {@link DwfRunIntrospectionQueries}（`import type`，运行时
- * 零依赖）。刻意不在这里手抄一遍：这四条查询不在引擎的 {@link JournalStorePort} 上（引擎从不
- * 枚举 run、也不做聚合计数），所以它们只能靠能力探测接上——一旦签名漂移，编译器什么都不会说，
- * 只会让两个工具静默降级成「本会话没有这个能力」。
+* The **only source** of signatures is adapters' {@link DwfRunIntrospectionQueries} (`import type`, runtime
+*Zero dependencies). I deliberately don’t copy it by hand here: these four queries are not on the engine’s {@link JournalStorePort} (the engine never
+* enumeration run, nor aggregate counting), so they can only be connected by capability detection - once the signature drifts, the compiler will say nothing,
+* Only two tools will be silently downgraded to "This session does not have this capability".
  */
 export interface DynamicWorkflowIntrospectableJournal
   extends JournalStorePort, DwfRunIntrospectionQueries {}
 
 /**
- * journal 是否带 run 内省查询。**四条一起探**：能力是整体的（列表要 listRuns，详情要另外三条），
- * 部分在场的实现只会让某一个工具在运行时炸掉，而不是可见地降级。
+* Whether journal has run introspection query. **Four items together**: Ability is holistic (the list requires listRuns, and the details require another three items),
+* Partially present implementations will simply cause a tool to blow up at runtime, rather than visibly degrading it.
  */
 export function supportsRunIntrospection(
   journal: JournalStorePort,

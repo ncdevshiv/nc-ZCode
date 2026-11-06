@@ -35,7 +35,7 @@ export function normalizeWebFetchUrl(value: string): URL {
     });
   }
 
-  // provider-visible WebFetch 约定会把模型传入的 HTTP URL 升级成 HTTPS 后再出站请求。
+// provider-visible WebFetch convention will upgrade the HTTP URL passed in the model to HTTPS before making outbound requests.
   if (url.protocol === "http:") {
     url.protocol = "https:";
   }
@@ -108,8 +108,8 @@ function getBlockedHostReason(
     return { hostname, message: "URL must include a hostname" };
   }
 
-  // URL 层只负责稳定的形态过滤；WebFetch 的本地字面量 IP egress
-  // guard 贴近每次真实 GET，普通域名不再做 DNS preflight。
+// The URL layer is only responsible for stable morphological filtering; WebFetch's local literal IP egress
+// guard is close to each real GET, and ordinary domain names will no longer do DNS preflight.
   if (isWebFetchIpLiteral(hostname)) {
     return undefined;
   }

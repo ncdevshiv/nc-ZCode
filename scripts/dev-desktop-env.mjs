@@ -13,7 +13,7 @@ if (requestedEnv !== "test" && requestedEnv !== "production") {
 }
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const bunCommand = process.platform === "win32" ? "bun.exe" : "bun";
 
 function run(command, args) {
   return new Promise((resolveRun, rejectRun) => {
@@ -54,10 +54,10 @@ function run(command, args) {
 
 try {
   // The public dev scripts delegate here instead of invoking the package's
-  // `dev` lifecycle directly, so pnpm will not run `pre-dev` automatically.
+  // `dev` lifecycle directly, so Bun will not run `pre-dev` automatically.
   // Preserve its runtime-asset preparation and stale `out` cleanup explicitly
   // before rebuilding bundles or starting Electron.
-  await run(pnpmCommand, ["--filter", "@zcode/desktop", "pre-dev"]);
+  await run(bunCommand, ["run", "--filter", "@zcode/desktop", "pre-dev"]);
   // On Windows, use "node" (resolved via PATHEXT) to avoid "C:\Program Files\..." space issues
   await run(process.platform === "win32" ? "node" : process.execPath, [
     resolve(repoRoot, "scripts/build-desktop-agent-cli.mjs"),
@@ -67,7 +67,7 @@ try {
       resolve(repoRoot, "scripts/build-desktop-agent-bytecode.mjs"),
     ]);
   }
-  await run(pnpmCommand, ["--filter", "@zcode/desktop", "dev:runtime"]);
+  await run(bunCommand, ["run", "--filter", "@zcode/desktop", "dev:runtime"]);
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   process.exit(1);

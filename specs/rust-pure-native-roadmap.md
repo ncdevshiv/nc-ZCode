@@ -217,5 +217,5 @@ unwraps Chrome's DPAPI key via encoded PowerShell; CUA ships disabled (fail-clos
 3. Provider parity corpus green at S2 and re-run as CI regression forever.
 4. Feature audit: every Electron-era feature is either replaced or explicitly
    accepted as removed (§7 R4 table filled, no silent losses).
-5. `pnpm typecheck` / `pnpm lint` reported honestly for the remaining TS; Rust side
+5. `bun run typecheck` / `bun run lint` reported honestly for the remaining TS; Rust side
    reports its own test results — no pass claimed without execution.

@@ -162,7 +162,7 @@ export class NodeExecutionAdapterProcess extends NodeExecutionAdapterResults {
         killer.once("close", () => resolve());
       });
       if (useBashProcessTreeStop) {
-        // 直写后不再等待 pipe EOF，shutdown 必须显式等待 taskkill 收尾，避免提前释放资源。
+// No longer wait for pipe EOF after direct writing. Shutdown must explicitly wait for taskkill to finish to avoid early release of resources.
         this.pendingBashProcessTreeKills.set(completion, killer);
         void completion.finally(() => this.pendingBashProcessTreeKills.delete(completion));
       }
@@ -170,15 +170,15 @@ export class NodeExecutionAdapterProcess extends NodeExecutionAdapterResults {
     }
 
     if (!useBashProcessTreeStop) {
-      // PPID 后代枚举只修复 Bash job-control 的跨 PGID 清理；通用 hook、
-      // shell 和 argv execution 必须保留既有进程组边界，避免修复能力扩散到其它调用方。
+// PPID descendant enumeration only fixes cross-PGID cleanup of Bash job-control; universal hook,
+// Shell and argv execution must preserve existing process group boundaries to prevent the ability to repair from spreading to other callers.
       terminateGenericPosixProcessGroup(child);
       return;
     }
 
     const rootPid = child.pid;
-    // Bash job control、pipeline、xargs 和 PTY 可以把 worker 放入不同 PGID。
-    // 两阶段清理各自快照当时的 PPID 后代，不跨阶段记忆进程身份。
+// Bash job control, pipeline, xargs and PTY can put workers into different PGIDs.
+// The two stages clean up the PPID descendants of their respective snapshots at that time, and do not remember the process identity across stages.
     void signalPosixProcessTree(rootPid, "SIGTERM");
     let timer!: NodeJS.Timeout;
     const escalation = new Promise<void>((resolve) => {
@@ -186,9 +186,9 @@ export class NodeExecutionAdapterProcess extends NodeExecutionAdapterResults {
         try {
           process.kill(-rootPid, "SIGKILL");
         } catch {
-          // 直接的 force group kill 只做 best effort，随后仍会执行完整杀树。
+// Direct force group kill only does best effort, and will still perform a complete tree kill afterwards.
         }
-        // shutdown 等待实际查表与信号发送，不能在异步杀树刚启动时就释放清理所有权。
+// shutdown waits for the actual table lookup and signal transmission, and cannot release the cleanup ownership when the asynchronous tree killing is just started.
         void signalPosixProcessTree(rootPid, "SIGKILL").then(resolve);
       }, BASH_SIGTERM_TO_SIGKILL_MS);
       timer.unref?.();
@@ -239,7 +239,7 @@ export class NodeExecutionAdapterProcess extends NodeExecutionAdapterResults {
       const capture = (error: Error) => {
         failure ??= error;
       };
-      // Hook 可以提前关闭 stdin，异步 EPIPE 必须有监听，不能让 Agent 崩溃。
+//Hook can close stdin in advance, asynchronous EPIPE must have monitoring, and the Agent cannot crash.
       child.stdin.on("error", capture);
       try {
         child.stdin.end(input);
@@ -257,7 +257,7 @@ export class NodeExecutionAdapterProcess extends NodeExecutionAdapterResults {
     terminationRequested: boolean,
   ): Promise<void> {
     if (await waitForPromise(closed, IO_DRAIN_TIMEOUT_MS)) return;
-    // 通用 argv/Hook 保留 pipe EOF 所有权；Bash 直写文件不会进入此路径。
+// Generic argv/Hook retains pipe EOF ownership; Bash write-through files will not go into this path.
     if (options.shouldRetainExecutionAfterRootExit?.() === true) {
       await closed;
       return;

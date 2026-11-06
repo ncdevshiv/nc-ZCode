@@ -12,7 +12,7 @@ import {
   type ZCodeProtocolAgentServerContext,
 } from "./server-types.js";
 
-// 无应答方时 UI 的 SDK 超时不会启动；端口总时限同时覆盖排队与凭据解析。
+// When there is no responder, the SDK timeout of the UI will not be started; the total port time limit covers both queuing and credential resolution.
 const PROVIDER_RUNTIME_HEADERS_TIMEOUT_MS = 180_000;
 const CLIENT_REQUEST_TIMEOUT_CODE = -32022;
 
@@ -22,8 +22,8 @@ export function createProviderRuntimeHeadersPort(
 ): NonNullable<ZCodeAppOptions["providerRuntimeHeadersPort"]> {
   return {
     shouldRefreshBeforeModelRequest() {
-      // Account 请求由绑定 Model 决定是否进入鉴权，不能把所有账号收窄到旧 Start ID。
-      // 普通 API 不进入此端口；Team/Individual 继续复用请求级鉴权合同。
+//Account requests are determined by the bound Model whether to enter authentication, and all accounts cannot be narrowed down to the old Start ID.
+// Ordinary API does not enter this port; Team/Individual continues to reuse the request-level authentication contract.
       return true;
     },
     async refreshBeforeModelRequest(input) {
@@ -33,7 +33,7 @@ export function createProviderRuntimeHeadersPort(
         result = await context.requestClient(
           zcodeProtocolMethods.interactionRequestProviderRuntimeHeaders,
           {
-            // 同一毫秒内的并发请求不能共用关联键，否则 pending 应答会覆盖或串用。
+// Concurrent requests within the same millisecond cannot share the associated key, otherwise the pending response will be overwritten or used in series.
             requestId,
             sessionId: input.sessionId,
             turnId: input.turnId,
@@ -51,11 +51,11 @@ export function createProviderRuntimeHeadersPort(
           },
         );
       } catch (error) {
-        // requestClient abort 只清理 CLI 等待，Host 仍占着凭据解析队列直到超时。
-        // 仅此端口发送取消，不改变其他反向 RPC 的生命周期。
+// requestClient abort only clears the CLI wait, and the Host still occupies the credential parsing queue until timeout.
+// Only this port sends cancellation and does not change the life cycle of other reverse RPCs.
         const timedOut =
           error instanceof ProtocolRequestError && error.code === CLIENT_REQUEST_TIMEOUT_CODE;
-        // 总时限与主动停止都必须释放 Host；否则 CLI 已失败，旧请求仍会占用队列。
+// Both the total time limit and active stop must release the Host; otherwise the CLI has failed and old requests will still occupy the queue.
         if (input.abortSignal?.aborted || timedOut) {
           context.notify({
             method: zcodeProtocolNotifications.providerRuntimeHeadersCancelled,
@@ -75,8 +75,8 @@ export function createProviderRuntimeHeadersPort(
         throw error;
       }
       if (!result.headersApplied) {
-        // runtime header 刷新失败可能来自配置读取失败或凭据缺失；
-        // 不能统一改写成单一失败文案，否则会掩盖真实根因并误导重试策略。
+// Runtime header refresh failure may come from configuration read failure or missing credentials;
+// Cannot be rewritten into a single failure copy, otherwise it will cover up the true root cause and mislead the retry strategy.
         throw new ProtocolRequestError(
           -32031,
           result.errorMessage ??
@@ -88,9 +88,9 @@ export function createProviderRuntimeHeadersPort(
           },
         );
       }
-      // zcode-plan 的账号鉴权材料是每次请求刷新的运行时配置，
-      // 但 provider registry revision 是 workspace 级全局状态；并发刷新时后一个请求会推进全局 revision，
-      // 不能再用全局 revision 不相等误判当前请求的 headers 未应用。
+// The account authentication material of zcode-plan is a runtime configuration that is refreshed every time it is requested.
+// But provider registry revision is a workspace-level global state; during concurrent refresh, the latter request will advance the global revision.
+// You can no longer use global revision inequality to misjudge that the headers of the current request are not applied.
       return result;
     },
   };

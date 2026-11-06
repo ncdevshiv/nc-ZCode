@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import {
   appendFileSync,
   existsSync,
@@ -31,9 +32,9 @@ import type {
   ResolvedAiSdkModel,
 } from "./runner-runtime.js";
 
-// 生产环境 rollout 目录最多保留的 model-io 会话文件数。超出删最旧。
+//The maximum number of model-io session files retained in the rollout directory of the production environment. Delete the oldest if exceeded.
 const MAX_ROLLOUT_FILES = 3;
-// 生产环境单个 session 的 model-io 文件硬上限。诊断日志不能因为无限增长影响 agent 主流程。
+// The hard upper limit of the model-io file for a single session in the production environment. The diagnostic log cannot affect the agent main process due to unlimited growth.
 const MAX_ROLLOUT_SESSION_BYTES = 64 * 1024 * 1024;
 // 开发态保留更多上下文，但仍避免单个 debug 文件无限膨胀。
 const MAX_DEBUG_SESSION_BYTES = 256 * 1024 * 1024;
@@ -523,7 +524,7 @@ function writeModelIODebugRecord(
     if (resetForSizeLimit) {
       // 每次 append 前同步读取并 expand 整个历史 JSONL 的话，长 session 的 rollout
       // 文件达到 GB 级时会在 UTF-8 转换/V8 字符串分配阶段 native crash。超限时直接重置为
-      // 当前 bounded baseline，保证诊断日志不会威胁 agent 主流程。
+//The current bounded baseline ensures that diagnostic logs will not threaten the agent's main process.
       writeFileSync(filePath, line, "utf8");
     } else {
       appendFileSync(filePath, line, "utf8");
@@ -534,7 +535,7 @@ function writeModelIODebugRecord(
   }
 }
 
-// 保证目录下 model-io-*.jsonl 文件数不超过 maxFiles(为本次新 session 文件留位时传 maxFiles-1)。
+// Ensure that the number of model-io-*.jsonl files in the directory does not exceed maxFiles (maxFiles-1 is passed when leaving space for this new session file).
 function rotateModelIOFiles(dir: string, maxFiles: number): void {
   let files: string[];
   try {
@@ -568,12 +569,12 @@ function rotateModelIOFiles(dir: string, maxFiles: number): void {
       modelIOCompactionStates.delete(filePath);
       removeCount -= 1;
     } catch {
-      // 单个文件删除失败不阻断写入
+// Failure to delete a single file does not block writing
     }
   }
 }
 
-// 仅保留文件名安全字符,其余折叠为 -,并限长避免触达 Windows 路径长度上限。
+// Only keep safe characters in the file name, fold the rest into -, and limit the length to avoid reaching the upper limit of Windows path length.
 function sanitizeFileSegment(value?: string): string {
   if (!value) {
     return "";
@@ -584,8 +585,8 @@ function sanitizeFileSegment(value?: string): string {
     .slice(0, 80);
 }
 
-// storage profile 回滚删除了自定义 CLI 根模块，遗留 import 会让 adapters 无法构建。
-// 这里保持历史语义：开发态写 ~/.zcode/cli/debug，生产态写 ~/.zcode/cli/rollout。
+// Storage profile rollback deletes the custom CLI root module, and legacy imports will prevent adapters from being built.
+// Maintain historical semantics here: write ~/.zcode/cli/debug in development mode and ~/.zcode/cli/rollout in production mode.
 function getModelIOBaseDir(isDev: boolean): string {
   return join(homedir(), ".zcode", "cli", isDev ? "debug" : "rollout");
 }
@@ -624,8 +625,8 @@ function prepareProductionRequestRecord(
   hasError: boolean,
 ): Record<string, unknown> {
   const next = { ...request };
-  // 生产 rollout 只保留 canonical request.messages。sdkMessages 与 provider body.messages
-  // 通常是同一上下文的重复拷贝，长会话下会把诊断文件和单次 stringify 放大数倍。
+// Production rollout only retains canonical request.messages. sdkMessages and provider body.messages
+// Usually it is a repeated copy of the same context. In a long session, the diagnostic file and single stringify will be enlarged several times.
   delete next.sdkMessages;
   const body = asRecord(next.body);
   if (body && !hasError) {
@@ -640,7 +641,7 @@ function prepareProductionResponseRecord(
   response: Record<string, unknown>,
 ): Record<string, unknown> {
   const next = { ...response };
-  // response.body 在生产排障里价值低于 text/toolCalls/usage/finishReason，且可能包含 provider 原始大包。
+// response.body has a lower value than text/toolCalls/usage/finishReason in production troubleshooting, and may contain the provider original package.
   delete next.body;
   return next;
 }
@@ -700,8 +701,8 @@ function compactModelIORequest(
       offsetKey: "bodyMessageOffset",
     };
     if (options.preserveFullBodyMessages && Array.isArray(nextBody.messages)) {
-      // provider 400 等失败排障需要 exact request payload；失败记录若继续
-      // 按上一条 model-io 做 delta，会把最关键的完整 messages 丢在导出包之外。
+// Provider 400 and other failure troubleshooting requires exact request payload; if the failure record continues
+// Perform delta according to the previous model-io, and the most critical complete messages will be thrown out of the export package.
       next[bodyMessageKeys.countKey] = nextBody.messages.length;
       next[bodyMessageKeys.kindKey] = "full";
       next[bodyMessageKeys.offsetKey] = 0;
@@ -739,8 +740,8 @@ function compactMessageCollection(
 
   metadataTarget[keys.countKey] = currentMessages.length;
   if (canStoreDeltaFromState(currentMessages, previousState)) {
-    // 后续 model-io 只记录相对上一请求新增的消息，避免完整历史在同一 session 内梯度重复。
-    // previousState 来自进程内缓存，不再为 append 同步读取并 expand 整个历史 JSONL。
+// Subsequent model-io will only record new messages relative to the previous request to avoid gradient duplication of the complete history within the same session.
+// previousState comes from the in-process cache, no longer reads and expands the entire history JSONL synchronously for append.
     target[keys.collectionKey] = currentMessages.slice(previousState.count);
     metadataTarget[keys.kindKey] = "delta";
     metadataTarget[keys.offsetKey] = previousState.count;
@@ -829,7 +830,7 @@ function fingerprintCollectionSamples(value: unknown[], count = value.length): s
   if (count <= 0) {
     return [];
   }
-  // 常数级采样首/中/尾位置，避免把整段历史 stringify 成巨型字符串，同时降低中间历史变更被误判为 delta 的概率。
+// Constant-level sampling of the first/middle/last position avoids stringifying the entire history into a giant string and reduces the probability of intermediate historical changes being misjudged as delta.
   const lastIndex = count - 1;
   const indexes = new Set([
     0,

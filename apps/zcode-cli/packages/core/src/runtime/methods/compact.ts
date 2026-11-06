@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import {
   CompactPhase,
   CompactReason,
@@ -72,8 +73,8 @@ export async function executeManualCompact(
         turnNumber: this.turnNumber,
         input,
         inputId,
-        // 手动 /compact 是维护命令，不是用户真实 query。
-        // 事件仍保留 raw input 便于恢复/排查，但 v4 投影不能把它渲染成 user bubble。
+// Manual /compact is a maintenance command, not the user's actual query.
+// The event still retains raw input for easy recovery/troubleshooting, but v4 projection cannot render it into a user bubble.
         inputVisibility: "model-only",
       },
       turnTraceContext,
@@ -148,7 +149,7 @@ export async function executeManualCompact(
         coreError.type === CoreErrorType.TurnCancelled &&
         this.activeForegroundExecution?.preserveQueueAutoDrainOnCancel === true;
       if (coreError.type === CoreErrorType.TurnCancelled && !preserveQueueAutoDrainOnCancel) {
-        // Stop compact 与普通 Stop 语义一致：队列重新暂停，外层 FIFO 恢复窗口同时关闭。
+// Stop compact has the same semantics as ordinary Stop: the queue is paused again, and the outer FIFO recovery window is closed at the same time.
         this.queueAutoDrain = false;
         this.queueExternalDrainActive = false;
       }
@@ -323,9 +324,9 @@ function buildProviderUsageTokenOverride(
   const incrementalStartIndex =
     baseline.contextUsageTokens === undefined ? messageIndex : messageIndex + 1;
   const incrementalTokenCount = estimateMessageTokens(messages.slice(incrementalStartIndex));
-  // usage 归属于已提交 assistant，反向扫描可随 history replacement 自然移动，
-  // 不再依赖可能失效的绝对 message cursor。若 output 是否存在已被历史归一化抹平，
-  // 则 provider input 只覆盖 assistant 之前的请求，assistant 本身仍进入本地增量。
+// usage belongs to the submitted assistant, and reverse scanning can move naturally with history replacement.
+// No more reliance on a potentially invalid absolute message cursor. If the existence of output has been smoothed out by historical normalization,
+// Then the provider input only covers the assistant's previous request, and the assistant itself still enters the local increment.
   const providerBaseTokenCount = baseline.contextUsageTokens ?? baseline.inputTokens;
   return {
     baseTokenCount: providerBaseTokenCount,

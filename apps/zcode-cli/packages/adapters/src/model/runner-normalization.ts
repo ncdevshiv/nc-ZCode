@@ -141,11 +141,11 @@ export function toModelStreamEvent(chunk: TextStreamPart<ToolSet>): ModelStreamE
         type: "tool_call",
         toolCall: {
           id: chunk.toolCallId,
-          // Final tool-call 的 name/input 由 assembler 统一校验和归一化。
+// The name/input of the Final tool-call is uniformly checked and normalized by the assembler.
           name: chunk.toolName,
           providerExecuted: chunk.providerExecuted,
-          // 执行参数只取 AI SDK final tool-call，避免从展示用 delta 猜测输入，
-          // 也避免 stream/model-io 多次解析并重复告警。
+// Execution parameters only take the AI ​​SDK final tool-call to avoid guessing the input using delta from the display.
+// Also avoid multiple parsing of stream/model-io and repeated warnings.
           input: chunk.input,
         },
       };
@@ -199,8 +199,8 @@ export function normalizeToolCalls(
       id,
       name,
       providerExecuted: value.providerExecuted,
-      // 上游会把 JSON "null" 转成原生 null；显式 null 不能被
-      // nullish fallback 擦成旧版 args，否则 runtime 与 provider-visible input 漂移。
+// Upstream will convert JSON "null" into native null; explicit null cannot be
+// nullish fallback is wiped to the old version of args, otherwise the runtime and provider-visible input will drift.
       input: normalizeModelToolInput(value.input !== undefined ? value.input : value.args, {
         logger,
         source: "generateText",
@@ -237,8 +237,8 @@ export function normalizeToolResults(
     return {
       id,
       name: value.toolName ?? value.name ?? "unknown",
-      // AI SDK 会为 invalid tool-call 生成携带原始 input 的 tool-error。
-      // 复用同 id final call 的归一化结果，避免 malformed string/null 从 toolResults 泄漏。
+// AI SDK will generate tool-error carrying original input for invalid tool-call.
+//Reuse the normalized result of final call with the same id to avoid malformed string/null leaking from toolResults.
       input: normalizedInputByToolCallId.has(id)
         ? normalizedInputByToolCallId.get(id)
         : value.input,

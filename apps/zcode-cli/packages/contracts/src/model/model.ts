@@ -12,7 +12,7 @@ import type { ModelPropertiesData, ModelOptionSpecsData } from "@zcode/shared/mo
 
 export type { ModelSelection } from "@zcode/shared/model-selection";
 
-// 仅保留 CLI 公共类型名，字段来自同一数据 Schema，不复制 Provider 配置定义。
+// Only keep the CLI public type name, the fields come from the same data schema, and do not copy the Provider configuration definition.
 export type {
   ModelInputFormatData as ModelInputFormat,
   ModelOutputFormatData as ModelOutputFormat,
@@ -36,8 +36,8 @@ export interface ModelRequest {
   abortSignal?: AbortSignal;
 }
 
-// 第一阶段沿用已经完成 Provider SDK 归一化的结果和流事件字段；
-// 旧名字只保留在 Adapter 兼容边界，业务调用统一使用下面两个名字。
+// The first stage uses the results and stream event fields that have been normalized by the Provider SDK;
+// The old names are only retained within the Adapter compatibility boundary, and business calls use the following two names uniformly.
 export type ModelResult = ModelTextResult;
 export type ModelEvent = ModelStreamEvent;
 
@@ -54,7 +54,7 @@ export interface Model {
   streamText(request: ModelRequest): AsyncIterable<ModelEvent>;
 }
 
-/** 校验当前 ModelSelection 值；旧数据库格式只在版本化 migration 转换，不在普通读取时兜底。 */
+/** Verify the current ModelSelection value; the old database format is only converted during versioned migration, not during normal reading. */
 export function parseModelSelectionValue(value: unknown): ModelSelection | undefined {
   const parsed = modelSelectionSchema.safeParse(value);
   return parsed.success ? parsed.data : undefined;

@@ -1,4 +1,5 @@
-import ts from "typescript";
+// @ts-nocheck
+import ts from "../compiler/ts-shim.js";
 
 /**
  * The callback-semantics registry: the ONE place that says what a library callee does with

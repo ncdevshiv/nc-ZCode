@@ -9,8 +9,8 @@ import { createStreamRecoveryAnchorId, createStreamingToolAttemptId } from "../h
 import type { AgentRuntimeInternal } from "../internal.js";
 import { recordModelHistoryRound, type RegularTurnLoopState } from "./turn-loop-state.js";
 
-// 越过 adapter 重试边界后，SSE stall 只能靠 core recovery 从安全锚点重开流；
-// 只恢复 1 次会让连续短暂抖动直接失败，和模型默认 10 次 retry 的用户预期差距过大。
+// After crossing the adapter retry boundary, SSE stall can only rely on core recovery to reopen the flow from the safe anchor point;
+// Recovering only once will cause continuous short-term jitter to directly fail, and the gap between the user's expectations of the model's default 10 retry times is too large.
 const STREAM_RECOVERY_MAX_RETRIES = 10;
 const PREVIOUS_MESSAGE_ANCHOR_SUFFIX = "previous-message-anchor";
 const START_PLAN_BUSY_PROVIDER_CODES = new Set(["3008", "3009", "3010"]);
@@ -192,9 +192,9 @@ export async function emitStreamRecoveryRetryEvents(
     await runtime.appendEvent(event, options.traceContext);
     state.events.push(event);
   }
-  // SSE 已经吐出部分事件后，下一次请求是 core recovery 重新发起的
-  // 新模型请求，不会表现为 adapter attempt=2；必须把来源 requestId 显式挂到
-  // 下一次 model_request_started 上，用户才能确认旧请求 A 超时后确实发出了恢复请求 B。
+// After SSE has spit out some events, the next request will be reinitiated by core recovery.
+// New model requests will not appear as adapter attempt=2; the source requestId must be explicitly linked to
+//On the next model_request_started, the user can confirm that the recovery request B was indeed issued after the old request A timed out.
   state.pendingStreamRecoveryRequest = {
     attemptId: createStreamingToolAttemptId(options.assistantMessageId),
     anchorId,
@@ -227,9 +227,9 @@ export async function recoverPartialAssistantOutputFailure(input: {
     return false;
   }
 
-  // reasoning_delta 为了实时展示会越过 adapter 重试边界，但旧 Core 只统计正文，
-  // 导致正文前的 thinking 断流直接失败。无工具时正文和思考都属于未提交 assistant tail，
-  // 必须统一从前一个 provider-safe anchor 重开，不能把新输出接到失败消息上。
+// reasoning_delta will cross the adapter retry boundary for real-time display, but the old Core only counts the text,
+// Cause the thinking before the text to be cut off and fail directly. When there is no tool, the main text and thoughts belong to the unsubmitted assistant tail.
+// Must be reopened from the previous provider-safe anchor, and new output cannot be connected to the failure message.
   input.abortController.abort();
   const recoveryAttempt = beginStreamRecoveryAttempt(input.state);
   await emitStreamRecoveryStarted(

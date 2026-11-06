@@ -1,16 +1,16 @@
 // ============================================================
-// workflow actor 的工具面（AgentRuntime 工具配置）
+// Tool surface for workflow actor (AgentRuntime tool configuration)
 // ============================================================
 //
-// 子代理的工具面必须落到 child runtime 的工具注册上，否则实盘 transcript
-// 里裁判 actor 也拿到了整套交互工具。两类风险：
-//   1. 悬挂：AskUserQuestion / EnterPlanMode 在 headless child 里没有人可问，turn 永远不结束；
-//   2. 越权与递归：CreateWorkflow 让 actor 能再提交一条工作流，ReadSessionContext 越界读父会话。
-// 本模块是那个缺失的映射，由 driver 侧的 runtime 工厂在造 AgentRuntime 时展开。
+// The tool surface of the child agent must fall on the tool registration of the child runtime, otherwise the real offer transcript
+//The referee actor here also gets a complete set of interactive tools. Two types of risks:
+// 1. Suspension: AskUserQuestion / EnterPlanMode There is no one to ask in the headless child, and the turn never ends;
+// 2. Override and recursion: CreateWorkflow allows the actor to submit another workflow, and ReadSessionContext reads the parent session out of bounds.
+// This module is the missing mapping, which is expanded by the runtime factory on the driver side when creating AgentRuntime.
 //
-// persona 无工具档位：每个 actor 都拿完整工作工具集减去下面这份减法表；
-// 「裁判不要改文件」由 ask 文本说清——普通子代理也是这么做的（Explore 保留 Bash，
-// 只读靠提示）。
+// persona tool-less gear: each actor takes the complete working toolset minus the following subtraction table;
+// "The referee should not change the file" is made clear by the ask text - this is also done by ordinary subagents (Explore retains Bash,
+// Read only by prompt).
 
 import {
   ASK_USER_QUESTION_TOOL_NAME,
@@ -20,36 +20,36 @@ import {
   RESOLVE_WORKFLOW_QUESTION_TOOL_NAME,
 } from "@zcode/contracts";
 
-/** AgentRuntimeConfig 的工具面切片。 */
+/** Toolface slice of AgentRuntimeConfig. */
 interface WorkflowActorToolPolicy {
   toolDisallowlist: readonly string[];
 }
 
 /**
- * 从全集里减掉的工具：前三个会阻塞在一个不存在的人类上（headless child 无人应答，
- * turn 不结束）；CreateWorkflow 会让 actor 递归提交工作流；ReadSessionContext 越界读父会话。
- * 其余（Bash / Edit / Write / 搜索 / web）照常保留——actor 就是要干活的。
+* Tools subtracted from the collection: the first three would be stuck on a non-existent human (headless child, no one answered,
+* turn does not end); CreateWorkflow will make the actor recursively submit the workflow; ReadSessionContext reads the parent session out of bounds.
+* Leave the rest (Bash/Edit/Write/Search/web) as usual - actors are there to do the work.
  */
 const ACTOR_DISALLOWED_TOOLS: readonly string[] = [
   ASK_USER_QUESTION_TOOL_NAME,
   ENTER_PLAN_MODE_TOOL_NAME,
   EXIT_PLAN_MODE_TOOL_NAME,
   "CreateWorkflow",
-  // 修订入口与 CreateWorkflow 同一种嵌套编排，同一个根因入列。
+// The revision entry is the same nested arrangement as CreateWorkflow, and the same root cause is listed.
   "AmendWorkflow",
   READ_SESSION_CONTEXT_TOOL_NAME,
-  // 子代理不许替主代理回答升级问题。
-  // 与上面几条的根因不同：这不是悬挂也不是越权读，而是**身份**——升级的整个意义是把判断权
-  // 交给创建这条工作流的那一方；让另一个 actor 顺手作答，等于把它悄悄退化成 actor 之间的
-  // 互相说服。actor 提问用 `escalate`（恒注册），作答只属于主会话。
+// Subagents are not allowed to answer upgrade questions for the main agent.
+// Different from the root causes of the above items: this is not suspension or unauthorized reading, but **identity** - the whole meaning of the upgrade is to transfer the right to judge
+//Leave it to the party who created this workflow; letting another actor answer it is equivalent to quietly degenerating it into a communication between actors.
+// Persuade each other. Actors use `escalate` (constant registration) to ask questions, and answers only belong to the main session.
   RESOLVE_WORKFLOW_QUESTION_TOOL_NAME,
 ];
 
 /**
- * workflow actor 的 AgentRuntime 工具配置。纯函数，供 driver 侧 runtime 工厂展开进
- * AgentRuntimeConfig：不收窄，只减掉会悬挂或越权的交互/元工具。
+* AgentRuntime tool configuration for workflow actors. Pure function for driver-side runtime factory expansion
+* AgentRuntimeConfig: Do not narrow, only remove interactive/meta-tools that will hang or exceed authority.
  *
- * 只覆盖内建工具；MCP / plugin 工具的过滤留待生产接线时处理（同一个工厂 seam）。
+* Covers only built-in tools; filtering of MCP/plugin tools is left to production wiring (same factory seam).
  */
 export function workflowActorToolPolicy(): WorkflowActorToolPolicy {
   return { toolDisallowlist: ACTOR_DISALLOWED_TOOLS };

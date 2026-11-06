@@ -17,7 +17,7 @@ export function createRuntimeModel(
     selection: RuntimeModelFactoryInput["selection"] | undefined;
   },
 ): Model {
-  // 未绑定 Session 可恢复历史；仅在执行入口拒绝缺失选择，Factory 契约仍严格。
+// Unbound Session can restore history; missing selections are only rejected at the execution entry, and the Factory contract is still strict.
   if (!input.selection) {
     throw createCoreError(CoreErrorType.ConfigurationError, "Select a model before continuing", {
       recoverable: true,
@@ -30,14 +30,14 @@ export function createRuntimeModel(
 }
 
 /**
- * runtime 层调用上下文。
+* runtime layer calling context.
  *
- * 准入端口与重试预算回答的是「谁在调」（这个 runtime 归哪个治理器管、允许多少次重试），不是
- * 「为什么调」（agent step / web_search / compact / title）。设计缺口：它们若只在 turn step
- * 的调用上下文里注入，WebSearch / WebFetch 处理 / 压缩 / 标题 sidecar 等九处只设「为什么调」的
- * 调用点全部绕过了闸门——实测场景下治理器看不见三分之二的 429。现在这两个字段在句柄
- * 工厂绑定一次；`withModelInvocationContext` 的合并顺序让本层压过调用层，没有逐调用退出口：
- * 想不受闸门约束的 runtime 本来就不带准入端口。
+* The admission port and retry budget answer "who is adjusting" (which manager manages this runtime and how many retries are allowed), not
+* "Why adjust" (agent step / web_search / compact / title). Design gaps: if they are only in the turn step
+* Injection into the calling context, WebSearch / WebFetch processing / compression / title sidecar and other nine places only set "why to adjust"
+* All call points bypassed the gate - in the actual measurement scenario, the manager could not see two-thirds of 429. Now these two fields are in the handle
+* The factory is bound once; the merging order of `withModelInvocationContext` allows this layer to overwhelm the calling layer, and there is no call-by-call exit:
+* A runtime that is not subject to gate constraints does not have access ports.
  */
 function withRuntimeInvocationLayer(runtime: AgentRuntimeInternal, model: Model): Model {
   const layer: ModelInvocationContext = {

@@ -35,13 +35,13 @@ export function createWorkspaceHookReviewMutationPort(
     toggle(input, onWriteCommitted) {
       return withWorkspaceMutationLock(lockKey, async () => {
         const current = await rebuildSnapshot(options);
-        // 这三种失败必须区分：共用 workspace_hooks_snapshot_mismatch
-        // 会让用户无法区分「换了 workspace」「配置真的变了」「配置读不出来」。
+// These three types of failures must be distinguished: shared workspace_hooks_snapshot_mismatch
+// This will make it difficult for users to distinguish between "the workspace has been changed", "the configuration has really changed" and "the configuration cannot be read".
         if (current.workspaceIdentity !== input.snapshot.workspaceIdentity) {
           throw new WorkspaceHookMutationError(
             "workspace_hooks_snapshot_mismatch",
-            // 消息会经 controller 进入 telemetry.errorMessage，故此处即脱敏：
-            // identity 本身是绝对路径，禁止上报完整 workspace path。
+// The message will enter telemetry.errorMessage through the controller, so it is desensitized here:
+// The identity itself is an absolute path, and reporting of the complete workspace path is prohibited.
             `Workspace Hook identity changed after review (expected ${workspaceIdentitySummary(
               input.snapshot.workspaceIdentity,
             )}, got ${workspaceIdentitySummary(current.workspaceIdentity)})`,
@@ -77,8 +77,8 @@ async function rebuildSnapshot(
     ...(options.projectConfigPath ? { explicitProjectConfigPath: options.projectConfigPath } : {}),
   });
   if (discovery.errors.length > 0) {
-    // 只报文件名，不报绝对路径（「不记录 source path」）；
-    // 完整路径与原始错误保留在 cause 里，走 logger 的 debug 通道而不进 telemetry。
+//Only report the file name, not the absolute path ("do not record source path");
+// The complete path and original error are kept in cause, and the debug channel of logger is used instead of telemetry.
     const failed = discovery.errors[0]?.path;
     throw new WorkspaceHookMutationError(
       "workspace_hooks_config_unreadable",

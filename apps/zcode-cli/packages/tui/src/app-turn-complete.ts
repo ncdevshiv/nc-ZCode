@@ -21,8 +21,8 @@ import { stringField } from "./state.js";
  *
  * 但这条对称性有个前提：守卫只扫 `streamProjected` 的消息，所以这里补上的消息
  * 必须**自己带 `streamProjected: true`**——否则用户回合里"流断了但 turn_complete 带着
- * response"的场景会先由这里补一条普通消息，随后 applyResult 的守卫看不见它、再补一条，
- * 同一段回答出现两次。`transcriptText` 对无 parts 的消息回落到 `content`，因此不需要合成 parts。
+* response" scenario will first add an ordinary message here, and then the guard of applyResult will not be able to see it and add another one.
+* The same answer appears twice. `transcriptText` falls back to `content` for messages without parts, so there is no need to synthesize parts.
  */
 export function applyTurnCompleteFallbackResponse(
   payload: Record<string, unknown>,

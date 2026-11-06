@@ -1,11 +1,7 @@
-import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile, readdir, realpath } from "node:fs/promises";
-import { join, relative } from "node:path";
-import { promisify } from "node:util";
-import { resolveSpawnRuntimeOptions } from "./spawn-command.mjs";
+import { join, relative, resolve } from "node:path";
 
-const exec = promisify(execFile);
 export const hashBytes = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const unsupportedCanvas = new Set([
   "@napi-rs/canvas-android-arm64",
@@ -74,121 +70,83 @@ export function assertProductionGraphs(lockedProjects, installedProjects) {
   const stale = [...installed.keys()].filter((key) => !locked.has(key));
   if (missing.length || stale.length) {
     throw new Error(
-      `Installed production graph differs from pnpm-lock.yaml. Run pnpm install --frozen-lockfile.\nMissing: ${missing.map(([key]) => key).join(", ")}\nStale: ${stale.join(", ")}`,
+      `Installed production graph differs from bun.lock. Run bun install --frozen-lockfile.\nMissing: ${missing.map(([key]) => key).join(", ")}\nStale: ${stale.join(", ")}`,
     );
   }
   return locked;
 }
 
+function parseBunLockfile(text) {
+  // bun.lock is JSONC (trailing commas). Bun ships a JSONC parser; Node only
+  // needs the trailing commas removed.
+  if (typeof Bun !== "undefined" && Bun.JSONC?.parse) return Bun.JSONC.parse(text);
+  return JSON.parse(text.replace(/,(\s*[}\]])/gu, "$1"));
+}
+
 /**
- * 展开 `pnpm-workspace.yaml` 的 `packages:` 为确定性的项目目录列表（含根项目）。
- * 不支持的 glob 形态直接抛错（fail-closed：宁可失败，禁止静默漏项目导致声明缺包）。
+ * Resolve the workspace production dependency graph from Bun's lockfile.
+ *
+ * Bun lockfile v2 records every workspace manifest and every resolved package
+ * (keyed by package name for the hoisted install), so the graph can be read
+ * without spawning a package manager. This replaces the previous `pnpm ls`
+ * walk, which accumulated file handles across the workspace on Windows.
  */
-async function listWorkspaceProjectDirs(root) {
-  const text = await readFile(join(root, "pnpm-workspace.yaml"), "utf8");
-  const patterns = [];
-  let inPackages = false;
-  for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (line === "" || line.startsWith("#")) continue;
-    if (line === "packages:") {
-      inPackages = true;
-      continue;
-    }
-    if (!inPackages) continue;
-    const item = /^-\s+(.*)$/.exec(line);
-    if (item) patterns.push(item[1].trim().replace(/^(['"])(.*)\1$/, "$2"));
-    else inPackages = false; // packages 段结束（遇到下一个顶层 key）
-  }
-  if (patterns.length === 0) throw new Error("pnpm-workspace.yaml 缺少 packages 列表");
-  const dirs = new Set([root]);
-  for (const pattern of patterns) {
-    if (pattern.startsWith("!")) throw new Error(`pnpm-workspace 排除式 glob 未支持: ${pattern}`);
-    if (pattern.endsWith("/*")) {
-      const base = join(root, pattern.slice(0, -2));
-      let entries;
-      try {
-        entries = await readdir(base, { withFileTypes: true });
-      } catch (error) {
-        if (error.code === "ENOENT") continue; // glob 基目录不存在 = 零匹配（与 pnpm 语义一致）
-        throw error;
-      }
-      // 按名排序保证跨平台确定性（readdir 顺序不作承诺）。
-      for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name, "en"))) {
-        if (!entry.isDirectory()) continue;
-        const dir = join(base, entry.name);
-        try {
-          await readFile(join(dir, "package.json"), "utf8");
-          dirs.add(dir);
-        } catch (error) {
-          if (error.code !== "ENOENT" && error.code !== "ENOTDIR") throw error;
-        }
-      }
-    } else if (pattern.includes("*") || pattern.includes("?")) {
-      throw new Error(`pnpm-workspace glob 形态未支持: ${pattern}`);
-    } else {
-      dirs.add(join(root, pattern));
-    }
-  }
-  return [...dirs];
-}
-
-/** 按固定并发分批执行，保持输入顺序（避免一次性拉起全部 pnpm 进程）。 */
-async function inBatches(items, size, run) {
-  const out = [];
-  for (let index = 0; index < items.length; index += size) {
-    out.push(...(await Promise.all(items.slice(index, index + size).map(run))));
-  }
-  return out;
-}
-
 export async function readWorkspaceProductionGraph(root) {
   root = await realpath(root);
-  // 修复：pnpm ls 默认读取安装快照，不能把旧图与当前锁文件哈希拼成有效声明。
-  //
-  // 修复（Windows 单进程句柄上限）：`pnpm -r ls --depth Infinity` 的递归 walk 跨整个
-  // 工作区累积未关闭的文件句柄，撞上 Node/libuv 单进程 ~8192 并发句柄天花板必然 EMFILE
-  // （本机实测：同一命令根单项目 exit 0、`-r` 连 --depth 0 都失败且失败文件随运行漂移，
-  // 而 open→close 循环 30 万次无错——根因是 walk 规模下句柄未及时释放，不是句柄分配）。
-  // 修复（嵌套 workspace 正确性）：`apps/zcode-cli` 自带 pnpm-workspace.yaml/lock，
-  // 以子项目目录为 cwd 会解析到嵌套工作区，其 installed 图为空（实测 ACT deps=0）、与
-  // lockfile 图不对称。两个 lockfile-only 变体必须同源：一律 cwd=workspace 根 +
-  // `--filter <相对路径>` 只圈定单项目（实测 adapters 两侧均 21 deps 一致），每次新进程
-  // 重置句柄预算，JSON 按 `-r` 的“各项目结果数组拼接”语义合并后仍做全量交叉校验。
-  const projectDirs = await listWorkspaceProjectDirs(root);
-  async function collect(lockfileOnly) {
-    const collected = await inBatches(projectDirs, 6, async (dir) => {
-      const scope =
-        dir === root ? [] : ["--filter", `./${relative(root, dir).replaceAll("\\", "/")}`];
-      const { stdout } = await exec(
-        "pnpm",
-        [
-          ...scope,
-          "ls",
-          "--prod",
-          "--json",
-          "--depth",
-          "Infinity",
-          ...(lockfileOnly ? ["--lockfile-only"] : []),
-        ],
-        {
-          cwd: root,
-          maxBuffer: 256 * 1024 * 1024,
-          ...resolveSpawnRuntimeOptions("pnpm"),
-        },
-      );
-      return JSON.parse(stdout);
-    });
-    return collected.flat();
+  const lockfile = parseBunLockfile(await readFile(join(root, "bun.lock"), "utf8"));
+  const workspaces = Object.entries(lockfile.workspaces ?? {});
+  const workspaceNames = new Set(workspaces.map(([, item]) => item.name).filter(Boolean));
+  const packages = lockfile.packages ?? {};
+  const projects = workspaces
+    .filter(([, item]) => typeof item.name === "string")
+    .map(([path, item]) => ({
+      dependencies: item.dependencies ?? {},
+      name: item.name,
+      optionalDependencies: item.optionalDependencies ?? {},
+      path: resolve(root, path),
+    }));
+  const required = new Map();
+  const resolveEntry = (name, parentKey) => {
+    // Bun nests a second version under `<parent>/<name>`; fall back to the
+    // hoisted root entry when no nested copy exists.
+    if (parentKey && packages[`${parentKey}/${name}`]) {
+      return { key: `${parentKey}/${name}`, entry: packages[`${parentKey}/${name}`] };
+    }
+    return packages[name] ? { key: name, entry: packages[name] } : undefined;
+  };
+  const visit = (name, parentKey) => {
+    // Workspace packages are linked, not installed from the registry.
+    if (workspaceNames.has(name) || name.startsWith("@zcode/")) return;
+    const resolvedEntry = resolveEntry(name, parentKey);
+    if (!resolvedEntry) return; // Platform-specific optional dependency for another OS.
+    const resolution = resolvedEntry.entry[0];
+    const separator = resolution.lastIndexOf("@");
+    const packageName = resolution.slice(0, separator);
+    const version = resolution.slice(separator + 1);
+    if (required.has(`${packageName}@${version}`)) return;
+    required.set(`${packageName}@${version}`, { name: packageName, version });
+    const meta = resolvedEntry.entry[2] ?? {};
+    for (const dependency of Object.keys(meta.dependencies ?? {})) {
+      visit(dependency, resolvedEntry.key);
+    }
+    for (const dependency of Object.keys(meta.optionalDependencies ?? {})) {
+      visit(dependency, resolvedEntry.key);
+    }
+  };
+  for (const project of projects) {
+    for (const name of [
+      ...Object.keys(project.dependencies),
+      ...Object.keys(project.optionalDependencies),
+    ]) {
+      visit(name);
+    }
   }
-  const locked = await collect(true);
-  const actual = await collect(false);
-  const required = assertProductionGraphs(locked, actual);
-  return { required, projects: actual };
+  return { required, projects };
 }
 
 export async function scanInstalledPackages(root, projects) {
-  // pnpm hoisted 布局的 ls.path 仍可能指向不存在的 .pnpm 路径；按真实安装目录和精确版本匹配。
+  // Bun's hoisted layout may still expose a package directory through several
+  // links; match on the real install directory and exact version.
   const installed = new Map();
   const visited = new Set();
   async function scanNodeModules(directory) {

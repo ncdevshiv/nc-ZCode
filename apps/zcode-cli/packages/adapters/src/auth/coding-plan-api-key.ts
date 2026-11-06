@@ -4,8 +4,8 @@ import { resolveBigModelApiOrigin } from "@zcode/shared";
 const ZAI_API_HOST = "https://api.z.ai";
 const JSON_CONTENT_TYPE = "application/json";
 const ZCODE_API_KEY_NAME = "zcode-api-key";
-const DEFAULT_ORG_NAME = "默认机构";
-const DEFAULT_PROJECT_NAME = "默认项目";
+const DEFAULT_ORG_NAME = "Default institution";
+const DEFAULT_PROJECT_NAME = "Default project";
 
 export type CodingPlanFamily = "bigmodel" | "zai";
 

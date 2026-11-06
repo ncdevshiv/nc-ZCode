@@ -1,0 +1,89 @@
+{
+  "snapshot": "G:\\audit-snapshot",
+  "files": [
+    {
+      "path": "native/crates/zcode-host/src/lib.rs",
+      "status": "MODIFIED_DURING_PHASE_6_BUT_CAUSE_UNKNOWN",
+      "phase6Modified": true,
+      "preExisting": false,
+      "notes": "Added mark_running parameter and admission-time phase transition for F1."
+    },
+    {
+      "path": "native/crates/zcode-server/Cargo.toml",
+      "status": "MODIFIED_DURING_PHASE_6_BUT_CAUSE_UNKNOWN",
+      "phase6Modified": true,
+      "preExisting": false,
+      "notes": "Added tokio-tungstenite dev-dependency to fix test compile."
+    },
+    {
+      "path": "native/crates/zcode-cdp/src/snapshot.rs",
+      "status": "MODIFIED_DURING_PHASE_6_BUT_CAUSE_UNKNOWN",
+      "phase6Modified": true,
+      "preExisting": "UNKNOWN",
+      "notes": "Fixed merged comment/code line."
+    },
+    {
+      "path": "native/crates/zcode-node-repl/src/capability.rs",
+      "status": "MODIFIED_DURING_PHASE_6_BUT_CAUSE_UNKNOWN",
+      "phase6Modified": true,
+      "preExisting": "UNKNOWN",
+      "notes": "Fixed merged impl and only_in lines."
+    },
+    {
+      "path": "native/crates/zcode-node-repl/src/kernel.rs",
+      "status": "MODIFIED_DURING_PHASE_6_BUT_CAUSE_UNKNOWN",
+      "phase6Modified": true,
+      "preExisting": "UNKNOWN",
+      "notes": "Fixed OK, ID, MAX_FRAME_LINE_BYTES."
+    },
+    {
+      "path": "native/crates/zcode-services-plugins/src/channel.rs",
+      "status": "MODIFIED_DURING_PHASE_6_BUT_CAUSE_UNKNOWN",
+      "phase6Modified": true,
+      "preExisting": "UNKNOWN",
+      "notes": "Fixed fetcher type and canceled/cancelled."
+    },
+    {
+      "path": "native/crates/zcode-services-plugins/src/fetch.rs",
+      "status": "MODIFIED_DURING_PHASE_6_BUT_CAUSE_UNKNOWN",
+      "phase6Modified": true,
+      "preExisting": "UNKNOWN",
+      "notes": "Fixed canceled/cancelled."
+    },
+    {
+      "path": "native/crates/zcode-services-plugins/src/orchestration.rs",
+      "status": "MODIFIED_DURING_PHASE_6_BUT_CAUSE_UNKNOWN",
+      "phase6Modified": true,
+      "preExisting": "UNKNOWN",
+      "notes": "Fixed canceled/cancelled."
+    },
+    {
+      "path": "native/crates/zcode-services-workspace/src/file/ignore.rs",
+      "status": "PRE_EXISTING_CONFIRMED",
+      "phase6Modified": false,
+      "preExisting": true,
+      "notes": "Unterminated string literal; not modified in Phase 6."
+    },
+    {
+      "path": "native/crates/zcode-services-offpeak/src/repo.rs",
+      "status": "PRE_EXISTING_CONFIRMED",
+      "phase6Modified": false,
+      "preExisting": true,
+      "notes": "ID typos; not modified in Phase 6."
+    },
+    {
+      "path": "native/crates/zcode-host/src/bin/tool_contracts.rs",
+      "status": "PRE_EXISTING_CONFIRMED",
+      "phase6Modified": false,
+      "preExisting": true,
+      "notes": "Missing subagent_profiles and build_production_registry."
+    },
+    {
+      "path": "native/crates/zcode-services-workspace/src/file/index.rs",
+      "status": "PRE_EXISTING_CONFIRMED",
+      "phase6Modified": false,
+      "preExisting": true,
+      "notes": "Type errors (str size)."
+    }
+  ]
+}

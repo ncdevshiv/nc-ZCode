@@ -16,10 +16,10 @@ import {
 type GrantWorkspaceHookTrust = typeof grantWorkspaceHookTrust;
 
 /**
- * 没有 task/session 时的 workspace 级 Trust authority。
+* Workspace-level Trust authority when there is no task/session.
  *
- * 可信 Host 只能提交 Settings 看到的精确 bundle/declaration；真正授权前仍由 Agent
- * 重新发现 canonical snapshot。这里不创建隐藏 task，也不接受 UI 直接提供的记录内容。
+* Trusted Host can only submit the exact bundle/declaration seen by Settings; it is still controlled by Agent before actual authorization
+* Rediscover canonical snapshot. Hidden tasks are not created here, nor are record contents directly provided by the UI accepted.
  */
 export async function grantWorkspaceHookTrustForProtocol(
   rawParams: unknown,
@@ -79,8 +79,8 @@ function getPolicyRejectionReason(
       ? "workspace_hooks_policy_requires_pretrust"
       : "workspace_hooks_blocked_by_policy";
   } catch {
-    // Settings 无 session 路径曾在重新发现后直接写 Trust store，绕过受信
-    // embedder policy。policy provider 异常时也必须 fail closed，不能退回默认可授权。
+//Settings without session path was directly written to the Trust store after rediscovery, bypassing the trusted
+// embedder policy. The policy provider must also fail closed when there is an exception, and cannot return to the default authorization.
     return "workspace_hooks_blocked_by_policy";
   }
 }
@@ -90,8 +90,8 @@ function toPublicReasonCode(error: unknown): ZCodeWorkspaceHookTrustGrantReasonC
   const parsed = zcodeWorkspaceHookTrustGrantReasonCodeSchema.safeParse(candidate);
   if (parsed.success) return parsed.data;
 
-  // 这里曾把底层 Error.message 直接放进 reasonCode，导致配置绝对路径和
-  // 用户名越过 Agent/Host/UI 协议边界。未知异常只能收敛到公开稳定码，不能透传文本。
+//Here, the underlying Error.message was put directly into reasonCode, resulting in the configuration of the absolute path and
+// Username crosses Agent/Host/UI protocol boundary. Unknown exceptions can only be converged to the public stable code, and the text cannot be transparently transmitted.
   return "workspace_hooks_config_unreadable";
 }
 

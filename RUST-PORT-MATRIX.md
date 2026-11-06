@@ -18,9 +18,9 @@
 
 ---
 
-## 0. 结论（先说结果）
+## 0. Conclusion (let’s talk about the results first)
 
-**没有。移植远未完成，当前不存在任何可以合法替换的 TS 模块。**
+**No. The port is far from complete, and no TS modules currently exist that can be legally replaced. **
 
 | 口径        | TS（非 UI） |           Rust |      比例 |
 | ----------- | ----------: | -------------: | --------: |
@@ -41,14 +41,14 @@
 | desktop main（Electron）                             |         26 |           0 |            4 |      22 |
 | **合计**                                             | **约 750** |       **5** |       **21** | **716** |
 
-**完整可替换：0 个。** 部分覆盖：21 个（均为「有 Rust 邻接实现、缺关键产品面」）。
+**Full replaceable: 0 pcs. ** Partial coverage: 21 (all with Rust adjacency implementation, missing key product aspects).
 
 ---
 
-## 1. 为什么 5 个 1:1 候选也不能替换（逐条判条件）
+## 1. Why can’t the 5 1:1 candidates be replaced (determine the conditions one by one)
 
 审计点名了 5 个「看起来 1:1」的候选。逐条走 `old.back/README.md` 的四条件，
-**全部在条件 3 或 4 上失败**：
+**All fail on condition 3 or 4**:
 
 | 候选                                               | Rust 对应                   | 条件1 产品面 | 条件2 parity | 条件3 flag 切流量 | 条件4 零引用 | 结论         |
 | -------------------------------------------------- | --------------------------- | :----------: | :----------: | :---------------: | :----------: | ------------ |
@@ -60,24 +60,24 @@
 
 失败原因不是「移植质量差」，而是**结构性的**：
 
-### 1.1 scan / watch：TS 文件是双路 facade，本身不能删
+### 1.1 scan / watch: TS file is a dual-channel facade and cannot be deleted.
 
-`fsWalker.ts:49-73` 的 `tryNativeScan` 先调 `nativeScanStorageRoot`（第 54 行），
+`fsWalker.ts:49-73`of`tryNativeScan`Adjust first`nativeScanStorageRoot`（第 54 行），
 成功就回流条目；**任何失败都 `return null` 落回文件下半部分的 TS 遍历**。
-`fileWatcherService.ts:66` 同理：`createNativeFileWatcher` 返回 null 时走下面的
+`fileWatcherService.ts:66`Same reason:`createNativeFileWatcher` 返回 null 时走下面的
 `node:fs.watch`。
 
 这正是设计意图（sidecar 缺失时降级不阻断用户轮次）。但它意味着：
-**flag 关、sidecar 缺失、spawn 失败——这三种生产可达状态下，TS 实现是唯一的正确路径。**
+**flag is off, sidecar is missing, and spawn fails—in these three production-reachable states, TS implementation is the only correct path. **
 删掉它 = 删掉降级路径 = 违反条件 3「flag 关时 TS 路径仍全绿（回滚保留）」。
 
-而且 `inProcessScanRunner.ts:40` 与 `fsCleaner.ts:11` 都 import `walkStorageRoot`
+而且 `inProcessScanRunner.ts:40`and`fsCleaner.ts:11`Both import`walkStorageRoot`
 ——**条件 4（零引用）也不成立**。
 
 > 这是 ENTRY 019 的结论，本轮独立复核**再次证实**：diff/scan/watch 的 TS 调用点是
 > **活的转发代码，不是死实现**。**本轮不移动任何文件。**
 
-### 1.2 wire-binary / schema-v1 / DELIVERY_PROFILES：flag 没切流量
+### 1.2 wire-binary / schema-v1 / DELIVERY_PROFILES: flag does not cut traffic
 
 - `wire-binary.ts` → Rust `zcode-v4-wire` 存在且有 golden 向量，但**没有任何 TS 生产
   调用点切到它**；host 的 v4 通道只实现了 33 个方法中的 6 个。
@@ -89,7 +89,7 @@
 
 ---
 
-## 2. 分区清单
+## 2. Partition list
 
 ### 2.1 CLI core（`apps/zcode-cli/packages`）
 
@@ -122,7 +122,7 @@
 其他包：`bootstrap/src` 63,568 · `adapters/src` 51,868 · `contracts/src` 21,538 ·
 `dynamic-workflow/src` 20,034 · `cli/src` 10,690 · `tui/src` 8,087。
 
-**工具面对比（产品面）**：TS ~45 个工具名，Rust 12 个。
+**Tool face comparison (product face)**: TS ~45 tool names, Rust 12.
 Rust 缺失的关键工具：`WebSearch`、`Task`/`Agent`、`ApplyPatch`、`NodeRepl`、
 `EnterPlanMode`/`ExitPlanMode`、`AskUserQuestion`、`SendMessage`、`TaskOutput`/`TaskStop`、
 `CronCreate/Delete/List/Update`、`ReadSessionContext`、`SubmitResult`、
@@ -130,23 +130,23 @@ Rust 缺失的关键工具：`WebSearch`、`Task`/`Agent`、`ApplyPatch`、`Node
 
 ### 2.2 CLI runtime（tui / node-repl / workflow / telemetry / i18n）
 
-**85 个能力组 · 0 RUST-PORTED · 2 RUST-PARTIAL · 83 TS-ONLY**
+**85 competency groups · 0 RUST-PORTED · 2 RUST-PARTIAL · 83 TS-ONLY**
 
 - `tui` 非视觉运行时 25 组 + 视觉/布局组件 28 文件 4,423 loc（另有 theme 6 文件 341 loc）。
   依赖 TS-only 渲染器 `@mbears/opentui-core`。**Rust 存在 0 %。**
 - `node-repl-host` 8 组（1,407 loc）——**最接近 1:1**：有真实结构对应
-  （`zcode-host/src/mcp.rs` 同为 stdio client + `zcode-proc` 进程监管），
+  （`zcode-host/src/mcp.rs`Same as stdio client +`zcode-proc` 进程监管），
   但 JS eval、per-call worker、browser/CUA 注入仍缺。
-- `dynamic-workflow` 30 组 + `-runtime` 5 组（20,034+1,299 loc）。
-  **最大子系统**；其中 11,621 loc 静态分析建立在 **TypeScript compiler API** 上，
+- `dynamic-workflow`30 groups +`-runtime` 5 组（20,034+1,299 loc）。
+**Largest subsystem**; of which 11,621 loc Static analysis is built on the **TypeScript compiler API**,
   本工作区**没有 Rust 等价物**。
-- `telemetry` 12 组（3,884 loc）· `i18n` 5 组（1,144 loc）· 2 个 partial：
+- `telemetry`12 groups (3,884 locs) ·`i18n` 5 组（1,144 loc）· 2 个 partial：
   node-repl 进程守卫（邻接 `zcode-proc`）、workflow 结算/并发/事件扇出
   （邻接 `zcode-provider/retry.rs:279-380` + `zcode-core/protocol.rs:66-68`）。
 
 ### 2.3 services / shared / rpc / server / provider
 
-**610 模块 · ~4,513 导出 · ~154,300 loc（Rust 侧 78 文件 / 21,885 loc，0.14 : 1）**
+**610 modules · ~4,513 exports · ~154,300 locs (Rust side 78 files / 21,885 locs, 0.14:1)**
 **5 RUST-PORTED · 9 RUST-PARTIAL · 596 TS-ONLY**
 
 协议缺口（最硬的一条）：
@@ -162,19 +162,19 @@ TS services 实际发出 26 个 v4 + 51 个 legacy 方法，Rust 分别实现 6 
 
 5 个 RUST-PORTED 即上表 5 个 1:1 候选（全部因条件 3/4 不可移动）。
 其余全 TS-ONLY：`packages/provider*`（8,251 loc）、`packages/rpc`（3,940）、
-`packages/client`、`packages/server` 远端部署（Rust `zcode-server` 仅 181 loc / 2 路由 /
+`packages/client`、`packages/server`Remote deployment (Rust`zcode-server` 仅 181 loc / 2 路由 /
 stub host）、5,239 loc 的 `conversation-share`。
 
 ### 2.4 desktop main（Electron）
 
-**26 能力组 · 0 RUST-PORTED · 4 RUST-PARTIAL · 22 TS-ONLY**
+**26 Capability Groups · 0 RUST-PORTED · 4 RUST-PARTIAL · 22 TS-ONLY**
 
 `zcode-shell` 实测 **3 文件 / 203 loc**（对照 main 47,468 loc = **0.43 %**）。
 9 个 Tauri command（version / open_url / open_path / 窗口 5 个 / platform_info）
 
 - 2 项托盘。自身 README 标 20 个映射成员：3 ✅、1 ⚠️、15 ⏳ deferred、1 个 OPEN 设计门。
-  `zcode-server` 513 loc 只有 `/healthz` + `/api/version` + static，
-  `ProcessLivenessHost` 是 stub（`lib.rs:50-60`）——**替换 `desktopRemoteSessions.ts`（890）零行**。
+  `zcode-server`513 loc only`/healthz` + `/api/version` + static，
+  `ProcessLivenessHost`is stub(`lib.rs:50-60`)--**replace`desktopRemoteSessions.ts`（890）零行**。
 
 最高风险未接管桶：
 
@@ -193,25 +193,25 @@ stub host）、5,239 loc 的 `conversation-share`。
 
 ---
 
-## 3. 门禁实测（本轮复核）
+## 3. Access control actual test (this round of review)
 
 | 门禁                                | 结果                                                                                                               |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | `cargo test --workspace`            | ✅ 321 tests（zcode-host 77）                                                                                      |
 | `cargo clippy -- -D warnings`       | ✅ 0                                                                                                               |
 | `cargo fmt --check`                 | ✅ 0                                                                                                               |
-| `pnpm typecheck` / `fmt:check`      | ✅                                                                                                                 |
-| `pnpm architecture:check --changed` | ✅ 0 violations                                                                                                    |
-| `pnpm knip`                         | ⚠️ 报 unused files/exports（**既有基线**，`node-repl-host` 等无 entry；含 `swift-bridge` 零 importer）——非本轮引入 |
-| `pnpm lint`                         | ✅ 70 warnings / 0 errors（基线）                                                                                  |
+| `bun run typecheck` / `fmt:check`      | ✅                                                                                                                 |
+| `bun run architecture:check --changed` | ✅ 0 violations                                                                                                    |
+| `bun run knip`| ⚠️ Report unused files/exports (**existing baseline**,`node-repl-host`Wait for no entry; include`swift-bridge` 零 importer）——非本轮引入 |
+| `bun run lint`                         | ✅ 70 warnings / 0 errors（基线）                                                                                  |
 
-`ZCODE_NATIVE_HOST` 缺省**关**（`zcodeAgentProcessManager.ts:357,368`）——
+`ZCODE_NATIVE_HOST`Default **OFF**(`zcodeAgentProcessManager.ts:357,368`）——
 host 本身尚未承载生产流量。`ZCODE_NATIVE_SIDECARS` 默认开
-`diff, image, scan, watch`；`proc` 默认关（`config.ts:44`）。
+`diff, image, scan, watch`；`proc`Default off (`config.ts:44`）。
 
 ---
 
-## 4. 距离「可替换」还差什么
+## 4. What is the difference between "replaceable" and "replaceable"?
 
 按依赖顺序（前一阶段不完成，后一阶段无法验证）：
 
@@ -227,7 +227,7 @@ host 本身尚未承载生产流量。`ZCODE_NATIVE_SIDECARS` 默认开
 
 ---
 
-## 5. 本轮的动作
+## 5. Actions in this round
 
 - **未移动任何文件到 `old.back/`。** 5 个候选逐条走四条件，全部在条件 3/4 失败。
 - 建立了这份能力清单（首次有全量 function-wise 口径）。

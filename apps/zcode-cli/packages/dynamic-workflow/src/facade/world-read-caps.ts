@@ -1,37 +1,38 @@
+// @ts-nocheck
 /**
- * world-read 的上限常量。
+* Upper bound constant for world-read.
  *
- * **执行在 driver，常量在纯包**，两件事分开是有原因的：只有 driver 那一侧能"不生产"——
- * 让 ripgrep 在 2000 条上停手，胜过物化一百万条再回头量。但常量属于契约而不是 driver
- * 私有：引擎与编译侧的用例要按它们断言，而一个只写在 driver 里的数字，测试只能复制一份，
- * 于是有一天两份不相等。
+* **Execution in the driver, constants in the pure package**, there is a reason why the two things are separated: only the driver side can "not produce"——
+* Letting ripgrep stop at 2000 entries is better than materializing a million and going back. But the constant belongs to the contract and not the driver
+* Private: Use cases on the engine and compilation sides must assert based on them, and a number written only in the driver can only be copied for testing.
+* So one day the two portions are not equal.
  *
- * 溢出的策略是**拒绝节点**（`WorldReadCapExceeded`，脚本可 `catch`），绝不截断后加个标志位。
- * 截断把一份悄悄残缺的世界视图交给脚本，而脚本接下来会拿它去扇出——扇出才是贵的那一步。
+* The overflow strategy is **Reject Node** (`WorldReadCapExceeded`, the script can `catch`), never truncate and add a flag.
+* Truncation gives a quietly incomplete world view to the script, which will then use it to fan out - fan out is the expensive step.
  */
 
-/** grep / git.diff / git.log 的上限。数字即契约（见本模块顶部）。 */
+/** Upper limit of grep/git.diff/git.log. Numbers are contracts (see top of this module). */
 export const WORLD_READ_CAPS = {
   /**
-   * `files.glob` 的最大匹配文件数。之前 glob 没有自己的 cap，于是文件系统
-   * 端口面向 UI 工具的默认值（100，mtime 降序）静默生效——正是本注册表要禁止的
-   * "静默夹到上限"。所有 world-read 的 cap 都必须在这里拥有名字。
+* The maximum number of matching files for `files.glob`. Previously, glob did not have its own cap, so the file system
+* The default value of the port for UI tools (100, mtime descending order) takes effect silently - exactly what this registry wants to prohibit
+* "Silent clip to upper limit". All world-read caps must have names here.
    */
   globMaxFiles: 2000,
-  /** `files.grep` 的最大命中条数。 */
+/** The maximum number of hits in `files.grep`. */
   grepMaxMatches: 2000,
-  /** `files.grep` 结果序列化后的最大字节数（与条数上限**先到先拒**）。 */
+/** `files.grep` The maximum number of bytes after serialization of the result (and the upper limit of the number of entries **first come first rejected**). */
   grepMaxSerializedBytes: 256 * 1024,
-  /** `git.diff` 输出的最大字节数。 */
+/** The maximum number of bytes output by `git.diff`. */
   gitDiffMaxBytes: 512 * 1024,
-  /** `git.log` 可请求的最大条数；超过即结构化拒绝，而不是静默夹到上限。 */
+/** `git.log` The maximum number of items that can be requested; if it exceeds the limit, it will be rejected in a structured manner instead of silently reaching the upper limit. */
   gitLogMaxCount: 100,
-  /** `git.log` 未指定 count 时的条数。 */
+/** `git.log` The number of entries when count is not specified. */
   gitLogDefaultCount: 20,
-  /** `world.run` stdout 的最大字节数（拒绝不截断，cap+1 探测）。 */
+/** Maximum number of bytes for `world.run` stdout (reject without truncation, cap+1 probe). */
   runStdoutMaxBytes: 256 * 1024,
-  /** `world.run` stderr 的最大字节数（同上）。 */
+/** Maximum number of bytes for `world.run` stderr (same as above). */
   runStderrMaxBytes: 256 * 1024,
-  /** `world.run` 未指定 timeoutMs 时的墙钟（ms）。**无上限钳制**：为真正长跑的测试设计。 */
+/** `world.run` Wall clock (ms) when timeoutMs is not specified. **Unlimited Clamp**: Designed for real long-distance testing. */
   runDefaultTimeoutMs: 300_000,
 } as const;

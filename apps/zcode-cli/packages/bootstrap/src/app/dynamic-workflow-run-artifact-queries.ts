@@ -1,31 +1,31 @@
 // ============================================================
-// 用户面产物的 journal 读面（DynamicWorkflowRunPort 的三个产物方法共用的取数底座）
+// The journal reading surface of the user surface product (the access base shared by the three product methods of DynamicWorkflowRunPort)
 // ============================================================
 //
-// ⚠ 术语：这里的 artifact 是脚本经 `artifact.*` 发布给**用户**看的产出，不是引擎内部的
-// `RunSettlement.artifact`（脚本顶层返回值）。
+// ⚠ Terminology: The artifact here is the output released by the script to **users** through `artifact.*`, not internal to the engine
+// `RunSettlement.artifact` (script top-level return value).
 
 import type { DwfArtifactItem, DwfRunIntrospectionQueries } from "@zcode/adapters/storage";
 import type { DynamicWorkflowRunArtifactItem } from "@zcode/contracts";
 import type { JournalStorePort, NodeRecord } from "@zcode/dynamic-workflow";
 
 /**
- * 带产物读面的 journal。签名的**唯一来源**是 adapters 的 {@link DwfRunIntrospectionQueries}
- * （`import type`，运行时零依赖）——与 `DynamicWorkflowIntrospectableJournal` 同一条论证：
- * 这两条查询不在引擎的 {@link JournalStorePort} 上（引擎从不枚举产物、也不联事件表），
- * 只能靠能力探测接上。
+* Journal with product reading surface. The **only source** of signatures is adapters' {@link DwfRunIntrospectionQueries}
+* (`import type`, zero runtime dependencies) - the same argument as `DynamicWorkflowIntrospectableJournal`:
+* These two queries are not on the engine's {@link JournalStorePort} (the engine never enumerates products nor connects to the event table),
+* Can only be connected by ability detection.
  */
 interface ArtifactReadableJournal
   extends JournalStorePort, Pick<DwfRunIntrospectionQueries, "listArtifactItems" | "listArtifactRows"> {}
 
 /**
- * journal 是否带产物读面。**刻意是 `supportsRunIntrospection` 的兄弟，而不是把它扩成六条。**
+* Whether the journal has a product reading page. **Deliberately a sibling of `supportsRunIntrospection`, rather than expanding it into six. **
  *
- * 那四条（listRuns / getRunRow / countNodesByStatus / listRecentLogEvents）是一个整体能力：
- * 列表要一条、详情要另外三条，缺一个就该整体降级。产物读面是**后来**长出来的第二个能力，
- * 二者互不依赖——一个只有前四条的 journal（老 adapter 的 dist、只实现了内省的测试替身）应该
- * 继续把 `ListWorkflowRuns` / `GetWorkflowRun` 跑通，只是不提供产物。把它们并成一个探测，
- * 会让这类 journal 上两个早已工作的工具静默消失，而症状离成因极远。
+* Those four (listRuns/getRunRow/countNodesByStatus/listRecentLogEvents) are an overall capability:
+* There needs to be one list and three more details. If one is missing, the whole thing should be downgraded. Product reading is the second ability that developed **later**.
+* The two are independent of each other - a journal with only the first four entries (the dist of the old adapter, a test double that only implements introspection) should
+* Continue to run `ListWorkflowRuns` / `GetWorkflowRun`, but do not provide products. merge them into one probe,
+* will cause two tools that have already worked on this type of journal to disappear silently, and the symptoms are far from the cause.
  */
 export function supportsArtifactReads(journal: JournalStorePort): journal is ArtifactReadableJournal {
   const candidate = journal as Partial<DwfRunIntrospectionQueries>;
@@ -36,11 +36,11 @@ export function supportsArtifactReads(journal: JournalStorePort): journal is Art
 }
 
 /**
- * 喂给某个预置产物的 `report` 条目，按 journal sequence 升序。
+* Feed the `report` entries of a certain preset product, in ascending order of journal sequence.
  *
- * 存储层**精确**兑现 limit 且从不自己钳——所以「多取一条判 hasMore」这件事
- * 由调用方（网关）传 limit+1 完成，这里原样透传。越界 cursor 得到空页而不是错误：翻到尾巴
- * 是正常的翻页结局，不是异常。
+* The storage layer **accurately** honors the limit and never clamps it by itself - so "take one more to determine hasMore"
+* Completed by the caller (gateway) passing limit+1, here it is transparently transmitted as it is. Out of bounds cursor gets empty page instead of error: flip to tail
+* This is a normal page-turning ending, not an anomaly.
  */
 export function listArtifactItemsFrom(
   journal: JournalStorePort,
@@ -57,9 +57,9 @@ export function listArtifactItemsFrom(
 }
 
 /**
- * 存储层的一行 → 端口的一条。字段一一对应，刻意**不做预览序列化**：看板的纯函数要按字段
- * 路径（`ChartSpec.x.field` 形如 "timing.after"）取数，拿到一段 pretty JSON 文本就取不出来
- * 了。条目在线上已由 `REPORT_CAPS.maxItemSerializedBytes`（32KB）有界，不需要再叠一层。
+* A row for the storage layer → a row for the port. Fields correspond one to one, deliberately **not doing preview serialization**: the pure functions of Kanban must be based on fields
+* The path (`ChartSpec.x.field` is in the shape of "timing.after") to get the number. If you get a piece of pretty JSON text, you can't get it out.
+* . Items are already bounded by `REPORT_CAPS.maxItemSerializedBytes` (32KB) on the line and do not need to be stacked one more layer.
  */
 function toArtifactItem(row: DwfArtifactItem): DynamicWorkflowRunArtifactItem {
   return {
@@ -71,10 +71,10 @@ function toArtifactItem(row: DwfArtifactItem): DynamicWorkflowRunArtifactItem {
 }
 
 /**
- * 一行 artifact 节点认领的产物 id。
+* One line of product id claimed by the artifact node.
  *
- * 优先读 `dwf_node.artifact_id` 列（较新迁移添加的、带索引的那一列）；记录里的 `id` 只是兜底。
- * 两者由引擎在同一次 putNode 里写下、恒相等，但列为 NULL 的老行不该让整行读不出来。
+* Read the `dwf_node.artifact_id` column first (the indexed column added by the newer migration); the `id` in the record is just a hint.
+* Both are written by the engine in the same putNode and are always equal, but the old row whose column is NULL should not make the entire row unreadable.
  */
 export function artifactRowId(row: NodeRecord): string | undefined {
   if (typeof row.artifactId === "string" && row.artifactId.length > 0) return row.artifactId;

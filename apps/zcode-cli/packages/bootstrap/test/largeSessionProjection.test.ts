@@ -1,15 +1,15 @@
 /**
- * 大会话性能回归测试（spec: specs/large-session-scaling.md）——运行时侧。
+* Large session performance regression test (spec: specs/large-session-scaling.md) - runtime side.
  *
- * command row actions 是行状态的派生物。修复把 materializeCommandRowActions 的触发
- * 时机收窄为"本帧 delta 可能改变 actions 输入"（纯 row.delta 帧跳过），并把它内部的
- * JSON.stringify 比较换成逐键浅比较。跳过必须在输出上不可观察，因此这里锁定的是
- * **语义不变量**而非实现细节：
- *   1. 纯文本增量帧只产生 row.delta，不夹带任何 actions upsert；
- *   2. 状态变化事件（轮次结束）之后 actions 照常物化（edit/retry 入口不消失）；
- *   3. 冷恢复收口（空 delta 集）仍然物化 actions。
+* command row actions are derivatives of row status. Fix triggering of materializeCommandRowActions
+* Narrow the timing to "this frame delta may change the actions input" (pure row.delta frame skipping) and put it internally
+* JSON.stringify comparison is replaced by key-by-key shallow comparison. The skip must be unobservable on the output, so what is locked here is
+* **Semantic invariants** rather than implementation details:
+* 1. The plain text delta frame only generates row.delta, without any actions upsert;
+* 2. After the state change event (end of round), actions are materialized as usual (edit/retry entry does not disappear);
+* 3. Cold recovery closure (empty delta set) still materializes actions.
  *
- * 运行方式（仓库无统一 test 脚本）：
+* Running method (there is no unified test script in the warehouse):
  *   cd apps/zcode-cli/packages/bootstrap && node --import tsx --test test/largeSessionProjection.test.ts
  */
 import assert from "node:assert/strict";
@@ -43,9 +43,9 @@ function makeEvent(
 function turnStarted(sequenceNumber: number): SessionEvent {
   return makeEvent(sequenceNumber, SessionEventType.TurnStarted, {
     turnNumber: 1,
-    input: "帮我看一下这个仓库",
-    // 持久 messageId 是 actions 的 canonical target 前提（投影据此把 userInput row
-    // 反查到 message）；缺它 canEdit/canRetry 一律不出现，与性能修复无关。
+    input: "Help me take a look at this warehouse",
+// Persistent messageId is the canonical target premise of actions (projection accordingly puts userInput row
+//reverse message); without it, canEdit/canRetry will not appear and has nothing to do with performance repair.
     messageId: "user-msg-1",
   });
 }
@@ -79,7 +79,7 @@ function textEnd(sequenceNumber: number, assistantMessageId: string): SessionEve
 
 function turnComplete(sequenceNumber: number): SessionEvent {
   return makeEvent(sequenceNumber, SessionEventType.TurnComplete, {
-    response: "好的，我来看看。",
+    response: "OK, let me take a look.",
     tokenCount: 1,
     toolCallCount: 0,
     duration: 100,
@@ -97,28 +97,28 @@ function actionUpserts(deltas: readonly ConversationDelta[]): ConversationDelta[
   );
 }
 
-test("纯文本增量帧只产生 row.delta，不夹带 actions upsert", () => {
+test("Plain text delta frames only generate row.delta and do not include actions upsert.", () => {
   const projection = new ProductProjection(SESSION_ID, "epoch-1");
   projection.applyEvent(turnStarted(1));
   projection.applyEvent(textStart(2, "msg-1"));
 
-  const deltaDeltas = projection.applyEvent(textDelta(3, "msg-1", "好的"));
-  assert.equal(deltaDeltas.length, 1, "流式追加帧应只有一条 row.delta");
+  const deltaDeltas = projection.applyEvent(textDelta(3, "msg-1", "OK"));
+  assert.equal(deltaDeltas.length, 1, "Streaming append frames should have only one row.delta");
   assert.equal(deltaDeltas[0]!.op, "row.delta");
-  assert.equal(actionUpserts(deltaDeltas).length, 0, "不得夹带 actions 物化结果");
+  assert.equal(actionUpserts(deltaDeltas).length, 0, "Actions materialized results must not be included");
 
-  // 连续多帧同理：actions 输入未变，跳过物化后输出必须仍然只有文本追加。
+// The same applies to consecutive multiple frames: the input of actions remains unchanged, and the output must still only have text appended after skipping materialization.
   for (let index = 4; index < 12; index += 1) {
-    const frame = projection.applyEvent(textDelta(index, "msg-1", `片段${index}`));
-    assert.ok(frame.every((delta) => delta.op === "row.delta"), `第 ${index} 帧必须是纯追加`);
+    const frame = projection.applyEvent(textDelta(index, "msg-1", `fragment${index}`));
+    assert.ok(frame.every((delta) => delta.op === "row.delta"), `Frame ${index} must be pure append`);
     assert.equal(actionUpserts(frame).length, 0);
   }
 
-  // 关键不变量：纯增量帧不改变快照的 actions 分布（跳过物化无残留、无丢失）。
+// Key invariant: Pure incremental frames do not change the actions distribution of the snapshot (no residue or loss after materialization is skipped).
   const actionsBefore = rowsWithActions(projection.getSnapshot().rows.window).map(
     (row) => `${row.rowId}:${JSON.stringify(row.actions)}`,
   );
-  projection.applyEvent(textDelta(12, "msg-1", "再一段"));
+  projection.applyEvent(textDelta(12, "msg-1", "One more paragraph"));
   const actionsAfter = rowsWithActions(projection.getSnapshot().rows.window).map(
     (row) => `${row.rowId}:${JSON.stringify(row.actions)}`,
   );
@@ -127,41 +127,41 @@ test("纯文本增量帧只产生 row.delta，不夹带 actions upsert", () => {
   projection.applyEvent(textEnd(13, "msg-1"));
 });
 
-test("轮次结束事件之后 actions 照常物化（edit/retry 入口不消失）", () => {
+test("After the round end event, the actions are materialized as usual (the edit/retry entry does not disappear)", () => {
   const projection = new ProductProjection(SESSION_ID, "epoch-1");
   projection.applyEvent(turnStarted(1));
   projection.applyEvent(textStart(2, "msg-1"));
-  projection.applyEvent(textDelta(3, "msg-1", "好的，我来看看。"));
+  projection.applyEvent(textDelta(3, "msg-1", "OK, let me take a look."));
   projection.applyEvent(textEnd(4, "msg-1"));
 
   const completeDeltas = projection.applyEvent(turnComplete(5));
   assert.ok(
     actionUpserts(completeDeltas).length > 0,
-    "状态变化事件必须触发 actions 物化（修复后入口不能消失）",
+    "The state change event must trigger the materialization of actions (the entrance cannot disappear after repair)",
   );
 
   const rows = projection.getSnapshot().rows.window;
   const userRow = rows.find((row) => row.kind === "userInput");
   const assistantRow = rows.find((row) => row.kind === "assistantText");
-  assert.equal(userRow?.actions?.canEdit, true, "最新 realUser 行必须带 canEdit");
-  assert.equal(assistantRow?.actions?.canRetry, true, "最新完整 assistant 行必须带 canRetry");
-  assert.equal(assistantRow?.actions?.canFork, true, "最新完整 assistant 行必须带 canFork");
+  assert.equal(userRow?.actions?.canEdit, true, "The latest realUser line must have canEdit");
+  assert.equal(assistantRow?.actions?.canRetry, true, "The latest complete assistant line must have canRetry");
+  assert.equal(assistantRow?.actions?.canFork, true, "The latest complete assistant line must have canFork");
 });
 
-test("冷恢复收口（空 delta 集）仍然物化 actions", () => {
+test("Cold recovery closure (empty delta set) still materializes actions", () => {
   const projection = new ProductProjection(SESSION_ID, "epoch-1");
-  // hydration replay 期间 materializeActions=false，actions 延迟到收口一次物化。
+//During hydration replay, materializeActions=false, actions are delayed until closing and materialized once.
   projection.beginHydrationReplay();
   projection.applyHydrationEvent(turnStarted(1));
   projection.applyHydrationEvent(textStart(2, "msg-1"));
-  projection.applyHydrationEvent(textDelta(3, "msg-1", "好的，我来看看。"));
+  projection.applyHydrationEvent(textDelta(3, "msg-1", "OK, let me take a look."));
   projection.applyHydrationEvent(textEnd(4, "msg-1"));
   projection.applyHydrationEvent(turnComplete(5));
 
   const closingDeltas = projection.completeHydrationReplay();
   assert.ok(
     actionUpserts(closingDeltas).length > 0,
-    "completeHydrationReplay 传空 delta 集，必须仍然物化 actions",
+    "completeHydrationReplay passes an empty delta set and must still materialize actions",
   );
 
   const rows = projection.getSnapshot().rows.window;
@@ -171,9 +171,9 @@ test("冷恢复收口（空 delta 集）仍然物化 actions", () => {
   assert.equal(assistantRow?.actions?.canRetry, true);
 });
 
-test("纯 row.delta 帧不触发 actions 物化（探针测试，防门被删后静默回归）", () => {  // 跳过物化在上是不可观察的（旧实现这些帧也产出空 delta 集），语义断言抓不到它。
-  // 这里直接对物化入口计数：门一旦被删或放宽，每个文本增量帧都会重新触发整窗物化，
-  // 长会话的逐帧成本随之回到 O(会话)——那正是本 PR 要消除的回归。
+test("Pure row.delta frames do not trigger actions materialization (probe test, the defense door returns silently after being deleted)", () => {  // 跳过物化在上是不可观察的（旧实现这些帧也产出空 delta 集），语义断言抓不到它。
+// Here the materialization entrance is counted directly: once the door is deleted or relaxed, each text increment frame will re-trigger the entire window materialization.
+// The frame-by-frame cost for long sessions then comes back to O(session) - that's the regression this PR is trying to eliminate.
   const projection = new ProductProjection(SESSION_ID, "epoch-1");
   const prototype = Object.getPrototypeOf(projection) as {
     materializeCommandRowActions: (...args: unknown[]) => unknown;
@@ -193,19 +193,19 @@ test("纯 row.delta 帧不触发 actions 物化（探针测试，防门被删后
     projection.applyEvent(textStart(2, "msg-1"));
     const callsAfterOpen = materializeCalls;
 
-    // 8 个纯文本增量帧：一次物化都不该发生。
+// 8 plain text delta frames: not a single materialization should occur.
     for (let index = 3; index < 11; index += 1) {
-      projection.applyEvent(textDelta(index, "msg-1", `片段${index}`));
+      projection.applyEvent(textDelta(index, "msg-1", `fragment${index}`));
     }
     assert.equal(
       materializeCalls,
       callsAfterOpen,
-      "纯 row.delta 帧不得触发 actions 物化（逐帧 O(窗口) 成本即根因）",
+      "Pure row.delta frames must not trigger actions materialization (frame-by-frame O(window) cost as root cause)",
     );
 
-    // 第二个纯 row.delta 生产者：toolCall 的 inputText 追加。门按 delta op 判定而不是按
-    // 事件类型/行类型判定，因此每个生产者都该有一个代表帧（subagent 的 summaryText 追加
-    // 走同一条 appendToRow 路径，由构造保证覆盖）。
+// Second pure row.delta producer: toolCall's inputText appended. Doors are judged by delta op instead of by
+//Event type/row type determination, so each producer should have a representative frame (subagent's summaryText appended
+// Take the same appendToRow path, guaranteed to be covered by construction).
     projection.applyEvent(
       makeEvent(11, SessionEventType.ModelStreaming, {
         kind: "tool_input_start",
@@ -232,31 +232,31 @@ test("纯 row.delta 帧不触发 actions 物化（探针测试，防门被删后
     assert.equal(
       materializeCalls,
       callsAfterToolOpen,
-      "toolCall inputText 增量帧同样不得触发 actions 物化",
+      "toolCall inputText incremental frame must also not trigger actions materialization",
     );
 
-    // 状态变化事件必须仍然物化：入口不能因跳过逻辑消失。
+//State change events must still be materialized: the entry cannot disappear due to skip logic.
     projection.applyEvent(textEnd(16, "msg-1"));
     projection.applyEvent(turnComplete(17));
     assert.ok(
       materializeCalls > callsAfterToolOpen,
-      "text_end / TurnComplete 等状态变化帧必须触发 actions 物化",
+      "Text_end / TurnComplete and other state change frames must trigger actions materialization",
     );
   } finally {
     prototype.materializeCommandRowActions = original;
   }
 });
 
-test("新一轮开始撤销旧入口、且不重写动作未变化的行", () => {
-  // 结构比较的两个方向都要有用例：
-  //   - 变化 → 必须下发 upsert（旧 latest editable 撤销 canEdit、旧 assistant 撤销 canRetry）
-  //   - 未变化 → 不得下发（否则每帧重发整窗 actions，正是被替换掉的 JSON.stringify 成本）
-  // 撤销发生在第二轮 TurnStarted（新 realUser 行成为 latest editable）那一刻。
-  // 注意：撤销态的 upsert 上 actions 是 undefined，不能用“只挑带 actions 的 upsert”来断言。
+test("A new round begins to revoke the old entry and do not rewrite the lines whose actions have not changed.", () => {
+// Both directions of structure comparison require use cases:
+// - Change → upsert must be issued (old latest editable cancels canEdit, old assistant cancels canRetry)
+// - unchanged → must not be sent (otherwise the entire window actions will be resent every frame, which is the cost of the replaced JSON.stringify)
+// Undo occurs at the moment of the second TurnStarted (new realUser row becomes latest editable).
+// Note: The actions on the canceled upsert are undefined, and cannot be asserted by "only picking upserts with actions".
   const projection = new ProductProjection(SESSION_ID, "epoch-1");
   projection.applyEvent(turnStarted(1));
   projection.applyEvent(textStart(2, "msg-1"));
-  projection.applyEvent(textDelta(3, "msg-1", "第一轮回复"));
+  projection.applyEvent(textDelta(3, "msg-1", "first round of replies"));
   projection.applyEvent(textEnd(4, "msg-1"));
   projection.applyEvent(turnComplete(5));
 
@@ -268,7 +268,7 @@ test("新一轮开始撤销旧入口、且不重写动作未变化的行", () =>
   const secondTurnStarted = projection.applyEvent(
     makeEvent(6, SessionEventType.TurnStarted, {
       turnNumber: 2,
-      input: "第二个问题",
+      input: "second question",
       messageId: "user-msg-2",
     }, "turn-2"),
   );
@@ -277,13 +277,13 @@ test("新一轮开始撤销旧入口、且不重写动作未变化的行", () =>
   const revokedEditable = upsertedRows.find(
     (delta) => delta.op === "row.upserted" && delta.row.rowId === firstTurnUserRowId,
   );
-  assert.ok(revokedEditable !== undefined, "旧 latest editable 行必须被改写");
+  assert.ok(revokedEditable !== undefined, "The old latest editable line must be overwritten");
   assert.equal(
     revokedEditable && revokedEditable.op === "row.upserted"
       ? revokedEditable.row.actions?.canEdit
       : "missing",
     undefined,
-    "撤销后旧行不再带 canEdit",
+    "After revocation, the old row no longer has canEdit.",
   );
 
   const revokedRetry = upsertedRows.find(
@@ -294,40 +294,40 @@ test("新一轮开始撤销旧入口、且不重写动作未变化的行", () =>
       ? revokedRetry.row.actions?.canRetry
       : "missing",
     undefined,
-    // 触发点实际是新轮 TurnStarted 的 state.updated 把 control.activeWorks 置上
-    // （completionBlockingActive 见 materializeCommandRowActions），并非此处注释意义上的
-    // latest-only 规则；断言本身锁定的是"旧入口被撤销"这一可观察行为。
-    "旧轮的 canRetry 必须被撤销",
+// The trigger point is actually the state.updated of the new turn TurnStarted. Set control.activeWorks
+// (completionBlockingActive see materializeCommandRowActions), not in the sense of the comments here
+// latest-only rule; the assertion itself locks in the observable behavior of "old entry being revoked".
+    "The old round's canRetry must be revoked",
   );
   assert.equal(
     revokedRetry && revokedRetry.op === "row.upserted" ? revokedRetry.row.actions?.canFork : "missing",
     true,
-    "fork 不是 latest-only：旧轮保留 canFork",
+    "fork is not latest-only: old rounds are retained canFork",
   );
 
-  // 未变化方向：动作未涉及的行（turnHeader）不得出现在这批 upsert 里。
+// Unchanged direction: Lines not involved in the action (turnHeader) must not appear in this batch of upserts.
   assert.ok(
     !upsertedRows.some((delta) => delta.op === "row.upserted" && delta.row.rowId === firstTurnHeaderRowId),
-    "动作未变化的行不得被重写（浅比较必须识别“未变化”）",
+    "Lines whose actions have not changed must not be rewritten (a shallow comparison must identify 'unchanged')",
   );
 
   const userRows = projection
     .getSnapshot()
     .rows.window.filter((row) => row.kind === "userInput");
   assert.equal(userRows.length, 2);
-  assert.equal(userRows[0]?.actions?.canEdit, undefined, "旧轮不再可编辑");
-  assert.equal(userRows[1]?.actions?.canEdit, true, "新一轮成为 latest editable");
+  assert.equal(userRows[0]?.actions?.canEdit, undefined, "Old wheels are no longer editable");
+  assert.equal(userRows[1]?.actions?.canEdit, true, "The new round becomes latest editable");
 });
 
-test("结构帧上内容未变的 actions 不得产生 upsert（浅比较“相等”方向）", () => {
-  // 变异证明：若把 conversationRowActionsEqual 简化成“仅引用相等”（对内容相同的两个对象
-  // 返回 false），materializeCommandRowActions 会在每个结构帧上为整窗 actions 未变的行重发
-  // 逐字节相同的 upsert，row.upserted 还会推高 revision——正是本 PR 要消除的每帧冗余。
-  // 既有测试只覆盖“两侧都是 undefined”的早退，抓不到这个方向，这里显式锁定。
+test("Actions whose content on the structure frame has not changed must not generate upsert (shallow comparison 'equal' direction)", () => {
+// Proof of mutation: If conversationRowActionsEqual is simplified to "only reference equality" (for two objects with the same content
+// Return false), materializeCommandRowActions will resend the unchanged rows of actions for the entire window on each structure frame
+// A byte-for-byte identical upsert, row.upserted will also push up the revision - exactly what this PR is trying to eliminate per-frame redundancy.
+// The existing test only covers the early exit of "both sides are undefined" and cannot catch this direction, so it is explicitly locked here.
   const projection = new ProductProjection(SESSION_ID, "epoch-1");
   projection.applyEvent(turnStarted(1));
   projection.applyEvent(textStart(2, "msg-1"));
-  projection.applyEvent(textDelta(3, "msg-1", "第一轮回复"));
+  projection.applyEvent(textDelta(3, "msg-1", "first round of replies"));
   projection.applyEvent(textEnd(4, "msg-1"));
   projection.applyEvent(turnComplete(5));
 
@@ -350,7 +350,7 @@ test("结构帧上内容未变的 actions 不得产生 upsert（浅比较“相�
   };
 
   try {
-    // 结构帧：新开一个工具行（row.appended + state.updated），不动已有行的 actions。
+// Structural frame: Open a new tool row (row.appended + state.updated), and do not move the actions of the existing row.
     projection.applyEvent(
       makeEvent(6, SessionEventType.ModelStreaming, {
         kind: "tool_input_start",
@@ -367,11 +367,11 @@ test("结构帧上内容未变的 actions 不得产生 upsert（浅比较“相�
 
   assert.ok(
     materialized.every((delta) => delta.op !== "row.upserted" || delta.row.rowId !== assistantRowId),
-    "actions 内容未变的行不得被重写（浅比较必须识别“相等”）",
+    "Actions lines whose contents have not changed must not be rewritten (shallow comparison must recognize 'equal')",
   );
   assert.deepEqual(
     materialized.map((delta) => delta.op),
     [],
-    "该结构帧没有任何行的 actions 需要变化",
+    "No rows of actions in this structure frame need to be changed.",
   );
 });

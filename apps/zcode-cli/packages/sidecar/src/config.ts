@@ -1,26 +1,26 @@
-//! sidecar 开关与二进制解析。
+//! sidecar switch and binary parsing.
 //!
-//! 开关：环境变量 `ZCODE_NATIVE_SIDECARS`（逗号分隔 island 名，或 `all`）**可选**
-//! 覆盖默认；`ZCODE_NATIVE_SIDECARS_OFF=1` 是整体 kill switch。
-//! 默认开启的 island：`diff`（byte-parity 88/88）、`image`（语义 parity，
-//! 用户 2026-09-22 决定翻转；尺寸/格式语义一致，字节级差异记录在 crate README）、
-//! `scan` / `watch`（事件/防抖语义镜像 TS，差异逐条核对见各自 crate README）。
-//! `proc` 默认关（回收时机影响 MCP stdio 生命周期，等 soak）。
-//! 其余 island 默认关（接线或逐条差异核对未完成）。
-//! 语义：
-//!   `ZCODE_NATIVE_SIDECARS_OFF=1` → 全部关（排障退回 TS 路径）；
-//!   未设置 → 默认集合（diff 开，其余关）；
-//!   设置为名单/`all` → 精确控制（不含 kill switch）。
-//! 二进制缺失/spawn 失败 → facade 告警并降级 TS 路径，不阻断用户轮次；
-//! 协议错误（版本不匹配/Illegal 帧/4xx/5xx）→ 抛错（配置与版本偏移是构建事故）。
+//! Switch: environment variable `ZCODE_NATIVE_SIDECARS` (comma separated island names, or `all`) **optional**
+//! Override the default; `ZCODE_NATIVE_SIDECARS_OFF=1` is the overall kill switch.
+//! Island enabled by default: `diff` (byte-parity 88/88), `image` (semantic parity,
+//! User 2026-09-22 decided to flip; size/format semantics are consistent, byte-level differences are recorded in crate README),
+//! `scan` / `watch` (event/anti-shake semantic mirroring TS, see the respective crate README for differences one by one).
+//! `proc` is off by default (the recycling timing affects the MCP stdio life cycle, etc. soak).
+//! The rest of the islands are off by default (wiring or item-by-item difference verification has not been completed).
+//! Semantics:
+//! `ZCODE_NATIVE_SIDECARS_OFF=1` → All off (return to TS path for troubleshooting);
+//! Not set → default set (diff on, others off);
+//! Set to list/`all` → precise control (without kill switch).
+//! Binary missing/spawn failed → facade alerts and downgrades the TS path without blocking user turns;
+//! Protocol error (version mismatch/Illegal frame/4xx/5xx) → throw error (configuration and version offset is a build accident).
 //!
-//! 二进制解析（按优先级）：
-//!   1. `ZCODE_SIDECAR_DIR/<name>[.exe]`（桌面 runtime 显式注入；发布包指向
+//! Binary parsing (by priority):
+//! 1. `ZCODE_SIDECAR_DIR/<name>[.exe]` (desktop runtime explicit injection; release package points to
 //!      resources/tools/sidecar）；
 //!   2. `<repo>/packages/desktop/bundled-tools/<platformKey>/sidecar/<name>[.exe]`
-//!      （`prepare:native-sidecars` 暂存点；dev 与直跑 CLI 都能找到）；
-//!   3. 仓库相对路径 `<repo>/native/target/{release,debug}/<name>[.exe]`
-//!      （repo 根由本包位置逐级上行发现）。
+//! (`prepare:native-sidecars` staging point; both dev and direct-running CLI can find it);
+//! 3. Warehouse relative path `<repo>/native/target/{release,debug}/<name>[.exe]`
+//! (The repo root is discovered step by step upstream from the location of this package).
 
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -30,16 +30,16 @@ const DISABLE_ENV = "ZCODE_NATIVE_SIDECARS_OFF";
 const BIN_DIR_ENV = "ZCODE_SIDECAR_DIR";
 
 /**
- * 默认开启的 island（parity 已绿、发布包已随带；见 spec cutover 章节）。
+* The island is enabled by default (parity is green, and the release package comes with it; see the spec cutover chapter).
  *
- * - diff：byte-parity（88/88 fixture，真实 jsdiff 对照）
- * - image：语义 parity（用户 2026-09-22 决定翻转；尺寸/格式一致，字节差异已记录）
- * - scan：条目/错误集合与 TS fsWalker 一致（顺序是 TS concurrency=1 等价语义，
- *   并发只影响顺序不影响集合——见 zcode-scan README 差异表 1–5）
- * - watch：事件与防抖语义镜像 TS fileWatcherService（150ms 防抖、单明确路径透传）
+* - diff: byte-parity (88/88 fixture, real jsdiff comparison)
+* - image: semantic parity (user 2026-09-22 decided to flip; size/format consistent, byte differences recorded)
+* - scan: entry/error set consistent with TS fsWalker (order is TS concurrency=1 equivalent semantics,
+* Concurrency only affects the order and not the collection - see zcode-scan README difference table 1–5)
+* - watch: event and anti-shake semantic mirroring TS fileWatcherService (150ms anti-shake, single clear path transparent transmission)
  *
- * proc 暂默认关：它改变 MCP stdio 子进程的回收时机（影响面比其它岛大），
- * 等 soak 观察后再翻。
+* proc is temporarily off by default: it changes the recycling timing of the MCP stdio sub-process (the impact is greater than other islands),
+* Wait for soak to be observed before turning over.
  */
 const DEFAULT_ON_ISLANDS: readonly string[] = ["diff", "image", "scan", "watch"];
 
@@ -48,7 +48,7 @@ function readFlag(): string {
 }
 
 export function sidecarEnabled(name: string): boolean {
-  // 单一 kill switch：排障时可整体退回 TS 路径而不改代码。
+// Single kill switch: When troubleshooting, you can return to the TS path as a whole without changing the code.
   if (process.env[DISABLE_ENV]?.trim() === "1") return false;
   const flag = readFlag();
   if (flag.length === 0) return DEFAULT_ON_ISLANDS.includes(name);
@@ -61,11 +61,11 @@ export function sidecarEnabled(name: string): boolean {
 }
 
 function looksLikeRepoRoot(candidate: string): boolean {
-  return existsSync(path.join(candidate, "native")) && existsSync(path.join(candidate, "pnpm-workspace.yaml"));
+  return existsSync(path.join(candidate, "native")) && existsSync(path.join(candidate, "bunfig.toml"));
 }
 
-/// repo 根发现：从本模块位置逐级上行，找同时含 `native/` 与 `pnpm-workspace.yaml`
-/// 的目录。源码（tsx）与构建产物（dist）路径深度不同，上行到根即止，不猜固定级数。
+/// Repo root discovery: Go up step by step from the location of this module, and find both `native/` and `bunfig.toml`
+/// directory. The source code (tsx) and the built product (dist) paths have different depths. They go up to the root and do not guess the fixed series.
 function repoRootFromModule(): string | null {
   let current = path.dirname(new URL(import.meta.url).pathname);
   if (process.platform === "win32" && current.startsWith("/")) {
@@ -89,7 +89,7 @@ export function resolveSidecarBin(name: string): string | null {
   }
   const root = repoRootFromModule();
   if (!root) return null;
-  // 2) prepare:native-sidecars 暂存点（发布包解包后的 dev 布局与直跑一致）。
+// 2) prepare:native-sidecars staging point (the dev layout after unpacking the release package is consistent with direct running).
   const bundled = path.join(
     root,
     "packages",
@@ -100,7 +100,7 @@ export function resolveSidecarBin(name: string): string | null {
     `${name}${suffix}`,
   );
   if (existsSync(bundled)) return bundled;
-  // 3) cargo 产物（未跑 prepare 时的开发态兜底）。
+// 3) cargo product (the development state when prepare is not run).
   for (const profile of ["release", "debug"]) {
     const candidate = path.join(root, "native", "target", profile, `${name}${suffix}`);
     if (existsSync(candidate)) return candidate;

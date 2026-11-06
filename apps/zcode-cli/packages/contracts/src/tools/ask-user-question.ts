@@ -150,8 +150,8 @@ export type AskUserQuestionInput = z.infer<typeof AskUserQuestionInputSchema>;
 
 export const AskUserQuestionAnsweredInputSchema = AskUserQuestionInputSchema.superRefine(
   (input, context) => {
-    // 问题用于可选澄清，用户可以完整、部分或零回答；只有 answers 字段
-    // 完全缺失才表示 permission 阶段尚未完成，必须阻止 handler 提前执行。
+// Question for optional clarification, user can answer completely, partially, or zero; answers field only
+// Complete absence means that the permission phase has not been completed and the handler must be prevented from executing early.
     if (input.answers === undefined) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
@@ -200,8 +200,8 @@ function withRequiredDefaultedMultiSelect<T extends Record<string, unknown>>(sch
   const required = questionItem.required;
   if (!Array.isArray(required)) return schema;
 
-  // provider-visible schema 中 multiSelect 有 default false，
-  // 但仍出现在 required 中；运行时 Zod default 继续允许旧调用省略该字段。
+// multiSelect in provider-visible schema has default false,
+// But still appears in required; runtime Zod default continues to allow old calls to omit this field.
   if (!required.includes("multiSelect")) {
     required.push("multiSelect");
   }

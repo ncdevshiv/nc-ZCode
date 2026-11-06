@@ -1,10 +1,10 @@
 /**
- * scheduler.ts 顶到 oxlint max-lines 上限（400 行），把调度器的内部类型（Deferred /
- * AskNode / Actor）与引擎注入的依赖面 SchedulerHost 拆到本文件；公开面仍从 scheduler.ts 导出
- * （SchedulerHost 在那里原地再导出，engine.ts 的导入路径不变）。
+* scheduler.ts reaches the upper limit of oxlint max-lines (400 lines), and changes the scheduler’s internal type (Deferred/
+*AskNode / Actor) and the engine-injected dependency surface SchedulerHost are split into this file; the public surface is still exported from scheduler.ts
+* (SchedulerHost is exported in place, and the import path of engine.ts remains unchanged).
  *
- * 单独成文件的理由不只是行数：scheduler-submit.ts 里的自由函数也要拿到 AskNode / SchedulerHost，
- * 从这里导入，两侧都不必反向 import 调度器本体。
+* The reason for separate files is not just the number of lines: the free functions in scheduler-submit.ts also need to get AskNode / SchedulerHost,
+* Import from here, there is no need to reversely import the scheduler itself on both sides.
  */
 
 import type { ImportedActorState } from "./imported-cache.js";
@@ -23,7 +23,7 @@ import type {
   WorkflowError,
 } from "./types.js";
 
-/** 一个可外部结算的 promise。 */
+/** A promise that can be settled externally. */
 export interface Deferred<T> {
   promise: Promise<T>;
   resolve: (value: T) => void;
@@ -40,32 +40,32 @@ export function defer<T>(): Deferred<T> {
   return { promise, resolve, reject };
 }
 
-/** 引擎注入给调度器的依赖面。 */
+/** The dependency surface injected by the engine into the scheduler. */
 export interface SchedulerHost {
   readonly runId: string;
   readonly caps: Caps;
   readonly driver: WorkflowDriver;
   readonly validate: ValidateFn;
-  /** 分配某站点的下一个执行序号（与 world-read/actor 共用一套计数器）。 */
+/** Assigns the next execution sequence number of a site (shares a set of counters with world-read/actor). */
   nextOrdinal(siteId: string): number;
-  /** 事件既落 journal 又扇出（Boundary C）。 */
+/** Events both fall into the journal and fan out (Boundary C). */
   record(event: RunEvent): void;
   isRunSettled(): boolean;
-  /** run 已结算时用于 reject 的错误。 */
+/** Error used to reject when run has been settled. */
   runError(): WorkflowError;
-  /** run 级失败。 */
+/** Run level failed. */
   failRun(error: WorkflowError): void;
   /**
-   * 导入缓存是否已关闭（amend-resume）。关门由引擎自己做
-   * （driver 上报 askMutating、或 live 的 world-run），调度器只读这个位——一个 ask 转 live 本身
-   * **不**关门：它还什么都没改。
+* Whether the import cache is turned off (amend-resume). The engine closes the door by itself
+* (The driver reports askMutating, or live's world-run), the scheduler only reads this bit - an ask turns live itself
+* **Not** closed: it hasn't changed anything yet.
    */
   importCacheClosed(): boolean;
-  /** 该记录行在崩溃前是否 live 跑过（resume 时引擎从事件恢复；非 resume 恒 false）。 */
+/** Whether the record line was run live before the crash (when resume, the engine resumes from the event; when not resume, it is always false). */
   wasLiveBeforeResume(instance: InstanceRef): boolean;
 }
 
-/** 一个 live（需真正派发执行）的 ask 节点。 */
+/** A live ask node (which needs to be actually dispatched and executed). */
 export interface AskNode {
   instance: InstanceRef;
   actor: Actor;
@@ -81,30 +81,30 @@ export interface AskNode {
   lastStats?: AskStats;
 }
 
-/** 调度器维护的 actor 运行态。 */
+/** Actor running state maintained by the scheduler. */
 export interface Actor {
   ref: ActorRef;
   id: ActorId;
   persona: PersonaSpec;
   name?: string;
-  /** journal 中该 actor 已记录的 ask 节点数——replay 时 live 节点须等其全部准入后才放行。 */
+/** The number of ask nodes recorded by the actor in the journal - during replay, the live nodes must wait for all of them to be admitted before being released. */
   recordedCount: number;
-  /** 下一个待准入的 actorSeq。 */
+/** The next actorSeq to be admitted. */
   nextAdmitSeq: number;
-  /** 已到达但未准入的记录节点释放动作，按 actorSeq 挂起（hold 规则）。 */
+/** The recording node that has arrived but is not admitted releases the action and is suspended according to actorSeq (hold rule). */
   pendingRecorded: Map<number, () => void>;
-  /** 已到达但在等记录节点排空的 live 节点释放动作，按到达顺序。 */
+/** Live node release actions that have arrived but are waiting for the recording node to be emptied, in order of arrival. */
   pendingLive: Array<() => void>;
-  /** 已准入待派发的 live 节点（FIFO = 准入顺序）。 */
+/** The live nodes to be dispatched have been admitted (FIFO = admission order). */
   liveQueue: AskNode[];
-  /** 正在执行的 live 节点（actor 串行，至多一个）。 */
+/** The live node being executed (actor serial, at most one). */
   current?: AskNode;
-  /** 会话惰性创建，缓存其 promise（每 actor 一次）。 */
+/** Sessions are created lazily, caching their promises (once per actor). */
   sessionPromise?: Promise<SessionRef>;
   session?: SessionRef;
   /**
-   * amend-resume 的导入消费态（引擎在 createActor 里按名 + persona 匹配后挂上，见
-   * imported-cache.ts 的 `matchImportedActor`）。缺席即该 actor 全新重跑。
+* Import consumption state of amend-resume (the engine hangs after matching by name + persona in createActor, see
+* `matchImportedActor` of imported-cache.ts). If absent, the actor will be rerun.
    */
   imported?: ImportedActorState;
 }

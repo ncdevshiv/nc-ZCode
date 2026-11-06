@@ -52,15 +52,17 @@ const runtimeToolIds = new Set<RuntimeToolId>(["bfs", "ripgrep", "ugrep"]);
 export async function ensureSeaRuntimeTools(
   options: EnsureSeaRuntimeToolsOptions = {},
 ): Promise<CliEnv> {
-  const sea = options.sea ?? getSeaModule();
-  if (!sea?.isSea()) return {};
-
   const platform = options.platform ?? process.platform;
   const target = runtimeTarget(platform, options.arch ?? process.arch);
-  const manifest = readManifest(sea);
-  if (manifest.target !== target) {
+  const sea = options.sea ?? getSeaModule();
+  const source = sea?.isSea()
+    ? seaRuntimeToolSource(sea)
+    : await bunRuntimeToolSource();
+  if (!source) return {};
+
+  if (source.target !== target) {
     throw new Error(
-      `SEA runtime tool target mismatch: binary contains ${manifest.target}, runtime is ${target}.`,
+      `Runtime tool target mismatch: binary contains ${source.target}, runtime is ${target}.`,
     );
   }
 
@@ -69,14 +71,13 @@ export async function ensureSeaRuntimeTools(
   const storageRoot = configuredStorageRoot || join(homedir(), ".zcode");
   const runtimeEnv: CliEnv = {};
 
-  for (const tool of manifest.tools) {
+  for (const tool of source.tools) {
     const runtime = getRuntimeToolRuntime(tool.id);
     if (env[runtime.binaryEnvVar]?.trim()) continue;
 
     runtimeEnv[runtime.binaryEnvVar] = await ensureRuntimeTool({
-      manifest,
+      source,
       platform,
-      sea,
       storageRoot,
       tool,
     });
@@ -86,23 +87,25 @@ export async function ensureSeaRuntimeTools(
 }
 
 async function ensureRuntimeTool(input: {
-  manifest: SeaRuntimeToolManifest;
+  source: RuntimeToolAssetSource;
   platform: NodeJS.Platform;
-  sea: SeaRuntimeModule;
   storageRoot: string;
   tool: SeaRuntimeTool;
 }): Promise<string> {
-  const { manifest, platform, sea, storageRoot, tool } = input;
+  const { source, platform, storageRoot, tool } = input;
   const cacheDirectory = join(
     storageRoot,
     "cache",
     "runtime_tools",
-    manifest.target,
+    source.target,
     tool.id,
     `${tool.version}-${tool.sha256}`,
   );
   const binaryPath = join(cacheDirectory, tool.binaryName);
-  const marker = markerFor(manifest, tool);
+  const marker = markerFor(
+    { target: source.target, tools: source.tools, version: 1 },
+    tool,
+  );
 
   if (await isCacheCurrent(cacheDirectory, marker, platform)) return binaryPath;
 
@@ -116,13 +119,13 @@ async function ensureRuntimeTool(input: {
   });
 
   try {
-    const bytes = Buffer.from(sea.getRawAsset(assetKeyFor(tool)));
+    const bytes = await source.readTool(tool);
     if (bytes.byteLength !== tool.size) {
-      throw new Error(`SEA runtime tool size mismatch for ${tool.id}.`);
+      throw new Error(`Runtime tool size mismatch for ${tool.id}.`);
     }
     const actualHash = createHash("sha256").update(bytes).digest("hex");
     if (actualHash !== tool.sha256) {
-      throw new Error(`SEA runtime tool hash mismatch for ${tool.id}.`);
+      throw new Error(`Runtime tool hash mismatch for ${tool.id}.`);
     }
 
     const temporaryBinaryPath = join(temporaryDirectory, tool.binaryName);
@@ -177,6 +180,69 @@ function readManifest(sea: SeaRuntimeModule): SeaRuntimeToolManifest {
 
   validateManifest(manifest);
   return manifest;
+}
+
+interface RuntimeToolAssetSource {
+  target: string;
+  tools: SeaRuntimeTool[];
+  readTool(tool: SeaRuntimeTool): Promise<Buffer>;
+}
+
+function seaRuntimeToolSource(sea: SeaRuntimeModule): RuntimeToolAssetSource {
+  const manifest = readManifest(sea);
+  return {
+    target: manifest.target,
+    tools: manifest.tools,
+    readTool: async (tool) => Buffer.from(sea.getRawAsset(assetKeyFor(tool))),
+  };
+}
+
+interface BunEmbeddedFile {
+  readonly name: string;
+  text(): Promise<string>;
+  arrayBuffer(): Promise<ArrayBuffer>;
+}
+
+const bunRuntimeToolManifestName = "zcode-runtime-tools-manifest.json";
+const bunRuntimeToolAssetPrefix = "zcode-runtime-tool-";
+
+function bunRuntimeToolAssetName(tool: SeaRuntimeTool): string {
+  const extension = tool.binaryName.endsWith(".exe") ? ".exe" : "";
+  return `${bunRuntimeToolAssetPrefix}${tool.id}${extension}`;
+}
+
+/**
+ * Bun single-file builds embed the per-target manifest and tool binaries with
+ * `--asset`; this source materializes the same cache entries as the SEA path.
+ */
+async function bunRuntimeToolSource(): Promise<RuntimeToolAssetSource | undefined> {
+  const bun = (globalThis as { Bun?: { embeddedFiles?: readonly BunEmbeddedFile[] } }).Bun;
+  const files = bun?.embeddedFiles;
+  if (!files) return undefined;
+  const manifestFile = files.find((file) => file.name === bunRuntimeToolManifestName);
+  if (!manifestFile) return undefined;
+
+  let manifest: SeaRuntimeToolManifest;
+  try {
+    manifest = JSON.parse(await manifestFile.text()) as SeaRuntimeToolManifest;
+  } catch (error) {
+    throw new Error("Invalid Bun runtime tool manifest.", {
+      cause: error,
+    });
+  }
+  validateManifest(manifest);
+
+  return {
+    target: manifest.target,
+    tools: manifest.tools,
+    readTool: async (tool) => {
+      const file = files.find((entry) => entry.name === bunRuntimeToolAssetName(tool));
+      if (!file) {
+        throw new Error(`Missing embedded runtime tool ${tool.id}.`);
+      }
+      return Buffer.from(await file.arrayBuffer());
+    },
+  };
 }
 
 function validateManifest(manifest: SeaRuntimeToolManifest): void {

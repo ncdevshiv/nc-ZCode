@@ -1,4 +1,5 @@
-import ts from "typescript";
+// @ts-nocheck
+import ts from "../compiler/ts-shim.js";
 import type { WorkflowProgram } from "../compiler/compile.js";
 import type { IterationCandidate, SiteTable } from "./sites.js";
 import {

@@ -5,7 +5,7 @@ Development-only trace and context viewer for ZCode.
 Run from the repository root:
 
 ```sh
-pnpm --filter debug dev
+bun run --filter debug dev
 ```
 
 The Hono API reads existing local diagnostics only:

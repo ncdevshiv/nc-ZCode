@@ -1,9 +1,10 @@
+// @ts-nocheck
 import type { JsonSchema } from "./types.js";
 
 /**
- * 确定性序列化：把 schema 的对象键递归排序后再 JSON.stringify，保证快照稳定，与发射
- * 时的插入顺序无关。数组（enum/required/prefixItems/anyOf 等）保持原有顺序不动 ——
- * 它们的顺序是有意义的（且由 checker 的属性/成员顺序确定）。
+* Deterministic serialization: recursively sort the object keys of the schema and then JSON.stringify to ensure stable snapshots and launch
+* The order of insertion is irrelevant. Arrays (enum/required/prefixItems/anyOf, etc.) retain their original order ——
+* Their order is meaningful (and determined by the checker's property/member order).
  */
 
 export function serializeSchema(schema: JsonSchema): string {

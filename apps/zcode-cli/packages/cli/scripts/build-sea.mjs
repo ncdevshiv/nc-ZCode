@@ -70,8 +70,8 @@ export const resolvePostjectBin = ({
   const executable = platform === "win32" ? "postject.cmd" : "postject";
   let directory = startDirectory;
 
-  // pnpm hoisted 布局会把 postject 放到仓库根 node_modules，而不是 CLI 子包下。
-  // 从 CLI 包目录逐级向上找，避免 SEA 构建依赖某一种安装布局。
+// Bun's hoisted layout places postject under the repository root node_modules instead of the CLI sub-package.
+// Search upwards from the CLI package directory to avoid SEA builds relying on a certain installation layout.
   while (true) {
     const candidate = resolve(directory, "node_modules", ".bin", executable);
     if (existsSync(candidate)) return candidate;
@@ -111,7 +111,7 @@ const findSeaFuse = async (binary) => {
   if (!match) {
     throw new Error(
       `Could not find a NODE_SEA_FUSE marker in ${binary}. ` +
-        "Use an official Node.js binary with SEA support, or fall back to `pnpm build`.",
+        "Use an official Node.js binary with SEA support, or fall back to `bun run build`.",
     );
   }
 
@@ -266,7 +266,7 @@ const buildTarget = async ({ nodeBinaries, nodeVersion, postjectBin, target }) =
   console.log(`[sea] building ${target} -> ${binaryPath}`);
   await copyFile(targetNodeBinary, binaryPath);
   await chmod(binaryPath, 0o755);
-  // 同一原文既内嵌到 --licenses，也随 dist 提供，单文件上传仍可取到完整材料。
+// The same original text is both embedded in --licenses and provided with dist. The complete material can still be obtained by uploading a single file.
   await stageNodeNotices(dist, nodeVersion, repositoryRoot);
 
   const sentinelFuse = await findSeaFuse(binaryPath);
@@ -291,11 +291,11 @@ export const main = async (argv = process.argv.slice(2)) => {
   }
 
   if (!existsSync(cliBundle)) {
-    throw new Error("Missing dist/zcode.cjs. Run `pnpm build` first.");
+    throw new Error("Missing dist/zcode.cjs. Run `bun run build` first.");
   }
   const postjectBin = resolvePostjectBin();
   if (!postjectBin) {
-    throw new Error("Missing postject. Run `pnpm install` before `pnpm sea`.");
+    throw new Error("Missing postject. Run `bun install` before `bun run sea`.");
   }
 
   const nodeVersion = process.versions.node;

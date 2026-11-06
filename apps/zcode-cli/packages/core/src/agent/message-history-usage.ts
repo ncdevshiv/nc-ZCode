@@ -19,8 +19,8 @@ export function persistedTokenUsageBaseline(
   const cacheReadTokens = nonNegativeInteger(tokens.cache.read) ?? 0;
   const cacheWriteTokens = nonNegativeInteger(tokens.cache.write) ?? 0;
   const totalTokens = positiveInteger(tokens.total);
-  // 历史 TokenUsageInfo 会把缺失的 provider outputTokens 归一化成 0。
-  // 没有可用 total 时，0 无法证明 usage 已覆盖 assistant，必须把 assistant 留给本地估算。
+//History TokenUsageInfo will normalize missing provider outputTokens to 0.
+// When total is not available, 0 cannot prove that usage has covered assistant, and assistant must be left for local estimation.
   const contextUsageTokens =
     outputTokens > 0
       ? inputTokens + outputTokens

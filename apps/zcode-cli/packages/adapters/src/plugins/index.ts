@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type {
@@ -152,10 +153,10 @@ export class NodePluginAdapter implements PluginPort {
       throwIfAborted(options);
       const loaded = loadPlugin(candidate, diagnostics);
       if (!loaded) continue;
-      // 内置（官方）插件被「卸载」后只在 user config 写 suppressedBuiltins 标记。这里在发现层
-      // 用插件的权威 id（manifest 名 @ marketplace）过滤，不依赖缓存文件是否已被物理删除——
-      // 这样即便 app 升级遗留了旧版本缓存目录、或会话内 facade 持有过时配置，被卸载的内置插件
-      // 也不会被重新发现。仅作用于 official 源，inline/cache（市场安装）不受影响。
+// After the built-in (official) plug-in is "uninstalled", only the suppressedBuiltins tag is written in user config. Here in the discovery layer
+// Filter using the plugin's authoritative id (manifest name @ marketplace), regardless of whether the cached file has been physically deleted -
+// In this way, even if the app upgrade leaves behind the old version cache directory, or the in-session facade holds outdated configurations, and the built-in plug-ins are uninstalled
+// Nor will it be rediscovered. Only works on official sources, inline/cache (market installation) is not affected.
       if (loaded.source === "official" && request.config.suppressedBuiltins.includes(loaded.id)) {
         continue;
       }
@@ -172,16 +173,16 @@ export class NodePluginAdapter implements PluginPort {
       seen.add(loaded.id);
       warnUnsupportedComponents(loaded, diagnostics);
 
-      // candidate.defaultEnabled 在 candidate 构造时无法访问 plugin id,
-      // 这里再叠加 bootstrap 提供的 "默认开" 名单 (按 `<name>@<marketplace>` 匹配)。
+// candidate.defaultEnabled cannot access plugin id when candidate is constructed,
+// Here the "default open" list provided by bootstrap is superimposed (matched by `<name>@<marketplace>`).
       const candidateDefaultEnabled =
         candidate.defaultEnabled ||
         (request.officialPluginsEnabledByDefault?.has(loaded.id) ?? false);
       const enabled = resolveEnabled(request.config, loaded.id, candidateDefaultEnabled);
       const dataPath = join(dataRoot, sanitizePluginId(loaded.id));
-      // 只从启用后解析出的 component.mcpServers 生成 mcpServerNames，
-      // 未启用插件的内置 MCP 就会在管理页完全不可见。这里先读取声明名给 UI 只读展示，
-      // 实际 runtime 注入仍只使用 enabled 分支解析出的 component.mcpServers。
+// Only generate mcpServerNames from component.mcpServers resolved after enabling,
+// Built-in MCP without plug-in enabled will be completely invisible in the management page. Here we first read the declaration name and display it to the UI for read-only display.
+// Actual runtime injection still only uses component.mcpServers resolved from the enabled branch.
       const mcpServerDefinitions = loadPluginMcpServerDefinitions({ diagnostics, loaded });
       const hooksRunnable = canRunPluginHooks(loaded);
       const hookInspection = inspectPluginHooks({
@@ -296,7 +297,7 @@ function createPluginMetadata(
   declaredMcpServerNames: string[],
   configuredOptions: Record<string, string | number | boolean>,
 ): PluginMetadata {
-  // manifest 的 author/homepage 作为详情页信息区的回退来源（商店 listing 优先）。
+// The author/homepage of the manifest is used as the fallback source for the information area of ​​the details page (store listing takes precedence).
   const author = normalizeAuthorValue(loaded.manifest.author);
   const homepage =
     typeof loaded.manifest.homepage === "string" && loaded.manifest.homepage.trim().length > 0
@@ -307,11 +308,11 @@ function createPluginMetadata(
     ...(author?.url ? { authorUrl: author.url } : {}),
     ...(homepage ? { homepage } : {}),
     commandRootCount: component.commandRoots.length,
-    // 详情 UI 过去靠 plugin.skillCount（权威计数）+ 一条 UI 侧 join（按 pluginName 过滤
-    // skillsService 结果）拿名称，二者数据源分离。停用插件走 emptyComponents() 使 skillCount=0、
-    // 且 UI join 对停用插件不产出名称（skillsService 里 `if (!enabled) continue`），导致：停用时
-    // 整个技能分组消失、启用时只有数量没有名称。这里改为对插件根目录做权威枚举（与启用态无关），
-    // 直接把名称+描述随 list 下发，UI 不再需要脆弱的 join。
+// Detailed UI used to rely on plugin.skillCount (authoritative count) + a UI side join (filtered by pluginName
+//skillsService result) takes the name, and the two data sources are separated. To disable the plug-in, use emptyComponents() to make skillCount=0,
+// And UI join does not produce a name for deactivated plug-ins (`if (!enabled) continue` in skillsService), resulting in: when deactivated
+// The entire skill group disappears, and when activated, it only has the quantity but no name. Here we change the authoritative enumeration of the plug-in root directory (independent of the enabled state).
+// Directly send the name + description with the list, and the UI no longer needs fragile joins.
     components: enumeratePluginComponents(loaded.rootPath, loaded.manifest, { loaded }),
     configuredOptions,
     dataPath,
@@ -356,17 +357,17 @@ function resolveEnabledComponents(input: {
       ...input,
       definitions: input.mcpServerDefinitions,
     }),
-    // 插件页要展示真实技能数量。之前只统计 skills root 数，
-    // document-skills 这种一个 root 下有多个 SKILL.md 的插件会被显示成 1。
+// The plug-in page should display the actual number of skills. Previously, only the number of skills root was counted.
+// document-skills plug-ins with multiple SKILL.md under one root will be displayed as 1.
     skillCount: countSkillFiles(skillRoots),
     skillRoots,
   };
 }
 
 function canRunPluginHooks(_loaded: LoadedPlugin): boolean {
-  // 三方 marketplace 插件 hook 默认放行（与内置/官方一致）。
-  // 上限：放弃了「仅官方可执行 hook」的信任边界，三方插件 hook 会直接执行；
-  // 升级路径：需要逐插件 trust（如 user config 白名单）时，把判断收回这里。
+//Three-party marketplace plug-in hooks are allowed by default (consistent with built-in/official).
+// Upper limit: The trust boundary of "only official executable hooks" is abandoned, and third-party plug-in hooks will be executed directly;
+//Upgrade path: When you need to trust plugins one by one (such as user config whitelist), take back the judgment here.
   return true;
 }
 
@@ -393,9 +394,9 @@ function resolveSkillRoots(
 }
 
 /**
- * manifest 显式声明的 skills 路径没有可用技能时发出诊断，避免路径配置错误静默失败。
- * 声明集合独立于 roots 列表计算，默认 skills/ 目录为空时不误报；路径缺失、目录为空和
- * 符号链接越界分别保留可操作的诊断信息，权限错误交给实际扫描链路报告。
+* Manifest issues a diagnosis when there are no available skills in the explicitly declared skills path to avoid silent failure due to path configuration errors.
+* The declaration set is calculated independently of the roots list. By default, no false alarm will occur when the skills/ directory is empty; if the path is missing, the directory is empty, and
+* Symbolic link out-of-bounds operational diagnostic information is retained separately, and permission errors are reported to the actual scan link.
  */
 function warnEmptyDeclaredSkillRoots(input: {
   diagnostics: PluginDiagnostic[];
@@ -408,12 +409,12 @@ function warnEmptyDeclaredSkillRoots(input: {
     const resolved = resolveInside(input.loaded.rootPath, rawPath);
     if (!resolved || seenPaths.has(resolved)) continue;
     seenPaths.add(resolved);
-    // 路径缺失判定只认 ENOENT/ENOTDIR（statSync 精确分类），EACCES 等权限
-    // 错误不得误报成「不存在」——此时没有证据下结论，跳过告警，由 skill adapter
-    // 扫描同一目录时发 skill_scan_failed。
-    // message 按原因区分：「路径不存在」是 manifest 配错，「存在但没有技能」
-    // 是内容问题，「symlink 逃逸出插件根」是安全拒绝，三者修复方式不同；
-    // code 保持单一，UI 无需感知分类。
+// Path missing determination only recognizes ENOENT/ENOTDIR (statSync precise classification), EACCES and other permissions
+// The error must not be mistakenly reported as "does not exist" - there is no evidence to draw a conclusion at this time, skip the alarm, and use the skill adapter
+// Skill_scan_failed occurs when scanning the same directory.
+// Messages are distinguished by reason: "The path does not exist" is a manifest mismatch, "It exists but there is no skill"
+// It's a content problem, "symlink escapes from the plug-in root" is a security rejection, and the three repair methods are different;
+//The code remains single, and the UI does not need to be aware of classification.
     if (isMissingPath(resolved)) {
       input.diagnostics.push({
         code: "plugin_skill_root_empty",
@@ -424,9 +425,9 @@ function warnEmptyDeclaredSkillRoots(input: {
       });
       continue;
     }
-    // 信任边界：声明路径是插件内容，扫描不跟随符号链接（目录级/文件级逃逸
-    // 一并拒绝，含 Windows junction）。链接根/链接 SKILL.md 扫描为空后落入下方
-    // 「没有任何技能」告警，不误报「不存在」（词法路径本身存在）。
+// Trust boundary: Declare the path to be plugin content, scan does not follow symbolic links (directory level/file level escape
+// Reject all, including Windows junction). Link root/link SKILL.md falls below after scanning is empty
+// "No skills" alarm, do not falsely report "does not exist" (the lexical path itself exists).
     let skillFiles: string[];
     try {
       skillFiles = scanSkillFilesUnderRootSync(resolved, { followSymbolicLinks: false });
@@ -647,13 +648,13 @@ function emptyHookInspection(): PluginHookInspection {
 }
 
 function countSkillFiles(skillRoots: SkillRoot[]): number {
-  // 技能识别规则收敛到共享 scan helper（根自身含
-  // SKILL.md 时根自身是一个技能）；同时声明根与
-  // 默认 skills/ 根会命中同一个 SKILL.md，必须按文件路径去重，否则计数翻倍。
-  // 顺带修正漂移：只认 isDirectory() 会漏掉 symlink 技能子目录，统一 helper 后一并计入。
-  // helper 只吞 ENOENT；权限错误（EACCES 等）会抛出，这里按原语义把该根计 0，
-  // 真正的 skill_scan_failed 诊断由 skill adapter 在运行时扫描同一目录时发出。
-  // 信任边界：这里只消费 plugin roots（resolveSkillRoots 产物），不跟随符号链接。
+// Skill recognition rules converge to the shared scan helper (root itself contains
+// SKILL.md (when the root itself is a skill); declare the root and
+//The default skills/ root will hit the same SKILL.md and must be deduplicated according to the file path, otherwise the count will be doubled.
+// Incidentally, the drift is corrected: only recognizing isDirectory() will miss the symlink skill subdirectory, and unifying the helper will be included.
+// The helper only swallows ENOENT; permission errors (EACCES, etc.) will be thrown. Here, the root is counted as 0 according to the original semantics.
+// The real skill_scan_failed diagnostic is emitted by the skill adapter when it scans the same directory at runtime.
+// Trust boundary: only plugin roots (resolveSkillRoots product) are consumed here, and symbolic links are not followed.
   const seenFiles = new Set<string>();
   for (const skillRoot of skillRoots) {
     try {
@@ -663,7 +664,7 @@ function countSkillFiles(skillRoots: SkillRoot[]): number {
         seenFiles.add(file);
       }
     } catch {
-      // 概览计数降级为 0；扫描诊断由 skill adapter 负责。
+// Overview count is downgraded to 0; scan diagnostics are handled by skill adapter.
     }
   }
   return seenFiles.size;
@@ -783,9 +784,9 @@ function materializeCommandMetadataRoot(
     }
     if (markdown === undefined) continue;
 
-    // 市场清单支持 commands object mapping 和 inline content。
-    // ZCode 的 custom command loader 只扫描 markdown 根目录，因此把低风险命令内容
-    // materialize 到插件 data 目录；生成路径不在 plugin root 外暴露，也不执行命令本身。
+// Market listings support commands object mapping and inline content.
+// ZCode's custom command loader only scans the markdown root directory, so the low-risk command content
+// materialize to the plugin data directory; the generation path is not exposed outside the plugin root, and the command itself is not executed.
     writeFileSync(
       join(generatedRoot, `${name}.md`),
       applyCommandMetadataFrontmatter(markdown, rawMetadata),
@@ -854,10 +855,10 @@ function scanOfficialCache(
   diagnostics: PluginDiagnostic[],
   options?: PluginAbortOptions,
 ): string[] {
-  // 官方插件升级会保留旧版本缓存目录；若遍历全部目录再按插件 id
-  // “先到先得”，旧版本会抢在 bundled marketplace 指向的当前版本前被加载。
-  // bundled 分片是当前随应用发布资产的权威清单；存在时只加载其 cachePath。
-  // 不能简单选择最高 semver，否则官方回滚版本时仍会错误加载旧缓存。
+// The official plug-in upgrade will retain the old version cache directory; if you traverse all directories and then press the plug-in id
+// "First come, first served", the old version will be loaded before the current version pointed to by the bundled marketplace.
+// The bundled shard is the authoritative list of assets currently published with the application; only its cachePath is loaded when it exists.
+// You cannot simply select the highest semver, otherwise the old cache will still be loaded incorrectly when the official version is rolled back.
   const bundledRoots = loadBundledOfficialPluginRootsSync(storageRoot);
   if (bundledRoots !== undefined) {
     for (const rootPath of bundledRoots) {
@@ -933,7 +934,7 @@ function findManifest(rootPath: string): string | null {
     return zcodePath;
   }
 
-  // 兼容不同 manifest 目录约定，发现阶段按稳定优先级回退。
+// Compatible with different manifest directory conventions, the discovery phase is rolled back according to stable priority.
   const claudePath = join(rootPath, CLAUDE_MANIFEST_PATH);
   if (fileExists(claudePath)) {
     return claudePath;

@@ -31,8 +31,8 @@ const child = spawn(electronExecutable, ["--inspect-brk=9231", "."], {
   stdio: "inherit",
   env: {
     ...process.env,
-    // 调试启动时 renderer 也必须走 localhost。
-    // 否则即使 Vite 已经就绪，Electron 仍会因为访问 127.0.0.1 被拒绝而打开空白页。
+// When debugging is started, the renderer must also go to localhost.
+// Otherwise, even if Vite is ready, Electron will still open a blank page because access to 127.0.0.1 is denied.
     ELECTRON_RENDERER_URL: "http://localhost:5174",
     ...(enableHostInspect ? { ZCODE_DEBUG: "9230" } : {}),
   },

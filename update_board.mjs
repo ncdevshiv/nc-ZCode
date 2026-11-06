@@ -1,0 +1,14 @@
+import * as fs from 'fs';
+const p='G:/ZCode-main/.nc-tools/board.md';
+let c = fs.readFileSync(p,'utf8');
+const now = new Date().toISOString();
+const agent = {"id":"SVC-PORT-001","name":"Services Porting Agent","role":"Backend Developer","parent":"SD-001","status":"working","registered_at":now};
+const s = c.indexOf('```json');
+const e = c.indexOf('```', s+7);
+const agents = JSON.parse(c.slice(s+7,e).trim());
+agents.push(agent);
+let nc = c.slice(0,s+7)+'\n'+JSON.stringify(agents,null,2)+'\n'+c.slice(e);
+const msg = '- ['+now+'] SVC-PORT-001 (Backend Developer): Registered as Services Porting Agent under SD-001. Status: working. Task: Port all TS-only service modules (596 out of 610). Start with packages/services/src/core shared code, then work systematically. Each service needs full Rust implementation + unit tests + integration tests. Follow dependency order. Update channel implementations in Rust. No mocks/stubs. Keep plugins/skills intact. Report progress to board.';
+nc = nc.replace('## Message Log\n','## Message Log\n'+msg+'\n\n');
+fs.writeFileSync(p,nc);
+console.log('ok');

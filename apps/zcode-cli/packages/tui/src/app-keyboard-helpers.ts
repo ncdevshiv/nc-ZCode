@@ -75,10 +75,10 @@ export function isModeSwitchKey(key: KeyEvent): boolean {
 }
 
 /**
- * `+` / `-` 展开/收起全部 workflow 卡的**完整**判定（键位 + 两层闸门），导出为纯函数以便直接测试。
- * 键位：无修饰键的裸 `+` / `-`；Ctrl/Meta 组合另有归属，一律不认。
- * 闸门：草稿必须为空，且至少有一张 workflow 卡——否则这两个键必须照常打进草稿
- * （粘一段 diff 时第一个字符就是 +/-，吃掉它就是把输入弄坏）。
+* `+` / `-` Expand/collapse the **complete** judgment of all workflow cards (key position + two-layer gate), and export it as a pure function for direct testing.
+* Key position: bare `+` / `-` without modifier keys; Ctrl/Meta combinations have other attributes and will not be recognized.
+* Gate: The draft must be empty and have at least one workflow card - otherwise these two keys must be entered into the draft as usual
+* (The first character when pasting a diff is +/-, eating it will destroy the input).
  */
 export function workflowExpansionActionFor({
   key,

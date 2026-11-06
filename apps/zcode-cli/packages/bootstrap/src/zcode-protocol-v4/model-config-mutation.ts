@@ -3,12 +3,12 @@ import type { ZCodeApp } from "../app/types.js";
 const modelConfigMutationTails = new WeakMap<ZCodeApp, Promise<void>>();
 
 /**
- * 同一个 session App 的模型配置只有一个串行化临界区。
+* The model configuration of the same session App has only one serialization critical section.
  *
- * provider registry fallback 与用户 `switchModelConfig` 过去分别直接调用
- * `setModel`，两条异步链可能交错成“后开始的目录兜底覆盖用户选择”，事件顺序也会与
- * runtime 最终值不一致。这里按 App 身份串行化所有模型/thought 变更；失败只结束本次
- * operation，不污染后续 tail。WeakMap 不延长 session 生命周期。
+* Provider registry fallback and user `switchModelConfig` used to be called directly respectively
+* `setModel`, two asynchronous chains may be interleaved into "the last starting directory overwrites the user selection", and the sequence of events will also be the same as
+* The final runtime value is inconsistent. Here, all model/thought changes are serialized according to the App identity; if it fails, it will only end this time.
+* operation, does not pollute subsequent tail. WeakMap does not extend the session life cycle.
  */
 export async function runSessionModelConfigMutation<T>(
   app: ZCodeApp,

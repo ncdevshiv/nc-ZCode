@@ -270,8 +270,8 @@ export class NodeExecutionAdapterBase {
     }
 
     await Promise.allSettled(activeExecutions.map((record) => record.completion));
-    // 直写后没有 pipe 保活，仅 await Promise 会让 Node 在 SIGKILL 前退出。
-    // active execution 已结算，所有主动终止均已登记；只在 shutdown 引用既有清理句柄。
+// There is no pipe keep-alive after direct writing. Only await Promise will cause Node to exit before SIGKILL.
+// active execution has resolved and all active terminations have been registered; existing cleanup handles are only referenced in shutdown.
     for (const handle of this.pendingBashProcessTreeKills.values()) handle.ref();
     await Promise.allSettled(Array.from(this.pendingBashProcessTreeKills.keys()));
     await this.shellInitRetentionCleanup;

@@ -1,12 +1,12 @@
 /**
- * diff sidecar parity e2e：真实 `zcode-diff` 二进制 + 真实 jsdiff，同输入对输出。
+* diff sidecar parity e2e: real `zcode-diff` binary + real jsdiff, same input versus output.
  *
- * fixture（native/crates/zcode-diff/tests/fixtures/jsdiff-parity.json，87 例）由
- * 真实 npm diff@9.0.0 生成；Rust 侧的逐字节 parity 由 crate 测试锁定，本测试锁定
- * **TS 侧 facade 的真实链路**：flag 开 → NDJSON stdio → Rust bin → 回传结构，
- * 与同参数 jsdiff 本地结果逐字段相等。fixture 缺失/二进制缺失 = 测试失败，不跳过。
+* fixture (native/crates/zcode-diff/tests/fixtures/jsdiff-parity.json, 87 examples) by
+* Real npm diff@9.0.0 generation; byte-by-byte parity on the Rust side is locked by crate tests, locked by this test
+* **Real link of TS side facade**: flag on → NDJSON stdio → Rust bin → return structure,
+* Field-by-field equal to the local result of jsdiff with the same parameters. Missing fixture/missing binary = test failed, not skipped.
  *
- * 运行：cd apps/zcode-cli/packages/sidecar && node --import tsx --test test/parity.test.ts
+* Run: cd apps/zcode-cli/packages/sidecar && node --import tsx --test test/parity.test.ts
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -14,7 +14,7 @@ import { after, test } from "node:test";
 import { createTwoFilesPatch, diffLines, structuredPatch } from "diff";
 import type { StructuredPatch } from "diff";
 
-// flag 必须在调用 facade 前生效（facade 每次调用读 env，这里进程级设置一次）。
+// The flag must take effect before calling facade (facade reads env every time it is called, and is set once at the process level).
 process.env.ZCODE_NATIVE_SIDECARS = "diff";
 
 const {
@@ -28,19 +28,19 @@ const {
 } = await import("../src/index.js");
 
 test("flag semantics: default-on islands, explicit off, kill switch", async () => {
-  // 显式 flag（parity 用）开启
+// Explicit flag (used by parity) is turned on
   assert.equal(sidecarEnabled("diff"), true);
   const { sidecarEnabled: freshEnabled } = await import(
     `../src/config.js?fresh=${Date.now()}`
   );
-  // 默认集合：diff/image/scan/watch 开，proc（等 soak）关
+//Default set: diff/image/scan/watch is on, proc (waiting for soak) is off
   delete process.env.ZCODE_NATIVE_SIDECARS;
   assert.equal(freshEnabled("diff"), true, "diff is default-on after the cutover flip");
   assert.equal(freshEnabled("image"), true, "image is default-on per the user decision");
   assert.equal(freshEnabled("scan"), true, "scan is default-on after the divergence audit");
   assert.equal(freshEnabled("watch"), true, "watch is default-on after the divergence audit");
   assert.equal(freshEnabled("proc"), false, "proc stays off until MCP stdio soak");
-  // kill switch 覆盖一切
+// kill switch covers everything
   process.env.ZCODE_NATIVE_SIDECARS_OFF = "1";
   const { sidecarEnabled: killedEnabled } = await import(
     `../src/config.js?killed=${Date.now()}`
@@ -48,18 +48,18 @@ test("flag semantics: default-on islands, explicit off, kill switch", async () =
   assert.equal(killedEnabled("diff"), false, "kill switch must force the TS path");
   assert.equal(killedEnabled("scan"), false, "kill switch must force the TS path");
   delete process.env.ZCODE_NATIVE_SIDECARS_OFF;
-  // 复原 parity 进程状态
+//Restore parity process status
   process.env.ZCODE_NATIVE_SIDECARS = "diff";
 });
 
-// 进程退出前收尾 sidecar；否则回收/退出与在途写竞争，node:test 报
+// End the sidecar before the process exits; otherwise recycling/exiting will compete with in-flight writing, and node:test will report
 // "asynchronous activity after the test ended"（EPIPE）。
 after(async () => {
   await shutdownSidecars();
 });
 
 const fixturePath = new URL(
-  "../../../../../native/crates/zcode-diff/tests/fixtures/jsdiff-parity.json",
+  "../../../../../native/crates/nc-code-diff/tests/fixtures/jsdiff-parity.json",
   import.meta.url,
 );
 const fixtures = JSON.parse(readFileSync(fixturePath, "utf8")) as {
@@ -110,7 +110,7 @@ for (const item of fixtures.unified) {
       { context: params.context },
     );
     assert.equal(viaSidecar, viaJsdiff);
-    assert.equal(viaSidecar, item.expected, "jsdiff 本地结果必须先与 fixture 一致");
+    assert.equal(viaSidecar, item.expected, "jsdiff local results must first be consistent with fixture");
   });
 }
 
@@ -150,7 +150,7 @@ for (const item of fixtures.structured) {
     assert.deepEqual(
       JSON.parse(JSON.stringify(viaJsdiff ?? null)),
       item.expected,
-      "jsdiff 本地结果必须先与 fixture 一致",
+      "jsdiff local results must first be consistent with fixture",
     );
   });
 }
@@ -161,7 +161,7 @@ for (const item of fixtures.chunks) {
     const viaSidecar = await nativeDiffLines(params.old, params.new);
     const viaJsdiff = diffLines(params.old, params.new);
     assert.deepEqual(viaSidecar, viaJsdiff);
-    assert.deepEqual(viaJsdiff, item.expected, "jsdiff 本地结果必须先与 fixture 一致");
+    assert.deepEqual(viaJsdiff, item.expected, "jsdiff local results must first be consistent with fixture");
   });
 }
 

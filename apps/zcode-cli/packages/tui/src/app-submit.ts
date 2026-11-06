@@ -41,7 +41,7 @@ export function appendAgentResult(
   result: TuiSubmitPromptResult,
   options: { workspaceDirectory?: string } = {},
 ): Message[] {
-  // resume 回放以前只保留 content/role，导致已持久化的 reasoning/tool
+//Resume playback only retains content/role before, resulting in persisted reasoning/tool
   // part 被初始渲染丢掉；这里恢复成 TUI 结构化 parts，继续复用实时流式组件。
   const restored = result.restoredMessages
     ? result.restoredMessages.map((message) =>

@@ -29,8 +29,8 @@ export async function filePartToContentBlock(
     };
   }
 
-  // 增加 video 时曾把原有 PDF allowlist 泛化为所有非文本 MIME，
-  // 导致 audio 等未支持类型在冷恢复后意外变成 provider file 输入。
+// When adding video, the original PDF allowlist was generalized to all non-text MIME.
+// Causes unsupported types such as audio to unexpectedly become provider file input after cold recovery.
   if (isPdfMime(part.mime) && dataUrl) {
     return {
       type: "file",
@@ -129,9 +129,9 @@ function attachmentRefFromFilePart(part: FilePart): AttachmentRef {
       : undefined;
   return {
     id: part.id,
-    // 冷恢复的正文来自 durable artifact，若仍把持久化的原始 path 当作
-    // 当前请求路径，原文件删除或修改后会让 base64 与 source path 指向不同内容；
-    // image/video 有 artifact 时统一按 inline 恢复，由请求投影从同一 artifact 重建 path。
+// The text of cold recovery comes from durable artifact. If the original path of persistence is still regarded as
+// The current request path. After the original file is deleted or modified, base64 and source path will point to different content;
+// When image/video has artifacts, press inline to restore them, and request projection to rebuild the path from the same artifact.
     kind: artifactUri
       ? "inline"
       : part.source?.type === "resource"

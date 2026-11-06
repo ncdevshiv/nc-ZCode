@@ -58,21 +58,21 @@ function documentApplies(
 const FALLBACK_DOCUMENTATION = [
   "# Built-in Browser Automation API",
   "",
-  // Browser Use MCP 已是每次调用 fresh kernel；fallback 不能继续诱导模型复用 global binding。
+// Browser Use MCP is calling fresh kernel every time; fallback cannot continue to induce the model to reuse global binding.
   "The official browser-use plugin docs are unavailable, and every Browser Use call starts in a fresh kernel. Start with `await agent.browsers.list()`, then select a reported runtime browser with `const browser = await agent.browsers.getDefault()` or the matching `get()` / `getForUrl(url)` selection. Repeat the same verified selection in each call without switching backend.",
   "Backend types are `iab | extension | cdp`; Playwright is a tab API surface, not a backend. Never assume an unlisted backend is available.",
   "High-level methods return payloads directly and throw `BrowserCommandError` on failure.",
   "Before each logical tab-operation batch, return the complete `browser.tabs.list()` result in a dedicated observation cell. Each `TabInfo` includes `viewport: BrowserViewportSize`. After the model inspects the list, match by stable id or verified URL/title and call `tabs.get(id)` in the next cell; if no controlled tab matches, inspect and claim `browser.user.openTabs()` before creating a new tab.",
-  // 模型每次对同站 URL 都走 tabs.new()，任务结束后 IAB 堆满标签页。
-  // open() 现在内置同站复用（激活 + 原地跳转），文档必须把 open() 教成默认导航入口。
+// The model executes tabs.new() every time for the URL of the same site. After the task is completed, the IAB will be filled with tabs.
+// open() now has built-in reuse on the same site (activation + in-situ jump), and the document must teach open() as the default navigation entry.
   "`agent.browsers.open(url)` is the default navigation entry: it reuses an existing same-site controlled tab (same hostname), activates it so the user sees it, and navigates in place instead of stacking new tabs. Only pass `{ reuseTab: false }` (or use `browser.tabs.new()`) when the task genuinely needs a parallel independent tab.",
   "For a genuinely new URL with no intended existing page, use `const tab = await browser.tabs.new()`, run `await tab.goto(url)`, then run `await tab.playwright.waitForLoadState({ state: \"domcontentloaded\" })` before returning the first title, URL, or DOM observation.",
   "After every successful `tab.goto(url)`, explicitly call `await tab.playwright.waitForLoadState({ state: \"domcontentloaded\" })` before the first title, URL, or DOM observation. Keep this confirmation in the model-visible trajectory even when goto() has already settled the backend navigation. Do not replace it with networkidle or a fixed sleep; routine URL/load-state waits remain capped at 3000ms.",
   "If the latest domSnapshot already contains the target, use its facts directly. Do not use evaluate() to rediscover related elements, enumerate inputs, dump HTML, walk the DOM, or probe guessed selectors.",
   "Never guess locator labels, accessible names, placeholders, selectors, or URL patterns. If count() is 0, do not action-wait: take a fresh domSnapshot() and rebuild. After timeout/strict/parse failure, never retry the same locator.",
-  // 快照里的 heading/text 可能由祖先卡片处理点击，不能因缺少 link role 就放弃或猜测新角色。
+// The heading/text in the snapshot may be clicked by the ancestor card. You cannot give up or guess the new role due to the lack of link role.
   "A snapshot-proven heading or visible text does not need a `link` or `button` role to be clicked. Do not replace a snapshot-proven `heading` with a guessed `link` role. When user intent authorizes navigation and the actual target is unique, click it directly.",
-  // 两套 tab 查询分开返回时，模型会在第一套结果后重新决策并跳过 popup 来源。
+// When two sets of tab queries are returned separately, the model will make a new decision after the first set of results and skip the popup source.
   "Use at most one state-changing action per observation cycle. An unchanged source-tab URL does not prove the click failed. Judge an action by whether its expected effect appeared, not by whether `browser.tabs.list()` is non-empty. An existing source tab or unrelated controlled tab is not an action effect. When an action may open a popup/new tab and the source tab does not show the expected effect, read `browser.tabs.list()` and `browser.user.openTabs()` unconditionally in the same observation cell. Prefer `const [controlledTabs, userTabs] = await Promise.all([browser.tabs.list(), browser.user.openTabs()]);`. Return `{ controlledTabs, userTabs }` as that cell's final result so the model makes one decision from both lists. Do not return the controlled list first or decide whether to query user tabs from its contents.",
   "playwright.evaluate() and locator.evaluate() execute JavaScript in the page context and may change page state. Use them for page-side logic that cannot be expressed through the high-level locator API; use normal action methods when they communicate the intended interaction more clearly.",
   "Routine locator, URL/load-state wait, and evaluate operations default to and are capped at 3000ms; fixed tab.playwright.waitForTimeout(ms) is separate.",
@@ -138,8 +138,8 @@ function effectiveApi(
   descriptor?: BrowserBackendDescriptor,
 ): BrowserApiManifest {
   if (!descriptor) {
-    // 全局 documentation() 是同步入口，不能在这里伪造一个 backend。只展示所有连接都安全成立的
-    // common surface；connection-specific/override 成员由 browser.documentation() 展示。
+// Global documentation() is a synchronization entry, and you cannot forge a backend here. Only show those where all connections are securely established
+// common surface; connection-specific/override members are displayed by browser.documentation().
     return {
       ...api,
       objects: Object.fromEntries(
@@ -220,7 +220,7 @@ export function loadBrowserDocumentation(
         `- Name: ${descriptor.name}`,
         `- Type: ${descriptor.type}`,
         `- ID: ${descriptor.id}`,
-        // Browser descriptor 持久，但承载它的 JavaScript wrapper 每次调用都会销毁。
+// The Browser descriptor is persistent, but the JavaScript wrapper hosting it is destroyed on every call.
         "Recreate this browser wrapper in every fresh Browser Use call using the same verified selection. A new user turn, fresh kernel, or tab error does not invalidate the browser backend; select another browser only when the browser-selection policy requires it.",
         "If a tab is stale or missing later, recover or create a tab after inspecting current tab facts; never switch browser backend merely to recover a tab. Empty controlled-tab lists are normal after explicit close or session release and do not invalidate the selected browser backend.",
       ].join("\n"),

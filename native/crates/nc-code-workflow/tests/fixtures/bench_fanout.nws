@@ -1,0 +1,40 @@
+// Benchmark fixture mirroring `workflow_fanout.ts`: four concurrent untyped asks on four
+// named workers, joined, one report, then one typed meta ask by a coordinator.
+//
+// The site table differs from the TypeScript fixture by design, and the benchmark says so:
+// the TS script builds its workers inside `names.map(...)`, so the front-end sees ONE actor
+// site and ONE ask site executed four times (ordinals @1..@4). NWS v1 has no array-method
+// callback over facade calls — its join is an array literal — so the same work is written as
+// four call sites. Same four actors, same four concurrent asks, same join, same meta ask.
+//
+//   actor#1..actor#4   the four workers
+//   ask#1..ask#4       their asks, joined by one Promise.all (join#1)
+//   report#1           the finding count
+//   actor#5            the coordinator
+//   ask#5              the typed merge ask
+
+schema Merge {
+  merged: string
+  count: number
+}
+
+workflow "bench-fanout" {
+  let alpha = agent("alpha-worker", "You are the alpha worker.");
+  let beta = agent("beta-worker", "You are the beta worker.");
+  let gamma = agent("gamma-worker", "You are the gamma worker.");
+  let delta = agent("delta-worker", "You are the delta worker.");
+
+  let findings = await Promise.all([
+    alpha.ask("Worker alpha: reply with exactly one short sentence describing task 1."),
+    beta.ask("Worker beta: reply with exactly one short sentence describing task 2."),
+    gamma.ask("Worker gamma: reply with exactly one short sentence describing task 3."),
+    delta.ask("Worker delta: reply with exactly one short sentence describing task 4.")
+  ]);
+
+  report({ workers: findings.length });
+
+  let coordinator = agent("coordinator", "You merge worker findings.");
+  let merged: Merge = await coordinator.ask("Merge these findings into one sentence and report the count.");
+
+  return { merged: merged.merged, count: merged.count };
+}

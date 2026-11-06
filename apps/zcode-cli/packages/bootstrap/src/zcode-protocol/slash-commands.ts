@@ -10,16 +10,16 @@ import {
 } from "../slash-command-surface.js";
 
 /**
- * `workflow` 是 zcode-guide 内置插件的自定义命令，随 CLI 打包，不受用户 commandOverrides
- * 影响；灰度关闭时只能在装配目录时按名剔除。
+* `workflow` is a custom command of the zcode-guide built-in plug-in, packaged with the CLI, and is not subject to user commandOverrides
+* Impact; when grayscale is turned off, it can only be eliminated by name when assembling the directory.
  */
 const DYNAMIC_WORKFLOW_SLASH_COMMAND_NAME = "workflow";
 
 export interface ListProtocolSlashCommandsOptions extends ListZCodeCustomCommandsOptions {
   /**
-   * 动态工作流灰度门。**只有显式 false
-   * 才剔除** `workflow`：CLI 自身的目录装配（TUI / 未参与灰度的调用方）缺席该字段，
-   * 必须保持原样。协议服务端一律从 appRuntimePreferences 传入显式布尔。
+* Dynamic workflow grayscale gate. **Only explicit false
+* Only removed** `workflow`: CLI's own directory assembly (TUI / caller not participating in grayscale) lacks this field,
+* Must remain as is. The protocol server always passes an explicit boolean from appRuntimePreferences.
    */
   dynamicWorkflowEnabled?: boolean;
 }
@@ -33,7 +33,7 @@ export async function listProtocolSlashCommands(
     const outcome = await listZCodeCustomCommands(options);
     customCommands = outcome.commands;
   } catch {
-    // 自定义命令发现失败不应阻断 session snapshot；保留可执行的内置协议命令。
+// Failure to discover custom commands should not block the session snapshot; retain executable built-in protocol commands.
     customCommands = [];
   }
 
@@ -42,7 +42,7 @@ export async function listProtocolSlashCommands(
     ...customCommands
       .filter((command) => !command.disableNonInteractive)
       .filter((command) => !isReservedZCodeSlashCommandName(command.name))
-      // 灰度关闭：composer 的加号菜单与 `/` 面板都只读这份目录，剔除即两个入口一起消失。开启时后面的 pinWorkflowAfterGoal 继续把它钉在 goal 之后。
+// Grayscale off: Composer's plus menu and `/` panel only read this directory, and if they are removed, the two entries will disappear together. The subsequent pinWorkflowAfterGoal when turned on continues to pin it after the goal.
       .filter(
         (command) =>
           options.dynamicWorkflowEnabled !== false ||
@@ -58,11 +58,11 @@ export async function listProtocolSlashCommands(
 }
 
 /**
- * App `/` 面板按本目录顺序展示，本函数是唯一的排序点（UI 不维护排序白名单）。
- * `workflow` 是 zcode-guide 内置插件的自定义命令，
- * 按发现顺序会沉在 custom 段末尾；产品要求它与 `goal` 一样作为「开启一段工作」的入口，
- * 紧随 goal 之后。
- * 只调顺序：来源、去重与 reserved 规则不变；任一方缺席时保持原序。
+* The App `/` panel is displayed in the order of this directory, and this function is the only sorting point (the UI does not maintain a sorting whitelist).
+* `workflow` is a custom command of the zcode-guide built-in plug-in.
+* It will be buried at the end of the custom section in the order of discovery; the product requires it to be the entrance to "start a piece of work" like `goal`.
+* Immediately after goal.
+* Only the order is adjusted: the source, deduplication and reserved rules remain unchanged; the original order is maintained when either party is absent.
  */
 function pinWorkflowAfterGoal(commands: ZCodeSlashCommand[]): ZCodeSlashCommand[] {
   const workflowIndex = commands.findIndex(

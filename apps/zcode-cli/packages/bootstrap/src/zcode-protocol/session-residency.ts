@@ -1,4 +1,4 @@
-// Session 常驻池的真实事实适配与去激活执行面。
+// The real-life adaptation and deactivation execution surface of the Session resident pool.
 
 import type { SessionId } from "@zcode/contracts";
 import type {
@@ -12,9 +12,9 @@ interface SessionResidencyFinalizationOwner {
 }
 
 /**
- * residency lease 只覆盖 Bootstrap detached runner 的收尾窗口，避免 pool 回收仍在使用的
- * record。Prompt admission 的 busy/idle authority 已归 Core；activeAbortController 仅是旧命令
- * 路径的兼容取消句柄，不能再作为 prompt 调度锁。
+* The residency lease only covers the closing window of the Bootstrap detached runner to avoid pool recycling that is still in use.
+* record. Prompt admission's busy/idle authority has been relegated to Core; activeAbortController is legacy command only
+* The path's compatible cancellation handle can no longer be used as a prompt dispatch lock.
  */
 function acquireSessionResidencyFinalization(
   record: SessionResidencyFinalizationOwner,
@@ -28,7 +28,7 @@ function acquireSessionResidencyFinalization(
   };
 }
 
-/** 同步登记 lease，再启动 detached runner；同步抛错和异步终态都保证释放。 */
+/** Register the lease synchronously and then start the detached runner; both synchronous error throwing and asynchronous final state are guaranteed to be released. */
 export function runWithSessionResidencyFinalization<T>(
   record: SessionResidencyFinalizationOwner,
   run: () => Promise<T>,
@@ -43,12 +43,12 @@ export function runWithSessionResidencyFinalization<T>(
 }
 
 /**
- * 只释放 resident runtime，不删除任何持久 session/task 事实。
+* Only release the resident runtime and do not delete any persistent session/task facts.
  *
- * 若先 await app.close，再从 registry 摘除，新的 cold subscribe 会在 await
- * 窗口命中一个已进入 shutdown 的旧 runtime；若先删 record 但不设置 pool gate，新旧 app
- * 又会并发碰同一 session 资源。因此同步摘除与异步 close 必须由 pool 的 in-flight gate
- * 组合成一个生命周期事务。
+* If you await app.close first and then remove it from the registry, the new cold subscribe will be in await
+* The window hits an old runtime that has entered shutdown; if the record is deleted first but the pool gate is not set, the old and new apps will
+* The same session resource will be touched concurrently. Therefore, synchronous removal and asynchronous close must be performed by the in-flight gate of the pool.
+* Combined into a life cycle transaction.
  */
 async function deactivateSessionRecord(
   context: ZCodeProtocolAgentServerContext,
@@ -56,14 +56,14 @@ async function deactivateSessionRecord(
 ): Promise<void> {
   const record = context.sessions.get(sessionId);
   if (!record) return;
-  // CommandInbox pin 的拒绝曾发生在 unsubscribe 之后，异常会留下仍在 registry
-  // 但收不到 runtime event 的半清 record。所有可预检拒绝必须早于第一个副作用。
+// CommandInbox pin rejection occurred after unsubscribe, the exception will remain in the registry
+// But the half-clear record of the runtime event cannot be received. All preflightable rejections must precede the first side effect.
   context.v4Gateway?.assertSessionRuntimeDeactivatable(sessionId);
   record.unsubscribe?.();
   context.v4Gateway?.deactivateSession(sessionId);
   context.sessions.delete(sessionId);
   await record.app.close?.();
-  // 去激活后内存 event store 必须与“从未加载”等价。
+// The memory event store after deactivation must be equivalent to "never loaded".
   await record.eventStore.deleteSession(sessionId as SessionId);
 }
 
@@ -80,8 +80,8 @@ export function createSessionResidentPoolHost(
         hasPendingInteractions: context.v4Interactions.hasPendingForSession(sessionId),
         hasQueuedCommands: context.v4Gateway?.hasResidencyBlockingCommands(sessionId) ?? false,
         hasLegacySubscriber: record.legacyStreamSubscribed === true,
-        // active/queue 与 registry background task 不能覆盖 title、MCP、memory
-        // 等 detached work；统一查询由 runtime 维护，协议 finalization 只补协议所有权。
+// active/queue and registry background task cannot cover title, MCP, memory
+// Wait for detached work; unified query is maintained by runtime, and protocol finalization only supplements protocol ownership.
         hasResidencyBlockingWork:
           record.activeAbortController !== undefined ||
           (record.residencyFinalizationCount ?? 0) > 0 ||

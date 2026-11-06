@@ -86,9 +86,9 @@ export function recoverAtomicTargetSync(targetPath: string): string {
     transaction = undefined;
   }
 
-  // marker 只表示事务已经开始，不能证明 writer 已退出。普通 overview/discovery
-  // 读取若恢复仍活跃的事务，会抢走 rollback backup，甚至删除 writer 的 staging。
-  // 读取活跃事务时返回“已提交的一代”：权威状态未带 transactionId 时读 backup，带 id 后读 target。
+// The marker only indicates that the transaction has started, but cannot prove that the writer has exited. General overview/discovery
+// Reading and restoring a transaction that is still active will take away the rollback backup and even delete the writer's staging.
+// Return "committed generation" when reading active transactions: read backup when the authoritative status does not have transactionId, and read target after id.
   if (activeTransaction) {
     return resolveLiveAtomicReadPath(targetPath, backupPath, activeTransaction);
   }
@@ -104,7 +104,7 @@ export function recoverAtomicTargetSync(targetPath: string): string {
       if (existsSync(targetPath) && existsSync(backupPath)) {
         rmSync(backupPath, { force: true, recursive: true });
       } else if (!existsSync(targetPath) && existsSync(backupPath)) {
-        // 理论上权威状态只会在 target 激活后写入；异常磁盘状态下优先恢复一个完整版本。
+// Theoretically, the authoritative state will only be written after the target is activated; a complete version will be restored first in case of abnormal disk status.
         renameSync(backupPath, targetPath);
       }
     } else if (existsSync(backupPath)) {
@@ -196,8 +196,8 @@ async function writeAtomicTransaction(
     version: 2,
   };
   try {
-    // in-process reservation 无法覆盖 CLI/Desktop 等多进程 writer。
-    // marker 必须排他创建，避免第二个进程覆写仍存活事务的 owner 与 rollback 快照。
+// In-process reservation cannot cover multi-process writers such as CLI/Desktop.
+// The marker must be created exclusively to prevent a second process from overwriting the owner and rollback snapshots of still-lived transactions.
     await writeFile(transactionPath, `${JSON.stringify(record)}\n`, {
       encoding: "utf8",
       flag: "wx",
@@ -232,15 +232,15 @@ export async function activateDirectoryAtomically(
   let reservationActive = false;
 
   try {
-    // 固定 backup/marker 只能支持 single writer。允许第二个 activation
-    // 覆盖内存 owner，并在失败清理时删除第一个事务的 marker，最终让 rollback 丢失快照。
+// Fixed backup/marker can only support single writer. Allow second activation
+// Overwrite the memory owner and delete the first transaction marker when cleanup fails, eventually causing rollback to lose the snapshot.
     if (activeAtomicReservations.has(targetKey) || activeAtomicTargets.has(targetKey)) {
       throw new Error(`Atomic directory activation is already active: ${input.targetPath}`);
     }
     activeAtomicReservations.add(targetKey);
     reservationActive = true;
-    // URL/settings marketplace 只有规范化 manifest，没有可复制的 source tree；
-    // 仍需复用同一套 authority generation 与 rollback，不能退回直接覆盖 active 文件。
+// URL/settings marketplace only has a standardized manifest and no copyable source tree;
+// It is still necessary to reuse the same set of authority generation and rollback, and cannot be returned to directly overwrite the active file.
     if (input.sourcePath) {
       await cp(input.sourcePath, stagedPath, { force: true, recursive: true });
     } else {
@@ -249,8 +249,8 @@ export async function activateDirectoryAtomically(
     await input.prepare?.(stagedPath);
     throwIfAborted(input.signal);
 
-    // 旧流程先 rm target 再 cp，下载后复制失败或取消会把最后可用缓存删掉。
-    // staging 已完整准备后才进入提交点；提交点之后完成 rename/状态落盘，不再响应取消。
+// The old process first rm target and then cp. Failure or cancellation of copying after downloading will delete the last available cache.
+// Staging enters the submission point after complete preparations; after the submission point, the rename/status placement is completed and no longer responds to cancellation.
     const hadTarget = await pathExists(input.targetPath);
     activeAtomicTargets.set(targetKey, {
       ...(input.authorityPath ? { authorityPath: resolve(input.authorityPath) } : {}),
@@ -300,7 +300,7 @@ export async function activateDirectoryAtomically(
         settled = true;
         try {
           if (targetMoved) {
-            // 权威状态带同一 transactionId 落盘后才删除 backup。
+// The authoritative state with the same transactionId will be deleted only after the backup is placed.
             await cleanupPluginSourceBestEffort(async () => {
               await rm(backupPath, { force: true, recursive: true });
             });
@@ -318,7 +318,7 @@ export async function activateDirectoryAtomically(
       rollback: async () => {
         if (settled) return;
         try {
-          // 依赖 closure 的后续插件或 installed state 写入失败时，撤销已激活目录。
+// When subsequent plug-ins or installed state that rely on closure fail to write, revoke the activated directory.
           await rm(input.targetPath, { force: true, recursive: true });
           if (targetMoved) await rename(backupPath, input.targetPath);
           await cleanupPluginSourceBestEffort(async () => {
@@ -363,8 +363,8 @@ export async function writeFileAtomically(path: string, data: string | Uint8Arra
   try {
     await writeFile(temporaryPath, data);
     try {
-      // POSIX 可直接原子替换同目录文件，不制造 target 缺失窗口。
-      // Windows 若拒绝覆盖已有目标，再进入带确定性 backup 的可恢复路径。
+// POSIX can directly atomically replace files in the same directory without creating a target missing window.
+// If Windows refuses to overwrite existing targets, then enter the recoverable path with deterministic backup.
       await rename(temporaryPath, path);
       committed = true;
       return;

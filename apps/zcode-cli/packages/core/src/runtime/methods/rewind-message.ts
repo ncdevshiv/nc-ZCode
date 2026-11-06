@@ -1,4 +1,4 @@
-/* eslint-disable max-lines -- rewind message primitive 与 cascade 封装共享 conversation/workspace 语义，避免拆分时误改原 /rewind 行为。 */
+/* eslint-disable max-lines -- rewind message primitive and cascade encapsulation share conversation/workspace semantics to avoid accidentally changing the original /rewind behavior when splitting. */
 import {
   RewindScope,
   RewindStrategy,
@@ -307,9 +307,9 @@ async function rewindWorkspaceToCheckpoints(
   const restoredFiles: WorkspaceRewindRestoredFile[] = [];
   for (const { artifact } of artifacts) {
     throwIfTurnAborted(options.abortSignal);
-    // cascade 是 UI 消息级撤销的外置高阶接口。一个消息级撤销可能跨过多个
-    // 文件变更 checkpoint。先完整读取全部 artifact，再按创建顺序倒序写文件；这样
-    // artifact 缺失/损坏这类可预见失败不会发生在 workspace 已经半回退之后。
+// cascade is an external high-level interface for UI message-level cancellation. A message-level revocation may span multiple
+//File change checkpoint. First read all artifacts completely, and then write the files in reverse order of creation; this way
+// Predictable failures such as missing/corrupted artifacts will not occur after the workspace has been halfway rolled back.
     restoredFiles.push(
       ...(await this.restoreWorkspaceCheckpointArtifact(
         artifact,
@@ -383,8 +383,8 @@ async function readWorkspaceCheckpointArtifact(
 }
 type ConversationRewindPlan =
   | {
-      // ConversationRewindResult.evaluation 是对外结果的可选字段，
-      // 但 available plan 已经完成 active-chain 校验，后续落事件必须有 evaluation。
+// ConversationRewindResult.evaluation is an optional field for external results.
+// However, the available plan has completed active-chain verification, and subsequent events must be evaluated.
       evaluation: NonNullable<ConversationRewindResult["evaluation"]>;
       branchCutAfterMessageId: MessageId;
       branchGeneration: number;
@@ -413,8 +413,8 @@ export async function rewindConversationToMessage(
 ): Promise<ConversationRewindResult> {
   const plan = await buildConversationRewindPlan.call(this, {
     targetMessageId: options.targetMessageId,
-    // 仅纯 conversation scope 开启 assistant 锚点回溯（v4 edit/retry 路径）；
-    // both/cascade 的显式流保持严格目标校验。
+// Only pure conversation scope enables assistant anchor point traceback (v4 edit/retry path);
+// Explicit streams for both/cascade maintain strict target checking.
     remapAssistantAnchor: options.scope === undefined || options.scope === RewindScope.Conversation,
   });
   if (plan.kind === "unavailable") {
@@ -442,9 +442,9 @@ async function buildConversationRewindPlan(
   options: {
     targetMessageId: MessageId;
     /**
-     * assistant 锚点回溯映射开关：仅纯 conversation scope（v4 editUserQuery/retryTurn
-     * 的 `/rewind conversation <assistantMessageId>`）开启；cascade/both 的显式 TUI
-     * 流保持严格 user prompt 目标校验（precheck reject，不隐式扩大回滚范围）。
+* assistant anchor back mapping switch: pure conversation scope only (v4 editUserQuery/retryTurn
+* `/rewind conversation <assistantMessageId>`) on; explicit TUI for cascade/both
+* The flow maintains strict user prompt target verification (precheck reject, does not implicitly expand the rollback range).
      */
     remapAssistantAnchor?: boolean;
   },
@@ -462,8 +462,8 @@ async function buildConversationRewindPlan(
   const persistedMessages = await this.sessionStore.messages({
     sessionID: this.sessionId,
   });
-  // rewind target 可以位于当前 compact boundary 之前。定位 edit target 时只能
-  // 应用 append-only branch cut，compact scope 只用于 provider history，不能提前隐藏 target。
+// rewind target can be located before the current compact boundary. When positioning the edit target, you can only
+// Apply append-only branch cut, compact scope is only used for provider history, and target cannot be hidden in advance.
   const activeMessages = selectActiveConversationBranch(persistedMessages, {
     branchCutAfterMessageId: session?.revert?.branchCutAfterMessageID,
     rewindCreatedMessageId: session?.revert?.createdMessageID,
@@ -473,9 +473,9 @@ async function buildConversationRewindPlan(
   const requestedIndex = activeMessages.findIndex(
     (message) => message.info.id === options.targetMessageId,
   );
-  // v4 editUserQuery/retryTurn 使用同一 turn 的 assistant messageId 作为 rewind 锚点，
-  // 因为 user 行没有稳定的 messageId。将该锚点回溯到所属 turn 的 user prompt，
-  // 让持久消息与运行时历史都从该 prompt 开始截断，避免编辑重跑或冷恢复时带回旧分支。
+// v4 editUserQuery/retryTurn uses the assistant messageId of the same turn as the rewind anchor point,
+// Because the user row does not have a stable messageId. Backtrack the anchor to the user prompt of the turn it belongs to,
+// Let the persistent messages and runtime history be truncated from this prompt to avoid bringing back the old branch during editing rerun or cold recovery.
   let targetIndex = requestedIndex;
   if (
     options.remapAssistantAnchor === true &&
@@ -514,7 +514,7 @@ async function buildConversationRewindPlan(
 
   const targetMessage = activeMessages[targetIndex]!;
   if (!isRewindableUserPrompt(targetMessage)) {
-    // 严格路径（remapAssistantAnchor 未开启）：非 user prompt 目标维持 precheck reject。
+// Strict path (remapAssistantAnchor is not enabled): non-user prompt targets maintain precheck reject.
     return {
       evaluation,
       kind: "unavailable",
@@ -566,8 +566,8 @@ async function applyConversationRewindPlan(
   await this.sessionStore!.setRevert({
     sessionID: this.sessionId,
     revert: {
-      // 只保存 target/created 无法在连续编辑或重启后还原旧 rewind 前缀。
-      // keptMessageIDs 保存的是本次 rewind 前 active branch 的保留前缀，避免旧分支重新浮出。
+// Saving only target/created cannot restore the old rewind prefix after successive edits or restarts.
+// keptMessageIDs saves the reserved prefix of the active branch before this rewind to prevent the old branch from resurfacing.
       keptMessageIDs: keptMessages.map((message) => message.info.id as MessageId),
       branchCutAfterMessageID: branchCutAfterMessageId,
       branchGeneration,
@@ -643,7 +643,7 @@ async function cancelRemovedBranchBackgroundTasks(
       traceContext: options.traceContext,
     });
     if (!result.ok) {
-      // fail closed：无法确认旧分支后台工作已停时，不提交 branch cut，也不碰 workspace。
+// fail closed: When it cannot be confirmed that the background work of the old branch has been stopped, the branch cut will not be submitted and the workspace will not be touched.
       throw new Error(`rewind background task cancellation failed: ${task.taskId}`);
     }
   }
@@ -660,8 +660,8 @@ async function finishUnavailableConversationRewind(
     traceContext: TraceContext;
   },
 ): Promise<ConversationRewindResult> {
-  // 失败/冲突不是一次已经提交的 branch cut，不能伪造 RewindTriggered。
-  // 否则 live projection 会裁 UI，而 store/provider history 仍保留旧分支。
+// The failure/conflict is not a committed branch cut and cannot be forged as RewindTriggered.
+// Otherwise the live projection will crop the UI, while the store/provider history will still retain the old branch.
   return {
     evaluation: options.evaluation,
     keptMessageCount: 0,
@@ -688,7 +688,7 @@ async function rebuildConversationDerivedState(
     rewindTargetMessageId: options.targetMessageId,
   };
 
-  // branch 重建，避免 compact/microcompact/read cache 或 provider usage 泄漏旧分支。
+// Branch reconstruction to avoid compact/microcompact/read cache or provider usage leaking old branches.
   this.messageHistory.reset();
   await hydrateMessageHistoryFromSession({
     artifactStore: this.artifactStore,

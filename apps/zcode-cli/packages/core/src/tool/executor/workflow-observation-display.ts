@@ -1,10 +1,10 @@
 /**
- * 工作流工具的结果卡 display 构造：观察类五件套（GetWorkflowRun / ListWorkflowRuns /
- * EvalWorkflowSnippet / ListSavedWorkflows / ListModels）+ ResumeWorkflowRun 恢复卡。
+* The result card display structure of the workflow tool: five-piece set of observation classes (GetWorkflowRun / ListWorkflowRuns /
+* EvalWorkflowSnippet / ListSavedWorkflows / ListModels) + ResumeWorkflowRun recovery card.
  *
- * 独立成文件而不是塞进 result-display.ts（已 500 行）：这些构造函数共享同一套
- * 「safeParse 输出 schema → display 侧独立限长 → 超 limit 打 truncated」的骨架，与既有
- * createCreateWorkflowDisplay 同族但自成一块。
+* Separate files instead of stuffed into result-display.ts (500 lines already): these constructors share the same set
+* The skeleton of "safeParse output schema → display side independent limit length → exceeding limit and truncated" is consistent with the existing
+* CreateCreateWorkflowDisplay is of the same family but in its own right.
  */
 
 import {
@@ -65,14 +65,14 @@ function createGetWorkflowRunDisplay(
   const actors = data.actors.slice(0, WORKFLOW_OBSERVATION_DISPLAY_MAX_ACTORS);
   if (actors.length < data.actors.length) truncated = true;
 
-  // 取尾巴：logTail 的价值在「最新进展」，截头不截尾。
+// Get the tail: The value of logTail is "Latest Progress", the head is truncated but not the tail.
   const droppedLogEntries = Math.max(0, data.logTail.length - WORKFLOW_OBSERVATION_DISPLAY_MAX_LOG_ENTRIES);
   const logTail = data.logTail
     .slice(-WORKFLOW_OBSERVATION_DISPLAY_MAX_LOG_ENTRIES)
     .map((entry) => {
       const bounded = boundDisplayText(entry.message, WORKFLOW_OBSERVATION_DISPLAY_MAX_LOG_CHARS);
       if (bounded.truncated) truncated = true;
-      // `at` 原样带上卡（有则带，无则缺席）：卡上的日志年龄与模型面的 `<log_tail>` 同一把尺。
+// `at` Bring the card as it is (if present, absent if not): the log age on the card is the same as the `<log_tail>` on the model surface.
       return {
         sequence: entry.sequence,
         message: bounded.value,
@@ -88,18 +88,18 @@ function createGetWorkflowRunDisplay(
     result = bounded.value;
   }
 
-  // 卡片上的错误只带 code / message。
-  // 输出侧的 `providerStop` 是模型通道的诊断细节，只留在工具文本与输出里；渲染端用
-  // packages/shared 的镜像 schema 严格校验每一帧，display 上多一个键就是整条 row 被拒——
-  // 这里曾经原样透传 data.error，把一个桌面会话卡在 fault.subscription.recoveryFailed 上；
-  // display 还会落进 tool part 的 metadata，所以写错一次就是每次冷启动重现一次。
+// Errors on cards only have code / message.
+// `providerStop` on the output side is the diagnostic details of the model channel, which is only left in the tool text and output; it is used on the rendering side
+// The mirror schema of packages/shared strictly verifies each frame. One more key on the display means that the entire row will be rejected——
+// Here data.error is passed through as it is, and a desktop session is stuck on fault.subscription.recoveryFailed;
+// display will also fall into the tool part's metadata, so a wrong write will recur every time a cold start occurs.
   const error =
     data.error === undefined ? undefined : { code: data.error.code, message: data.error.message };
 
-  // 情势截面：阶段表与花名册在卡面上各有自己的界（display 不过 result budget），
-  // 被裁到就并进同一个 truncated 标记——卡上只该有它真的画出来的那些行。
-  // 这几个字段在 schema 上是可选的（为了让情势上线前持久化的老载荷仍能过校验），但构造侧
-  // **每次都填**：可选是为读老数据留的门，不是给新调用留的缺口。
+// Situation cross-section: The stage table and roster each have their own boundaries on the card (display but result budget),
+// Truncate to the same truncated mark - there should only be rows on the card that it actually draws.
+// These fields are optional in the schema (in order to allow the old payload that is persisted before the form goes online to still pass verification), but on the structure side
+// **Fill in every time**: Optional is a door left for reading old data, not a gap left for new calls.
   const phases = data.phases?.slice(0, WORKFLOW_OBSERVATION_DISPLAY_MAX_PHASES);
   if (phases !== undefined && phases.length < data.phases!.length) truncated = true;
   const subagents = data.subagents.slice(0, WORKFLOW_OBSERVATION_DISPLAY_MAX_SUBAGENTS);
@@ -127,9 +127,9 @@ function createGetWorkflowRunDisplay(
 }
 
 /**
- * 工具面的嵌套子代理 → 卡面的扁平行。`currentAsk` 里那几件事就是这一行的后半截；
- * 等待原因的自由文本不上卡（卡只需要「等槽位 / 在退避」和还要等多久），其余字段
- * **缺席即缺席**——`0 tool calls` 与「不知道」是两件事。
+* Nested subagents for tool faces → flat rows for card faces. The few things in `currentAsk` are the second half of this line;
+* The free text of the reason for waiting is not included in the card (the card only needs "Waiting for a slot/retreating" and how long to wait), and the remaining fields are
+* **Absence is absence** - `0 tool calls` and "not knowing" are two different things.
  */
 function toDisplaySubagent(
   subagent: GetWorkflowRunOutput["subagents"][number],
@@ -171,8 +171,8 @@ function createListWorkflowRunsDisplay(
   const parsed = ListWorkflowRunsOutputSchema.safeParse(output);
   if (!parsed.success) return undefined;
 
-  // run 行全部字段都是小数值 / 已有界短文本（label ≤ 80、name ≤ 64），limit 又封顶 50，
-  // 直接透传即可——截断语义由输出自身的 truncated 表达。
+// All fields in the run line are decimal values ​​/ There is bounded short text (label ≤ 80, name ≤ 64), and the limit is capped at 50.
+// Just pass it through directly - the truncation semantics are expressed by the truncated of the output itself.
   return {
     kind: "list_workflow_runs",
     runs: parsed.data.runs,
@@ -191,7 +191,7 @@ function createEvalWorkflowSnippetDisplay(
   const data = parsed.data;
   let truncated = false;
 
-  // 诊断限长照 createCreateWorkflowDisplay 同款：条数 slice + 单条 message 截字符。
+// Diagnosis is limited to long-term photos. Same as createCreateWorkflowDisplay: number of slices + single message truncation character.
   const diagnostics = data.diagnostics
     .slice(0, CREATE_WORKFLOW_DISPLAY_MAX_DIAGNOSTICS)
     .map((diagnostic) => ({
@@ -202,7 +202,7 @@ function createEvalWorkflowSnippetDisplay(
     }));
   if (diagnostics.length < data.diagnostics.length) truncated = true;
 
-  // logs 取尾巴：snippet 的日志按到达序，最新行为在尾部。
+// Get the tail of logs: snippet logs are in order of arrival, with the latest behavior at the tail.
   const droppedLogs = Math.max(0, data.logs.length - WORKFLOW_OBSERVATION_DISPLAY_MAX_LOG_ENTRIES);
   const logs = data.logs.slice(-WORKFLOW_OBSERVATION_DISPLAY_MAX_LOG_ENTRIES).map((entry) => {
     const bounded = boundDisplayText(entry, WORKFLOW_OBSERVATION_DISPLAY_MAX_LOG_CHARS);
@@ -249,7 +249,7 @@ function createSavedWorkflowListDisplay(
     whenToUse: boundMeta(entry.whenToUse),
     scope: entry.scope,
     path: entry.path,
-    // args 只保留名字：声明细节（类型/描述/默认值）归保存确认窗，列表卡不重复。
+// args only retains names: declaration details (type/description/default value) are returned to the save confirmation window, and the list cards are not repeated.
     argNames: entry.args === undefined ? [] : Object.keys(entry.args),
   }));
 
@@ -267,12 +267,12 @@ function createSavedWorkflowListDisplay(
 }
 
 /**
- * ListModels 的结果卡。
+* Scorecard for ListModels.
  *
- * 目录行本身全是短 id 与小数值，原样透传即可；providerLabel / disabledReason 是注册表来的
- * 自由文本，走 boundDisplayText。行数按 100 封顶——工具的模型通道有 24k 预算兜着，display
- * 通道没有，一台接了聚合 provider 的机器能列出上千行。截掉就说「未显示全部」，绝不报数字：
- * 目录卡上的数字只该是它真的画出来的那些。
+* The directory lines themselves are all short ids and decimal values, which can be passed through as they are; providerLabel / disabledReason comes from the registry
+* For free text, use boundDisplayText. The number of lines is capped at 100 - the model channel of the tool has a budget of 24k, display
+* There is no channel. A machine connected to an aggregation provider can list thousands of lines. If you cut it off, it will say "Not all shown" and never report the number:
+* The numbers on the catalog card should only be those that are actually drawn on it.
  */
 function createListModelsDisplay(
   toolName: string,
@@ -312,7 +312,7 @@ function createListModelsDisplay(
 
   return {
     kind: "list_models",
-    // 目录里一条都没标 current 时缺席（同工具输出：会话的选择可能指向一个已删掉的 provider）。
+// Absent when no entry in the directory is marked with current (same as tool output: the session selection may point to a deleted provider).
     ...(data.current === undefined ? {} : { current: data.current }),
     models,
     ...(truncated ? { truncated: true } : {}),
@@ -320,9 +320,9 @@ function createListModelsDisplay(
 }
 
 /**
- * ResumeWorkflowRun 的结果卡。载荷刻意最小 {runId}——恢复卡要传达的就是
- * 「哪个 run 在后台继续」，response 引导文案属模型通道、UI 有自己的本地化词汇表；
- * 无限长面也就没有 truncated 语义。
+* Results card for ResumeWorkflowRun. The payload is deliberately minimal {runId} - what the recovery card wants to convey is
+* "Which run continues in the background", the response guide copy belongs to the model channel, and the UI has its own localized vocabulary;
+* There is no truncated semantics for infinitely long faces.
  */
 function createResumeWorkflowRunDisplay(
   toolName: string,

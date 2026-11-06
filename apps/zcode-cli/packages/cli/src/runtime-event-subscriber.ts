@@ -1,18 +1,18 @@
-// runtime 上「跨回合会话事件订阅」的能力读取。
+// Read the ability of "cross-turn session event subscription" on the runtime.
 //
-// 单独成模块是因为消费者有两个且不同venue：headless（`prompt-command.ts`）与 TUI
-// （`tui-prompt-handler.ts` → `tui-session-event-relay.ts`）。能力读取器需要独立于任何
-// venue：若放在 headless 专属模块里，TUI 侧就得从一个名为 headless 的模块 import 一个
-// 名为 Headless 的读取器——名字对行为撒谎。它只回答「这个 runtime 能不能跨回合订阅」。
+// It is a separate module because the consumer has two different venues: headless (`prompt-command.ts`) and TUI
+// (`tui-prompt-handler.ts` → `tui-session-event-relay.ts`). Capability readers need to be independent of any
+// venue: If placed in the headless exclusive module, the TUI side has to import one from a module named headless.
+// Reader named Headless - the name lies about the behavior. It only answers "Can this runtime be subscribed across rounds?"
 import type { SessionEvent } from "@zcode/contracts";
 
 /**
- * 从 `unknown` 上动态读一个函数成员。
+* Dynamically read a function member from `unknown`.
  *
- * 收 `unknown` 并动态探属性，**不是**为了防御真实的 `AgentRuntime`（那上面这些成员都是
- * 必选的），而是因为 `RunDependencies.createZCodeApp` 是公开注入点（cli-types.ts 的注释
- * 写着"tests, embedders"），替身的 runtime 可以是任意形状。对着必选成员写 `?.` 会被 TS
- * 判成恒真条件——所以边界在这里，用一次显式的动态读取表达。
+* Collect `unknown` and dynamically detect attributes, **not** to defend against the real `AgentRuntime` (these members above are
+* required), but because `RunDependencies.createZCodeApp` is a public injection point (comment in cli-types.ts
+* written "tests, embedders"), the runtime of the substitute can be of any shape. Writing `?.` to a required member will result in TS
+* It is judged as a constant truth condition - so the boundary is here, expressed by an explicit dynamic reading.
  */
 export const readRuntimeFunction = (
   source: unknown,
@@ -28,10 +28,10 @@ type RuntimeEventSubscriber = (sink: {
 }) => () => void;
 
 /**
- * 读出 runtime 的跨回合事件订阅。
+* Read out the runtime's cross-turn event subscription.
  *
- * **不静默降级**：拿不到订阅就返回 `undefined`，调用方退回 per-turn `onEvent`（单回合可见，
- * 与改动前一致）。这是"这个宿主没有这个能力"的诚实答复，而不是假装订阅上了。
+* **No silent downgrade**: If the subscription cannot be obtained, it returns `undefined`, and the caller returns per-turn `onEvent` (visible in a single round,
+* Same as before the change). This is an honest answer of "this host does not have this ability", rather than pretending to be subscribed.
  */
 export const readRuntimeEventSubscriber = (
   runtime: unknown,

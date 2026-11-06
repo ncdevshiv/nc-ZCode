@@ -1,13 +1,13 @@
 // ============================================================
-// GetWorkflowRun 的 `<summary>`：情势的一句话
+// `<summary>` of GetWorkflowRun: a sentence of situation
 // ============================================================
 //
-// 这句话**确定性地**从结构化字段拼出，没有任何模型参与：同一份快照永远拼出同一句话，
-// 所以它可以被逐字钉住，也不会在两次读之间自己改口。它回答的是读者真正问的三件事——
-// 这个 run 在哪、它在动吗、有没有事等着我做——而下面各块是这三个答案的展开。
+// This sentence is spelled out **deterministically** from the structured field, without any model involvement: the same snapshot will always spell out the same sentence,
+// So it can be pinned verbatim and won't change itself between reads. It answers the three things readers really ask—
+// Where is this run, is it moving, is there anything waiting for me to do - and the following blocks are an expansion of these three answers.
 //
-// 一条纪律贯穿全文：**不知道就不说**。没有时间戳就不给年龄，没有阶段就不提阶段位置，
-// 查不到停驻表就明说「不知道」，绝不用 0 或「unknown」冒充一个事实。
+//A rule runs throughout the text: **If you don’t know, don’t tell**. If there is no timestamp, the age will not be given. If there is no stage, the stage position will not be mentioned.
+// If the parking table cannot be found, just say "don't know". Never use 0 or "unknown" to pretend to be a fact.
 
 import type { GetWorkflowRunOutput } from "@zcode/contracts";
 import { GET_WORKFLOW_RUN_SUMMARY_MAX_CHARS } from "@zcode/contracts";
@@ -17,20 +17,20 @@ import {
   formatWorkflowRunDuration,
 } from "./workflow-run-introspection.js";
 
-/** 摘要要读的事实 = 整份输出减去摘要自己（handler 先铸出输出，再拿它拼这一句）。 */
+/** The fact that the summary should be read = the entire output minus the summary itself (the handler casts the output first, and then uses it to spell this sentence). */
 type WorkflowRunSummaryFacts = Omit<GetWorkflowRunOutput, "summary">;
 
-/** 终态三词：run 已经没有下一步动作了（与端口的终态判定同集）。 */
+/** Three final state words: run has no next action (same as the final state determination of the port). */
 const TERMINAL_STATUSES: ReadonlySet<string> = new Set(["completed", "errored", "stopped"]);
 
-/** 超出字符预算时整句整句地丢，实在丢不动才硬切——省略号留一个字符。 */
+/** When the character budget is exceeded, the entire sentence will be discarded. If it cannot be discarded, it will be cut off - leaving one character for the ellipsis. */
 const SUMMARY_ELLIPSIS = "…";
 
 export function buildWorkflowRunSummary(run: WorkflowRunSummaryFacts): string {
   const now = run.generatedAt;
   const terminal = TERMINAL_STATUSES.has(run.status);
 
-  // 头两句是骨架（这个 run 在哪 + 走到第几步），任何预算下都不丢。
+// The first two sentences are the skeleton (where is this run + what step is it taken to), which can not be lost under any budget.
   const required = [
     `${statusClause(run, now, terminal)}${phaseClause(run)}.`,
     `${stepsClause(run, terminal)}.`,
@@ -55,7 +55,7 @@ export function buildWorkflowRunSummary(run: WorkflowRunSummaryFacts): string {
   return `${text.slice(0, GET_WORKFLOW_RUN_SUMMARY_MAX_CHARS - SUMMARY_ELLIPSIS.length)}${SUMMARY_ELLIPSIS}`;
 }
 
-/** 状态 + 它已经跑了多久 / 结束了多久。 */
+/** Status + how long it has been running/how long it ended. */
 function statusClause(run: WorkflowRunSummaryFacts, now: number, terminal: boolean): string {
   const elapsed = formatWorkflowRunDuration(run.updatedAt - run.createdAt);
   if (!terminal) {
@@ -65,7 +65,7 @@ function statusClause(run: WorkflowRunSummaryFacts, now: number, terminal: boole
   }
   if (run.status === "completed") return `Completed in ${elapsed}`;
   if (run.status === "errored") return `Errored after ${elapsed}`;
-  // stopped：先说停在多久以前（读者要判断的是「这事还新鲜吗」），再说它一共跑了多久。
+// stopped: First tell how long ago it stopped (what the reader has to judge is "Is this still new?"), and then how long it has been running.
   const reason = run.stopReason === undefined ? "stopped" : run.stopReason;
   const endedAge = formatRelativeAge(now, run.updatedAt);
   const ended = endedAge === undefined ? "" : ` ${endedAge}`;
@@ -73,8 +73,8 @@ function statusClause(run: WorkflowRunSummaryFacts, now: number, terminal: boole
 }
 
 /**
- * 阶段位置。活着的（或终态但还有阶段没收口的）run 说「第几 / 共几」，全部走完的只说共几个——
- * 对一个已经跑完的 run，「在第 4 个阶段」是句没有信息的话。脚本没有阶段时整句不出现。
+* Stage location. The ones who are alive (or those who are in the final state but still have no mouth) run say "what number/total number", and those who have finished all the runs only say the total number——
+* For a run that has been completed, "in the 4th stage" is a sentence without information. The entire sentence does not appear when the script has no stages.
  */
 function phaseClause(run: WorkflowRunSummaryFacts): string {
   const phases = run.phases;
@@ -86,12 +86,12 @@ function phaseClause(run: WorkflowRunSummaryFacts): string {
   return `, in phase ${index + 1} of ${phases.length} (${phases[index]!.name})`;
 }
 
-/** 步数。`nodesObserved` 是已落库节点行数，绝不冒充「总步数」——动态工作流没有静态总数。 */
+/** Number of steps. `nodesObserved` is the number of dropped node rows, and never pretends to be the "total number of steps" - there is no static total in dynamic workflows. */
 function stepsClause(run: WorkflowRunSummaryFacts, terminal: boolean): string {
   const settled = run.usage.nodesCompleted + run.usage.nodesFailed;
   const leftover = run.health.leftoverRunning;
   if (terminal && leftover !== undefined && leftover > 0) {
-    // 进程死在这些步下面：它们不是「在跑」，而是一具尸体上的标记——读者据此知道恢复会重派它们。
+// The process dies under these steps: they are not "running", but marks on a corpse - this is how the reader knows that recovery will resend them.
     return `${settled} of ${run.usage.nodesObserved} dispatched steps settled; ${leftover} ${
       leftover === 1 ? "was" : "were"
     } still running when the owning process exited and will be re-dispatched on resume`;
@@ -108,12 +108,12 @@ function stepsClause(run: WorkflowRunSummaryFacts, terminal: boolean): string {
 }
 
 /**
- * 在飞那几步分别在干什么（花名册的相位计数）。花名册读不出时整个括号不出现。
+* What are you doing during the flying steps (phase counting of the roster). The entire bracket does not appear when the roster is not read.
  *
- * **不变式**：一个处在活相位的子代理（`executing` / `waiting` / `parked`）名下恰有一条还标着
- * `running` 的 ask 行——`waiting` 是那条 ask 在等槽位或在退避，`parked` 是它停在一个问题上，
- * 两者的行都还没结算。所以这三个数是 `usage.nodesRunning` 的一个**划分**，加起来必须等于它。
- * 括号里的数与括号外的数对不上，只可能是造数据的人手搓了一份现实中不存在的 journal。
+* **Invariant**: A subagent in the active phase (`executing` / `waiting` / `parked`) has exactly one item in its name also marked
+* The ask line of `running` - `waiting` means that the ask is waiting for a slot or backing off, `parked` means that it stops on a question,
+*Both lines have not been settled yet. So these three numbers are a **division** of `usage.nodesRunning` and must add up to equal it.
+* The numbers in the brackets do not match the numbers outside the brackets. It can only be that the person who created the data made a journal that does not exist in reality.
  */
 function runningBreakdown(run: WorkflowRunSummaryFacts): string {
   const counts = { executing: 0, waiting: 0, parked: 0 };
@@ -129,8 +129,8 @@ function runningBreakdown(run: WorkflowRunSummaryFacts): string {
 }
 
 /**
- * 待答问题。**「不知道」是一句必须说出口的话**：读另一个进程名下的 run 时，「没有人在等」
- * 与「查不到」长得一模一样，而这两者对模型是完全不同的下一步。
+* Questions to be answered. **"I don't know" is a word that must be said**: When reading run under the name of another process, "No one is waiting"
+* looks exactly the same as "can't find", and the two are completely different next steps for the model.
  */
 function questionsClause(run: WorkflowRunSummaryFacts): string | undefined {
   if (!run.health.pendingQuestionsKnown) return "Pending questions are unknown from this session.";
@@ -139,7 +139,7 @@ function questionsClause(run: WorkflowRunSummaryFacts): string | undefined {
   return `${count} question${count === 1 ? "" : "s"} awaiting your answer.`;
 }
 
-/** 最后一次被观察到在动是什么时候；停滞了就把这个词说出来。 */
+/** When was the last time you were observed moving; if you are stagnant, say the word. */
 function progressClause(
   run: WorkflowRunSummaryFacts,
   now: number,
@@ -153,7 +153,7 @@ function progressClause(
     : `Stalled, last progress ${age}.`;
 }
 
-/** 失败码进摘要：模型据它分辨「进程死了」与「脚本真失败」，而这决定它下一步走哪条路由。 */
+/** Failure code summary: The model uses it to distinguish "the process died" and "the script really failed", and this determines which route it will take next. */
 function failureClause(run: WorkflowRunSummaryFacts): string | undefined {
   if (run.error === undefined) return undefined;
   if (run.status !== "errored" && run.stopReason !== "provider") return undefined;
@@ -161,10 +161,10 @@ function failureClause(run: WorkflowRunSummaryFacts): string | undefined {
 }
 
 /**
- * 交付物（completed 才有）：读者要被指向那一件东西，而不是一张产物清单。
+* Deliverable (only for completed): The reader should be pointed to that one thing, not a list of products.
  *
- * 标题**不加引号**：这一句最终会经 XML-ish 转义进 `<summary>`，而那张转义表把 `"` 换成
- * `&quot;`——一对为了可读性加的引号会在模型眼前变成两团实体。括号里的 kind 已经把标题括住了。
+* Title **unquoted**: This sentence will eventually be XML-ish escaped into `<summary>`, and the escape table replaces `"` with
+* `"`——A pair of quotation marks added for readability will turn into two entities in front of the model. The kind in the brackets has enclosed the title.
  */
 function deliverableClause(run: WorkflowRunSummaryFacts): string | undefined {
   if (run.status !== "completed") return undefined;
@@ -173,7 +173,7 @@ function deliverableClause(run: WorkflowRunSummaryFacts): string | undefined {
   return `Deliverable: ${primary.title ?? primary.id} (${primary.kind}, primary).`;
 }
 
-/** 非本会话拥有的 run：通知不会来，TaskOutput 也看不到它——summary 首句必须写明归属。 */
+/** Run that is not owned by this session: the notification will not come, and TaskOutput cannot see it - the first sentence of summary must indicate the attribution. */
 function ownershipClause(run: WorkflowRunSummaryFacts): string | undefined {
   return run.ownedByThisSession ? undefined : "Owned by another session.";
 }

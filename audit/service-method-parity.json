@@ -1,0 +1,12 @@
+{
+  "totalChannels": 40,
+  "registeredChannels": 29,
+  "removedChannels": 11,
+  "totalMembers": 471,
+  "dispatchedMembers": 325,
+  "boundaryRemovedMembers": 146,
+  "unimplementedV4Methods": 7,
+  "verifiedSemantic": 0,
+  "dispatchOnly": 325,
+  "notes": "Dispatch coverage is not semantic verification."
+}

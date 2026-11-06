@@ -1,7 +1,7 @@
 /**
- * CreateWorkflow 的结果卡 display 构造。从 result-display.ts 拆出（400 行纪律）：
- * 与 workflow-observation-display.ts 同族——按工具名分派、safeParse 输出 schema、
- * display 侧独立限长。
+* The result card display construct of CreateWorkflow. Unpacked from result-display.ts (400 lines of discipline):
+* Same family as workflow-observation-display.ts - dispatched by tool name, safeParse output schema,
+* The display side has independent length limit.
  */
 
 import {
@@ -14,14 +14,14 @@ import {
 } from "@zcode/contracts";
 
 /**
- * ⚠ 这个投影的字段集合是**冻结**的（contracts 的 schema 注释说明了为什么）。gate 专属的
- * 事实——比如 saved run 的来源与解析出的脚本——一律走**工具入参**通道，不上 display。
+* ⚠ This projected field collection is **frozen** (the contracts schema annotation explains why). gate exclusive
+* Facts - such as the source of saved run and the parsed script - all go through the ** tool to enter the parameter ** channel, not the display.
  */
 export function createCreateWorkflowDisplay(
   toolName: string,
   output: unknown,
 ): ToolResultDisplayPayload | undefined {
-  // 两个启动工具共用同一个 display kind：图、草稿笔与诊断卡在 UI 侧只有一份实现
+// The two startup tools share the same display kind: there is only one implementation of the picture, scratch pen and diagnostic card on the UI side.
   if (toolName !== CREATE_WORKFLOW_TOOL_NAME && toolName !== AMEND_WORKFLOW_TOOL_NAME) {
     return undefined;
   }
@@ -29,10 +29,10 @@ export function createCreateWorkflowDisplay(
   if (!parsed.success) return undefined;
 
   const { causalityGraph, diagnostics, ok } = parsed.data;
-  // display 不经过 tool result budget：诊断条数与单条 message 长度都必须在进入实时事件和
-  // 持久化 metadata 前独立限长，避免类型错误把 continuous/replayable 消息扩成无界载荷。
-  // causalityGraph 已在工具输出边界限长（handler 的 boundCausalityGraph + 输出 schema），
-  // 直接透传。
+// display does not go through the tool result budget: both the number of diagnoses and the length of a single message must be entered into the real-time event and
+// Independently limit the length before persisting metadata to avoid type errors and expand continuous/replayable messages into unbounded payloads.
+//The causalityGraph has been bounded by the tool output boundary (handler's boundCausalityGraph + output schema),
+// Direct transparent transmission.
   const errorCount = diagnostics.length;
   const bounded = diagnostics
     .slice(0, CREATE_WORKFLOW_DISPLAY_MAX_DIAGNOSTICS)

@@ -22,8 +22,8 @@ export function resolveRuntimePermissionCapability(
 }
 
 /**
- * 一次调用**解析后**的副作用旗标，挂在 `ToolCallStarted` 上：与权限判定同一次解析，所以 Bash 的只读命令判定等运行时结论一并生效。
- * 订阅者（dynamic-workflow 的 driver）据它在 handler 动手之前判断这一笔是否会改写工作区。
+* The side effect flag after a call to **parsing** is hung on `ToolCallStarted`: it is parsed at the same time as the permission determination, so Bash's read-only command determination and other runtime conclusions take effect.
+* The subscriber (dynamic-workflow driver) determines whether this transaction will rewrite the workspace before the handler takes action.
  */
 export function resolveToolCallCapabilityFlags(
   deps: ToolExecutorDeps,

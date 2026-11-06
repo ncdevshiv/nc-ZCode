@@ -3,22 +3,16 @@
 // The CUA server externalizes koffi because esbuild cannot bundle its
 // platform-dispatching `.node` requires. The installed agent has no hoisted
 // node_modules, so keep only the target binary beside the plugin.
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 
 function resolveKoffiRoot(koffiPackageRoot) {
   const candidates = [
     resolve(koffiPackageRoot),
     resolve(koffiPackageRoot, "node_modules", "koffi"),
+    // Bun's hoisted linker puts koffi at the workspace root node_modules.
+    resolve(koffiPackageRoot, "..", "..", "..", "..", "node_modules", "koffi"),
   ];
-  const virtualStore = resolve(koffiPackageRoot, "..", "..", "..", "..", "node_modules", ".pnpm");
-  candidates.push(resolve(virtualStore, "..", "koffi"));
-  if (existsSync(virtualStore)) {
-    for (const entry of readdirSync(virtualStore)) {
-      if (entry.startsWith("koffi@"))
-        candidates.push(resolve(virtualStore, entry, "node_modules", "koffi"));
-    }
-  }
   for (const candidate of candidates) {
     const packageJson = resolve(candidate, "package.json");
     if (!existsSync(packageJson)) continue;

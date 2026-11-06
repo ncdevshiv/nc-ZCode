@@ -45,13 +45,13 @@ export function buildDesktopRemoteProdEnv(
   };
 }
 
-export function resolvePnpmCommand(platform = process.platform) {
-  return platform === "win32" ? "pnpm.cmd" : "pnpm";
+export function resolveBunCommand(platform = process.platform) {
+  return platform === "win32" ? "bun.exe" : "bun";
 }
 
 export function runDesktopRemoteProdDev() {
   const repoRoot = resolve(import.meta.dirname, "..");
-  const child = spawn(resolvePnpmCommand(), ["--filter", "@zcode/desktop", "dev"], {
+  const child = spawn(resolveBunCommand(), ["run", "--filter", "@zcode/desktop", "dev"], {
     cwd: repoRoot,
     stdio: "inherit",
     env: buildDesktopRemoteProdEnv(),
@@ -68,7 +68,7 @@ export function runDesktopRemoteProdDev() {
   });
 
   child.on("error", (error) => {
-    console.error("[dev:desktop:remote-prod] failed to start pnpm:", error);
+    console.error("[dev:desktop:remote-prod] failed to start bun:", error);
     process.exit(1);
   });
 }

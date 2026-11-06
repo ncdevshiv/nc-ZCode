@@ -104,8 +104,8 @@ class PopplerPdfDocumentAdapter implements PdfDocumentPort {
       try {
         await rm(directory, { recursive: true, force: true });
       } catch (error) {
-        // 根因：清理错误覆盖主错误会丢失已经完成的 Poppler 稳定分类；仅当主流程
-        // 成功时把清理失败暴露为 I/O 错误，失败路径继续保留原始原因。
+// Root cause: Cleanup error overwriting the main error will lose the completed Poppler stable classification; only when the main process
+// On success, expose the cleanup failure as an I/O error, and the failure path continues to retain the original reason.
         if (!operationFailed) {
           throwPdfIoError(error, options?.signal, "Unable to remove temporary PDF page images.");
         }
@@ -130,7 +130,7 @@ class PopplerPdfDocumentAdapter implements PdfDocumentPort {
       throw new PdfDocumentPortError("cancelled", "PDF page extraction was cancelled.");
     }
     if (result.timedOut || result.status === "timed_out") {
-      // 根因：可用性探测超时表示命令已启动但未及时响应，不等于缺少 Poppler。
+// Root cause: Availability detection timeout indicates that the command has been started but did not respond in time, which does not mean that Poppler is missing.
       throw new PdfDocumentPortError(
         "timeout",
         `PDF page extraction availability check timed out after ${READ_PDF_AVAILABILITY_TIMEOUT_MS}ms.`,
@@ -143,7 +143,7 @@ class PopplerPdfDocumentAdapter implements PdfDocumentPort {
         { cause: result.error?.cause },
       );
     }
-    // 失败结果不能缓存；用户安装 Poppler 后同一进程应能立即恢复。
+// Failure results cannot be cached; the same process should be able to resume immediately after the user installs Poppler.
     this.availabilityConfirmed = true;
   }
 }
@@ -204,14 +204,14 @@ function assertRenderSucceeded(
     firstDiagnostic.startsWith("I/O Error: ") && firstDiagnostic.includes(`'${request.filePath}'`);
   const isInputPermissionError = firstDiagnostic.startsWith("Permission Error: ");
   if ((isInputIoError || isInputPermissionError) && !hasCommandOrInternalError) {
-    // 落入 process_failed，避免用宽泛关键词猜测错误类别。
+// Fall into process_failed to avoid guessing the wrong category with broad keywords.
     throw new PdfDocumentPortError(
       isInputPermissionError ? "permission_denied" : "io_error",
       `Could not render PDF: ${firstDiagnostic}`,
     );
   }
-  // 根因：宽泛匹配 detail 会把文件名和无关诊断误判成密码、权限或损坏错误；
-  // 这里只解析已知的 Poppler stderr，其余失败保留为 process_failed。
+// Root cause: Broad match detail will misjudge file names and irrelevant diagnostics as password, permission or corruption errors;
+// Only the known Poppler stderr is parsed here, other failures are retained as process_failed.
   if (/damaged|corrupt|invalid/iu.test(stderr) || BROKEN_PDF_STRUCTURE_PATTERN.test(stderr)) {
     throw new PdfDocumentPortError("corrupted", "PDF file is corrupted or invalid.");
   }

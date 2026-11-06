@@ -12,4 +12,6 @@ export interface ConversationDropTargetController {
   onDragOver: DragEventHandler<HTMLElement>;
   onDragLeave: DragEventHandler<HTMLElement>;
   onDrop: DragEventHandler<HTMLElement>;
+  /** Native shell drop paths (Tauri intercepts OS drops; no DOM File exists). */
+  onLocalPaths?: (paths: string[]) => void;
 }

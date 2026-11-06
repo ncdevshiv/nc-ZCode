@@ -59,8 +59,8 @@ export async function projectMessagesWithMediaAttachmentPaths(
 function isPathProjectableUserMedia(
   block: ModelMessageContentBlock,
 ): block is PathProjectableMediaBlock {
-  // inline 只表示 provider-ready 媒体，不保证存在可重建的 durable artifact。
-  // path 是可选增强；只有 artifact URI 或已有本地 path 才参与物化，避免阻断既有媒体发送。
+// inline only represents provider-ready media and does not guarantee the existence of rebuildable durable artifacts.
+// path is an optional enhancement; only artifact URI or existing local path will participate in materialization to avoid blocking existing media sending.
   return (
     (block.type === "image" || block.type === "video" || isPdfBlock(block)) &&
     ((block.source?.kind === "inline" &&
@@ -82,8 +82,8 @@ async function resolveMediaAttachmentPath(
     throw mediaAttachmentMaterializationError(mediaType, source.placeholder ?? uri ?? source.id);
   }
   try {
-    // inline 的派生 path 不是会话事实，即使输入中意外残留旧 path，
-    // 也必须通过 durable artifact URI 重新检查，缺失时由 store 重建。
+// The derived path of inline is not a session fact, even if the old path is accidentally left in the input,
+// Must also be rechecked with the durable artifact URI, which will be rebuilt by the store if missing.
     const result = await artifactStore.ensureMediaAttachmentPath({
       mediaType: source.mimeType ?? block.mediaType,
       uri,

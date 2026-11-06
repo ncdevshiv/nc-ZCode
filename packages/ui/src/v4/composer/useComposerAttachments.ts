@@ -87,6 +87,8 @@ interface ComposerAttachmentsApi {
   handleDragOverComposer: (event: React.DragEvent<HTMLElement>) => void;
   handleDragLeaveComposer: (event: React.DragEvent<HTMLElement>) => void;
   handleDropComposer: (event: React.DragEvent<HTMLElement>) => void;
+  /** 宿主原生拖放的真实本地路径（Tauri 拦截 OS drop 后 DOM 不再有 File）。 */
+  addAttachmentLocalPaths: (paths: string[]) => void;
   handleWhiteboardMentionSelected: (boardId: string) => Promise<void>;
   removeAttachment: (id: string) => void;
   retryAttachment: (id: string) => void;
@@ -1076,6 +1078,7 @@ export function useComposerAttachments(
       handleDragOverComposer,
       handleDragLeaveComposer,
       handleDropComposer,
+      addAttachmentLocalPaths,
       handleWhiteboardMentionSelected,
       removeAttachment,
       retryAttachment,
@@ -1096,6 +1099,7 @@ export function useComposerAttachments(
       handleDragLeaveComposer,
       handleDragOverComposer,
       handleDropComposer,
+      addAttachmentLocalPaths,
       handlePaste,
       handleWhiteboardMentionSelected,
       isDraggingOverComposer,

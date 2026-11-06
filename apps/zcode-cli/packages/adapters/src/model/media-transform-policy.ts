@@ -17,9 +17,9 @@ export function unsupportedInputMediaText(
 export function dataUrlToDataContent(
   dataUrl: string,
 ): { mediaType: string; data: string } | undefined {
-  // Provider 格式重构与 PDF 支持发生冲突时，旧正则解析和新实现的
-  // 返回语句被错误拼接，导致 mediaType 未定义。保留统一的 ModelInputFormat，
-  // 同时完整采用支持参数化 Data URL 的解析路径，避免再次混用两套实现。
+// When Provider format reconstruction conflicts with PDF support, the old regular parsing and the new implementation
+// The return statement was incorrectly spliced, causing mediaType to be undefined. Keep the unified ModelInputFormat,
+// At the same time, fully adopt the parsing path that supports parameterized Data URL to avoid mixing the two sets of implementations again.
   const commaIndex = dataUrl.indexOf(",");
   if (dataUrl.slice(0, "data:".length).toLowerCase() !== "data:" || commaIndex < 0) {
     return undefined;

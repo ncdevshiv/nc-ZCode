@@ -3,15 +3,15 @@ import { cloneModelSelection } from "../model-selection.js";
 import type { EffectiveModelSelectionResult } from "@zcode/shared/model-selection";
 
 const SUBAGENT_SELECTION_MESSAGES = {
-  "selection-missing": "No model selected / 未选择模型",
-  "account-connection-unavailable": "Account connection unavailable / 当前账号连接不可用",
-  "provider-not-found": "Provider unavailable / 供应商不存在或不可用",
-  "model-not-found": "Model unavailable / 模型不存在或不可用",
-  "reasoning-level-missing": "No reasoning level selected / 未选择思考档位",
-  "reasoning-level-not-supported": "Reasoning level unsupported / 不支持所选思考档位",
+  "selection-missing": "No model selected / No model selected",
+  "account-connection-unavailable": "Account connection unavailable / The current account connection is unavailable",
+  "provider-not-found": "Provider unavailable / The provider does not exist or is unavailable",
+  "model-not-found": "Model unavailable / The model does not exist or is not available",
+  "reasoning-level-missing": "No reasoning level selected / No thinking level selected",
+  "reasoning-level-not-supported": "Reasoning level unsupported / The selected thinking level is not supported",
 } satisfies Record<NonNullable<EffectiveModelSelectionResult["selectionIssue"]>, string>;
 
-/** 显式 profile 是待解析意图；继承与内部 override 已有执行归属，不重新对应账号。 */
+/** Explicit profile is the intent to be parsed; inheritance and internal override have been executed and will not be re-corresponded to the account. */
 export function resolveSubagentSelection(input: {
   profileSelection?: ModelSelection | null;
   parentSelection?: ModelSelection | null;
@@ -30,9 +30,9 @@ export function resolveSubagentSelection(input: {
     const reason = result.selectionIssue ?? "selection-missing";
     const requested = input.overrideSelection ?? explicit ?? input.parentSelection;
     const identity = requested ? `; selection=${requested.providerId}/${requested.modelId}` : "";
-    // 解析失败不能落回父模型，否则会悄悄改变用户显式指定的子任务模型。
-    // 公共错误投影不读取结构化字段（只有 selectionIssue 时消费方看不到）；后台也只保留 message。
-    // 因此同时给既有 reason 和消息补上原因，两个消费路径都能定位，不增加专用错误协议。
+// Parsing failure cannot fall back to the parent model, otherwise the subtask model explicitly specified by the user will be quietly changed.
+// Public error projection does not read structured fields (the consumer cannot see it when there is only selectionIssue); only message is retained in the background.
+// Therefore, the reason is added to the existing reason and message at the same time. Both consumption paths can be located without adding a dedicated error protocol.
     throw createCoreError(
       CoreErrorType.ConfigurationError,
       `Cannot start subagent: ${SUBAGENT_SELECTION_MESSAGES[reason]} [reason=${reason}${identity}]`,

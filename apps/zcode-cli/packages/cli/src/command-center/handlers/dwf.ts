@@ -8,13 +8,13 @@ import { splitArgs } from "../utils.js";
 
 const DWF_USAGE = "Usage: /dwf [list|cancel [runId]|resume <runId>]";
 
-/** `/dwf list` 的默认条数；服务端自己还有上限，这里只表达「一屏够看」。 */
+/** The default number of items in `/dwf list`; the server itself has an upper limit, here it only expresses "one screen is enough". */
 const DWF_LIST_LIMIT = 20;
 
 /**
- * 非终态 run 的状态集合。`/dwf cancel` 缺 runId 时的候选就是这一集：
- * pending 是「已建未起」，running 是「在飞」，两者都还有可中止的东西；
- * completed / errored / stopped 已结算，取消无意义。
+* The state collection of non-final state run. The candidate for `/dwf cancel` when runId is missing is this episode:
+* Pending means "already built but not started", and running means "flying". Both of them still have things that can be stopped;
+* completed / errored / stopped has been settled, cancellation is meaningless.
  */
 const IN_FLIGHT_STATUSES: readonly DynamicWorkflowRunSessionSummary["status"][] = [
   "pending",
@@ -62,8 +62,8 @@ async function handleCancel(
 
   let targetRunId = runId;
   if (!targetRunId) {
-    // 缺 runId 时只在「恰好一个在飞」时替用户决定。多个候选就列出来让用户点名：
-    // 取消是花掉的钱和丢掉的进度，猜错的代价不对称。
+// When runId is missing, it will only be determined for the user when "exactly one is flying". Multiple candidates are listed for users to name:
+// Canceling costs money and lost progress, and the cost of wrong guessing is asymmetric.
     if (!app.listDynamicWorkflowRuns) return respond(deps, DWF_USAGE);
     const runs = await app.listDynamicWorkflowRuns({ limit: DWF_LIST_LIMIT });
     const inFlight = runs.filter((run) => IN_FLIGHT_STATUSES.includes(run.status));
@@ -84,7 +84,7 @@ async function handleCancel(
     targetRunId = inFlight[0]!.runId;
   }
 
-  // runId ≡ taskId：workflow run 在后台任务注册表里就是用 runId 登记的。
+// runId ≡ taskId: workflow run is registered with runId in the background task registry.
   const result = await app.cancelBackgroundTask(targetRunId);
   if (!result.cancelled) {
     const reason = result.reason ? `: ${result.reason}` : ".";
@@ -106,28 +106,28 @@ function formatRunList(runs: DynamicWorkflowRunSessionSummary[]): string {
 }
 
 /**
- * 一行 = `runId · label · status · resumable · updated` + 失败后缀。
+* One line = `runId · label · status · resumable · updated` + failure suffix.
  *
- * `label` 与 `updatedAt` 都是 additive optional（老服务端不发这两个键）：标签回落 runId、
- * 时间整段省略。少一列是退化，不是错误——绝不因此把整行藏起来。label 恰好等于 runId 时
- * 不重复印：服务端的兜底最后一档就是 runId，照抄会得到「dwfrun_x dwfrun_x」。
+* `label` and `updatedAt` are additive optional (the old server does not send these two keys): the label falls back to runId,
+* The entire time period is omitted. Missing a column is a degeneracy, not a mistake - never hide an entire row because of it. When label is exactly equal to runId
+* No duplicate printing: The last file on the server side is runId. If you copy it, you will get "dwfrun_x dwfrun_x".
  */
 function formatRunLine(run: DynamicWorkflowRunSessionSummary): string {
   const columns = [run.runId];
   const label = run.label ?? run.runId;
   if (label !== run.runId) columns.push(label);
-  // stopped 带原因词：`stopped/provider`。
+// stopped with reason word: `stopped/provider`.
   columns.push(run.stopReason === undefined ? run.status : `${run.status}/${run.stopReason}`);
-  // resumable 直接印服务端的裁定，不按 status + failureCode 重新推导：
-  // 两处谓词总有一天不一致，届时提示说可恢复而命令被拒。
+// resumable directly prints the server's ruling, without re-derivating it according to status + failureCode:
+//The two predicates will be inconsistent one day, and then the prompt will say that recovery is possible but the command will be rejected.
   if (run.resumable) columns.push("resumable");
   if (run.updatedAt !== undefined) columns.push(`updated ${formatUpdatedAt(run.updatedAt)}`);
   return `${columns.join(" · ")}${formatFailure(run)}`;
 }
 
 /**
- * epoch 毫秒 → 可读时间。用本地时区的 ISO 风格短格式：终端用户看的是自己机器上的时间，
- * 而 UTC 的 `Z` 后缀在本地排查时每次都要在脑子里换算一遍。
+* epoch milliseconds → readable time. Use the ISO-style short form of the local time zone: the end user sees the time on their own machine,
+* The `Z` suffix of UTC needs to be converted in the mind every time when checking locally.
  */
 function formatUpdatedAt(updatedAt: number): string {
   const date = new Date(updatedAt);

@@ -28,10 +28,10 @@ export function resolveStartupPlugins(input: {
       storageRoot: pluginStorageRoot,
       suppressedBuiltins: new Set(input.configResult.config.plugins.suppressedBuiltins),
     }),
-    // defaultEnabled 的 official plugin (如 skill-creator) 只有在这里
-    // 把名单传给 discoverNodePluginsSync 才会真正默认开启。CLI 子命令路径
-    // (resolveZCodePlugins) 和应用启动路径都要传，否则 `/skill skill-creator` 在会话里
-    // 报 "Skill not found: skill-creator"，但 `zcode plugins list` 却显示它是 enabled。
+// defaultEnabled's official plugin (such as skill-creator) is only here
+// Pass the list to discoverNodePluginsSync to enable it by default. CLI subcommand path
+// (resolveZCodePlugins) and the application startup path must be passed, otherwise `/skill skill-creator` will be in the session
+// "Skill not found: skill-creator" is reported, but `zcode plugins list` shows that it is enabled.
     officialPluginsEnabledByDefault: DEFAULT_ENABLED_OFFICIAL_PLUGIN_IDS,
     storageRoot: pluginStorageRoot,
     workingDirectory: input.workingDirectory,

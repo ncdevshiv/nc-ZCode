@@ -53,14 +53,14 @@ export interface ToolArtifactReadResult {
 }
 
 /**
- * 二进制读回：**原始字节**，不经任何文本 / base64 编码。
+* Binary readback: **raw bytes**, without any text/base64 encoding.
  *
  * {@link ToolArtifactStorePort.readToolResultArtifact}
- * 把「按文件名再推一次 contentType → 文本走 utf8、其余走 base64」当作写入编码的逆运算，而
- * 推断表只认 txt/md/png/jpg/gif/webp/pdf/bin，`.xlsx` / `.docx` / `.pptx` 落到默认的
- * `application/json` 被当作 utf8 解码——办公文件读回即损坏且不可恢复。字节的消费者
- * （v4 分块查询、查看器）需要的是字节本身，编码是给模型面文本用的；两件事分开两个方法。
- * `contentType` 仍按文件名推断，仅供缺少更好来源的调用方兜底（dwf 用 journal 记录的那份）。
+* Treat "Push contentType again according to the file name → the text will be utf8, and the rest will be base64" as the inverse operation of writing the encoding, and
+* The inference table only recognizes txt/md/png/jpg/gif/webp/pdf/bin, `.xlsx` / `.docx` / `.pptx` falls to the default
+* `application/json` is treated as utf8 decoded - office files are corrupted and unrecoverable when read back. consumer of bytes
+* (v4 chunked query, viewer) requires the bytes themselves, and the encoding is for the model text; the two things are separated into two methods.
+* `contentType` is still inferred from the file name, and is only for callers who lack a better source (the one recorded by dwf in journal).
  */
 export interface ToolBinaryArtifactReadResult {
   uri: string;
@@ -117,9 +117,9 @@ export interface ToolArtifactStorePort {
     options?: { signal?: AbortSignal },
   ): Promise<ToolArtifactReadResult>;
   /**
-   * 原始字节读回（见 {@link ToolBinaryArtifactReadResult}）。可选：与
-   * {@link writeToolResultBinaryArtifact} 同规，不带二进制能力的 store 实现不必陪跑；
-   * 消费方 `typeof` 探测，缺席即「本 store 不能提供字节」——不得退回文本读再解码。
+* Read back raw bytes (see {@link ToolBinaryArtifactReadResult}). Optional: with
+* {@link writeToolResultBinaryArtifact} is the same as the standard, and store implementations without binary capabilities do not need to be run with;
+* Consumer side `typeof` detection, the absence means "this store cannot provide bytes" - the text must not be returned for reading and decoding.
    */
   readToolResultBinaryArtifact?(
     request: ToolArtifactReadRequest,

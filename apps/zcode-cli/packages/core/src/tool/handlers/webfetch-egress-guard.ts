@@ -21,8 +21,8 @@ export function assertWebFetchLiteralEgress(url: URL): void {
     });
   }
 
-  // DNS preflight 在部分网络下 1s 内无法完成，会让公网 URL 在真实 fetch 前失败。
-  // 当前只保留 URL 字面量层面的本地/私网目标阻断，不对普通域名做本地 DNS 解析。
+// DNS preflight cannot be completed within 1s under some networks, which will cause the public URL to fail before the actual fetch.
+// Currently, only local/private network target blocking at the URL literal level is retained, and local DNS resolution for ordinary domain names is not performed.
   if (!isIpLiteral(hostname)) return;
   assertPublicIpAddress(hostname, { hostname, url });
 }
@@ -78,8 +78,8 @@ function unwrapIpv6CarrierAddress(address: ipaddr.IPv4 | ipaddr.IPv6): ipaddr.IP
   if (!isIpv6Address(address)) return undefined;
   if (address.isIPv4MappedAddress()) return address.toIPv4Address();
 
-  // NAT64/DNS64 的 well-known prefix 会把 IPv4 私网地址编码成 IPv6；
-  // 必须先还原低 32 位 IPv4 再套用同一套 public egress policy。
+// The well-known prefix of NAT64/DNS64 will encode the IPv4 private network address into IPv6;
+//You must first restore the lower 32-bit IPv4 and then apply the same public egress policy.
   const bytes = address.toByteArray();
   if (bytes.length !== 16) return undefined;
   if (!DNS64_WELL_KNOWN_PREFIX.every((byte, index) => bytes[index] === byte)) return undefined;
@@ -92,8 +92,8 @@ function isPublicIpv4(address: ipaddr.IPv4): boolean {
 }
 
 function isPublicIpv6(address: ipaddr.IPv6): boolean {
-  // ipaddr.js 会把部分 special-use IPv6 前缀归类为 unicast；
-  // WebFetch 的 public egress 边界需要显式排除这些非普通公网目标的地址段。
+// ipaddr.js will classify some special-use IPv6 prefixes as unicast;
+// The public egress boundary of WebFetch needs to explicitly exclude the address segments of these non-common public network targets.
   if (SPECIAL_USE_IPV6_NETWORKS.some((network) => address.match(network))) return false;
   return address.range() === "unicast";
 }

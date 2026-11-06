@@ -1,0 +1,194 @@
+﻿cargo : warning: unused variable: `inner`
+At line:1 char:1
++ cargo test --manifest-path G:\ZCode-main\native\Cargo.toml -p nc-code ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: unused variable: `inner`:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+   --> crates\nc-code-host\src\workflow\driver.rs:670:5
+    |
+670 |     inner: &DriverInner,
+    |     ^^^^^ help: if this is intentional, prefix it with an underscore: `_inner`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `projectable_attachment_refs` is never used
+   --> crates\nc-code-host\src\attachment.rs:799:15
+    |
+799 | pub(crate) fn projectable_attachment_refs(payload: &Value) -> Vec<Value> {
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `node_times` is never used
+    --> crates\nc-code-host\src\workflow_service\service.rs:1196:19
+     |
+ 545 | impl WorkflowService {
+     | -------------------- method in this implementation
+...
+1196 |     pub(crate) fn node_times(
+     |                   ^^^^^^^^^^
+
+warning: method `node_times` is never used
+  --> crates\nc-code-host\src\workflow_service\reads.rs:94:19
+   |
+48 | impl JournalIntrospection {
+   | ------------------------- method in this implementation
+...
+94 |     pub(crate) fn node_times(&self, run_id: &str) -> rusqlite::Result<Vec<NodeTimeRow>> {
+   |                   ^^^^^^^^^^
+
+warning: struct `NodeTimeRow` is never constructed
+   --> crates\nc-code-host\src\workflow_service\reads.rs:144:19
+    |
+144 | pub(crate) struct NodeTimeRow {
+    |                   ^^^^^^^^^^^
+
+warning: constant `ARTIFACT_CHUNK_MAX_BYTES` is never used
+  --> crates\nc-code-host\src\workflow_service\v4.rs:21:7
+   |
+21 | const ARTIFACT_CHUNK_MAX_BYTES: usize = 512 * 1024;
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `WORKSPACE_MAX_NODES` is never used
+  --> crates\nc-code-host\src\workflow_service\v4.rs:23:7
+   |
+23 | const WORKSPACE_MAX_NODES: usize = 2_000;
+   |       ^^^^^^^^^^^^^^^^^^^
+
+warning: constant `NODE_RESULT_MAX_BYTES` is never used
+  --> crates\nc-code-host\src\workflow_service\v4.rs:25:7
+   |
+25 | const NODE_RESULT_MAX_BYTES: usize = 32 * 1024;
+   |       ^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `DEFAULT_ARTIFACT_DATA_LIMIT` is never used
+  --> crates\nc-code-host\src\workflow_service\v4.rs:26:7
+   |
+26 | const DEFAULT_ARTIFACT_DATA_LIMIT: usize = 200;
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: constant `MAX_ARTIFACT_DATA_LIMIT` is never used
+  --> crates\nc-code-host\src\workflow_service\v4.rs:27:7
+   |
+27 | const MAX_ARTIFACT_DATA_LIMIT: usize = 500;
+   |       ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `invalid` is never used
+  --> crates\nc-code-host\src\workflow_service\v4.rs:29:4
+   |
+29 | fn invalid(message: impl Into<String>) -> RpcError {
+   |    ^^^^^^^
+
+warning: function `require_str` is never used
+  --> crates\nc-code-host\src\workflow_service\v4.rs:33:4
+   |
+33 | fn require_str<'a>(params: &'a Value, key: &str) -> Result<&'a str, RpcError> {
+   |    ^^^^^^^^^^^
+
+warning: function `optional_u64` is never used
+  --> crates\nc-code-host\src\workflow_service\v4.rs:41:4
+   |
+41 | fn optional_u64(params: &Value, key: &str) -> Result<Option<u64>, RpcError> {
+   |    ^^^^^^^^^^^^
+
+warning: function `run_not_found` is never used
+  --> crates\nc-code-host\src\workflow_service\v4.rs:51:4
+   |
+51 | fn run_not_found(run_id: &str) -> RpcError {
+   |    ^^^^^^^^^^^^^
+
+warning: function `lifecycle_status` is never used
+  --> crates\nc-code-host\src\workflow_service\v4.rs:61:4
+   |
+61 | fn lifecycle_status(row: &RunListItem) -> &'static str {
+   |    ^^^^^^^^^^^^^^^^
+
+warning: function `run_summary` is never used
+  --> crates\nc-code-host\src\workflow_service\v4.rs:68:4
+   |
+68 | fn run_summary(row: &RunListItem) -> Value {
+   |    ^^^^^^^^^^^
+
+warning: function `artifact_json` is never used
+  --> crates\nc-code-host\src\workflow_service\v4.rs:98:4
+   |
+98 | fn artifact_json(artifact: &RunArtifact) -> Value {
+   |    ^^^^^^^^^^^^^
+
+warning: function `workspace_summary` is never used
+   --> crates\nc-code-host\src\workflow_service\v4.rs:106:4
+    |
+106 | fn workspace_summary(node: &NodeRecord) -> Value {
+    |    ^^^^^^^^^^^^^^^^^
+
+warning: function `error_json` is never used
+   --> crates\nc-code-host\src\workflow_service\v4.rs:154:4
+    |
+154 | fn error_json(node: &NodeRecord) -> Option<Value> {
+    |    ^^^^^^^^^^
+
+warning: function `workspace_node_json` is never used
+   --> crates\nc-code-host\src\workflow_service\v4.rs:159:4
+    |
+159 | fn workspace_node_json(
+    |    ^^^^^^^^^^^^^^^^^^^
+
+
+running 494 tests
+warning: function `shrink_to_budget` is never used
+   --> crates\nc-code-host\src\workflow_service\v4.rs:207:4
+    |
+207 | fn shrink_to_budget(value: &Value, budget: &mut usize) -> Value {
+    |    ^^^^^^^^^^^^^^^^
+
+warning: function `node_result_json` is never used
+   --> crates\nc-code-host\src\workflow_service\v4.rs:257:4
+    |
+257 | fn node_result_json(node: &NodeRecord, max_bytes: usize) -> Value {
+    |    ^^^^^^^^^^^^^^^^
+
+warning: multiple methods are never used
+   --> crates\nc-code-host\src\workflow_service\v4.rs:295:8
+    |
+293 | impl WorkflowService {
+    | -------------------- methods in this implementation
+294 |     /// Authorization over `sessionId` ├ù `runId`: the run must exist and its parent session must equal 
+`sessionId`.
+295 |     fn authorized_run(
+    |        ^^^^^^^^^^^^^^
+...
+308 |     pub(crate) fn v4_workflow_runs(&self, params: &Value) -> Result<Value, RpcError> {
+    |                   ^^^^^^^^^^^^^^^^
+...
+324 |     pub(crate) fn v4_workflow_run_events(&self, params: &Value) -> Result<Value, RpcError> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^
+...
+342 |     pub(crate) fn v4_workflow_run_artifacts(&self, params: &Value) -> Result<Value, RpcError> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+357 |     pub(crate) fn v4_workflow_run_artifact_data(&self, params: &Value) -> Result<Value, RpcError> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+408 |     pub(crate) fn v4_workflow_run_artifact_read(&self, params: &Value) -> Result<Value, RpcError> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+441 |     pub(crate) fn v4_workflow_run_workspace(&self, params: &Value) -> Result<Value, RpcError> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+483 |     pub(crate) fn v4_workflow_run_node_result(&self, params: &Value) -> Result<Value, RpcError> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: linker stdout: LINK : warning LNK4098: defaultlib 'LIBCMT' conflicts with use of other libs; use 
+/NODEFAULTLIB:library
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+....................................................................................... 87/494
+....................................................................................... 174/494
+....................................................................................... 261/494
+..........................i............................................................ 348/494
+....................................................................................... 435/494
+...........................................................
+test result: ok. 493 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 4.11s
+

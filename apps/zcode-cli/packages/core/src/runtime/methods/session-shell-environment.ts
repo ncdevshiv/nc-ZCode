@@ -63,9 +63,9 @@ export function initializeSessionShellEnvironmentIfNeeded(
     return false;
   }
 
-  // Bash shell 是 session-start 快照。所有入口都只表达“当前候选值”，
-  // runtime 统一负责首次真实用户执行前初始化一次。candidate 可以是 lazy resolver，
-  // 这样已有 snapshot 的 session 不会在外层重复探测 shell。
+// Bash shell is a session-start snapshot. All entries only express the "current candidate value",
+// The runtime is uniformly responsible for initializing before the first real user execution. candidate can be a lazy resolver,
+// In this way, sessions that already have snapshots will not repeatedly detect the shell in the outer layer.
   applySessionShellEnvironment(runtime, resolveSessionShellCandidate(candidate), {
     refreshPreConversationContext: true,
   });
@@ -175,10 +175,10 @@ export function announceSessionShellEnvironmentNoticeAfterResume(
     return;
   }
 
-  // 旧 Windows 会话没有可用 shell snapshot 时，升级后可能由 auto Git Bash
-  // 接管 Bash 执行。历史上下文仍可能让模型继续沿用旧 shell 习惯，因此必须在
-  // resume 后补一个 provider-visible shell 提醒；可用 snapshot 恢复时不插，避免
-  // 破坏“shell 设置变更只对新 session 生效”的契约。
+// When the old Windows session does not have a shell snapshot available, it may be caused by auto Git Bash after the upgrade
+// Take over Bash execution. Historical context may still cause the model to continue to use old shell habits, so it must be
+// Add a provider-visible shell reminder after resume; you can use snapshot to restore without inserting it to avoid
+// Break the contract that "shell setting changes only take effect in new sessions".
   runtime.messageHistory.addAttachment("shell_environment_change", notice);
 }
 
@@ -214,9 +214,9 @@ function refreshPreConversationShellContext(
     return;
   }
 
-  // deferred draft 是隐藏预热态，首发前刷新 shell 时还没有真实
-  // conversation message。此时应把 session-start # Environment 一并刷新，
-  // 避免模型看到的 Shell 和 Bash 实际执行 shell 不一致。
+// The deferred draft is in a hidden preheating state, and it is not yet real when the shell is refreshed before the first release.
+// conversation message. At this time, session-start # Environment should be refreshed together.
+// Avoid inconsistencies between the shell seen by the model and the actual execution shell of Bash.
   runtime.config.envInfo = applySessionShellToEnvInfo(runtime.config.envInfo, selection);
   runtime.contextSourceSnapshot = {
     ...runtime.contextSourceSnapshot,

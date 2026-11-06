@@ -4,7 +4,7 @@
 # scripts/third-party-cargo.mjs → third-party/native-cargo/ (see the spec's notice rule).
 [workspace]
 resolver = "2"
-members = ["crates/*"]
+members = ["crates/nc-code-*"]
 
 [workspace.package]
 edition = "2021"

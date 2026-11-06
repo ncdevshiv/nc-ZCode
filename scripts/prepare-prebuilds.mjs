@@ -50,7 +50,7 @@ const releaseDir = join(mockCdnDir, "releases", version);
 const nodeVersion = "v22.16.0";
 const componentSchemaVersion = 1;
 const remotePlatforms = ["linux-arm64", "linux-x64", "darwin-arm64", "darwin-x64"];
-const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const bunCommand = process.platform === "win32" ? "bun.exe" : "bun";
 const isBootstrapWithRemote = process.env.ZCODE_BOOTSTRAP_WITH_REMOTE === "1";
 
 /**
@@ -307,9 +307,9 @@ function buildServerBundle() {
       return;
     }
 
-    // Windows CI（Node 24）里直接 spawnSync("pnpm.cmd") 会在拉起子进程前就抛 EINVAL。
-    // 这里统一走跨平台启动封装，让 .cmd 通过 shell/cmd.exe 执行，避免远端资源准备阶段提前中断。
-    runCommand(pnpmCommand, ["run", "build:remote"], {
+    // Windows CI 里直接 spawnSync("pnpm.cmd") 会在拉起子进程前就抛 EINVAL。
+    // 这里统一走跨平台启动封装，避免远端资源准备阶段提前中断。
+    runCommand(bunCommand, ["run", "build:remote"], {
       cwd: join(rootDir, "packages/server"),
     });
   } catch (error) {
@@ -368,7 +368,7 @@ function copyNodePtyPrebuilds() {
     try {
       packageRoot = resolveDedicatedPackageRoot(packageName, join(rootDir, "packages/server"));
     } catch {
-      console.log(`  [warn] ${packageName} not found, run: pnpm install`);
+      console.log(`  [warn] ${packageName} not found, run: bun install`);
       continue;
     }
 
@@ -407,10 +407,10 @@ function buildRemoteOfficialPluginRuntimes() {
     }
 
     runCommand(
-      pnpmCommand,
-      ["--dir", join(rootDir, "apps/zcode-cli"), "--filter", plugin.packageName, "build"],
+      bunCommand,
+      ["run", "--filter", plugin.packageName, "build"],
       {
-        cwd: rootDir,
+        cwd: join(rootDir, "apps/zcode-cli"),
         env: process.env,
       },
     );

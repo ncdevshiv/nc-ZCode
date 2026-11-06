@@ -54,8 +54,8 @@ export class SubagentContextBuilder extends ContextBuilder {
         (section): ModelInputMessage => ({
           role: "system",
           content: section.content,
-          // subagent context builder 不走 main ContextBuilder 的 system 组装，
-          // 仍需在每段稳定 child system prompt 上保留 provider cache breakpoint。
+// The subagent context builder does not use the system assembly of main ContextBuilder.
+// Still need to keep the provider cache breakpoint on each stable child system prompt.
           cacheControl: EPHEMERAL_CACHE_CONTROL,
         }),
       );
@@ -112,8 +112,8 @@ function buildSubagentContextSections(config: SubagentContextBuilderConfig): Con
         name: "Subagent Agent Prompt",
         source: "subagent_agent_prompt",
         cacheHint: "stable",
-        // 空 prompt 不是语义段，不能让左边界单独成为 system block。
-        // ZCode by design：Subagent agent prompt 自带相对 CLI prefix 的单换行左边界。
+// The empty prompt is not a semantic segment, and the left boundary cannot be used as a system block alone.
+// ZCode by design: Subagent agent prompt comes with a single newline left boundary relative to the CLI prefix.
         content: `\n${agentPrompt}`,
       }),
     );
@@ -124,7 +124,7 @@ function buildSubagentContextSections(config: SubagentContextBuilderConfig): Con
       name: "Subagent Notes",
       source: "subagent_notes",
       cacheHint: "stable",
-      // ZCode by design：后续 Subagent system block 统一自带双换行左边界。
+// ZCode by design: The subsequent Subagent system block will uniformly come with a double line break left border.
       content: `\n\n${buildSubagentCommonNotes()}`,
     }),
     createSubagentSection({

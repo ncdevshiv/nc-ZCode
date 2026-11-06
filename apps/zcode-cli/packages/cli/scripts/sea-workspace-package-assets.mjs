@@ -34,8 +34,8 @@ export async function stageSeaPackageAssets({
     let bytes = await readFile(sourcePath);
     if (workspacePackage && file.assetPath.endsWith("/package.json")) {
       const manifest = JSON.parse(bytes.toString("utf8"));
-      // 根 workspace 为开发环境导出 src/*.ts；SEA 仅携带 dist，必须在暂存副本改写入口。
-      // 不修改源码 manifest，否则会影响桌面 esbuild 的源码解析路径。
+// The root workspace exports src/*.ts for the development environment; SEA only carries dist, and the entry must be rewritten in the temporary copy.
+// Do not modify the source code manifest, otherwise it will affect the source code parsing path of desktop esbuild.
       for (const field of ["exports", "main", "module", "types", "imports"]) {
         if (field in manifest) manifest[field] = compiledEntry(manifest[field]);
       }

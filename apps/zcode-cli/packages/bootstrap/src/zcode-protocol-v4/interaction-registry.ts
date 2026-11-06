@@ -1,28 +1,28 @@
-// v4 交互应答登记表（原生化，resolveInteraction）。
+// v4 interactive response registration form (native, resolveInteraction).
 //
-// 背景：conversation-product-protocol 的权限/AskUserQuestion 是「反向请求」——CLI 经
-// context.requestClient 把请求推给客户端并 await 应答。旧客户端用 RPC RESPONSE 应答
-// （resolveClientRequest 按 server-N id 收口）。v4 客户端不回 RPC response，而是发一条
-// 前向 `resolveInteraction` COMMAND（先到先得，晚到 noop）。
+// Background: The permissions/AskUserQuestion of conversation-product-protocol is a "reverse request" - CLI
+// context.requestClient pushes the request to the client and awaits the response. Old clients respond with RPC RESPONSE
+// (resolveClientRequest is closed by server-N id). v4 client does not reply to RPC response, but sends one
+// Forward `resolveInteraction` COMMAND (first come, first served, late noop).
 //
-// 本登记表是两条应答路径的汇合点：interaction-broker 发起反向请求时按业务 requestId
-// （= v4 的 interactionId）注册一个 deferred，并让 requestClient 与该 deferred 竞态；
-// v4 命令面（handlers/interaction-background.ts）拿到 resolveInteraction 后经本表
-// resolve 对应 deferred，broker 侧的 Promise.race 立即用 v4 应答收口、abort 掉悬空的
-// 反向 RPC。
+// This registration table is the convergence point of two response paths: interaction-broker presses the business requestId when initiating a reverse request.
+// (= interactionId of v4) Register a deferred and let requestClient race with the deferred;
+// The v4 command surface (handlers/interaction-background.ts) gets resolveInteraction and passes through this table
+// Resolve corresponds to deferred. Promise.race on the broker side immediately uses v4 response to close and abort the dangling ones.
+// Reverse RPC.
 //
-// 分层：本表只做「按 id 找到 deferred 并投递应答」，不懂 permission/userInput 的 schema
-// 差异——broker 注册时自带各自的 resolve 回调（闭包已知 kind），本表对应答体透明。
-// 归属：本文件是 v4 原生基础设施（放 v4 目录），旧目录（broker/server）import 本文件
-// 合法（依赖方向只允许 旧目录 → v4 目录）。
+// Layering: This table only does "find the deferred by id and deliver the response", and does not understand the schema of permission/userInput
+// Difference - the broker comes with its own resolve callback when registering (the closure is known to kind), and this table is transparent to the response body.
+// Ownership: This file is v4 native infrastructure (put in the v4 directory). Import this file in the old directory (broker/server)
+// Legal (the dependency direction only allows old directory → v4 directory).
 import { ASK_USER_QUESTION_E2E_CLOCK_SCALE_ENV } from "@zcode/shared";
 
 export type V4InteractionAnswer = {
   optionId?: string;
   freeText?: string;
-  // （elicitation 回执收敛，与 shared command.ts resolveInteraction
-  // answer 同步）：action 存在时 broker 按 accept/decline/cancel 精确映射，
-  // content 直传旧 userInput response 的 content 语义（多题答案/注解无损）。
+// (elicitation receipt convergence, with shared command.ts resolveInteraction
+// answer synchronization): When the action exists, the broker is accurately mapped according to accept/decline/cancel.
+// content directly transfers the content semantics of the old userInput response (multiple questions answers/annotations are lossless).
   action?: "accept" | "decline" | "cancel";
   content?: Record<string, unknown>;
 };
@@ -73,12 +73,12 @@ export interface V4InteractionRegistrationOptions {
 }
 
 interface RegisteredInteraction {
-  /** broker 侧回调：把 v4 answer 映射成对应 schema 的应答并 resolve 反向请求。 */
+/** Broker-side callback: Map v4 answer to the response corresponding to the schema and resolve the reverse request. */
   resolve: (answer: V4InteractionAnswer) => void;
   options?: V4InteractionRegistrationOptions;
   autoResolution?: V4InteractionAutoResolution;
   /**
-   * AskUserQuestion 注册时固化的计时资格。关闭后永久置 false，重新开启不会追溯旧问题。
+* AskUserQuestion timing qualification solidified when registering. It is permanently set to false after being closed, and old issues will not be traced back when reopened.
    */
   fullAccessPending?: Promise<void>;
   autoResolutionEligible: boolean;
@@ -103,9 +103,9 @@ export class V4InteractionRegistry {
   }
 
   /**
-   * broker 发起反向请求时注册。返回注销函数（broker 在 finally 里调用，无论走 v4 还是
-   * RPC-response 收口都清理，防泄漏）。同一 interactionId 重注册（reannounce 重发）覆盖
-   * 旧回调——旧的反向请求已被 broker 的 race/abort 作废，指向最新一次等待。
+* The broker is registered when initiating a reverse request. Return the logout function (broker calls it in finally, no matter v4 or
+* RPC-response closing ports are cleaned to prevent leakage). Same interactionId re-registration (reannounce re-send) coverage
+* Old callback - the old reverse request has been invalidated by the broker's race/abort, pointing to the latest wait.
    */
   register(
     interactionId: string,
@@ -153,20 +153,20 @@ export class V4InteractionRegistry {
   }
 
   /**
-   * v4 resolveInteraction 命令收口：投递应答给等待中的 broker deferred。
-   * 返回是否命中——未命中（已被应答/已注销/未知 id）时命令面按幂等成功收口
-   * （proto.alreadyResolved 语义，多端先到先得，晚到应答无害）。
+* v4 resolveInteraction command end: deliver the response to the waiting broker deferred.
+* Returns whether it is a hit - if it misses (answered/logged out/unknown id), the command interface will be closed idempotently.
+* (proto.alreadyResolved semantics, multi-end first come first served, late response is harmless).
    */
   resolve(interactionId: string, answer: V4InteractionAnswer): boolean {
     const entry = this.pending.get(interactionId);
     if (!entry || entry.fullAccessPending) return false;
-    // 先删再 resolve：resolve 可能同步触发 broker finally 的注销，避免重入下重复投递。
+// Delete first and then resolve: resolve may trigger the logout of broker finally synchronously to avoid repeated delivery under re-entry.
     this.remove(interactionId, entry);
     entry.resolve(answer);
     return true;
   }
 
-  /** 带权限副作用的应答只对已登记的同 session 能力开放；失败保留请求供重试。 */
+/** Responses with permission side effects are only open to registered same-session capabilities; failed requests are retained for retry. */
   async resolveFullAccess(interactionId: string, sessionId: string): Promise<boolean> {
     const entry = this.pending.get(interactionId);
     if (!entry) return false;
@@ -190,7 +190,7 @@ export class V4InteractionRegistry {
     }
   }
 
-  /** 首次有效操作永久暂停当前 AskUserQuestion 的自动结束；重复/迟到调用为 noop。 */
+/** The first valid operation permanently suspends the automatic ending of the current AskUserQuestion; repeated/late calls are noops. */
   async snoozeAutoResolution(interactionId: string): Promise<boolean> {
     const entry = this.pending.get(interactionId);
     if (
@@ -206,8 +206,8 @@ export class V4InteractionRegistry {
   }
 
   /**
-   * 更新全局 gate。关闭会同步取消所有 timer，并在 ACK 前等待活动倒计时持久化为 snoozed；
-   * 重新开启只允许之后新注册的问题计时。
+* Update global gate. Shutdown will cancel all timers synchronously and wait for the active countdown to persist to snoozed before ACK;
+* Restart the problem timing that only allows new registrations in the future.
    */
   async setAskUserQuestionAutoResolutionEnabled(enabled: boolean): Promise<number> {
     this.interactionPreferenceCommandApplied = true;
@@ -215,8 +215,8 @@ export class V4InteractionRegistry {
   }
 
   /**
-   * session 启动握手只负责旧 Host 兼容和首个 runtime 的初值。显式 workspace 命令一旦
-   * 到达，迟到的启动握手不得覆盖更晚的设置提交。
+* The session startup handshake is only responsible for old Host compatibility and the initial value of the first runtime. Once the explicit workspace command
+* Upon arrival, a late start handshake must not override a later setup commit.
    */
   async initializeAskUserQuestionAutoResolutionEnabled(enabled: boolean): Promise<number> {
     if (this.interactionPreferenceCommandApplied) return 0;
@@ -245,7 +245,7 @@ export class V4InteractionRegistry {
     return this.pending.has(interactionId);
   }
 
-  /** Resident 回收判定：该 session 是否仍有等待用户应答的交互（去激活会让应答落空）。 */
+/** Resident recycling determination: whether the session still has interactions waiting for user response (deactivation will cause the response to fail). */
   hasPendingForSession(sessionId: string): boolean {
     for (const entry of this.pending.values()) {
       if (entry.options?.sessionId === sessionId) return true;

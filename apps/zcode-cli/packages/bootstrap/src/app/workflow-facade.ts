@@ -58,7 +58,7 @@ interface CreateWorkflowFacadeDeps {
   pdfDocumentPort?: PdfDocumentPort;
   logger: Logger;
   mcpPort?: McpPort;
-  /** 父会话的 model factory（与 script-workflow-child-runtime.ts 同一约定）。 */
+/** The model factory of the parent session (same convention as script-workflow-child-runtime.ts). */
   modelFactory: NonNullable<AgentRuntimeDeps["modelFactory"]>;
   permissionService: PermissionService;
   prepareUserExecutionBoundary: PrepareUserExecutionBoundary;
@@ -294,7 +294,7 @@ function createWorkflowChildRuntime(
     {
       agentTelemetry: deps.agentTelemetry,
       agentTelemetryCausation: deps.agentTelemetry.captureCausation(),
-      // Workflow 在父工具返回后独立调度，不能伪装成父 Span 的同步 Child。
+// Workflow is scheduled independently after the parent tool returns and cannot be disguised as the synchronized Child of the parent Span.
       agentTelemetryCausationMode: "linked_root",
       eventStore: createInMemorySessionEventStore(),
       sessionStore: deps.sessionStore,
@@ -332,7 +332,7 @@ function createWorkflowChildRuntime(
           ? (deps.appOptions.skillPort ??
             createNodeSkillAdapter({
               extraRoots: deps.configResult.config.skills.roots,
-              // workflow 子 agent 复用同一套 skill 发现逻辑，也必须继承主配置里的禁用路径。
+// Workflow sub-agent reuses the same set of skill discovery logic and must also inherit the disabled path in the main configuration.
               disabledPaths: collectDisabledPaths(deps.configResult.config.skillOverrides),
             }))
           : undefined,
@@ -340,9 +340,9 @@ function createWorkflowChildRuntime(
       eventSink: deps.eventSink,
       modelFactory: deps.modelFactory,
       resolveEffectiveModelSelection: deps.appOptions.resolveEffectiveModelSelection,
-      // 对外交互端口由父 runtime 派生（permissionBroker + providerRuntimeHeadersPort）：
-      // 子会话不是协议客户端认识的身份，直接透传 appOptions 的端口会让反向请求发到一个
-      // 客户端找不到的 session 上、response 永不回来。
+// The external interaction port is derived from the parent runtime (permissionBroker + providerRuntimeHeadersPort):
+// The sub-session is not an identity recognized by the protocol client. Directly transparently transmitting the port of appOptions will cause the reverse request to be sent to a
+// On a session that cannot be found by the client, the response will never come back.
       ...deps.runtime.createChildClientPorts({
         agentId: options.childSessionId,
         agentType: options.workflowKind === "expert" ? "zcode-expert" : "zcode-workflow",

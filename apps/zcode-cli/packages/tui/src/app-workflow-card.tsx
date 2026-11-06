@@ -1,10 +1,10 @@
-// CreateWorkflow 的实时工具卡。
+// Real-time tool card for CreateWorkflow.
 //
-// 为什么不是 ToolTranscriptPart 上的几行 detailLines：工具行是**事件时刻的快照**，而
-// CreateWorkflow 一把 run launch 出去就返回——工具行会在 run 还在飞的时候就变成 completed。
-// 卡片因此必须在渲染时读镜像（join 按 toolCallId），状态取 run 的状态而不是工具行的状态。
+// Why not a few lines on ToolTranscriptPart detailLines: Tool lines are snapshots of the event moment, whereas
+// CreateWorkflow returns as soon as the run launch is out - the tool line will change to completed while the run is still flying.
+// The card must therefore read the image when rendering (join by toolCallId), and the state takes the run state instead of the tool line state.
 //
-// 视图是 props 的纯函数（TUI 测试按函数式调用组件，不起终端）。
+// View is a pure function of props (TUI test calls components functionally and does not require a terminal).
 import React from "react";
 import type { TuiCopy } from "@zcode/i18n";
 import { palette } from "./app-model.js";
@@ -37,7 +37,7 @@ export function WorkflowRunCardView({
   const workflowCopy = copy.transcript.workflow;
   const width = Math.max(20, terminalWidth - CARD_DETAIL_INDENT.length);
   const collapsedLine = workflowCopy.collapsed({
-    // label 只有服务端知道（冷补种带回）；没有就退回 runId，绝不在这里造一个假名字。
+//The label is only known by the server (brought back by cold replanting); if not, the runId will be returned and never create a fake name here.
     label: card.label ?? card.runId,
     status: workflowStatusLabel(card.status, workflowCopy, card.stopReason),
     nodesSettled: card.nodesSettled,
@@ -152,7 +152,7 @@ function workflowStatusLabel(
   if (status === "running") return workflowCopy.status.running;
   if (status === "completed") return workflowCopy.status.completed;
   if (status === "errored") return workflowCopy.status.errored;
-  // stopped 带原因词：`stopped (model error)`。
+// stopped with reason word: `stopped (model error)`.
   if (status === "stopped") {
     return stopReason === undefined
       ? workflowCopy.status.stopped
@@ -163,7 +163,7 @@ function workflowStatusLabel(
 
 function colorForWorkflowStatus(status: TuiWorkflowCard["status"]): string {
   if (status === "completed") return palette.success;
-  // errored 是脚本故障（danger）；stopped 可恢复（muted）。
+// errored is a script failure (danger); stopped is recoverable (muted).
   if (status === "errored") return palette.danger;
   if (status === "running") return palette.accent;
   if (status === "stopped") return palette.muted;

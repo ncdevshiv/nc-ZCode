@@ -1,0 +1,17 @@
+[package]
+name = "nc-code-diff"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "S1 diff island: jsdiff@9 parity for structured/unified patches, line chunks and patch apply"
+
+[[bin]]
+name = "zcode-diff"
+path = "src/main.rs"
+
+[dependencies]
+serde_json.workspace = true
+# Shared sidecar protocol (frame/check/serve loop), only consumed but not modified.
+nc-code-sidecar-proto = { path = "../nc-code-sidecar-proto" }

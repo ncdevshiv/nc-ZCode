@@ -1,4 +1,4 @@
-/* eslint-disable max-lines -- subagent runner 集中维护前台/后台生命周期、registry 与 notification 顺序，拆分前需要先稳定生命周期边界。 */
+/* eslint-disable max-lines -- subagent runner centrally maintains the foreground/background life cycle, registry and notification order. The life cycle boundaries need to be stabilized before splitting. */
 // ============================================================
 // Subagent Runner
 // ============================================================
@@ -69,13 +69,13 @@ export interface ExploreSubagentRuntimeRequest {
   agentId: string;
   agentType: string;
   allowedTools: readonly string[];
-  /** 每次读取都返回 runtime task registry 的当前 foreground/background 状态。 */
+/** Each read returns the current foreground/background status of the runtime task registry. */
   background: boolean;
   disallowedTools?: readonly string[];
   sessionId: SessionId;
   description: string;
   maxTurns?: number;
-  /** child session 已持久化且可被 projection/query 读取后、首次模型执行前调用。 */
+/** Called after the child session has been persisted and can be read by projection/query and before the first model execution. */
   onSessionReady?: () => Promise<void>;
   permissionMode?: AgentProfile["permissionMode"];
   prompt: string;
@@ -112,8 +112,8 @@ export interface ExploreSubagentPortOptions {
     options?: SubagentRunOptions,
   ) => Promise<ExploreSubagentRuntimeResult>;
   emitParentEvent: (event: SessionEvent, traceContext: TraceContext) => Promise<void>;
-  // background completion 必须同步写入父 runtime command queue；
-  // 返回 undefined 可让 TypeScript 拒绝 async enqueue，避免 fake-notified。
+// background completion must be written to the parent runtime command queue synchronously;
+// Returning undefined allows TypeScript to reject async enqueue and avoid fake-notification.
   enqueueParentTaskNotification?: EnqueueParentTaskNotification;
   outputRootDir?: string;
   profiles?: readonly AgentProfile[];
@@ -148,7 +148,7 @@ export function createExploreSubagentPort(options: ExploreSubagentPortOptions): 
         rawRequest.runInBackground === true || profile.background === true;
       if (backgroundRequested) {
         if (launchOptions?.modelOverride?.background === "deny") {
-          // 单次执行的模型与动态鉴权不能脱离父 loop 生命周期进入后台。
+// Single-execution models and dynamic authentication cannot break away from the parent loop life cycle and enter the background.
           throw createCoreError(
             CoreErrorType.ToolExecutionFailed,
             "Idle-time tasks do not support background agents. Run this agent in the foreground.",
@@ -190,8 +190,8 @@ export function createExploreSubagentPort(options: ExploreSubagentPortOptions): 
       try {
         await writeAgentMetadataFile(lifecycle, request, "running");
       } catch (error) {
-        // 启动元数据写入失败时，child runtime 还没有开始执行；
-        // 保留 running task 会让父 runtime 误以为仍有后台任务并持续 defer。
+// When the startup metadata writing fails, the child runtime has not yet started executing;
+// Keeping the running task will make the parent runtime mistakenly think that there are still background tasks and continue to defer.
         registry.remove(lifecycle.agentId);
         throw error;
       }
@@ -214,8 +214,8 @@ export function createExploreSubagentPort(options: ExploreSubagentPortOptions): 
         timeoutMs: options.inactivityTimeoutMs ?? DEFAULT_MODEL_STREAM_IDLE_TIMEOUT_MS,
       });
       const readyGate = createSubagentSessionReadyGate();
-      // child persistence/resume 可能在 onSessionReady 前永久挂起；watchdog 和
-      // abort guard 必须覆盖完整 setup，而不能把 Ready 当成取消能力的安装边界。
+// child persistence/resume may hang permanently before onSessionReady; watchdog and
+// abort guard must cover the complete setup, and Ready cannot be used as an installation boundary to cancel capabilities.
       activityWatchdog.start();
       const completionPromise = runAgentToCompletion(
         options,
@@ -417,8 +417,8 @@ export function createExploreSubagentPort(options: ExploreSubagentPortOptions): 
 
         throw createCoreError(CoreErrorType.ToolExecutionFailed, "Explore subagent failed", {
           cause: error instanceof Error ? error : undefined,
-          // 这层只描述父 Agent toolcall 的生命周期失败；真实 provider/model
-          // 错误在 cause 链里，应作为 UI hover 与父模型 tool result 的主摘要。
+// This layer only describes the life cycle failure of the parent Agent toolcall; the real provider/model
+// The error is in the cause chain and should be used as the main summary of UI hover and parent model tool result.
           context: withErrorPayloadRole(
             {
               code: AgentErrorCode.CHILD_RUNTIME_FAILED,
@@ -457,7 +457,7 @@ export function createExploreSubagentPort(options: ExploreSubagentPortOptions): 
       try {
         await writeAgentMetadataFile(lifecycle, request, "running");
       } catch (error) {
-        // setup 失败时移除 registry 记录，避免 fake running background task。
+//Remove registry records when setup fails to avoid fake running background tasks.
         registry.remove(lifecycle.agentId);
         throw error;
       }
@@ -712,8 +712,8 @@ function resolveAgentProfileForRequest(
           ? request
           : {
               ...request,
-              // 模型可能按大小写/分隔符近似写 subagent_type；后续
-              // toolset、事件和 metadata 都依赖 canonical agentType，必须在入口统一收敛。
+// The model may be written approximately by case/delimiter subagent_type; follow-up
+// Toolset, events and metadata all depend on canonical agentType and must be uniformly converged at the entrance.
               agentType: profile.name,
             },
     };
@@ -1004,8 +1004,8 @@ async function resumeTerminalAgentInBackground(
       resumedFromMessageId: message.id,
     });
   } catch (error) {
-    // SendMessage resume setup 失败不能覆盖原 terminal task；
-    // 还原旧 snapshot，避免一个未启动的新 turn 卡成 running。
+// If SendMessage resume setup fails, the original terminal task cannot be overwritten;
+//Restore the old snapshot to prevent a new unstarted turn from getting stuck running.
     registry.register(previousTask);
     throw error;
   }
@@ -1052,8 +1052,8 @@ async function resumeTerminalAgentInBackground(
     registry.register(previousTask);
     throw error;
   }
-  // terminal 状态属于旧 snapshot，但 resume 输出路径属于新 lifecycle；
-  // 旧 snapshot 的可选 outputFile 不能用于本次 provider-visible 结果。
+// The terminal status belongs to the old snapshot, but the resume output path belongs to the new lifecycle;
+// The optional outputFile of the old snapshot cannot be used for this provider-visible result.
   return createSendMessageSuccess(
     { ...task, outputFile: lifecycle.outputFile },
     message,
@@ -1133,10 +1133,10 @@ async function runAgentToCompletion(
       agentId: lifecycle.agentId,
       agentType: request.agentType,
       allowedTools: resolveAllowedTools(lifecycle.profile, options),
-      // 显式 background Agent 的 child tool 会被镜像到父会话；
-      // 过去丢失这个来源会让父 turn 把仍在运行的 child tool 误当前台孤儿收口。这里必须
-      // 保留 getter，foreground 后续转后台时，每条 mirror event 才会读取 registry 当前值，
-      // 而不是继续携带 child 启动时的 false 快照。
+// The child tool of explicit background Agent will be mirrored to the parent session;
+// In the past, losing this source would cause the parent to turn the still-running child tool into a foreground orphan by mistake. Must here
+// Keep the getter. When the foreground is subsequently transferred to the background, each mirror event will read the current value of the registry.
+// Instead of continuing to carry the false snapshot when the child was started.
       get background() {
         return registry.get(lifecycle.agentId)?.isBackgrounded === true;
       },
@@ -1158,8 +1158,8 @@ async function runAgentToCompletion(
     },
     runOptions,
   );
-  // 测试桩和旧注入实现可能尚未主动调用 readiness hook；真实 AgentRuntime 会在
-  // persist 后调用。回落只保证兼容，不改变生产链路的 persist-before-spawn 顺序。
+// Test stubs and old injection implementations may not yet actively call the readiness hook; the real AgentRuntime will
+// Called after persist. Fallback only ensures compatibility and does not change the persist-before-spawn order of production links.
   await notifySessionReady();
 
   const usage = aggregateModelUsage(childResult.events);
@@ -1274,8 +1274,8 @@ function guardSubagentPromiseWithAbort<T>(
 ): Promise<T> {
   if (!signal) return promise;
 
-  // 子运行时或模型适配器在 abort 后可能永不 settle；外层 Agent 必须自己监听
-  // 父 signal，否则 `Agent` 工具会一直停在 running，直到用户手动 Stop。
+// A child runtime or model adapter may never settle after abort; the outer Agent must listen on its own
+// Parent signal, otherwise the `Agent` tool will stop running until the user manually stops it.
   return new Promise<T>((resolve, reject) => {
     let settled = false;
 
@@ -1580,9 +1580,9 @@ async function finalizeBackgroundFailure(
   const current = registry.get(lifecycle.agentId);
   if (current && isTerminalRuntimeTask(current)) return;
 
-  // background runner 收到的通常是 Turn failure wrapper，直接读 message
-  // 会把 provider 的 429 原文替换成通用的 “Turn execution failed”；这里只选择
-  // wrapper 下的根因 message，不压缩空白或截断 provider 原文。
+// The background runner usually receives the Turn failure wrapper and reads the message directly.
+// Will replace provider's 429 original text with the generic "Turn execution failed"; only select here
+// The root message under wrapper does not compress whitespace or truncate the provider original text.
   const errorMessage = error instanceof Error ? selectExecutionErrorMessage(error) : String(error);
   const completedAt = new Date();
   const totalDurationMs = Date.now() - lifecycle.startedAt;
@@ -1927,7 +1927,7 @@ async function writeCompletedAgentArtifacts(
 ): Promise<void> {
   const text = output.content.map((block) => block.text).join("\n\n");
   await writeAgentOutputFiles(lifecycle, text);
-  // 子 agent 事件已由 session event store 持久化，不再重复写入 transcript sidecar。
+// The child agent event has been persisted by the session event store and will no longer be written to the transcript sidecar repeatedly.
   await writeAgentMetadataFile(lifecycle, request, "completed", {
     completedAt: new Date().toISOString(),
     totalDurationMs: output.totalDurationMs,
@@ -2059,9 +2059,9 @@ function resolveSubagentToolUseCount(events: SessionEvent[]): number {
     return turnCompleteToolCallCount;
   }
 
-  // ToolCallResult/ToolCallError 会直接 append 到 event store，
-  // 不一定回填进 child TurnResult.events；child TurnComplete 里的 toolCallCount
-  // 才是运行时 loopState 累计出的权威子 agent 工具调用数。
+// ToolCallResult/ToolCallError will be appended directly to the event store.
+// Not necessarily backfilled into child TurnResult.events; toolCallCount in child TurnComplete
+// This is the number of authoritative sub-agent tool calls accumulated by loopState during runtime.
   return events.filter(
     (event) =>
       event.type === SessionEventType.ToolCallResult ||

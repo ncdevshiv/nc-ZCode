@@ -1,49 +1,49 @@
 // ============================================================
-// amend-resume 的导入缓存
+//Import cache of amend-resume
 // ============================================================
-// 从 engine/types.ts 拆出（该文件已到 oxlint max-lines 上限）：纯数据结构，run service 读前驱
-// journal 构建，引擎只查表。
+// Removed from engine/types.ts (the file has reached the oxlint max-lines limit): pure data structure, run service reads the precursor
+// Journal construction, the engine only looks up the table.
 
 import type { AskStats, NodeKind, PersonaSpec } from "./types.js";
 
 /**
- * 一条可导入的已完结 ask：前驱 run 里某具名 actor 第 `actorSeq` 次问答的结果。
- * 数组下标即 actorSeq（见 {@link ImportedActorCandidate.entries}），所以这里不存 seq。
+* An importable completed ask: the result of the `actorSeq`th question and answer of a named actor in the predecessor run.
+* The array subscript is actorSeq (see {@link ImportedActorCandidate.entries}), so seq does not exist here.
  */
 export interface ImportedAskEntry {
-  /** 前驱记录的 inputHash（对指令正文）。运行期与本次 ask 的哈希逐条比对，一致才命中。 */
+/** The inputHash of the predecessor record (for the command body). Compare the hash of this ask with the hash of this ask one by one during the runtime. Only if they are consistent will the hit be achieved. */
   inputHash: string;
   result: unknown;
   stats?: AskStats;
   /**
-   * 该 ask 结算后源会话的消息数（{@link NodeRecord.messageBoundary}）。**必填**：
-   * run service 的「无 marker 前驱整体拒绝」门保证每条可导条目都带边界，所以引擎这边
-   * 不必有缺席分支——种子截断没有边界就无从谈起。
+* The number of messages in the source session after this ask is resolved ({@link NodeRecord.messageBoundary}). **Required**:
+* The "no marker precursor overall rejection" gate of the run service ensures that each guideable entry has a boundary, so the engine side
+* No need for absent branches - seed truncation is impossible without boundaries.
    */
   messageBoundary: number;
 }
 
 /**
- * 前驱 run 里一个具名 actor 的可导入前缀。由 run service 从前驱 journal 构建（纯确定，可重建）。
+* An importable prefix for a named actor in the predecessor run. Built from the predecessor journal by run service (purely deterministic, rebuildable).
  */
 export interface ImportedActorCandidate {
-  /** 前驱记录的规范化 persona——运行期 createActor 比对用（不一致即弃该候选）。 */
+/** The normalized persona of the predecessor record - used for comparison of createActor during runtime (if inconsistent, the candidate will be discarded). */
   persona: PersonaSpec;
-  /** 最长全 completed ask 前缀，按 actorSeq 0..n-1 索引。 */
+/** The longest fully completed ask prefix, indexed by actorSeq 0..n-1. */
   entries: ImportedAskEntry[];
   /**
-   * 经 `resumed_from` 链解析出的转录源会话 id。service 保证在场——链上没有任何祖先
-   * 持有该 actor 会话的候选在 service 侧就已弃置（降级为全新 actor），所以这里不是可选。
+* The transcript source session id parsed by the `resumed_from` chain. service is guaranteed to be present - it does not have any ancestors on the chain
+* The candidate holding the actor session has been discarded on the service side (downgraded to a brand new actor), so this is not optional.
    */
   transcriptSourceSessionId: string;
   /**
-   * 前驱解析出的模型 pin，随种子带给 driver。**仅当真的导入了转录时生效**：一条也没命中的
-   * actor 走全新解析、不带 pin（见 scheduler 的 ensureSession）。
+* The model pin parsed by the precursor is brought to the driver along with the seed. **Only takes effect if the transcription is actually imported**: None of them hit
+* Actor uses new parsing without pin (see ensureSession of scheduler).
    */
   resolvedModel?: string;
 }
 
-/** 一条可导入的世界节点（world-read / world-run），按内容 + 出现序匹配。 */
+/** An importable world node (world-read / world-run), matched in order of content + appearance. */
 export interface ImportedWorldEntry {
   inputHash: string;
   kind: NodeKind;
@@ -51,16 +51,16 @@ export interface ImportedWorldEntry {
 }
 
 /**
- * 注入引擎的导入缓存（amend-resume 的加速结构）。**纯数据**：引擎保持零 I/O，这张表由
- * run service 读前驱 journal 构建。
- * 它不是真相源——每次命中都落一行真 dwf_node，丢了可从 `resumed_from` 重建。
+* Inject the engine's import cache (acceleration structure of amend-resume). **Pure Data**: The engine maintains zero I/O, this table is represented by
+* run service reads the precursor journal build.
+* It is not a true source - each hit drops a row of true dwf_node, which can be reconstructed from `resumed_from` if lost.
  */
 export interface ImportedRunCache {
-  /** 键 = 有效 actor 名（前驱内唯一且非空的那些）。 */
+/** keys = valid actor names (those that are unique and non-empty within the predecessor). */
   actors: ReadonlyMap<string, ImportedActorCandidate>;
   /**
-   * 键 = `inputHash({op, args})`；值 = 按前驱 listNodes 插入序排好的队列——同一个
-   * `{op,args}` 的第 n 次出现对第 n 条记录，队列头即下一次命中。
+* key = `inputHash({op, args})`; value = queue arranged in insertion order of predecessor listNodes - the same
+* The nth occurrence of `{op,args}` is for the nth record, and the head of the queue is the next hit.
    */
   world: ReadonlyMap<string, ImportedWorldEntry[]>;
 }

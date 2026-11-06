@@ -1070,6 +1070,27 @@ export function SessionPane({
   const effectiveDropTargetController = readOnly
     ? readOnlyDropTargetController
     : dropTargetController;
+  const paneRootRef = useRef<HTMLDivElement>(null);
+  // Tauri intercepts OS file drops, so the DOM never receives File objects for
+  // native drags. Subscribe to the shell's real paths and route them to the
+  // composer only when the drop position is inside this pane.
+  useEffect(() => {
+    const subscribe = platform?.onFileDropPaths;
+    if (!subscribe) return;
+    const dispose = subscribe(({ paths, position }) => {
+      const controller = effectiveDropTargetController;
+      if (!controller?.onLocalPaths || paths.length === 0 || !position) return;
+      const element = paneRootRef.current;
+      if (!element) return;
+      const ratio = window.devicePixelRatio || 1;
+      const x = position.x / ratio;
+      const y = position.y / ratio;
+      const rect = element.getBoundingClientRect();
+      if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return;
+      controller.onLocalPaths(paths);
+    });
+    return dispose;
+  }, [effectiveDropTargetController, platform]);
 
   // 稳定回调读取的最新值经 ref 透传，避免回调依赖高频变化的 snapshot/文本。
   const snapshotRef = useRef<ConversationSnapshot | null>(snapshot);
@@ -4607,6 +4628,7 @@ export function SessionPane({
 
   return (
     <div
+      ref={paneRootRef}
       data-testid={testId(TID_V4_SESSION_PANE, paneId)}
       data-session-id={sessionId ?? "draft"}
       data-initial-draft-provider={initialDraftConfigForDiagnostics?.provider ?? ""}

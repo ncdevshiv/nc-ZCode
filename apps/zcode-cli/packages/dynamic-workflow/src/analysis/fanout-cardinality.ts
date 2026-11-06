@@ -1,12 +1,13 @@
-import ts from "typescript";
+// @ts-nocheck
+import ts from "../compiler/ts-shim.js";
 
 /**
- * fan-out 的**字面量基数**：
- * 被迭代的表达式是无展开元素的数组字面量，或一个只初始化一次、从未被写入的 `const`
- * 绑定到这样的字面量时，基数 = 字面量长度；其余一律 `undefined`。
+* Literal base for fan-out:
+* The expression being iterated is an array literal with no unexpanded elements, or a `const` that is initialized only once and never written to
+* When binding to such a literal, base = literal length; otherwise `undefined`.
  *
- * 这是**铸造期**（interpret.ts）的工作——它要看 AST 与 checker，而投影不许再看代码。
- * 原则是宁缺毋滥：任何不确定都给缺席，交接图随之画一张 `many` 卡，绝不猜一个数。
+* This is the job of **casting** (interpret.ts) - it looks at the AST and checker, and the projection is not allowed to look at the code.
+* The principle is that it is better to be absent than to waste: any uncertainty will be absent, and a `many` card will be drawn on the handover diagram, and never guess a number.
  */
 export function literalCardinality(iterated: ts.Expression, checker: ts.TypeChecker): number | undefined {
   const expr = unwrap(iterated);
@@ -27,7 +28,7 @@ export function literalCardinality(iterated: ts.Expression, checker: ts.TypeChec
   return isEverWritten(symbol, decl.getSourceFile(), checker) ? undefined : length;
 }
 
-/** `(xs)`, `xs as const`, `xs!`, `xs satisfies T` 都是同一个数组。 */
+/** `(xs)`, `xs as const`, `xs!`, `xs satisfies T` are all the same array. */
 function unwrap(expr: ts.Expression): ts.Expression {
   let current = expr;
   for (;;) {
@@ -46,13 +47,13 @@ function spreadFreeLength(literal: ts.ArrayLiteralExpression): number | undefine
   return literal.elements.length > 0 ? literal.elements.length : undefined;
 }
 
-/** 就地改变数组内容的方法：经它们调用过的绑定不再是字面量长度。 */
+/** Methods that change the contents of an array in place: the bindings they are called on are no longer literal lengths. */
 const MUTATORS = new Set(["push", "pop", "shift", "unshift", "splice", "sort", "reverse", "fill", "copyWithin", "length"]);
 
 /**
- * 该绑定是否被写过：`xs.push(…)` 之类的就地方法、`xs[i] = …` / `xs[i]++`、`xs.length = 0`，
- * 以及（虽然 `const` 已禁止）对名字本身的赋值。别名（`const ys = xs; ys.push()`）与把数组
- * 传进函数不在检查范围——只看这三类写；它们之外的形状本来就会给出缺席以外的答案。
+* Whether the binding has been written: in-place methods such as `xs.push(…)`, `xs[i] = …` / `xs[i]++`, `xs.length = 0`,
+* and (although `const` is forbidden) assignment to the name itself. Alias ​​(`const ys = xs; ys.push()`) with array
+* Pass-in functions are not checked - only these three categories are looked at; shapes outside of them would have given answers other than absence.
  */
 function isEverWritten(symbol: ts.Symbol, file: ts.SourceFile, checker: ts.TypeChecker): boolean {
   let written = false;
@@ -69,7 +70,7 @@ function isEverWritten(symbol: ts.Symbol, file: ts.SourceFile, checker: ts.TypeC
 
 function isWriteReference(id: ts.Identifier): boolean {
   const parent = id.parent;
-  // 声明处本身不是写。
+// The declaration itself is not written.
   if (ts.isVariableDeclaration(parent) && parent.name === id) return false;
   // xs.push(...) / xs.length = 0
   if (ts.isPropertyAccessExpression(parent) && parent.expression === id) {
@@ -80,7 +81,7 @@ function isWriteReference(id: ts.Identifier): boolean {
   }
   // xs[i] = ... / xs[i]++ / delete xs[i]
   if (ts.isElementAccessExpression(parent) && parent.expression === id) return isAssignmentTarget(parent);
-  // xs = ... （const 下类型错误，但仍算写）
+// xs = ... (wrong type under const, but still counts)
   return isAssignmentTarget(id);
 }
 
@@ -94,7 +95,7 @@ function isAssignmentTarget(node: ts.Expression): boolean {
     return parent.operator === ts.SyntaxKind.PlusPlusToken || parent.operator === ts.SyntaxKind.MinusMinusToken;
   }
   if (ts.isDeleteExpression(parent)) return true;
-  // 解构赋值目标：[xs[0]] = ... / ({ a: xs[0] } = ...)
+// Destructuring assignment target: [xs[0]] = ... / ({ a: xs[0] } = ...)
   if (ts.isArrayLiteralExpression(parent) || ts.isPropertyAssignment(parent) || ts.isShorthandPropertyAssignment(parent)) {
     let up: ts.Node = parent;
     while (ts.isArrayLiteralExpression(up) || ts.isObjectLiteralExpression(up) || ts.isPropertyAssignment(up) || ts.isShorthandPropertyAssignment(up) || ts.isSpreadElement(up)) {

@@ -374,7 +374,7 @@ function resolveNativeZCodeHostCommand(
   const binary = findNativeZCodeHostBinary();
   if (!binary) {
     throw new Error(
-      "ZCODE_NATIVE_HOST 已开启但未找到 zcode-host 二进制；请先运行 pnpm --dir packages/desktop prepare:native-host 或设置 ZCODE_NATIVE_HOST_BINARY",
+      "ZCODE_NATIVE_HOST 已开启但未找到 zcode-host 二进制；请先运行 bun --cwd packages/desktop run prepare:native-host 或设置 ZCODE_NATIVE_HOST_BINARY",
     );
   }
   const dataDir = join(
@@ -440,7 +440,7 @@ function resolveBundledWorkspaceZCodeAgentCommand(
       : distEntrypoint;
     // 此同步 command resolver 沿用既有 existsSync 契约；显式试验不能静默回退成 JS。
     if (useBytecode && !existsSync(entrypoint)) {
-      throw new Error("桌面 Agent 字节码入口缺失，请运行 pnpm build:desktop-agent:bytecode");
+      throw new Error("桌面 Agent 字节码入口缺失，请运行 bun run build:desktop-agent:bytecode");
     }
     return {
       command: process.execPath,

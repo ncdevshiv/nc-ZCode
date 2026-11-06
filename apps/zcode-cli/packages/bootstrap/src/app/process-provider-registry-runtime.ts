@@ -31,7 +31,7 @@ import {
 } from "./standalone-account-provider-runtime.js";
 
 export interface ProcessProviderRegistryRuntimeOptions {
-  /** Standalone Prompt CLI / TUI 自己拥有账号凭据与旧配置的一次性导入。 */
+/** Standalone Prompt CLI/TUI has its own one-time import of account credentials and old configuration. */
   readonly standalone?: {
     readonly credentialStore?: SharedZCodeCredentialStore;
     readonly legacyCliUserConfigFilePath?: string;
@@ -48,7 +48,7 @@ export async function startProcessProviderRegistryRuntime(
 ) {
   const paths = resolveNodeProviderRuntimePaths(env);
   if (!paths) {
-    throw new Error("缺少进程 Provider Registry 的 ZCode Built-in / Personal Config 路径");
+    throw new Error("Missing ZCode Built-in / Personal Config path for process Provider Registry");
   }
 
   const accountSource = new MutableAccountProviderConfigSource();
@@ -91,7 +91,7 @@ export async function startProcessProviderRegistryRuntime(
             standaloneAccount = new AccountProviderService({
               configSource: configService,
               async resolve({ configRevision, configuredProviders }) {
-                // 使用本轮捕获的 Built-in，而不是异步读另一份文件后仅贴上新 revision。
+// Use the Built-in captured in this round instead of asynchronously reading another file and just pasting the new revision.
                 const snapshot = await readStandaloneAccountProviderConfigSnapshot(
                   credentialStore,
                   env,
@@ -104,7 +104,7 @@ export async function startProcessProviderRegistryRuntime(
               try {
                 options.standalone?.onAccountInitializationError?.(error);
               } catch {
-                /* 观测回调不能改变账号事实。 */
+/* Observation callbacks cannot change account facts. */
               }
             });
             return standaloneAccount;
@@ -132,7 +132,7 @@ export async function startProcessProviderRegistryRuntime(
           await standaloneAccount!.refresh("builtin-account-recovery");
       })
     : undefined;
-  // 复用 AccountService 的串行、过期结果丢弃机制，凭据变化与 Built-in 变化不能各自发布。
+// Reuse the serial and expired result discarding mechanism of AccountService. Credential changes and Built-in changes cannot be released separately.
   const disposeCredentialSubscription = credentialStore?.onDidChange?.(async () => {
     await standaloneAccount!.refresh("standalone-credentials-changed");
     await runtime.registryService.refresh("standalone-credentials-barrier");
@@ -149,10 +149,10 @@ export async function startProcessProviderRegistryRuntime(
         accountSource: standaloneAccount ?? accountSource,
         async syncAccountProviderConfig(next: AccountProviderConfigSnapshot): Promise<boolean> {
           if (standaloneAccount)
-            throw new Error("Standalone Account 由本进程管理，不接收 Host 覆盖");
+            throw new Error("Standalone Account is managed by this process and does not receive Host override");
           const changed = accountSource.replace(next, "host-account-config");
-          // Source 去重只证明收过，不证明上次刷新成功。重交时仍刷新；配套配置未到
-          // 则由 Registry 保留完整旧快照，不能把接收确认冒充应用确认。
+// Source deduplication only proves that it has been received, not that the last refresh was successful. It will still be refreshed when resubmitting; the supporting configuration has not arrived.
+// Then the Registry retains the complete old snapshot, and the receipt confirmation cannot be passed off as application confirmation.
           await runtime.registryService.refresh("host-account-config");
           return changed;
         },
@@ -190,7 +190,7 @@ export async function startProcessProviderRegistryRuntime(
   }
 }
 
-/** 把协议信封解析为进程 Registry 使用的第三层 Account Config Overlay。 */
+/** Parses the protocol envelope into the third layer Account Config Overlay used by the process Registry. */
 export function parseProcessAccountProviderConfigSnapshot(input: {
   readonly revision: string;
   readonly basedOnZCodeBuiltinRevision: string;
@@ -198,28 +198,28 @@ export function parseProcessAccountProviderConfigSnapshot(input: {
   readonly states?: AccountProviderStates;
 }): AccountProviderConfigSnapshot {
   const revision = input.revision.trim();
-  if (!revision) throw new Error("Account Config revision 不能为空");
+  if (!revision) throw new Error("Account Config revision cannot be empty");
   const basedOnZCodeBuiltinRevision = input.basedOnZCodeBuiltinRevision.trim();
   if (!basedOnZCodeBuiltinRevision) {
-    throw new Error("Account Config Built-in revision 不能为空");
+    throw new Error("Account Config Built-in revision cannot be empty");
   }
   const providers = parseAccountProviderConfigMap(input.providers);
   for (const [providerId, provider] of providers.entries()) {
-    // 仅约束托管 Worker 的普通账号信封；独立 CLI、API 和闲时不需要 current。
+//Only constrains the normal account envelope of the managed Worker; current is not required for independent CLI, API and idle time.
     if (
       isBuiltinModelProviderId(providerId) &&
       provider.access?.type === "zhipu-account" &&
       provider.access.entitled &&
       typeof input.states?.[providerId]?.current !== "boolean"
     ) {
-      throw new Error(`Account State 缺少 current: ${providerId}`);
+      throw new Error(`Account State is missing current: ${providerId}`);
     }
   }
   return Object.freeze({
     revision,
     basedOnZCodeBuiltinRevision,
     providers,
-    // 与 Overlay 属于同一快照；不能只更新 revision 却丢掉当前连接事实。
+// Belongs to the same snapshot as Overlay; you cannot just update revision but lose the current connection fact.
     ...(input.states ? { states: input.states } : {}),
   });
 }

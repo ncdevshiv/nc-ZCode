@@ -271,7 +271,7 @@ function createRequestAgent(
 
 function assertPublicEgressProxyBoundary(url: URL, proxyUrl: string | undefined): void {
   if (!proxyUrl) return;
-  // 普通代理会在代理侧解析目标域名，本地 DNS 校验无法证明最终 IP 仍是公网地址。
+// Ordinary proxies will resolve the target domain name on the proxy side, and local DNS verification cannot prove that the final IP is still a public network address.
   throw createHttpClientError({
     code: "egress_blocked",
     url: url.toString(),

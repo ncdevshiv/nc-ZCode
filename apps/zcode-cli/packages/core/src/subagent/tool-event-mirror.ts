@@ -58,8 +58,8 @@ export function mirrorSubagentToolEvent(
   }
 
   if (MIRRORED_INTERACTION_EVENT_TYPES.has(event.type)) {
-    // V4 只从父 task 的实时投影生成阻塞交互；仅转发 broker request 会让
-    // 子 agent 的 permission / AskUserQuestion 停留在子 session，父界面无法响应。
+// V4 only generates blocking interactions from the real-time projection of the parent task; only forwarding the broker request will make
+// The child agent's permission / AskUserQuestion stays in the child session, and the parent interface cannot respond.
     const mirroredPayload = {
       ...payload,
       toolCallId,

@@ -150,9 +150,9 @@ function readModelOptions(options: CliOptions): SharedModelOptions {
 
 function printUsageAndExit(): never {
   console.error(`Usage:
-  pnpm --filter @zcode/prompt-trajectory record -- --fixture <fixture.json> --out <dir> [--reference-request <path>]
-  pnpm --filter @zcode/prompt-trajectory record:prompt -- --prompt <text> --model <provider/model> --upstream-base-url <url> [--out <dir>] [--api-key-env <env>]
-  pnpm --filter @zcode/prompt-trajectory derive -- --out <dir> [--input <trajectory.jsonl>] [--reference-request <path>]
-  pnpm --filter @zcode/prompt-trajectory model-io -- --input <model-io.jsonl> --out <dir> [--query-source main_turn]`);
+  bun run --filter @zcode/prompt-trajectory record -- --fixture <fixture.json> --out <dir> [--reference-request <path>]
+  bun run --filter @zcode/prompt-trajectory record:prompt -- --prompt <text> --model <provider/model> --upstream-base-url <url> [--out <dir>] [--api-key-env <env>]
+  bun run --filter @zcode/prompt-trajectory derive -- --out <dir> [--input <trajectory.jsonl>] [--reference-request <path>]
+  bun run --filter @zcode/prompt-trajectory model-io -- --input <model-io.jsonl> --out <dir> [--query-source main_turn]`);
   process.exit(1);
 }

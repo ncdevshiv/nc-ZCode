@@ -78,11 +78,11 @@ export interface ConfigResult {
       uiThemePath: string | undefined;
       workspaceHookSnapshot?: WorkspaceHookBundleSnapshot;
       /**
-       * 审核请求与「审核中 toggle」曾各自推导 runtimeRoot（前者遍历
-       * default/user/project/env/cli 全部层，后者只读单层 runtimeConfig.hooks），
-       * 两者只要有一处不同就产生不同 bundleDigest，toggle 会被误判为
-       * workspace_hooks_snapshot_mismatch。这里导出快照实际使用的 runtimeRoot，
-       * 让下游复用同一个值，把一致性变成结构性约束而不是巧合。
+* Review request and "under review toggle" have respectively derived runtimeRoot (the former traverses
+* default/user/project/env/cli all layers, the latter only reads single layer runtimeConfig.hooks),
+* As long as there is one difference between the two, bundleDigest will be different, and toggle will be misjudged as
+* workspace_hooks_snapshot_mismatch. Here export the runtimeRoot actually used by the snapshot,
+* Let downstream reuse the same value, turning consistency into a structural constraint rather than a coincidence.
        */
       workspaceHookRuntimeRoot?: WorkspaceHookRuntimeRoot;
     };
@@ -160,15 +160,15 @@ export function createConfig(options: ConfigFactoryOptions = {}): ConfigResult {
           }),
         ])
       : summarizeProjectConfigs([]);
-  // explicit 配置曾在 auto-discovery 之后手工追加并自行编号，绕过 shared
-  // canonical-path dedup；同一文件会进入 snapshot 两次并使既有 Trust 全部 stale。
-  // 修法：有 workspace 时由 loadProjectConfigs 统一走 discoverWorkspaceHookConfigPaths，
-  // 去重、失败候选占位和 discoveryOrder 均与 Settings builder 同源。
+// The explicit configuration was manually appended and self-numbered after auto-discovery, bypassing shared
+// canonical-path dedup; the same file will be entered into snapshot twice and all existing Trusts will be stale.
+//Revision: When there is a workspace, use loadProjectConfigs to uniformly use discoverWorkspaceHookConfigPaths.
+// Deduplication, failed candidate placeholders, and discoveryOrder all have the same origin as the Settings builder.
   const projectConfigFiles = discoveredProjectConfigs.files;
   const projectSummary = discoveredProjectConfigs;
   const projectDiagnostics = discoveredProjectConfigs.diagnostics;
-  // 配置 diagnostics 过去只返回给调用方，用户导出日志时看不到加载失败或被跳过的 MCP server。
-  // 在汇总入口统一写 warn，保留具体文件路径和 JSON path，方便定位迁移配置问题。
+// Configuration diagnostics used to be returned only to the caller. Users could not see MCP servers that failed to load or were skipped when exporting logs.
+// Write warn in the summary entry and retain the specific file path and JSON path to facilitate locating migration configuration issues.
   logConfigDiagnostics({
     env: options.env,
     loggerFactory: options.loggerFactory,

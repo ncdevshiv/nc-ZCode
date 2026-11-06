@@ -1,0 +1,7 @@
+{
+  "Bash": {
+    "tsOnly": {
+      "dangerouslyDisableSandbox": "This host does not have a sandbox layer to turn off: this switch of TS bypasses its own sandbox execution, and the one-time command of the native host does not have a sandbox from the beginning. Declaring it is equivalent to declaring a non-existent control plane (accepting and ignoring it will make the model think it has got a security exception). The real gate for write permissions is the plan read-only + full-access + permission query."
+    }
+  }
+}

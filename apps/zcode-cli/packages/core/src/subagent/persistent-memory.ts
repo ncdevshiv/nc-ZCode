@@ -96,7 +96,7 @@ export async function loadPersistentAgentMemory(input: {
     indexContent = (await input.fileSystemPort.readTextFile({ path: join(rootDir, "MEMORY.md") }))
       .content;
   } catch {
-    // 不存在或不可读的 MEMORY.md 都使用基线的 empty index 文案。
+// MEMORY.md that does not exist or is unreadable uses the baseline empty index copy.
   }
 
   return {

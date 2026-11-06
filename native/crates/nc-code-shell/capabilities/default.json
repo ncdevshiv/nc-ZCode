@@ -1,0 +1,10 @@
+{
+  "identifier": "loopback-web-ui",
+  "description": "Allow the loopback-served ZCode web UI (main webview) and the local Resource Manager webview to call the shell's app commands.",
+  "local": true,
+  "remote": {
+    "urls": ["http://127.0.0.1:*", "http://localhost:*"]
+  },
+  "webviews": ["main", "resource-manager", "recording-selftest"],
+  "permissions": ["core:default", "shell", "recording-selftest"]
+}

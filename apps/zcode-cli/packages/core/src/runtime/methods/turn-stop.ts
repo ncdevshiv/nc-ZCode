@@ -117,8 +117,8 @@ export async function persistOutputTokenLimitErrorCarrier(
   const createdAt = Date.now();
   const tokens = emptyTokenUsageInfo();
 
-  // partial 与终态 error 共用 durable assistant 时，Compact 无法同时重放
-  // provider partial 并排除 transcript-only error。两者拆成独立消息后沿用既有过滤边界即可。
+// When partial and final state error share durable assistant, Compact cannot be played back at the same time
+// provider partial and exclude transcript-only errors. The two can be split into independent messages and the existing filtering boundaries can be used.
   await runtime.persistAssistantMessage(
     messageId,
     state.currentUserMessageId,
@@ -174,8 +174,8 @@ export async function finishModelStepWithoutToolCalls(
   });
   if (assistantCommitted) recordModelHistoryRound(state);
   if (state.automationCreateLimitReached) {
-    // 上限命中后只允许这一轮纯文本说明。跳过 guide 和 Stop hook，避免它们再次
-    // 触发模型请求，把已经关闭工具的 turn 延长成新的恢复循环。
+// Only this round of plain text description is allowed after the upper limit is hit. Skip guide and Stop hooks to prevent them from happening again
+// Trigger the model request and extend the turn of the closed tool into a new recovery cycle.
     if (state.activeTurn) {
       await this.fallbackPendingGuidesToQueue({
         activeTurn: state.activeTurn,
@@ -193,8 +193,8 @@ export async function finishModelStepWithoutToolCalls(
     return "break";
   }
   if (await drainInlineGuideForNextRequest(this, state)) {
-    // 正常 text-only 是可续跑边界：assistant 已持久化，guide 以 user role 进入历史，
-    // 保持同一 active turn 继续下一次 provider request，不改投 future queue。
+// Normal text-only is the continuation boundary: assistant has been persisted, guide enters history with user role,
+// Keep the same active turn and continue with the next provider request without changing to the future queue.
     state.turnMachine = new TurnMachineImpl(state.turnMachine.aggregateResults());
     return "continue";
   }
@@ -216,8 +216,8 @@ export async function finishModelStepWithoutToolCalls(
     return "continue";
   }
   if (state.activeTurn) {
-    // FIFO barrier / reservation 阻止本轮安全 inline 时，仍保留既有权威 queue 兜底；
-    // 正常可消费的 text-only guide 已在上方作为 user-role continuation drain。
+// FIFO barrier / reservation prevents safe inline in this round, but still retains the existing authoritative queue;
+// The normally consumable text-only guide has been drained above as a user-role continuation.
     await this.fallbackPendingGuidesToQueue({
       activeTurn: state.activeTurn,
       events: state.events,
@@ -226,8 +226,8 @@ export async function finishModelStepWithoutToolCalls(
     });
   }
   if (state.activeTurn) state.activeTurn.steerable = false;
-  // assistant completed 只代表 model step 收口；Stop hook 仍可能继续同一 product turn。
-  // 只有最终 break 才把它交给 turn.ts 在 goal accounting 后持久化最终 boundary。
+// Assistant completed only means that the model step is closed; Stop hook may still continue the same product turn.
+//Only the final break gives it to turn.ts to persist the final boundary after goal accounting.
   state.stableProductStartMessageId = state.currentUserMessageId;
   state.stableBoundaryAssistantMessageId = options.assistantMessageId;
   state.turnMachine = new TurnMachineImpl(

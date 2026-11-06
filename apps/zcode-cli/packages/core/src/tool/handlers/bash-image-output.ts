@@ -45,7 +45,7 @@ export async function prepareBashImageOutput(
       const fallback = fallbackValidImageDataUrl(parsed);
       if (fallback) return fallback;
     }
-    // Bash 图片输出是 best-effort 能力；无效图片解码失败时回退文本，避免把坏图片块发给 provider。
+// Bash image output is a best-effort capability; when invalid image decoding fails, the text is rolled back to avoid sending bad image blocks to the provider.
     return undefined;
   }
 }
@@ -58,7 +58,7 @@ async function readBashImageSource(stdout: BashImageSource): Promise<string> {
     if (size > MAX_IMAGE_FILE_BYTES) return stdout.inline;
     return await readFile(stdout.artifactPath, "utf8");
   } catch {
-    // 图片识别是 provider-visible 增强；artifact 临时文件缺失时回退 inline 输出，保留 Bash 原始结果。
+// Image recognition is provider-visible enhancement; fallback to inline output when artifact temporary file is missing, retaining Bash original results.
     return stdout.inline;
   }
 }
@@ -66,8 +66,8 @@ async function readBashImageSource(stdout: BashImageSource): Promise<string> {
 function fallbackValidImageDataUrl(input: ParsedImageDataUrl): { stdout: string } | undefined {
   const detected = detectImageMediaType(input.data);
   if (!detected || detected !== input.mediaType) return undefined;
-  // 图片 stdout 已经通过 magic 校验时，resize 只是模型预算优化，
-  // 不能因为优化失败把模型可见的 image block 降级成原始 data URI 文本。
+// When the image stdout has passed magic verification, resize is only model budget optimization.
+// The image block visible to the model cannot be downgraded to the original data URI text due to optimization failure.
   return { stdout: input.dataUrl };
 }
 

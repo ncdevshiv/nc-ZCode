@@ -48,14 +48,14 @@ export function createDesktopProductionBuildPlan({ cwd, baseEnv = process.env })
       label: "desktop production bundles",
       parallel: [
         {
-          command: "pnpm",
-          args: ["exec", "tsup"],
+          command: "bunx",
+          args: ["tsup"],
           cwd,
           env,
         },
         {
-          command: "pnpm",
-          args: ["exec", "vite", "build"],
+          command: "bunx",
+          args: ["vite", "build"],
           cwd,
           env,
         },

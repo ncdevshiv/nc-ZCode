@@ -30,10 +30,10 @@ async function pathExists(path: string): Promise<boolean> {
 async function findRepoRoot(startDir: string): Promise<string> {
   let current = resolve(startDir);
   while (true) {
-    if (await pathExists(join(current, "pnpm-workspace.yaml"))) return current;
+    if (await pathExists(join(current, "bunfig.toml"))) return current;
     const parent = dirname(current);
     if (parent === current)
-      throw new Error("Unable to locate workspace root (pnpm-workspace.yaml)");
+      throw new Error("Unable to locate workspace root (bunfig.toml)");
     current = parent;
   }
 }
@@ -229,7 +229,7 @@ async function main(): Promise<void> {
   const distDir = join(packageRoot, "dist");
   if (!(await pathExists(join(distDir, "server-cli.js")))) {
     throw new Error(
-      `Missing tsup output in ${distDir}; run pnpm --filter @zcode/server-cli build first`,
+      `Missing tsup output in ${distDir}; run bun run --filter @zcode/server-cli build first`,
     );
   }
 

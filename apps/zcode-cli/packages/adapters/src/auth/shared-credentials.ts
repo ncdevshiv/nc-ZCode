@@ -135,11 +135,11 @@ export function createSharedZCodeCredentialStore(
     },
 
     /**
-     * 条件事务：`guardKey` 当前值与期望值相等才删除 `keysToDelete` 全部 key，否则一个都不删。
+* Conditional transaction: All keys in `keysToDelete` will be deleted only if the current value of `guardKey` is equal to the expected value, otherwise none will be deleted.
      *
-     * `deleteIfValues` 是逐 key 比较、逐 key 删除，无法表达「canonical generation 匹配
-     * 才整体失效」——canonical 比较失败时 legacy 镜像仍可能被删掉，反之亦然。OAuth 凭据失效必须
-     * 是整对的：stale 事务不能删掉 winner 的 canonical，也不能只删掉它的一半镜像。
+* `deleteIfValues` is a key-by-key comparison and key-by-key deletion, which cannot express "canonical generation matching"
+* is the overall failure" - the legacy image may still be deleted when the canonical comparison fails, and vice versa. OAuth credentials invalidation required
+* is a complete pair: the stale transaction cannot delete the winner's canonical, nor can it delete only its half image.
      */
     async deleteManyIfValue(
       guardKey: string,
@@ -303,8 +303,8 @@ async function readRawCredentialRecord(filePath: string): Promise<Record<string,
   try {
     return parseCredentialRecord(JSON.parse(raw));
   } catch (error) {
-    // 损坏的凭据文件若被当成空对象继续保存，会一次性抹掉其他进程的全部凭据。
-    // 先保留现场再失败，调用方必须显式处理恢复，不能静默覆盖。
+// If the damaged credential file is continued to be saved as an empty object, all credentials of other processes will be erased at once.
+// Preserve the scene first and then fail. The caller must handle the recovery explicitly and cannot silently overwrite it.
     const backupPath = await backupCorruptFile(filePath).catch(() => undefined);
     const evidence = backupPath ? ` Backup: ${backupPath}` : "";
     throw new Error(`Shared ZCode credentials are corrupt: ${filePath}.${evidence}`, {
@@ -317,16 +317,16 @@ async function mutateRawCredentialRecord(
   filePath: string,
   mutation: (value: Record<string, string>) => void | Promise<void>,
 ): Promise<void> {
-  // CLI、设置页和 session 可能位于不同 Node 进程；锁必须覆盖完整的
-  // read-modify-write，单独原子 rename 只能防半写，不能防旧快照覆盖新 key。
+// CLI, settings page and session may be located in different Node processes; the lock must cover the complete
+// read-modify-write, a single atomic rename can only prevent half-write, but cannot prevent old snapshots from overwriting new keys.
   await withFileLock(filePath, async () => {
     const value = await readRawCredentialRecord(filePath);
     await mutation(value);
     await atomicWritePrivateTextFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
   });
   const listeners = [...(credentialChangeListeners.get(filePath) ?? [])];
-  // 同进程的 Registry Source 需要在登录返回前观察到新凭据；单个监听者失败不应
-  // 把已经原子落盘的 Credential 伪装成写入失败。
+// The Registry Source of the same process needs to observe the new credentials before the login returns; a single listener failure should not
+// Disguise the Credential that has been atomically placed as a write failure.
   await Promise.allSettled(listeners.map((listener) => listener()));
 }
 

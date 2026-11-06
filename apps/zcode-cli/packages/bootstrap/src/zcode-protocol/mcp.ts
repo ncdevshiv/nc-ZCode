@@ -60,9 +60,9 @@ export async function listMcpServers(
   const explicitRuntimeMcp = protocolMcpServersToRuntimeMcpConfig(params.mcpServers);
   const configuredMcpServers = {
     ...pluginOutcome.mcpServers,
-    // 设置页的本地 MCP 列表由 desktop main 解析 `.zcode` / `.agents` fallback，
-    // session runtime 也使用这批 params.mcpServers。mcp/list 不能再只靠 agent createConfig，
-    // 否则 `.agents` fallback 行会缺少 status snapshot 并被 UI 误标红。
+// The local MCP list of the settings page is parsed by desktop main `.zcode` / `.agents` fallback,
+// The session runtime also uses this batch of params.mcpServers. mcp/list can no longer rely solely on agent createConfig.
+// Otherwise the `.agents` fallback line will be missing the status snapshot and will be mistakenly marked red by the UI.
     ...(explicitMcpServersProvided
       ? (explicitRuntimeMcp?.servers ?? {})
       : configResult.config.mcp.servers),
@@ -71,13 +71,13 @@ export async function listMcpServers(
     configuredMcpServers,
     pluginOutcome.mcpServers,
   );
-  // 产品决定 workspace MCP 开箱即用：project 作用域 MCP 默认 trusted，并自动连接。
+// Product decision workspace MCP is available out of the box: project scope MCP is trusted by default and connects automatically.
   const untrustedProjectMcpServers = new Set<string>();
   const mcpPort = context.deps.mcpPort;
   if (mcpPort) {
     if (params.mode === "status") {
-      // OAuth 轮询只需要读取当前运行态。传入 pending 子集会落到
-      // connectConfiguredServers 的 replace 语义，导致未列出的 MCP 被断开。
+// OAuth polling only needs to read the current running status. The subset passed in pending will fall into
+// The replace semantics of connectConfiguredServers, causing unlisted MCPs to be disconnected.
       const statuses = await listMcpServerStatuses(
         mcpPort,
         configuredMcpServers,
@@ -86,11 +86,11 @@ export async function listMcpServers(
       return zcodeMcpListResultSchema.parse({ statuses });
     }
 
-    // OAuth 轮询已由 mode=status 隔离；默认/connect 必须继续执行 replace 收敛，
-    // 否则任一 server 待授权时，配置新增/删除和 stale MCP 清理都会被跳过。
-    // 默认/connect 模式服务的是设置页刷新这类"重新探测"诉求，而 mcpPort 是进程级
-    // `protocol-settings` lease；不带 revalidate 时连接池会直接复用旧 entry 并返回陈旧快照，
-    // 停掉的 HTTP MCP 会永远显示已连接（见 adapters/src/mcp/pool.ts revalidateEntry）。
+// OAuth polling has been isolated by mode=status; default/connect must continue to perform replace convergence,
+// Otherwise, when any server is waiting for authorization, configuration addition/deletion and stale MCP cleanup will be skipped.
+//The default /connect mode serves "re-detection" requests such as setting page refresh, while mcpPort is a process-level
+// `protocol-settings` lease; without revalidate, the connection pool will directly reuse the old entry and return the stale snapshot.
+// A stopped HTTP MCP will always show connected (see adapters/src/mcp/pool.ts revalidateEntry).
     const connectPromise = mcpPort.connectConfiguredServers(
       omitMcpServers(
         configuredMcpServers,

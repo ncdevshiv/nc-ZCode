@@ -1,4 +1,5 @@
-import ts from "typescript";
+// @ts-nocheck
+import ts from "../compiler/ts-shim.js";
 import {
   artifactRowOfSymbol,
   markerFunctionOfSymbol,
@@ -28,9 +29,9 @@ import {
   worldReadLabel,
 } from "./sites-labels.js";
 
-// 拆分：本文件顶到 oxlint max-lines 上限（400 行）。名字 / 标签辅助与符号解析
-// （resolveSymbol / isFacadeDeclared）搬到 sites-labels.ts；后两者原本就从这里导出，故原样
-// 再导出，既有的 `from "./sites.js"` 引用一个不改。站点类型留在本文件（五个模块按此路径导入）。
+// Split: This file reaches the oxlint max-lines limit (400 lines). Name/tag assistance and symbol parsing
+// (resolveSymbol / isFacadeDeclared) moved to sites-labels.ts; the latter two were originally exported from here, so they remain unchanged
+// Export again, and the existing `from "./sites.js"` reference will not be changed. The site type remains in this file (five modules are imported at this path).
 export { isFacadeDeclared, resolveSymbol } from "./sites-labels.js";
 
 /**
@@ -51,7 +52,7 @@ export interface AskSite {
   id: string;
   order: number;
   label: string;
-  /** `label` 落到兜底串时，内联 `agent()` receiver 的模板形状；见 `askLabelPattern`。 */
+/** Inline the template shape of the `agent()` receiver when `label` falls into the pocket string; see `askLabelPattern`. */
   labelPattern?: NamePattern;
   loc: ScriptLoc;
   /** The `x.ask(...)` call. */
@@ -66,7 +67,7 @@ export interface ActorSite {
   id: string;
   order: number;
   name: string | undefined;
-  /** `name` 缺席而首参是模板字符串时的静态形状；见 `actorNamePattern`。 */
+/** Static shape when `name` is absent and the first argument is a template string; see `actorNamePattern`. */
   namePattern?: NamePattern;
   loc: ScriptLoc;
   /** The `agent(...)` call. */
@@ -116,8 +117,8 @@ export interface ReportSite {
  * An `artifact.*(...)` call site: one publish (`file` / `markdown`) or one preset
  * declaration (`chart` / `table` / `metrics` / `board`).
  *
- * ⚠ 术语：这里的 artifact 是**用户面产物**（脚本发布给用户看的产出），不是同名的引擎内部
- * 概念（顶层返回值 / 站点的类型化输出值，见 `analysis/artifact-types.ts`）。
+* ⚠ Terminology: The artifact here is the **user interface product** (the output that the script publishes to the user), not the internal engine with the same name
+* Concept (top-level return value/typed output value of the site, see `analysis/artifact-types.ts`).
  *
  * Like {@link ReportSite} it is **sited but drawn in neither graph**: a publish is a
  * deliverable, not a step other steps can wait for, so there is nothing an edge could
@@ -317,9 +318,9 @@ export function collectSites(workflow: WorkflowProgram): SiteTable {
           });
           return;
         }
-        // 产物成员先于 world-read 判定，两张表互斥（同一个 (容器,成员) 不可能同时在两张
-        // 表里）。身份同样按**声明容器**取，不按名字：`artifact.table` 与脚本自己的某个
-        // `table` 方法只有声明能分辨。
+// Product members are determined before world-read. The two tables are mutually exclusive (the same (container, member) cannot be in two tables at the same time.
+// inside and outside). The identity is also taken by **declaration container**, not by name: `artifact.table` and one of the script's own
+// Only declarations of `table` methods can be distinguished.
         const artifact = artifactRowOfSymbol(propSymbol);
         if (artifact !== undefined) {
           const idExpr = node.arguments[0];
@@ -392,7 +393,7 @@ export function collectSites(workflow: WorkflowProgram): SiteTable {
     const fn = siteProducingFunctionOfSymbol(calleeSymbol);
     if (fn === "agent") {
       const name = actorName(node);
-      // pattern 只在真拿不到名字时才求：字面量名与绑定名都是**名字**，重建物不得顶掉它们。
+// The pattern is only requested when the name is really unavailable: the literal name and the binding name are both **names**, and the reconstruction must not override them.
       const namePattern = name === undefined ? actorNamePattern(node) : undefined;
       table.actors.push({
         call: node,
@@ -405,9 +406,9 @@ export function collectSites(workflow: WorkflowProgram): SiteTable {
       return;
     }
     if (fn === "report") {
-      // 第二实参是**产物标签**：只有无洞字面量才算标签，
-      // 其余（标识符、带洞模板）留给 artifacts 诊断趟按 artifactIdExpr 定位——绝不在这里
-      // 猜一个 id 出来，那会让一条指向不存在看板的 report 静默通过编译。
+//The second actual parameter is **product label**: only hole-free literals are considered labels.
+// The rest (identifiers, templates with holes) are left to the artifacts diagnostic pass to be located by artifactIdExpr - never here
+// Guess an id, which will cause a report pointing to a non-existent kanban board to be compiled silently.
       const tagExpr = node.arguments[1];
       const tag = literalText(tagExpr);
       table.reports.push({

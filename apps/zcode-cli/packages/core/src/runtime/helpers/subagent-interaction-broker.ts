@@ -22,12 +22,12 @@ export function createSubagentInteractionBroker(
       request: PermissionBrokerRequest,
       options?: PermissionBrokerRequestOptions,
     ): Promise<PermissionBrokerResult> {
-      // 子 agent 的 permission / AskUserQuestion / ExitPlanMode 都需要父 task 的 UI 响应；
-      // broker request 对外路由到父 session，origin 保留 child 归属，便于 UI 与日志识别来源。
+// The child agent's permission / AskUserQuestion / ExitPlanMode all require the UI response of the parent task;
+// The broker request is externally routed to the parent session, and the origin retains the child ownership, which facilitates UI and log identification of the source.
       //
-      // 本包装可以叠加。`sessionId` 由**外层**（离客户端更近的一层）
-      // 最后改写，所以任意深度最终都落到根会话；`origin` 反过来保留**内层**已有值，
-      // 归属永远是真正发起请求的那个子代理，不会被外层覆盖成中间层。
+// This package can be stacked. `sessionId` is determined by the **outer layer** (the layer closer to the client)
+// Finally rewrite, so any depth will eventually fall to the root session; `origin` in turn retains the existing value of **inner layer**,
+// The attribution is always the sub-agent that actually initiated the request, and will not be overwritten by the outer layer into an intermediate layer.
       return parentBroker.requestPermission(
         {
           ...request,

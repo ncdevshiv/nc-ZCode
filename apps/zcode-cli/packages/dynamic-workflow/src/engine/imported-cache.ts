@@ -1,12 +1,12 @@
 /**
- * amend-resume 导入缓存的**消费态**。
+* amend-resume imports the cached **consumer state**.
  *
- * 注入的 {@link ImportedRunCache} 是调用方构建的只读数据——run service 读前驱 journal 得到它，
- * 崩溃后 resume 用同一个纯函数重建同一张表。所以「消费到哪了」不能就地写回那张表，必须是引擎
- * 自己的状态：本模块就是这份状态，以及围绕它的全部判定（命中 / 分歧 / 种子）。
+* The injected {@link ImportedRunCache} is read-only data constructed by the caller - run service reads the predecessor journal to get it,
+* After a crash, resume uses the same pure function to rebuild the same table. Therefore, "Where is the consumption?" cannot be written back to the table on the spot, it must be the engine.
+* Own state: This module is this state and all the judgments surrounding it (hit/divergence/seed).
  *
- * 从 scheduler.ts 与 engine.ts 拆出来，理由同当初 scheduler 从 engine 拆出来：三个文件各自
- * 聚焦、可读，且满足单文件行数上限。
+* Separate scheduler.ts and engine.ts for the same reason as when scheduler was separated from engine: three files respectively
+* Focused, readable, and meets the maximum number of lines in a single file.
  */
 
 import { canonicalJson } from "./hash.js";
@@ -23,23 +23,23 @@ import type {
 } from "./types.js";
 
 /**
- * 一个已附着候选的 actor 的导入消费态：消费游标 + 分歧标志。
+* Import consumption state of an attached candidate actor: consumption cursor + divergence flag.
  *
- * **分歧单调**：`diverged` 一旦为真永不回头查缓存，导入后缀弃置不可复活。
+* **Diverged Monotone**: Once `diverged` is true, the cache will never be looked back, and the imported suffix will be discarded and cannot be revived.
  */
 export class ImportedActorState {
-  /** 已消费的导入条目数 = 下一个可命中的 actorSeq（也是转录截断边界的下标 + 1）。 */
+/** Number of imported entries consumed = next hitable actorSeq (also the subscript of the transcription truncation boundary + 1). */
   private consumed = 0;
   private diverged = false;
 
   constructor(private readonly candidate: ImportedActorCandidate) {}
 
   /**
-   * fresh ask 在 seq 上问缓存：命中返回条目（并推进游标），否则置分歧并返回 undefined。
+* fresh ask asks the cache on seq: a hit returns the entry (and advances the cursor), otherwise sets the divergence and returns undefined.
    *
-   * 两种不命中同等处理：哈希不符（指令变了）与 `seq >= entries.length`（新脚本在此 actor 上
-   * 扩了新 ask）。分歧的**级联**是免费且动态的——上游 ask 转 live 拿到新结果，下游用它插值出的
-   * 指令哈希必变，于是下游自动分歧，不需要任何显式传播。
+* Two misses are treated equally: hash mismatch (instruction changed) and `seq >= entries.length` (new script on this actor
+* Expanded with new ask). Different **cascades** are free and dynamic - upstream ask to live to get new results, and downstream uses it to interpolate
+* The instruction hash must be changed, so downstream automatically diverges without any explicit propagation.
    */
   take(seq: number, hash: string): ImportedAskEntry | undefined {
     if (this.diverged) return undefined;
@@ -53,10 +53,10 @@ export class ImportedActorState {
   }
 
   /**
-   * 缓存关闭后的问法：只有**纯**条目（前驱记下 `worldToolCalls === 0`）还能命中。纯 ask 只依赖指令与
-   * 转录前缀——两者都在哈希链里——与工作区无关，所以关门不影响它的答案。碰过外部世界的条目即便同哈希
-   * 也不给：它读过的工作区可能已被改写；这个 ask 转 live，actor 从此分歧（转录不再与前驱一致，
-   * 后缀条目不可复活）。没有 stats、或 stats 里没有这个键的老条目按「碰过」处理（保守）。
+* Question after caching is turned off: Only **pure** entries (the predecessor noted `worldToolCalls === 0`) can still hit. Pure ask relies only on directives and
+* The transcription prefix - both are in the hash chain - is independent of the workspace, so closing the door does not affect its answer. Entries that have touched the outside world are the same as the hash
+* Nor: the workspace it read may have been overwritten; the ask turns live, and the actor diverges from it (the transcription is no longer consistent with the predecessor,
+* Suffix entries cannot be revived). Old entries that do not have stats, or do not have this key in stats are treated as "touched" (conservative).
    */
   takeIfPure(seq: number, hash: string): ImportedAskEntry | undefined {
     if (this.diverged) return undefined;
@@ -70,21 +70,21 @@ export class ImportedActorState {
   }
 
   /**
-   * 据一行**已记录**的 ask 重推分歧状态（修订 run 崩溃后 resume 时用）。
+* According to a row of **recorded** ask re-pushing the divergence status (revised when run resumes after a crash).
    *
-   * 分歧状态不落库，而修订 run 的 resume 会把导入缓存整表重建。若不据 journal 行重推分歧点，
-   * 一个在原次执行中已于 seq k 分歧的 actor，其 seq k+n 的 fresh ask 可能恰好撞上导入条目的
-   * 哈希而被**错误导入**——那等于把一段与本 run 实际转录无关的历史塞回来。逐 seq 拿记录行的
-   * inputHash 与导入条目比对，恰好重建了原次执行当时的判定（准入按 seq 升序，hold 规则保证
-   * 这一点），因此这个重推是精确的，不是保守近似。`wasLive` 补上哈希看不见的那一种 live
-   * （缓存关闭后带工具的 ask，见 scheduler 的 tryImportedSettle）。
+* The different states will not be saved in the library, and the resume of the revised run will rebuild the entire import cache table. If the divergence point is not re-recommended based on the journal row,
+* For an actor that has diverged from seq k in the original execution, its fresh ask of seq k+n may happen to hit the imported entry.
+* Hash is **incorrectly imported** - that is equivalent to stuffing back a piece of history that has nothing to do with the actual transcription of this run. Get record rows by seq
+* The inputHash is compared with the imported entry, and the judgment at the time of the original execution is reconstructed (admission is in ascending order of seq, and the hold rule guarantees
+* this), so this recalculation is exact, not a conservative approximation. `wasLive` complements the kind of live that the hash cannot see.
+* (ask with tools after caching is turned off, see scheduler's tryImportedSettle).
    */
   reconcileRecorded(seq: number, recordedHash: string, wasLive: boolean): void {
     if (this.diverged) return;
-    // 缓存关闭之后，一个带工具 actor 的 ask 即便与导入
-    // 条目同哈希也是 live 跑的——按哈希算成「已消费」会让种子边界取自前驱条目，而本会话的
-    // 真实转录在那个位置根本不是那些消息。live 与否是事件里的事实（node-queued），不是哈希
-    // 能推出来的。
+// After caching is turned off, an ask with a tool actor will work even with the import
+// Entries and hashes are also run live - counting the hash as "consumed" will cause the seed boundary to be taken from the predecessor entry, and the current session's
+// The real transcription at that location is not those messages at all. Live or not is a fact in the event (node-queued), not a hash
+// can be derived.
     if (wasLive) {
       this.diverged = true;
       return;
@@ -98,12 +98,12 @@ export class ImportedActorState {
   }
 
   /**
-   * 分歧 actor 的会话种子：源会话 + 复制多少条消息 + 承袭的模型 pin。
+* Session seed for different actors: source session + number of messages copied + inherited model pin.
    *
-   * 边界取**最后一条被消费**的导入条目的记账值：在 seq k 分歧意味着 0..k-1 的问答都已按缓存
-   * 结算，新会话要接着的正是那 k 次完整交换之后的位置（含它们的 repair / nudge 轮）。
-   * 一条也没消费就没有种子——全新会话、全新模型解析、不带 pin：pin 是为「转录接续下不静默
-   * 换模型」存在的，没有接续就没有它的用武之地。
+* The boundary takes the accounting value of the last imported entry that was consumed: the difference in seq k means that 0..k-1 questions and answers have been cached
+* To settle, the new session will be exactly where it is after the k complete exchanges (including their repair / nudge rounds).
+* There is no seed without consumption - a new session, a new model analysis, without a pin: the pin is for "no silence under transcription continuation"
+*Change model" exists, but without continuity there would be no use for it.
    */
   seed(): ActorSessionSeed | undefined {
     if (this.consumed === 0) return undefined;
@@ -119,15 +119,15 @@ export class ImportedActorState {
 }
 
 /**
- * world 节点的导入队列消费态：每个内容哈希一个游标（第 n 次出现对第 n 条记录）。
- * 与 {@link ImportedActorState} 同理，游标是引擎的状态，注入的队列保持只读。
+* The import queue consumption state of the world node: one cursor for each content hash (nth occurrence for nth record).
+* In the same way as {@link ImportedActorState}, the cursor is the state of the engine, and the injected queue remains read-only.
  */
 export class ImportedWorldQueue {
   private readonly cursors = new Map<string, number>();
 
   constructor(private readonly world: ReadonlyMap<string, ImportedWorldEntry[]>) {}
 
-  /** 取该内容哈希的下一条记录，耗尽或从未记录即 undefined（调用方转 live）。 */
+/** Get the next record of the content hash, which is undefined if it is exhausted or has never been recorded (the caller switches to live). */
   take(hash: string): ImportedWorldEntry | undefined {
     const queue = this.world.get(hash);
     if (queue === undefined) return undefined;
@@ -140,16 +140,16 @@ export class ImportedWorldQueue {
 }
 
 /**
- * 为一个刚建出的 actor 找导入候选：按**有效名**查表，规范化 persona 一致才收。
+* Find import candidates for a newly created actor: look up the table by **effective name**, and accept only if the normalized persona is consistent.
  *
- * persona 比对用 `canonicalJson`——它跳过 undefined 成员、对象键排序，恰好就是要的规范化
- * （`{name:"a"}` 与 `{name:"a", system: undefined}` 同值）。不一致即**弃整个候选**，该 actor
- * 全新重跑：全保真转录下这是双重正确的——旧 system prompt 产的转录接新 persona 是身份错乱，
- * 而「我把 persona 修好了」这个意图本来就是要重跑。
+* Use `canonicalJson` for persona comparison - it skips undefined members and object key sorting, which is exactly the normalization you want
+* (`{name:"a"}` has the same value as `{name:"a", system: undefined}`). Inconsistency means discarding the entire candidate and the actor
+* Brand new rerun: This is doubly correct under full fidelity transcription - the transcription produced by the old system prompt and the new persona is a confusion of identity.
+* And the intention of "I fixed the persona" is to run again.
  *
- * 匿名 actor 永不附着：名字是缓存身份键，没有名字就没有可比对的坐标（代价已裁决）。
- * 比对之所以在**运行期**而不是提交时静态比对两份脚本：名字与 persona 都是运行期值
- * （`agent()` 的实参可以是动态表达式），静态比对是第二份真相，恰是本包处处要防的。
+* Anonymous actors never attach: the name is the cached identity key, without a name there are no coordinates to compare against (the cost is adjudicated).
+* The reason why the two scripts are compared statically at **runtime** instead of submission: name and persona are both runtime values.
+* (The actual parameters of `agent()` can be dynamic expressions). Static comparison is the second truth, which is what this package needs to guard against.
  */
 export function matchImportedActor(
   cache: ImportedRunCache | undefined,
@@ -165,10 +165,10 @@ export function matchImportedActor(
 }
 
 /**
- * 一次 ask 缓存命中要落的**真** dwf_node 行（新 siteId、拷贝 result / stats / 边界）。
+* One ask cache hit to drop the **true** dwf_node row (new siteId, copied result/stats/bounds).
  *
- * 边界值必须一起拷过去，否则**这个** run 自己就不能再被修订——链式修订靠的正是 count offset
- * 跨前缀复制不变。
+* The boundary values ​​must be copied together, otherwise **this** run itself cannot be revised - the chain revision relies on count offset
+* Copy across prefixes unchanged.
  */
 export function importedAskRecord(
   runId: string,

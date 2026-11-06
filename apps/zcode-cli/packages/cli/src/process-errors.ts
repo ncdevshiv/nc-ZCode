@@ -26,10 +26,10 @@ interface MonitoredException {
 }
 
 /**
- * 为协议型 CLI 安装最后一道进程级异常边界。
+* Install a final process-level exception boundary for the protocol-based CLI.
  *
- * 先保留一次诊断，再交给入口 lifecycle 有界关闭。未知异常不能继续保活接单，
- * 更不能把坏 stderr 的写入失败递归报告；调用方必须先安装 stderr 输出边界。
+* First retain the diagnosis once, and then hand it to the entrance lifecycle for bounded closing. Unknown exception cannot continue to keep alive orders.
+* It is also not possible to recursively report write failures to bad stderr; the caller must first install a stderr output boundary.
  */
 export function installCliProcessErrorBoundary(
   options: CliProcessErrorBoundaryOptions,
@@ -59,8 +59,8 @@ export function installCliProcessErrorBoundary(
     const matchingMonitor = monitoredException?.error === error ? monitoredException : undefined;
     const origin = matchingMonitor ? matchingMonitor.origin : "uncaughtException";
     monitoredException = undefined;
-    // Node strict 模式先触发 uncaughtException，处理后再触发 unhandledRejection。
-    // 统一由 rejection listener 报告，避免同一 Promise 错误生成两个不同 errorId。
+// Node strict mode triggers uncaughtException first, and then triggers unhandledRejection after processing.
+// Uniformly report by rejection listener to avoid generating two different errorIds for the same Promise error.
     if (origin === "unhandledRejection") return;
     reportFatal("uncaughtException", origin, error);
   };
@@ -105,13 +105,13 @@ function writeProcessErrorDiagnostic(
       ...(reason instanceof Error && reason.stack ? { stack: detail } : {}),
       occurredAt: Date.now(),
     };
-    // 根因：进程存活时旧 stderr 只进 debug，Electron SDK 无法捕获子进程异常。
-    // 增加单行结构化事件供 Host 立即转发，保留可读文本兼容旧 Host 和 crash tail。
+// Root cause: When the process is alive, the old stderr only enters debug, and the Electron SDK cannot catch child process exceptions.
+// Add a single-line structured event for Host to forward immediately, retaining readable text for compatibility with old Host and crash tail.
     stderr.write(
       `${ZCODE_PROCESS_DIAGNOSTIC_PREFIX}${JSON.stringify(diagnostic)}\n[zcode] process error kind=${kind} origin=${origin}\n${detail}\n`,
     );
   } catch {
-    // 诊断输出不能再次击穿进程级异常边界。
+// Diagnostic output cannot penetrate the process-level exception boundary again.
   }
 }
 

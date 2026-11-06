@@ -12,9 +12,9 @@ import { getStatusCode, unwrapRetryError } from "./failure-inspection.js";
 const EMPTY_ASSISTANT_CONTENT_FALLBACK = "(no content)";
 const REJECTED_REASONING_FALLBACK = "[Thinking removed]";
 
-// 旧历史保留 builtin 身份，当前选型已迁到 account 身份；Individual/Team
-// 也会使用不同 ID。只在 reasoning 回放时识别同服务的这些明确身份，不改变选型或鉴权。
-// 不能复用套餐展示分组：Start/Off-Peak/API 接入不在这份签名兼容范围内。
+// The old history retains the builtin identity, and the current selection has been moved to the account identity; Individual/Team
+// Different IDs will also be used. These unambiguous identities of the same service are only recognized during reasoning playback, without changing selection or authentication.
+// Package display grouping cannot be reused: Start/Off-Peak/API access is not within the compatibility range of this signature.
 const REASONING_PROVIDER_GROUPS: readonly (readonly string[])[] = [
   [
     "builtin:zai-coding-plan",
@@ -67,8 +67,8 @@ export function repairReasoningHistoryAfterSignatureRejection(
 ): ModelInputMessage[] | undefined {
   if (!isThinkingSignatureRejection(error)) return undefined;
 
-  // 调用方传入的已经是逻辑请求入口完成结构归一化后的副本。这里仅执行签名拒绝清理，
-  // 不能再次运行结构 passes，否则会删除刚补出的 assistant 占位并改变轮次边界。
+// What the caller passes in is already a copy of the logical request entry after the structure has been normalized. Only signature rejection cleanup is performed here,
+// The structure passes cannot be run again, otherwise the newly filled assistant placeholder will be deleted and the round boundaries will be changed.
   const repaired = removeRejectedReasoning(projectedMessages);
   return repaired === projectedMessages ? undefined : repaired;
 }
@@ -77,8 +77,8 @@ function isThinkingSignatureRejection(error: unknown): boolean {
   const unwrapped = unwrapRetryError(error);
   if (getStatusCode(unwrapped) !== 400) return false;
 
-  // Provider 没有为该 400 提供独立错误码；这里只匹配已确认的窄化文案，
-  // 避免把其他 invalid_request 误当成可修改历史并重试。
+// Provider does not provide a separate error code for this 400; only confirmed narrowed copy is matched here.
+// Avoid mistaking other invalid_requests as modifiable history and try again.
   const message = errorMessage(unwrapped).toLowerCase();
   if (message.includes("signature in thinking block")) return true;
 
@@ -135,7 +135,7 @@ function filterReasoningBlocks(
     if (content.length === message.content.length) continue;
 
     result ??= messages.slice();
-    // 此处只过滤 reasoning block，保留消息顺序与结构；结构修复由独立阶段处理。
+// Only the reasoning block is filtered here, and the message order and structure are preserved; structural repair is handled by an independent stage.
     result[index] = { ...message, content };
   }
 

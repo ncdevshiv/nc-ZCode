@@ -271,7 +271,7 @@ nodes:
     label: Composer @ context picker (Plugins, files, sessions, Whiteboards)
     aliases:
       - "@ context picker"
-      - "@ 面板"
+      - "@ panel"
     codeSeeds:
       - symbol: MentionPlugin
         file: packages/ui/src/mentions/MentionPlugin.tsx

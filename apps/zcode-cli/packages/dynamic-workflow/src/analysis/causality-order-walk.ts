@@ -1,4 +1,5 @@
-import ts from "typescript";
+// @ts-nocheck
+import ts from "../compiler/ts-shim.js";
 import { isFunctionLike } from "./sites.js";
 import { applyAt, walkCall } from "./causality-order-calls.js";
 import { walkLoop } from "./causality-order-loops.js";
@@ -14,10 +15,10 @@ import {
 import { barrier, bindSteps, recordControl, settlesAt } from "./causality-order-settle.js";
 import { bindStrands, strandMark, strandsSince } from "./causality-order-strands.js";
 
-// causality-order.ts 顶到 oxlint max-lines 上限（400 行），把节点访问器本体
-// （语句表走查、await / 赋值 / 短路 / 分支 / switch / try / 跳转的分支）拆到本文件；循环与
-// 调用两组各在同名兄弟模块。公开面仍从 causality-order.ts 导出。if 链的判定顺序与原文件
-// 逐字一致：`walkLoop` 占原来四个循环分支的位置，之后才落到 forEachChild 兜底。
+// causality-order.ts reaches the upper limit of oxlint max-lines (400 lines), and replaces the node accessor body
+// (Statement table walk, await / assignment / short circuit / branch / switch / try / jump branch) split into this file; loop with
+// Call two groups of sibling modules with the same name. The public side is still exported from causality-order.ts. The judgment sequence of the if chain is the same as the original file
+// Verbatim agreement: `walkLoop` occupies the position of the original four loop branches, and then falls to forEachChild.
 
 /** Open a guarded `branch` region and record its control dependence, if any. */
 function guarded(

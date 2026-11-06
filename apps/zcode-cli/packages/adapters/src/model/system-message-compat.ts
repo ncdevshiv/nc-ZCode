@@ -18,9 +18,9 @@ export function normalizeOpenAiCompatibleSystemMessages(
   const leadingSystemMessages = messages.slice(0, leadingSystemCount);
   const lastLeadingSystem = leadingSystemMessages.at(-1);
 
-  // 部分旧式 OpenAI-compatible chat template 只接受一个开头 system。
-  // Core 为 Anthropic cache boundary 有意保留多段，因此只在兼容协议序列化边界按原顺序合并。
-  // ZCode by design：每个后续 block 自带左边界，adapter 不推断或补写任何空白。
+// Some old OpenAI-compatible chat templates only accept a beginning system.
+// Core intentionally reserves multiple segments for the Anthropic cache boundary, so it is only merged in the original order at the compatible protocol serialization boundary.
+// ZCode by design: Each subsequent block has its own left boundary, and the adapter does not infer or fill in any blanks.
   return [
     {
       role: "system",

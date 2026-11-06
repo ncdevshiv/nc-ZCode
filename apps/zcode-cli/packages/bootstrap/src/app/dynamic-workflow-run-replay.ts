@@ -1,13 +1,13 @@
 // ============================================================
-// Dynamic Workflow Run 的冷回放：journal → 与 live 同一种进度载荷
+//Cold replay of Dynamic Workflow Run: journal → the same progress load as live
 // ============================================================
-// `workflowRuns` 投影只有内存一条来源，
-// 重启后为空；而 dwf_event 里躺着引擎发过的每一条事件——与 live 时喂给投影的是同一份有界序列化。
-// 本模块把它们按 journal 顺序重新铸成 DynamicWorkflowRunProgressPayload，冷物化把这批载荷当
-// 内存事件喂给同一个 reducer，于是重启前后的投影逐字节一致。
+// `workflowRuns` projection has only one source of memory.
+// It is empty after restarting; and dwf_event contains every event sent by the engine - the same bounded serialization that is fed to the projection during live.
+// This module recasts them in journal order into DynamicWorkflowRunProgressPayload. Cold materialization treats this batch of payloads as
+// Memory events are fed to the same reducer, so the projections before and after restart are consistent byte by byte.
 //
-// 独立成模块而不是塞进 observation.ts：铸造链（toProgressPayload）在 launch.ts，而 launch.ts
-// 已经 import observation.ts（谓词），反向 import 就是环。
+// Separate module instead of stuffed into observation.ts: the casting chain (toProgressPayload) is in launch.ts, and launch.ts
+// Already imported observation.ts (predicate), the reverse import is a ring.
 
 import type { DwfRunSessionListItem } from "@zcode/adapters/storage";
 import type { DynamicWorkflowRunProgressPayload } from "@zcode/contracts";
@@ -16,25 +16,25 @@ import { toProgressPayload } from "./dynamic-workflow-run-launch.js";
 import { TERMINAL_RUN_STATUSES } from "./dynamic-workflow-run-observation.js";
 
 /**
- * 一条 run 的全部进度载荷，按 journal sequence 升序。
+* All progress loads of a run, in ascending order of journal sequence.
  *
- * **结算以行为准**：行是终态（completed / errored / stopped）时，回放的最后一条 `run-settled`
- * 永远按行铸造——尾部存着的 `run-settled`（若有）被它替换，尾部没有（进程死亡、孤儿收敛只改写了
- * 行，刻意不合成事件——journal 的契约是「引擎发过什么」）就追加。同一条铸造链、同一个 resumable
- * 谓词（toProgressPayload 内部）；reducer 的 `run-settled` 分支已经做全部归一化，这里不需要第二个
- * 归一化器。铸出的载荷**只存在于这次回放的返回值里**，绝不写进 dwf_event。
+* **Settlement is based on the line**: When the line is in the final state (completed/errored/stopped), the last line played back `run-settled`
+* Always cast by line - `run-settled` (if any) that exists at the end is replaced by it, and there is no `run-settled` at the end (process death, orphan convergence only overwrites
+* OK, deliberately not to synthesize events - the journal's contract is "what the engine has sent") is added. Same casting chain, same resumable
+* Predicate (internal toProgressPayload); the `run-settled` branch of the reducer has been fully normalized, and there is no need for the second one here
+* Normalizer. The cast payload only exists in the return value of this playback and is never written to dwf_event.
  *
- * 终态词表重构（completed / errored / stopped）只在
- * 行的 codec 里做了映射，dwf_event 的载荷是原样 JSON——之前写下的 `run-settled` 带的是旧词
- * `cancelled` / `failed`。原实现看到尾部已有 `run-settled` 就不再合成，把旧词原样喂给 reducer，
- * reducer 认不出这个词，run 便被留在 running：卡片亮着灯、Cancel 可点而后端无事可取消。行是状态
- * 的唯一权威（codec 已把旧行译成新词），所以结算一律从行派生；事件的词表再怎么变，冷回放都不
- * 会再对着旧事件说谎。新词表的 run 两条路给出逐字节相同的载荷（引擎的 `run-settled` 恰好只带
- * 行上的那四个字段），live 与冷回放一致的契约不变。
+* Final state vocabulary reconstruction (completed/errored/stopped) only in
+The mapping is done in the codec of the * line, and the payload of dwf_event is the original JSON - the `run-settled` written before contains the old words.
+* `cancelled` / `failed`. When the original implementation sees that there is already `run-settled` at the end, it will no longer synthesize it and feed the old words to the reducer as they are.
+* The reducer doesn't recognize the word, so run is left running: the card is lit, Cancel can be clicked but there is nothing to cancel in the backend. row is status
+* is the only authority (codec has translated the old lines into new words), so the settlement is always derived from the lines; no matter how the vocabulary of events changes, cold playback will not
+* Will lie about old events again. The two paths to the new vocabulary's run give byte-for-byte identical payloads (the engine's `run-settled` happens to only take
+* The four fields on the line), the contract between live and cold playback remains unchanged.
  *
- * `concurrencyCeiling` 是**必填**而不是可选：它是 `run-started` 载荷上的宿主派生字段，live
- * 侧恒在场（launch 那一刻算的），这里漏掉就会让冷回放的第一条载荷比 live 少一个键——而
- * 「两侧逐字节相等」正是本模块唯一的契约。调用方给的是同一个 `resolveWorkflowConcurrencyCeiling`。
+* `concurrencyCeiling` is **required** rather than optional: it is a host-derived field on the `run-started` payload, live
+* Side Heng is present (counted at the moment of launch). If it is omitted here, the first load of cold playback will be one less key than live - and
+* "Both sides are equal byte by byte" is the only contract of this module. The caller gives the same `resolveWorkflowConcurrencyCeiling`.
  */
 export function replayRunProgress(
   row: DwfRunSessionListItem,
@@ -45,14 +45,14 @@ export function replayRunProgress(
 }
 
 /**
- * 同一条铸造链，但事件由调用方**已经读好**递进来。
+* The same casting chain, but the event is passed in by the caller **has been read**.
  *
- * 存在的理由只有一个：`getRunDetail` 要在同一次调用里既归约出 run 状态、又按事件时刻算情势
- * 截面。让两边各 `listEvents` 一次，
- * 就是为同一份数据付两遍钱——而这条读面在长 run 上正是最贵的那一段。
+* There is only one reason for existence: `getRunDetail` is to reduce the run state and calculate the situation according to the event time in the same call.
+* Section. Let each side `listEvents` once,
+* It means paying twice for the same data - and this reading is the most expensive section on a long run.
  *
- * 递进来的必须是**该 run 的全量事件、sequence 升序**（即 `listEvents(runId, {})` 的返回），
- * 尾部结算的替换逻辑依赖「最后一条就是最后一条」。
+* What is passed in must be **all events of the run, in ascending sequence** (that is, the return of `listEvents(runId, {})`),
+* The replacement logic of tail settlement relies on "the last one is the last one".
  */
 export function replayRunProgressFromEvents(
   row: DwfRunSessionListItem,
@@ -60,24 +60,24 @@ export function replayRunProgressFromEvents(
   concurrencyCeiling: number,
 ): DynamicWorkflowRunProgressPayload[] {
   const toolCallId = row.toolCallId === undefined ? {} : { toolCallId: row.toolCallId };
-  // 发起锚点：与 live 同一条铸造链，派生字段也要一致——
-  // 冷回放载荷与 live 载荷逐字节相等是本模块的契约（测试钉住）。锚点就在这批事件里（首条
-  // run-launched），不必再查一次 journal；升级前的 run 没有它，字段缺席。
+// Initiate anchor point: the same casting chain as live, and the derived fields must also be consistent——
+// It is a contract of this module (test pinning) that the cold replay payload is byte-for-byte equal to the live payload. The anchor point is in this batch of events (the first
+// run-launched), there is no need to check the journal again; the run before the upgrade does not have it, and the field is absent.
   const launched = stored.find((entry) => entry.event.type === "run-launched")?.event;
   const launchInputId =
     launched?.type === "run-launched" ? { launchInputId: launched.inputId } : {};
-  // lineage 指针与 live 同源（launch 侧从入参或 journal 行读，这里直接是行）。
+// The lineage pointer has the same origin as live (the launch side reads from the input parameter or journal line, here it is the line directly).
   const resumedFrom = row.resumedFrom === undefined ? {} : { resumedFrom: row.resumedFrom };
-  // 子代理模型与锚点**同源**：同一条 `run-launched` 事件（零 SQL，dwf_run 上没有这一列）。
-  // live 侧从 launch 入参或同一条事件读回同一个规范串，所以两侧载荷仍然逐字节相等。设过才在场。
+// Subagent model has the same origin as the anchor: the same `run-launched` event (zero SQL, no column on dwf_run).
+// The live side reads back the same specification string from the launch input parameters or the same event, so the loads on both sides are still equal byte by byte. Be present only after setting it up.
   const subagentModel =
     launched?.type === "run-launched" && launched.subagentModel !== undefined
       ? { subagentModel: launched.subagentModel }
       : {};
   const terminal = TERMINAL_RUN_STATUSES.has(row.status);
   const last = stored.at(-1);
-  // 只替换**尾部**的结算：resume 过的 run 中途还躺着上一世的 `run-settled`，那是真实历史，
-  // 紧随其后的 `run-started` 会把它翻回 running（reducer 的既有语义），不动它。
+// Only replace the **tail** settlement: the `run-settled` of the previous life is still lying in the middle of the run after resume. That is real history.
+// The following `run-started` will turn it back to running (the existing semantics of reducer), leaving it unchanged.
   const trailingSettle = terminal && last?.event.type === "run-settled" ? last : undefined;
   const replayable = trailingSettle === undefined ? stored : stored.slice(0, -1);
   const payloads = replayable.map((entry) =>
@@ -96,7 +96,7 @@ export function replayRunProgressFromEvents(
   const settled: RunEvent = {
     type: "run-settled",
     status: row.status,
-    // stopped 的行必带 reason（老行解码缺席时仓储已兜成 user）；其余状态不带。
+// The stopped row must have reason (when the old row is absent from decoding, the warehouse has been converted to user); the other states do not.
     ...(row.status === "stopped" ? { stopReason: row.stopReason ?? "user" } : {}),
     ...(row.status === "stopped" && row.supersededBy !== undefined
       ? { supersededBy: row.supersededBy }
@@ -107,7 +107,7 @@ export function replayRunProgressFromEvents(
     toProgressPayload({
       event: settled,
       runId: row.runId,
-      // 替换时沿用被替换那条的 sequence（水位与 live 一致）；追加时接在最后一条之后。
+// When replacing, the sequence of the replaced item will be used (the water level is consistent with live); when appending, it will follow the last one.
       sequence: trailingSettle?.sequence ?? (last?.sequence ?? 0) + 1,
       ...toolCallId,
       ...launchInputId,

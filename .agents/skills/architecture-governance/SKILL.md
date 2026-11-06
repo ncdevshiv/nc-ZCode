@@ -9,8 +9,8 @@ Use this skill before editing code in the ZCode repository. It is a design guide
 
 ## Before writing code
 
-1. Identify changed files and their modules with `pnpm architecture:check --changed`.
-2. Run `pnpm architecture:context <module-id>` (or the reusable wrapper `node .agents/skills/architecture-governance/scripts/context-package.mjs <module-id>`). Read the target contract, directly referenced contracts, and any existing relevant spec and tests before opening broad implementation files. Do not assume a documentation or test path exists; verify it in the checkout.
+1. Identify changed files and their modules with `bun run architecture:check --changed`.
+2. Run `bun run architecture:context <module-id>` (or the reusable wrapper `node .agents/skills/architecture-governance/scripts/context-package.mjs <module-id>`). Read the target contract, directly referenced contracts, and any existing relevant spec and tests before opening broad implementation files. Do not assume a documentation or test path exists; verify it in the checkout.
 3. Write or update the spec before implementation; create its directory when needed. State the behavior, ownership, invariants, failure semantics, and migration boundary in the spec.
 4. Make a short design decision before coding:
    - **One owner:** name the single component that owns each piece of mutable state. Other layers read through its contract and send commands; they do not keep a second accepted queue, cache, or derived truth.
@@ -38,9 +38,9 @@ mobile: replayable ─ snapshot + gap repair ┘
 ## During and after editing
 
 6. Keep changes inside the declared module and its allowed layer direction. Add a module dependency or public contract before introducing a cross-module edge.
-7. Run `pnpm architecture:check --changed` again after editing. Report new violations separately from baseline violations, along with changed modules, tests, state owners, event-order assumptions, and net line changes.
+7. Run `bun run architecture:check --changed` again after editing. Report new violations separately from baseline violations, along with changed modules, tests, state owners, event-order assumptions, and net line changes.
 
-The executable policy is `architecture-policy.yaml`; do not duplicate its rules in this file or in AGENTS.md. Use `pnpm architecture:baseline:update` only when a reviewed change intentionally changes the accepted legacy baseline. CI never refreshes baseline automatically.
+The executable policy is `architecture-policy.yaml`; do not duplicate its rules in this file or in AGENTS.md. Use `bun run architecture:baseline:update` only when a reviewed change intentionally changes the accepted legacy baseline. CI never refreshes baseline automatically.
 
 When adding source, identify its owning module. If a new managed module is required, register its roots, dependencies, layers and public entrypoints in `architecture-policy.yaml`, and keep the local manifest consistent with that policy. Use the existing managed modules and the fixture below as examples.
 

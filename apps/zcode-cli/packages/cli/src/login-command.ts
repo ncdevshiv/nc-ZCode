@@ -12,10 +12,6 @@ export async function runLoginCommand(
   args: readonly string[] = [],
 ): Promise<number> {
   try {
-    const providerId = args[0] ?? "zai";
-    if (args.length > 1 || (providerId !== "zai" && providerId !== "bigmodel")) {
-      throw new Error("Usage: zcode login [zai|bigmodel] [--no-browser]");
-    }
     const env = deps.env ?? process.env;
     const workingDirectory = (deps.cwd ?? process.cwd)();
     const dotenvResult = (deps.loadDotenv ?? loadCliDotenv)({
@@ -29,50 +25,78 @@ export async function runLoginCommand(
       });
     }
 
-    const login = deps.loginZCodeCli ?? (await loadBootstrapModule()).loginZCodeCli;
-    const result = await login({
-      env,
-      noBrowser,
-      providerId,
-      onAuthorizeUrl: (data) => {
-        writeAuthorizeUrl(ctx, options, data.authorize_url, noBrowser, providerId);
-      },
-      onBrowserOpen: (browser) => {
-        if (!options.json && !browser.opened) {
-          ctx.stdout.write(`Browser open failed: ${browser.reason ?? "unknown error"}\n`);
-        }
-      },
-    });
-
-    if (options.json) {
+    // Check for API key login
+    if (args.length >= 2 && (args[0] === "zai-api-key" || args[0] === "bigmodel-api-key" || args[0] === "zai-coding-plan-api-key" || args[0] === "bigmodel-coding-plan-api-key")) {
+      const apiKey = args.slice(1).join(" ").trim();
+      if (!apiKey) {
+        throw new Error("API key is required.");
+      }
+      const providerId = args[0].startsWith("bigmodel") ? "bigmodel" : "zai";
+      const configureApiKey = deps.configureCodingPlanApiKey ?? (await loadBootstrapModule()).configureCodingPlanApiKey;
+      const result = await configureApiKey({
+        apiKey,
+        env,
+        providerId,
+      });
+      if (options.json) {
+        ctx.stdout.write(
+          formatJson({
+            status: "ready",
+            provider: result.providerId,
+            model: result.model,
+            configPath: result.configPath,
+          }),
+        );
+        return 0;
+      }
+      const providerName = result.providerId === "bigmodel" ? "BigModel" : "Z.AI";
       ctx.stdout.write(
-        formatJson({
-          status: "ready",
-          provider: result.providerId,
-          user: {
-            user_id: result.user.user_id,
-            ...(result.user.email ? { email: result.user.email } : {}),
-            ...(result.user.name ? { name: result.user.name } : {}),
-            ...(result.user.avatar ? { avatar: result.user.avatar } : {}),
-          },
-          model: result.model,
-          credentialsPath: result.credentialsPath,
-          configPath: result.configPath,
-          browserOpened: result.browser?.opened ?? false,
-        }),
+        [
+          `Configured ${providerName} Coding Plan.`,
+          `Model: ${result.model}`,
+          `Model selection: ${result.configPath}`,
+        ].join("\n") + "\n",
       );
       return 0;
     }
 
-    ctx.stdout.write(
-      [
-        `Login successful${formatUserLabel(result.user)}.`,
-        `Model: ${result.model}`,
-        `Credentials: ${result.credentialsPath}`,
-        `Model selection: ${result.configPath}`,
-      ].join("\n") + "\n",
+    // API key passed as flag or different format
+    if (args.length === 2 && (args[0] === "zai" || args[0] === "bigmodel") && args[1].length > 20) {
+      const apiKey = args[1];
+      const providerId = args[0] as "zai" | "bigmodel";
+      const configureApiKey = deps.configureCodingPlanApiKey ?? (await loadBootstrapModule()).configureCodingPlanApiKey;
+      const result = await configureApiKey({
+        apiKey,
+        env,
+        providerId,
+      });
+      if (options.json) {
+        ctx.stdout.write(
+          formatJson({
+            status: "ready",
+            provider: result.providerId,
+            model: result.model,
+            configPath: result.configPath,
+          }),
+        );
+        return 0;
+      }
+      const providerName = result.providerId === "bigmodel" ? "BigModel" : "Z.AI";
+      ctx.stdout.write(
+        [
+          `Configured ${providerName} Coding Plan.`,
+          `Model: ${result.model}`,
+          `Model selection: ${result.configPath}`,
+        ].join("\n") + "\n",
+      );
+      return 0;
+    }
+
+    throw new Error(
+      "ZCode OAuth login is disabled. Use API key login:\n" +
+      "  zcode login zai-api-key <api-key>\n" +
+      "  zcode login bigmodel-api-key <api-key>",
     );
-    return 0;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     ctx.stderr.write(`Error: ${message}\n`);

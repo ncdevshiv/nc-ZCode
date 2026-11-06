@@ -9,14 +9,14 @@ import { withModelInvocationContext } from "../../runtime/methods/runtime-model.
 import type { ToolExecutionContext } from "../types.js";
 
 /**
- * 工具内部模型请求的默认状态出口。
+* Default status export for tool internal model requests.
  *
- * `statusSink` 不能是每个调用点各自的职责——WebSearch 记得设，WebFetch 处理没有。
- * 没有 sink 的请求照样过准入闸门、照样排队，但 runner 发的 queued / admitted / 429 事件没有去处：
- * 执行器的 deadline 不知道该暂停（实测 18 次 WebFetch 在队里等了 20–45 s 后按
- * 60 s 超时被取消，错误里 `queuedMs: 0`），driver 也看不见这个子代理在等。
- * 与准入端口同一处置：默认值绑在**边界**上而不是靠调用点记得——执行器交给 handler 的
- * `context.model` 先套一层，调用点没设 sink 时补上会话事件出口；调用点自己设了则原样保留。
+* `statusSink` cannot be the responsibility of each call site - WebSearch remembers setting, WebFetch handles not.
+* Requests without a sink still pass through the admission gate and are still queued, but the queued / admitted / 429 events sent by the runner have no place to go:
+* The deadline of the executor does not know when to pause (actually measured 18 times. WebFetch waited in the queue for 20-45 s before pressing
+* The 60 s timeout is canceled (`queuedMs: 0` in the error), and the driver cannot see that the subagent is waiting.
+* The same treatment as the admission port: the default value is tied to the **boundary** instead of being remembered by the call point - the executor is handed over to the handler
+* `context.model` is first applied to one layer, and if the call point does not set a sink, the session event exit will be added; if the call point sets a sink, it will be left as it is.
  */
 export function createToolModelStatusSink(
   context: Pick<ToolExecutionContext, "emitEvent" | "sessionId" | "turnId" | "traceId">,
@@ -39,7 +39,7 @@ export function createToolModelStatusSink(
   };
 }
 
-/** 调用点未设 `statusSink` 时补默认出口；设了的保留（默认值不压调用层）。 */
+/** If `statusSink` is not set at the call point, the default outlet will be supplemented; if it is set, it will be retained (the default value does not suppress the calling layer). */
 export function withDefaultToolModelStatusSink(
   model: Model | undefined,
   sink: ModelStatusSink | undefined,

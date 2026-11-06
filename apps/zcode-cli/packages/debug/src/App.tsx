@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import {
   AlertTriangle,
   BarChart3,
@@ -84,8 +85,8 @@ const envShellLabels: Record<EnvShell, string> = {
 
 const viewLabels: Record<DebugView, string> = {
   trace: "Trace",
-  gantt: "甘特图",
-  network: "网络请求",
+  gantt: "Gantt chart",
+  network: "network request",
 };
 
 const laneOrder: TraceSpanLane[] = [
@@ -102,21 +103,21 @@ const laneOrder: TraceSpanLane[] = [
 
 const laneLabels: Record<TraceSpanLane, string> = {
   turn: "Turn",
-  model: "模型",
-  tool: "工具",
-  network: "网络",
-  permission: "权限",
-  storage: "存储",
-  subagent: "子 Agent",
-  event: "事件",
-  log: "日志",
+  model: "Model",
+  tool: "tool",
+  network: "network",
+  permission: "Permissions",
+  storage: "storage",
+  subagent: "Sub-Agent",
+  event: "event",
+  log: "log",
 };
 
 const sourceLabels: Record<ContextSectionSource, string> = {
-  system_prompt: "系统",
-  skills: "技能",
-  tools: "工具",
-  other: "其他",
+  system_prompt: "system",
+  skills: "Skill",
+  tools: "tool",
+  other: "other",
 };
 
 const sourceClasses: Record<ContextSectionSource, string> = {
@@ -127,14 +128,14 @@ const sourceClasses: Record<ContextSectionSource, string> = {
 };
 
 const usageSourceLabels: Record<ContextUsageSource, string> = {
-  system_prompt: "系统提示",
-  meta_user_context: "Meta User 上下文",
-  skills: "技能",
-  tool_prompt: "工具提示",
-  system_tool_schemas: "系统工具",
-  mcp_tool_schemas: "MCP 工具",
-  messages: "消息",
-  other: "其他",
+  system_prompt: "System prompt",
+  meta_user_context: "Meta User context",
+  skills: "Skill",
+  tool_prompt: "tooltip",
+  system_tool_schemas: "system tools",
+  mcp_tool_schemas: "MCP tools",
+  messages: "information",
+  other: "other",
 };
 
 const usageSourceClasses: Record<ContextUsageSource, string> = {
@@ -263,14 +264,14 @@ export function App() {
             className="icon-button"
             type="button"
             onClick={() => void loadTraces()}
-            title="刷新"
+            title="refresh"
           >
             <RefreshCw size={18} />
           </button>
         </div>
       </header>
 
-      <section className="control-strip" aria-label="调试控制">
+      <section className="control-strip" aria-label="debug control">
         <ProjectSelect
           projects={projects}
           value={inputs.projectId}
@@ -331,7 +332,7 @@ export function App() {
 
 function ViewTabs(props: { activeView: DebugView; onChange: (view: DebugView) => void }) {
   return (
-    <nav className="view-tabs" aria-label="调试视图">
+    <nav className="view-tabs" aria-label="debug view">
       {(Object.keys(viewLabels) as DebugView[]).map((view) => (
         <button
           aria-current={props.activeView === view ? "page" : undefined}
@@ -379,7 +380,7 @@ function TraceSelect(props: {
         <option value="">选择 Trace</option>
         {props.traces.map((trace) => (
           <option key={trace.traceId} value={trace.traceId}>
-            {trace.traceId} - {trace.firstUserMessage ?? "没有观察到用户消息"}
+            {trace.traceId} - {trace.firstUserMessage ?? "No user messages observed"}
           </option>
         ))}
       </select>
@@ -398,15 +399,15 @@ function SourceBar({
 }) {
   const showLoading = useDelayedVisible(loading, 180);
   return (
-    <section className="source-bar" aria-label="观测数据源">
+    <section className="source-bar" aria-label="Observation data source">
       <div className={`source-pill live ${live.connected ? "ready" : "muted"}`}>
         <Radio size={16} />
         <div>
-          <strong>{live.connected ? "实时推送" : "实时重连"}</strong>
+          <strong>{live.connected ? "real time push" : "real-time reconnection"}</strong>
           <span>
             {live.lastChangeAt
-              ? `最近更新 ${formatTime(live.lastChangeAt)}`
-              : `${live.watchedPathCount} 个路径`}
+              ? `Last updated ${formatTime(live.lastChangeAt)}`
+              : `${live.watchedPathCount} paths`}
           </span>
         </div>
         {live.error ? <small>{live.error}</small> : <small>SSE</small>}
@@ -444,7 +445,7 @@ function NetworkPage(props: {
 
   return (
     <div className="network-page">
-      <section className="network-control-strip" aria-label="网络请求过滤">
+      <section className="network-control-strip" aria-label="Network request filtering">
         <label>
           <span>过滤</span>
           <div className="input-with-icon">
@@ -515,7 +516,7 @@ function NetworkPanel(props: {
 
   return (
     <section className="panel network-panel">
-      <PanelTitle icon={<Globe2 size={17} />} title="网络请求" />
+      <PanelTitle icon={<Globe2 size={17} />} title="network request" />
       {props.error ? (
         <div className="network-error">
           <AlertTriangle size={15} />
@@ -526,8 +527,8 @@ function NetworkPanel(props: {
         <div className={props.status?.running ? "network-state ready" : "network-state muted"}>
           <ShieldCheck size={16} />
           <div>
-            <strong>{props.status?.running ? "代理运行中" : "代理未运行"}</strong>
-            <span>{props.status?.proxyUrl ?? "未启用"}</span>
+            <strong>{props.status?.running ? "Agent is running" : "Agent is not running"}</strong>
+            <span>{props.status?.proxyUrl ?? "Not enabled"}</span>
           </div>
         </div>
         <div className="network-stat">
@@ -540,13 +541,13 @@ function NetworkPanel(props: {
         </div>
         <div className="network-stat wide">
           <span>CA</span>
-          <strong>{props.status?.certificate.caCertPath ?? "未生成"}</strong>
+          <strong>{props.status?.certificate.caCertPath ?? "Not generated"}</strong>
         </div>
       </div>
       {envCommand ? (
         <div className="env-copy-box">
           <div className="env-copy-toolbar">
-            <div className="segmented-control" aria-label="环境变量 shell 格式">
+            <div className="segmented-control" aria-label="Environment variable shell format">
               {(Object.keys(envShellLabels) as EnvShell[]).map((shell) => (
                 <button
                   aria-pressed={envShell === shell}
@@ -561,7 +562,7 @@ function NetworkPanel(props: {
             </div>
             <button className="copy-button" onClick={() => void copyEnvCommand()} type="button">
               {copiedShell === envShell ? <Check size={15} /> : <Clipboard size={15} />}
-              <span>{copiedShell === envShell ? "已复制" : "复制环境"}</span>
+              <span>{copiedShell === envShell ? "Copied" : "Copy environment"}</span>
             </button>
           </div>
           <pre className="env-command">
@@ -570,7 +571,7 @@ function NetworkPanel(props: {
         </div>
       ) : null}
       <div className="network-list">
-        {props.requests.length === 0 ? <EmptyLine text="等待被测 CLI 的网络请求" /> : null}
+        {props.requests.length === 0 ? <EmptyLine text="Waiting for network requests from the CLI under test" /> : null}
         {props.requests.map((request) => (
           <article
             className={
@@ -598,7 +599,7 @@ function NetworkPanel(props: {
                 <button
                   className="trace-chip"
                   onClick={() => props.onTraceSelect(request.traceId ?? "")}
-                  title="选择这个 Trace"
+                  title="Select this Trace"
                   type="button"
                 >
                   {request.traceId}
@@ -698,12 +699,12 @@ function ExecutionGanttPanel({ spans, traceId }: { spans: TraceSpan[]; traceId: 
   return (
     <section className={isFullscreen ? "panel gantt-panel fullscreen" : "panel gantt-panel"}>
       <div className="gantt-toolbar">
-        <PanelTitle icon={<BarChart3 size={17} />} title="执行甘特图" />
+        <PanelTitle icon={<BarChart3 size={17} />} title="Execute Gantt Chart" />
         <div className="gantt-toolbar-actions">
           <button
             className="icon-button"
             onClick={() => setIsFullscreen((current) => !current)}
-            title={isFullscreen ? "退出窗口内全屏" : "窗口内全屏"}
+            title={isFullscreen ? "Exit full screen within window" : "full screen in window"}
             type="button"
           >
             {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
@@ -719,10 +720,10 @@ function ExecutionGanttPanel({ spans, traceId }: { spans: TraceSpan[]; traceId: 
         </div>
       </div>
       <div className="gantt-summary">
-        <Metric label="Trace" value={traceId || "未选择"} />
-        <Metric label="执行段" value={String(visibleSpans.length)} />
+        <Metric label="Trace" value={traceId || "Not selected"} />
+        <Metric label="executable section" value={String(visibleSpans.length)} />
         <Metric
-          label="网络段"
+          label="network segment"
           value={String(visibleSpans.filter((span) => span.lane === "network").length)}
         />
       </div>
@@ -730,7 +731,7 @@ function ExecutionGanttPanel({ spans, traceId }: { spans: TraceSpan[]; traceId: 
         <div className="gantt-canvas" ref={containerRef} />
         {visibleSpans.length === 0 ? (
           <div className="gantt-empty">
-            <EmptyLine text="没有可渲染的执行段。需要 turn/tool/model start/end 事件或网络归因。" />
+            <EmptyLine text="There is no renderable execution segment. Requires turn/tool/model start/end event or network attribution." />
           </div>
         ) : null}
       </div>
@@ -741,7 +742,7 @@ function ExecutionGanttPanel({ spans, traceId }: { spans: TraceSpan[]; traceId: 
 
 function SpanDetail({ span }: { span: TraceSpan }) {
   return (
-    <aside className="gantt-detail" aria-label="执行段详情">
+    <aside className="gantt-detail" aria-label="Execution section details">
       <div className="gantt-detail-heading">
         <strong>{span.label}</strong>
         <span className={`request-status status-${span.status}`}>
@@ -769,9 +770,9 @@ function SpanDetail({ span }: { span: TraceSpan }) {
 function TimelinePanel({ items }: { items: TimelineItem[] }) {
   return (
     <section className="panel timeline-panel">
-      <PanelTitle icon={<Clock3 size={17} />} title="时间线" />
+      <PanelTitle icon={<Clock3 size={17} />} title="timeline" />
       <div className="timeline">
-        {items.length === 0 ? <EmptyLine text="选择 Trace 后查看事件" /> : null}
+        {items.length === 0 ? <EmptyLine text="View events after selecting Trace" /> : null}
         {items.map((item) => (
           <article className={`timeline-item severity-${item.severity ?? "info"}`} key={item.id}>
             <time>{formatTime(item.at)}</time>
@@ -784,9 +785,9 @@ function TimelinePanel({ items }: { items: TimelineItem[] }) {
               {item.payload !== undefined ? <TimelinePayload payload={item.payload} /> : null}
               <MetaLine
                 values={[
-                  item.sessionId ? `会话 ${item.sessionId}` : "",
-                  item.turnId ? `轮次 ${item.turnId}` : "",
-                  item.toolCallId ? `工具 ${item.toolCallId}` : "",
+                  item.sessionId ? `Session ${item.sessionId}` : "",
+                  item.turnId ? `Turn ${item.turnId}` : "",
+                  item.toolCallId ? `Tool ${item.toolCallId}` : "",
                 ]}
               />
             </div>
@@ -822,8 +823,8 @@ function ContextPanel({
 
   return (
     <section className="panel context-panel">
-      <PanelTitle icon={<Layers3 size={17} />} title="上下文" />
-      {!snapshot && !usageSnapshot ? <EmptyLine text="未观察到上下文快照" /> : null}
+      <PanelTitle icon={<Layers3 size={17} />} title="context" />
+      {!snapshot && !usageSnapshot ? <EmptyLine text="Context snapshot not observed" /> : null}
       {usageSnapshot ? (
         <div className="usage-snapshot">
           <div className="usage-heading">
@@ -834,11 +835,11 @@ function ContextPanel({
             </span>
           </div>
           <div className="metric-row">
-            <Metric label="估算 Token" value={usageSnapshot.totalTokens.toLocaleString()} />
-            <Metric label="字符" value={usageSnapshot.totalChars.toLocaleString()} />
-            <Metric label="算法" value={usageSnapshot.tokenizer ?? "未知"} />
+            <Metric label="Estimate Token" value={usageSnapshot.totalTokens.toLocaleString()} />
+            <Metric label="character" value={usageSnapshot.totalChars.toLocaleString()} />
+            <Metric label="algorithm" value={usageSnapshot.tokenizer ?? "unknown"} />
           </div>
-          <div className="stack-bar" aria-label="上下文占用 token 分类">
+          <div className="stack-bar" aria-label="Context occupation token classification">
             {usageSnapshot.categories.map((category) => (
               <span
                 className={usageSourceClasses[category.source]}
@@ -910,10 +911,10 @@ function ContextPanel({
           </div>
           <div className="metric-row">
             <Metric label="Token" value={snapshot.totalTokens.toLocaleString()} />
-            <Metric label="字符" value={snapshot.totalChars.toLocaleString()} />
-            <Metric label="观测" value={formatObservationLevel(snapshot.observationLevel)} />
+            <Metric label="character" value={snapshot.totalChars.toLocaleString()} />
+            <Metric label="observation" value={formatObservationLevel(snapshot.observationLevel)} />
           </div>
-          <div className="stack-bar" aria-label="上下文 token 占比">
+          <div className="stack-bar" aria-label="Context token proportion">
             {grouped.map((group) => (
               <span
                 className={sourceClasses[group.source]}
@@ -934,7 +935,7 @@ function ContextPanel({
                     {Math.round(section.percentTokens * 100)}%
                   </small>
                 </summary>
-                <pre>{section.content ?? section.preview ?? "只有元数据"}</pre>
+                <pre>{section.content ?? section.preview ?? "metadata only"}</pre>
               </details>
             ))}
           </div>
@@ -955,16 +956,16 @@ function CachePanel({ reports }: { reports: CacheReport[] }) {
 
   return (
     <section className="panel cache-panel">
-      <PanelTitle icon={<BarChart3 size={17} />} title="缓存" />
-      {!report ? <EmptyLine text="未观察到缓存使用" /> : null}
+      <PanelTitle icon={<BarChart3 size={17} />} title="cache" />
+      {!report ? <EmptyLine text="No cache usage observed" /> : null}
       {report ? (
         <>
           <div className="metric-row">
-            <Metric label="读取" value={report.cacheReadTokens.toLocaleString()} />
-            <Metric label="写入" value={report.cacheWriteTokens.toLocaleString()} />
+            <Metric label="read" value={report.cacheReadTokens.toLocaleString()} />
+            <Metric label="write" value={report.cacheWriteTokens.toLocaleString()} />
             <Metric
-              label="命中"
-              value={report.hitRate === null ? "未知" : `${Math.round(report.hitRate * 100)}%`}
+              label="hit"
+              value={report.hitRate === null ? "unknown" : `${Math.round(report.hitRate * 100)}%`}
             />
           </div>
           {segments.length > 0 ? (
@@ -991,14 +992,14 @@ function CachePanel({ reports }: { reports: CacheReport[] }) {
 }
 
 function isRenderableCacheSegment(segment: CacheReport["segments"][number]): boolean {
-  return segment.preview !== "SQLite 的 step-finish token usage 不包含 provider 可见文本。";
+  return segment.preview !== "SQLite's step-finish token usage does not include provider visible text.";
 }
 
 function GapsPanel({ requests }: { requests: TraceDetailResponse["developerRequests"] }) {
   return (
     <section className="panel gaps-panel">
-      <PanelTitle icon={<AlertTriangle size={17} />} title="观测缺口" />
-      {requests.length === 0 ? <EmptyLine text="当前 trace 没有观测缺口" /> : null}
+      <PanelTitle icon={<AlertTriangle size={17} />} title="observation gap" />
+      {requests.length === 0 ? <EmptyLine text="The current trace has no observation gap" /> : null}
       {requests.map((request) => (
         <article className="request-row" key={request.eventName}>
           <strong>{request.title}</strong>
@@ -1101,7 +1102,7 @@ function useObservationEvents(query: string, onChange: () => void): ObservationE
         setState((current) => ({
           ...current,
           connected: false,
-          error: "观测事件流已断开，正在等待浏览器重连。",
+          error: "The observation event stream has been disconnected and is waiting for the browser to reconnect.",
         }));
       }
     });
@@ -1178,7 +1179,7 @@ function useNetworkCapture(): {
       if (!closed) setRequests([]);
     });
     events.addEventListener("error", () => {
-      if (!closed) setError("网络抓包事件流已断开，正在等待浏览器重连。");
+      if (!closed) setError("The network packet capture event stream has been disconnected and is waiting for the browser to reconnect.");
     });
     events.addEventListener("open", () => {
       if (!closed) setError(null);
@@ -1467,105 +1468,105 @@ function viewFromHash(hash: string): DebugView {
 function formatSpanStatus(value: TraceSpan["status"]): string {
   switch (value) {
     case "running":
-      return "进行中";
+      return "in progress";
     case "ok":
-      return "完成";
+      return "Finish";
     case "error":
-      return "错误";
+      return "mistake";
     case "cancelled":
-      return "已取消";
+      return "Canceled";
     case "unknown":
-      return "未知";
+      return "unknown";
   }
 }
 
 function formatSpanDuration(span: TraceSpan): string {
-  if (!span.endAt) return span.status === "running" ? "进行中" : "未结束";
+  if (!span.endAt) return span.status === "running" ? "in progress" : "Not over";
   const start = new Date(span.startAt).getTime();
   const end = new Date(span.endAt).getTime();
-  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return "未知耗时";
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return "Unknown time consuming";
   return formatDuration(end - start);
 }
 
 function formatObservationLevel(value: ContextSnapshotView["observationLevel"]): string {
   switch (value) {
     case "full":
-      return "完整";
+      return "whole";
     case "metadata":
-      return "元数据";
+      return "Metadata";
     case "inferred":
-      return "推断";
+      return "infer";
   }
 }
 
 function formatTokenMethod(value?: TokenMethod): string {
   switch (value) {
     case "provider_count":
-      return "模型计数";
+      return "model count";
     case "provider_usage":
-      return "模型用量";
+      return "Model usage";
     case "proportional_estimate":
-      return "按比例估算";
+      return "Prorated estimate";
     case "estimated":
-      return "本地估算";
+      return "local estimate";
     default:
-      return "未知来源";
+      return "unknown source";
   }
 }
 
 function formatConfidence(value?: TokenConfidence): string {
   switch (value) {
     case "high":
-      return "可信度高";
+      return "High credibility";
     case "medium":
-      return "可信度中";
+      return "medium credibility";
     case "low":
-      return "可信度低";
+      return "low credibility";
     default:
-      return "可信度未知";
+      return "Credibility unknown";
   }
 }
 
 function formatCacheStatus(value: CacheReport["segments"][number]["status"]): string {
   switch (value) {
     case "hit":
-      return "命中";
+      return "hit";
     case "miss":
-      return "未命中";
+      return "miss";
     case "unknown":
-      return "未知";
+      return "unknown";
   }
 }
 
 function formatSegmentLabel(value?: string): string {
   switch (value) {
     case "system_prompt":
-      return "系统";
+      return "system";
     case "skills":
-      return "技能";
+      return "Skill";
     case "tools":
-      return "工具";
+      return "tool";
     case "other":
-      return "其他";
+      return "other";
     case "message":
-      return "消息";
+      return "information";
     case "system":
-      return "system 消息";
+      return "system message";
     case "user":
-      return "user 消息";
+      return "user message";
     case "assistant":
-      return "assistant 消息";
+      return "assistant message";
     case "tool":
-      return "tool 消息";
+      return "tool message";
     default:
-      return value ?? "片段";
+      return value ?? "fragment";
   }
 }
 
 function formatNetworkStatus(request: NetworkRequestRecord): string {
-  if (request.status === "pending") return "进行中";
-  if (request.status === "error") return "错误";
-  return request.statusCode ? String(request.statusCode) : "完成";
+  if (request.status === "pending") return "in progress";
+  if (request.status === "error") return "mistake";
+  return request.statusCode ? String(request.statusCode) : "Finish";
 }
 
 function formatDuration(value?: number): string {

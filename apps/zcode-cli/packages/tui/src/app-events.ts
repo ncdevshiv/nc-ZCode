@@ -206,7 +206,7 @@ export function applySessionEventToState(
     case SessionEventType.TargetChanged:
       handlers.setStatus(copy.status.targetChanged(stringField(payload, "action") ?? "changed"));
       break;
-    // dwf 实时运行态：缺此 case 时事件落进 default 被静默丢弃。归约走共享 reducer。
+// dwf real-time running state: when this case is missing, the event falls into default and is silently discarded. Reduce via shared reducer.
     case SessionEventType.DynamicWorkflowRunProgress:
       applyWorkflowProgressEvent(event.payload, handlers.setWorkflowMirror);
       break;

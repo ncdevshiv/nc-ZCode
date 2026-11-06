@@ -1,15 +1,15 @@
 // ============================================================
-// GetWorkflowRun 的模型面：TaskOutput 式的 XML-ish 块
+// Model side of GetWorkflowRun: TaskOutput-style XML-ish block
 // ============================================================
-// 从 handler 拆出（那份文件已到 400 行
-// 上限），情势三块又从这里再拆到 get-workflow-run-format-roster.ts。
+// Detach from handler (the file has reached line 400
+// upper limit), the three format pieces are split from here to get-workflow-run-format-roster.ts.
 //
-// 这是一个**纯函数** `(output) => text`：所有时钟读数都已经由 handler 放进 `generatedAt`，
-// 格式器自己不碰 `Date.now()`。一次输出因此只有一把尺——同一份输出里的两个「多久以前」
-// 永远可比，测试也能逐字钉住整段文本。
+// This is a **pure function** `(output) => text`: all clock readings have been put into `generatedAt` by the handler,
+// The formatter itself does not touch `Date.now()`. One output therefore only has one ruler - two "how long ago" in the same output
+// Always comparable, the test can nail the entire text verbatim.
 //
-// 块序是契约（固定顺序）：先一句话说清处境，再是身份与生命周期，再是
-// **此刻等着模型做的事**（停驻的问题），然后才是 run 过得怎么样、叙事、收场与路由。
+//The block sequence is a contract (fixed sequence): first explain the situation in one sentence, then the identity and life cycle, and then
+// **What is waiting for the model to do at this moment** (the problem of parking), and then how is the run, narrative, ending and routing.
 
 import {
   GetWorkflowRunOutputSchema,
@@ -32,12 +32,12 @@ import {
   workflowRunAttribute,
 } from "./workflow-run-introspection.js";
 
-/** 终态三词：run 已经没有下一步动作了（与摘要侧同集）。 */
+/** Three words in the final state: run There is no next action (same as the summary side). */
 const TERMINAL_STATUSES: ReadonlySet<string> = new Set(["completed", "errored", "stopped"]);
 
 /**
- * 停驻的问题**查不到**时的那一句。这是本工具仅有的两处「把不知道说出口」之一：
- * 沉默会被读成「没有人在等」，而那正是最危险的误读——有 actor 停在那儿，没有超时替它兜底。
+* The question of parking ** cannot find the sentence when **. This is one of the only two ways this tool can "tell what you don't know":
+* Silence can be read as "no one is waiting", and that is the most dangerous misreading - the actor is parked there, and there is no timeout to take care of it.
  */
 const PENDING_QUESTIONS_UNKNOWN =
   "Unknown: pending questions are tracked only by the process that owns the run, and this session does not. Resuming the run will re-ask any question its subagent still needs answered.";
@@ -52,7 +52,7 @@ export function formatGetWorkflowRunModelContent(output: unknown): ModelMessageC
   const terminal = TERMINAL_STATUSES.has(run.status);
 
   const blocks = [
-    // 情势的一句话排在最前：后面每一块都是它的展开，读者先要知道自己在看什么。
+// A sentence about situation is listed first: each subsequent piece is its unfolding, and readers must first know what they are looking at.
     `<summary>${escapeWorkflowRunText(run.summary)}</summary>`,
     ...identityBlocks(run),
     ...pendingQuestionBlocks(run),
@@ -71,7 +71,7 @@ function optionalBlock(block: string | undefined): string[] {
   return block === undefined ? [] : [block];
 }
 
-/** 身份与生命周期：一个事实一个标签，缺席的事实不留空标签。 */
+/** Identity and life cycle: One fact has one label, and no empty label will be left for absent facts. */
 function identityBlocks(run: GetWorkflowRunOutput): string[] {
   const blocks = [
     `<run_id>${escapeWorkflowRunText(run.runId)}</run_id>`,
@@ -83,12 +83,12 @@ function identityBlocks(run: GetWorkflowRunOutput): string[] {
     ...(run.resumedFrom === undefined
       ? []
       : [`<resumed_from>${escapeWorkflowRunText(run.resumedFrom)}</resumed_from>`]),
-    // 只在这个 run 自己压低了并发时在场（端口的「无则缺席」）。一次 AmendWorkflow 省略
-    // `max_concurrency` 沿用的就是这个数——模型据此知道修订会继承什么。
+// Only present when this run itself suppresses concurrency (the port's "absent"). Once AmendWorkflow is omitted
+// `max_concurrency` is inherited from this number - this is how the model knows what revisions will inherit.
     ...(run.maxConcurrency === undefined
       ? []
       : [`<max_concurrency>${run.maxConcurrency}</max_concurrency>`]),
-    // 与上一行同一族的 run 级设定：只在这个 run 自己选过子代理模型时在场。
+// Run-level settings in the same family as the previous line: only present if this run itself has selected a subagent model.
     ...(run.subagentModel === undefined
       ? []
       : [`<subagent_model>${escapeWorkflowRunText(run.subagentModel)}</subagent_model>`]),
@@ -102,7 +102,7 @@ function identityBlocks(run: GetWorkflowRunOutput): string[] {
       "<possibly_interrupted>true — this session cannot confirm the run is still alive</possibly_interrupted>",
     );
   }
-  // ISO + 年龄：前者是可核对的事实，后者是读者真正要的那个量。
+// ISO + age: The former is a verifiable fact, the latter is the quantity the reader really wants.
   blocks.push(
     `<created_at>${formatWorkflowRunInstant(run.generatedAt, run.createdAt)}</created_at>`,
   );
@@ -113,8 +113,8 @@ function identityBlocks(run: GetWorkflowRunOutput): string[] {
 }
 
 /**
- * 停驻中的升级问题，排在健康 / 花名册 / 叙事之前：其余各块都是「这个 run 过得怎么样」，
- * 而这一块是**一件此刻等着模型做的事**——埋在二十行叙事后面，等于把唯一的解除阻塞路径藏起来。
+* On-the-fly upgrade issues, before health/roster/narrative: the rest are all about "how was this run?"
+* And this piece is **one thing waiting for the model to do at this moment** - buried behind twenty lines of narrative, it is equivalent to hiding the only way to unblock it.
  */
 function pendingQuestionBlocks(run: GetWorkflowRunOutput): string[] {
   if (!run.health.pendingQuestionsKnown) {
@@ -142,7 +142,7 @@ function pendingQuestionBlocks(run: GetWorkflowRunOutput): string[] {
   ];
 }
 
-/** nodes_observed 是已落库节点的行数，绝不冒充「总步数」：动态工作流没有静态总数。 */
+/** nodes_observed is the number of rows of dropped nodes, and never pretends to be the "total number of steps": there is no static total in dynamic workflows. */
 function usageBlock(run: GetWorkflowRunOutput): string {
   const usage = [
     `spent_tokens=${run.usage.spentTokens}`,
@@ -154,25 +154,25 @@ function usageBlock(run: GetWorkflowRunOutput): string {
   return `<usage>${usage}</usage>`;
 }
 
-/** run 的收场：产物 → 失败 → 用户面产物清单（与完成通知同序）。 */
+/** The end of run: product → failure → user interface product list (same order as completion notification). */
 function outcomeBlocks(run: GetWorkflowRunOutput): string[] {
   const blocks: string[] = [];
   if (run.result !== undefined) {
-    // 产物原样进块（不转义）：它可能是一整段 JSON 或代码，转义会让模型读到的与真实产物不同。
+// Enter the product as it is (without escaping): it may be a whole piece of JSON or code, and escaping will make what the model reads different from the real product.
     blocks.push(`<result>\n${run.result}\n</result>`);
   }
   if (run.error !== undefined) {
-    // provider 停下：`<error>` 是与终态通知同一函数铸出的整块文案（原因 → 动作 → 事实 → 原文），
-    // 模型在两条读面上读到的是同一段话；照 `<result>` 的先例原样进块——里面有 `run_id="…"`
-    // 这样要让模型照抄的片段，转义成 &quot; 反而让它抄错。其余失败照旧一句 message。
+// provider stops: `<error>` is a whole block of copy cast by the same function as the final state notification (reason → action → fact → original text),
+// The model reads the same paragraph on both reading pages; enter the block as it is according to the precedent of `<result>` - there is `run_id="…"` in it
+// In this way, if you want the fragment to be copied by the model, escaping it as " will cause it to be copied incorrectly. Otherwise, it will still be a message.
     const body =
       run.error.providerStop === undefined
         ? escapeWorkflowRunText(run.error.message)
         : `\n${formatWorkflowProviderStopError(run.error, run.runId)}\n`;
     blocks.push(`<error ${workflowRunAttribute("code", run.error.code)}>${body}</error>`);
   }
-  // 用户面产物排在 result / error **之后**（同完成通知的顺序）：run 的收场是模型首先要读的，
-  // 交付物清单是索引。行的格式与完成通知逐字共用一个格式器。
+//User-side products are ranked after result/error **(same as the order of completion notifications): the end of run is the first thing to be read by the model.
+// The list of deliverables is an index. The format of the line shares the same formatter as the completion notification verbatim.
   if (run.artifacts !== undefined && run.artifacts.length > 0) {
     const lines = run.artifacts.map((artifact) =>
       escapeWorkflowRunText(formatPublishedArtifactLine(artifact)),
@@ -182,11 +182,11 @@ function outcomeBlocks(run: GetWorkflowRunOutput): string[] {
   return blocks;
 }
 
-/** 路由：被替代 → 只指向后继；否则可恢复与可修订各占一块，各说各的。 */
+/** Routing: replaced → only points to the successor; otherwise, the recoverable and revisable routes each occupy one section, and each has its own discussion. */
 function routingBlocks(run: GetWorkflowRunOutput): string[] {
   const blocks: string[] = [];
   if (run.stopReason === "superseded") {
-    // 被替代的 run 不可 resume（活的是后继），也不该被再次修订——后继才是要修的那一个。
+// The replaced run cannot be resumed (the living one is the successor), nor should it be revised again - the successor is the one that needs to be revised.
     const successor =
       run.supersededBy === undefined
         ? "its successor"
@@ -202,8 +202,8 @@ function routingBlocks(run: GetWorkflowRunOutput): string[] {
 }
 
 /**
- * 四个 stop reason 同为可恢复，但下一步不同：user 是有人故意停的（只在用户要求时恢复）；provider 要先解决原因；
- * model / interrupted 直接续。提示块把这句话带上，否则模型把用户刚取消的 run 当事故续跑。
+* The four stop reasons are both recoverable, but the next steps are different: user was stopped intentionally (recovered only when requested by the user); provider must first resolve the reason;
+* model / interrupted Directly continued. The prompt block includes this sentence, otherwise the model will continue the run just canceled by the user as an accident.
  */
 function formatResumableHint(run: GetWorkflowRunOutput): string {
   const reasonSentence =
@@ -218,18 +218,18 @@ function formatResumableHint(run: GetWorkflowRunOutput): string {
 }
 
 /**
- * 修订续跑（amend-resume）的路由提示。与 `<resumable>` **并列而非替代**：两者谓词不同、
- * 动作也不同，所以刻意各占一块、各自把差别说破（同 run 同脚本 vs 新 run 新脚本）。
+* Revise the routing prompt for amend-resume. **parallel with `<resumable>` rather than replace**: the predicates of the two are different,
+* The actions are also different, so I deliberately occupy one section for each and explain the differences (same run, same script vs new run, new script).
  *
- * 尾句按状态分叉：脚本真失败是修订的最高价值场景（修 bug 保缓存），而模型的默认反射是
- * 从头重写——那会把已经付过 token 的工作全部作废。
+* The last sentence is forked according to status: the script's true failure is the highest value scenario for revision (fixing bugs and saving cache), and the default reflection of the model is
+* Rewrite from scratch - that will invalidate all the work for which tokens have been paid.
  *
- * **健康地在跑的 run 只给一句**：那时没有任何决定要模型现在做，整段路由论证只是在挤占
- * 它读花名册的注意力；停滞了、或还没起飞、或已经终态，才把完整论证摆出来。
+* **Only one sentence for run that is running healthily**: At that time, there was no decision for the model to make now, and the entire routing argument was just a squeeze.
+* It is the attention of reading the roster; it has stalled, or has not yet taken off, or has reached its final state, before the complete argument is presented.
  */
 function formatAmendableHint(run: GetWorkflowRunOutput): string {
-  // 脚本文件那一句两支都带：健康在跑的那一支
-  // 只给一句话，但那句话说的正是「怎么修订」——少了文件就等于让模型去内联重贴整份脚本。
+// The sentence in the script file includes both: the one that is running healthy
+// Only one sentence is given, but that sentence is exactly "how to revise" - missing the file means asking the model to inline and repost the entire script.
   const scriptSentence =
     run.scriptPath === undefined
       ? ""
@@ -248,8 +248,8 @@ function formatAmendableHint(run: GetWorkflowRunOutput): string {
   const body = [
     `This run can be superseded by a revised script: call AmendWorkflow with \`run_id: "${escapeWorkflowRunText(run.runId)}"\` and your new script.`,
     "That mints a NEW run and imports this one's finished work as a warm cache — matched per named subagent along its conversation prefix — so steps you did not change settle from cache at zero tokens and only the revised part runs live.",
-    // 省略即沿用：不说出来，
-    // 模型会为了改一个数把整份脚本再抄一遍。
+// If omitted, use it: don’t say it,
+// The model will copy the entire script again in order to change a number.
     "To change only its settings (max_concurrency, subagent_model, name), omit both `script` and `path`: the new run keeps this run's script.",
     tail,
   ].join(" ");
@@ -257,9 +257,9 @@ function formatAmendableHint(run: GetWorkflowRunOutput): string {
 }
 
 /**
- * 可恢复终态的判定谓词，与 `port.resume` 的门**同语义**：
- * `stopped`，不论 reason。**绝不**放宽到 `errored`：脚本真失败的 run replay 会逐字复现失败。
- * 这只是路由预览不是放行承诺，门仍在 port.resume 服务端。
+* The predicate for restoring the final state has the same semantics as the gate of `port.resume`:
+* `stopped`, regardless of reason. **Never** relax to `errored`: a run replay where the script really fails will reproduce the failure verbatim.
+* This is just a route preview, not a release promise, the door is still on the port.resume server.
  */
 function isWorkflowRunResumableOutput(run: GetWorkflowRunOutput): boolean {
   return run.status === "stopped";

@@ -1,0 +1,22 @@
+{
+  "recovered": [
+    "native/crates/zcode-cdp/src/snapshot.rs",
+    "native/crates/zcode-node-repl/src/capability.rs",
+    "native/crates/zcode-node-repl/src/kernel.rs",
+    "native/crates/zcode-services-plugins/src/channel.rs",
+    "native/crates/zcode-services-plugins/src/fetch.rs",
+    "native/crates/zcode-services-plugins/src/orchestration.rs",
+    "native/crates/zcode-services-workspace/src/file/ignore.rs",
+    "native/crates/zcode-services-offpeak/src/repo.rs",
+    "native/crates/zcode-services-git/src/commit_message.rs",
+    "native/crates/zcode-services-provider/src/provisioning.rs",
+    "native/crates/zcode-services-provider/src/provisioning/file_lock.rs",
+    "native/crates/zcode-services-provider/src/catalog.rs",
+    "native/crates/zcode-services-extensions/src/skills.rs",
+    "native/crates/zcode-services-automation/src/cron.rs (partial)",
+    "native/crates/zcode-proc/src/process.rs",
+    "native/crates/zcode-proc/src/lib.rs",
+    "native/crates/zcode-provider/src/lib.rs"
+  ],
+  "classification": "RECOVERED_WITH_PARTIAL_CONFIDENCE"
+}

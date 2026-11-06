@@ -61,7 +61,7 @@ function buildRequestUserContextContent(input: {
   }
 
   return [
-    // 聚合字段标题不能绑定到 AGENTS.md，否则仅有 Project Memory 时缺少标题。
+// The aggregate field title cannot be bound to AGENTS.md, otherwise the title will be missing when there is only Project Memory.
 
     "# agentsMd",
     "Codebase and user instructions are shown below. Be sure to adhere to these instructions. IMPORTANT: These instructions OVERRIDE any default behavior and you MUST follow them exactly as written.",

@@ -5,36 +5,36 @@ import { build } from "esbuild";
 
 const packageRoot = resolve(import.meta.dirname, "..");
 
-// 见 browser-use-plugin/scripts/build.mjs 的同名修复：esbuild 的 esm 产物里
-// __require shim 在 ESM 作用域没有 require 可用，@zcode/core 拖进来的 CJS 依赖（yaml →
-// require("process")）会在**模块求值阶段**抛错，plugin host 的 await import() 直接失败，
-// 表现为注册 0 个工具、模型侧完全看不到 mcp__node_repl__js。注入真实 createRequire。
+// See the fix of the same name in browser-use-plugin/scripts/build.mjs: esm product of esbuild
+// __require shim has no require available in the ESM scope, the CJS dependency dragged in by @zcode/core (yaml →
+// require("process")) will throw an error during the **module evaluation phase**, and the await import() of the plugin host will fail directly.
+// The performance is that 0 tools are registered and mcp__node_repl__js is not visible at all on the model side. Inject true createRequire.
 const nodeRequireBanner = `import { createRequire as __zcodeCreateRequire } from "node:module";
 const require = __zcodeCreateRequire(import.meta.url);`;
 
-// 正式包上 Computer Use 曾完全
-// 不可用 —— 每个 CUA 调用要么等到 MCP 客户端超时（实测 60/110/120s），要么等满 ~64s 后返回
+// Officially wrap up Computer Use Zengquan
+// Not available - each CUA call either waits until the MCP client times out (measured 60/110/120s) or returns after ~64s
 // 「permission broker socket is not accepting connections yet」。
 //
-// 链路：懒启动（services/src/node.ts 的 `懒启动` 注释处）把 darwin 上 Helper 的
-// 安装/拉起从宿主搬到了「SDK 首次 CUA 调用时自拉」，而那条路径跑在**本包**里 ——
-// `helperInstaller` 因此随本 bundle 进入正式包。但 `__ZCODE_CUA_HELPER_BUILD_ID__` 此前
-// **只有** packages/desktop/tsup.config.ts 注入（Electron main / app.asar），本文件的
-// esbuild 调用一个 define 都没有。于是正式包里 producer 的 `ZCODE_CUA_HELPER_BUILD_ID`
-// 折叠成空串（见 zcode-cua/src/broker/shared/cua-version.ts 的兜底），
-// `resolveExpectedCuaHelperBuildId()` 返回 null，helperInstaller 撞上 fail-closed 守卫：
+// Link: Lazy start (`lazy start` comment in services/src/node.ts) put darwin on Helper
+//Installation/pull is moved from the host to "SDK self-pull when calling CUA for the first time", and that path runs in **this package**——
+// `helperInstaller` therefore enters the official package with this bundle. But `__ZCODE_CUA_HELPER_BUILD_ID__` was previously
+// **Only** packages/desktop/tsup.config.ts injection (Electron main/app.asar), this file
+// esbuild doesn't call a single define. So `ZCODE_CUA_HELPER_BUILD_ID` of producer in the official package
+// Fold into an empty string (see the bottom line of zcode-cua/src/broker/shared/cua-version.ts),
+// `resolveExpectedCuaHelperBuildId()` returns null, helperInstaller hits the fail-closed guard:
 //
 //   "Packaged ZCode is missing its embedded Computer Use Helper build identity;
 //    refusing an unpinned Helper install"
 //
-// 结果 Helper 既不装也不起、一行日志都不写，而这句 throw 被 MCP 层翻成超时，没有落盘点 ——
-// 所以它一直是隐形的。实证：宿主日志里 `[cua-product-helper]` 在 09-11（宿主路径，有 define）
-// 有 5 行，09-14 为 0 行；`~/.zcode/computer-use/logs/` 从未创建；把已安装的 Helper 改名后
-// 也不会重装。dev 不受影响（ALLOW_UNSIGNED_LOCAL + 非 production runtime 绕过该守卫），
-// 所以只在正式包暴露，本地怎么测都测不出来。
+// As a result, the Helper neither installed nor started, and did not write a single line of logs. The throw statement was translated into a timeout by the MCP layer, and there was no inventory point——
+// So it remains invisible. Empirical evidence: `[cua-product-helper]` in the host log is on 09-11 (host path, with define)
+// There are 5 lines, 09-14 is 0 lines; `~/.zcode/computer-use/logs/` has never been created; after renaming the installed Helper
+// Will not reinstall. dev is not affected (ALLOW_UNSIGNED_LOCAL + non-production runtime bypasses this guard),
+// So it is only exposed in the official package and cannot be measured locally.
 //
-// 取值与 desktop 侧保持同一来源：CI 注入 ZCODE_CUA_HELPER_BUILD_ID env；dev 为空串走兜底
-// （dev Helper 不走下载/pin 校验）。见 packages/desktop/tsup.config.ts 同名 define 的注释。
+//Keep the value from the same source as the desktop side: CI injects ZCODE_CUA_HELPER_BUILD_ID env; dev is an empty string to avoid
+// (dev Helper does not perform download/pin verification). See the comments for the define of the same name in packages/desktop/tsup.config.ts.
 const resolveCuaHelperBuildId = (env = process.env) =>
   env.ZCODE_CUA_HELPER_BUILD_ID?.trim() ?? "";
 
@@ -56,25 +56,25 @@ export const buildNodeReplHostBundle = async ({
     platform: "node",
     target: "node24",
   });
-  // 构建期守卫：define 名一旦漂移（改名、被 createSharedDefines 之类重构吞掉），
-  // 产物会静默退回空串，而症状只在正式包出现且表现为超时。这里立刻失败，别再让它溜到用户手上。
+// Guard during construction: Once the define name drifts (renamed, swallowed by refactoring such as createSharedDefines),
+// The product will silently return an empty string, and the symptom only appears in the official package and manifests as a timeout. Fail immediately here, don't let it slip to the user.
   if (cuaHelperBuildId) {
     const bundled = await readFile(outfile, "utf8");
     if (!bundled.includes(cuaHelperBuildId)) {
       throw new Error(
-        `[node-repl-host] ZCODE_CUA_HELPER_BUILD_ID=${cuaHelperBuildId} 未折叠进 ${outfile}：` +
-          "__ZCODE_CUA_HELPER_BUILD_ID__ define 没有生效，正式包的 Helper 安装会被 fail-closed 拒绝。",
+        `[node-repl-host] ZCODE_CUA_HELPER_BUILD_ID=${cuaHelperBuildId} not collapsed into ${outfile}:` +
+          "__ZCODE_CUA_HELPER_BUILD_ID__ define does not take effect, and the Helper installation of the official package will be rejected by fail-closed.",
       );
     }
   }
   return { outfile, cuaHelperBuildId };
 };
 
-// 这里原先写成 `file://${process.argv[1]}`。
-// Windows 上 argv[1] 是 `C:\...\build.mjs`，而 import.meta.url 是 `file:///C:/.../build.mjs`，
-// 两者永远不相等 —— 脚本被当成纯模块导入，什么都不做就退出：构建"成功"却没有产物，
-// 直到 dev 守卫报「build succeeded without required MCP runtime」才暴露。
-// browser-use 的同名脚本与仓库其他入口都用 pathToFileURL，抽包时我漏了这一处。
+// This was originally written as `file://${process.argv[1]}`.
+// On Windows argv[1] is `C:\...\build.mjs`, and import.meta.url is `file:///C:/.../build.mjs`,
+// The two are never equal - the script is imported as a pure module and exits without doing anything: the build "succeeds" but has no product,
+// It is not exposed until the dev guard reports "build succeeded without required MCP runtime".
+// The browser-use script with the same name and other entries in the warehouse use pathToFileURL. I missed this when extracting the package.
 const entryPath = process.argv[1];
 if (entryPath && import.meta.url === pathToFileURL(entryPath).href) {
   const { outfile } = await buildNodeReplHostBundle();

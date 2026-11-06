@@ -91,58 +91,6 @@ export function createCommandCenter(deps: CommandCenterDeps): TuiSubmitPrompt {
             selection: buildLoginSelection(deps.getLocale?.()),
           };
         }
-        if (command.args === "zai-coding-plan") {
-          if (!deps.login) {
-            return {
-              mode: deps.getMode?.(),
-              response: "Z.AI Coding Plan login is not available in this client.",
-            };
-          }
-
-          return {
-            loginRequired: false,
-            mode: deps.getMode?.(),
-            response: formatLoginResult(
-              await deps.login({
-                abortSignal: options.abortSignal,
-                onAuthorizeUrl: async (data) => {
-                  await emitLoginAuthorizeMessage(
-                    options,
-                    data.authorize_url,
-                    "Z.AI",
-                    await deps.getApp(),
-                  );
-                },
-              }),
-            ),
-          };
-        }
-        if (command.args === "bigmodel-coding-plan") {
-          if (!deps.loginBigmodel) {
-            return {
-              mode: deps.getMode?.(),
-              response: "BigModel Coding Plan login is not available in this client.",
-            };
-          }
-
-          return {
-            loginRequired: false,
-            mode: deps.getMode?.(),
-            response: formatProviderSetupResult(
-              await deps.loginBigmodel({
-                abortSignal: options.abortSignal,
-                onAuthorizeUrl: async (data) => {
-                  await emitLoginAuthorizeMessage(
-                    options,
-                    data.authorize_url,
-                    "BigModel",
-                    await deps.getApp(),
-                  );
-                },
-              }),
-            ),
-          };
-        }
 
         const apiKeyCommand = parseApiKeyLoginArgs(command.args);
         if (apiKeyCommand) {
@@ -173,8 +121,7 @@ export function createCommandCenter(deps: CommandCenterDeps): TuiSubmitPrompt {
 
         return {
           mode: deps.getMode?.(),
-          response:
-            "Usage: /login [zai-coding-plan|bigmodel-coding-plan|zai-coding-plan-api-key <api-key>|bigmodel-coding-plan-api-key <api-key>]",
+          response: "ZCode OAuth login is disabled. Usage: /login [zai-coding-plan-api-key <api-key>|bigmodel-coding-plan-api-key <api-key>]",
         };
       }
 
@@ -208,9 +155,9 @@ export function createCommandCenter(deps: CommandCenterDeps): TuiSubmitPrompt {
       if (command.name === "init") {
         const app = await deps.getApp();
         const prompt = command.args ? `/init ${command.args}` : "/init";
-        // TUI 已知 slash command 若没有显式分支，会落到文件末尾的
-        // resume 兜底。/init 是普通 prompt command，必须交给 app.submitPrompt
-        // 进入 bootstrap resolver，才能和 app --stdio 复用同一套展开逻辑。
+// TUI knows that the slash command will fall to the end of the file if there is no explicit branch.
+//resume the bottom line. /init is a normal prompt command and must be passed to app.submitPrompt
+// Enter bootstrap resolver to reuse the same set of expansion logic with app --stdio.
         return attachCurrentSessionMetadata(await app.submitPrompt(prompt, options), deps, app);
       }
 

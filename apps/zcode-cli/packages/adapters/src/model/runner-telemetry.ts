@@ -40,8 +40,8 @@ export function modelFailureAttributionFields(
   errorPhase?: ModelApiErrorPhase;
   exceptionKind: ModelFailureExceptionKind;
 } {
-  // model status 虽然记录了原始异常类型和阶段，但终态 ErrorPayload 曾丢失这些事实；
-  // 这里只保留可聚合的低基数类别，避免把 provider 自定义异常名带入错误载荷。
+// model status Although the original exception type and stage are recorded, the final state ErrorPayload has lost these facts;
+// Only aggregable low-cardinality categories are retained here to avoid bringing provider custom exception names into error payloads.
   return {
     ...(typeof errorPhase === "string" &&
     MODEL_API_ERROR_PHASES.has(errorPhase as ModelApiErrorPhase)

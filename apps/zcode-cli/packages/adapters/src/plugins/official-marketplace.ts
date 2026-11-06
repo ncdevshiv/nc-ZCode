@@ -71,10 +71,10 @@ function rebuildOfficialMarketplaceSync(storageRoot: string): Record<string, unk
     return name !== undefined && !cdnPluginNames.has(name);
   });
 
-  // 内置插件与 CDN 插件曾使用两个 marketplace id，UI 会把内置市场当成
-  // 无 source 的独立市场并在刷新时报 not found。两个分片必须独立持久化后再合并，
-  // 否则应用启动时的 seed 会覆盖 CDN 目录，或 CDN 刷新会覆盖内置目录。同名时以
-  // 可刷新的 CDN 市场条目为准，但只过滤合并目录，不删除应用内置缓存。
+// The built-in plug-in and the CDN plug-in have used two marketplace ids, and the UI will treat the built-in market as
+// Independent market without source and not found when refreshing. The two shards must be persisted independently and then merged.
+// Otherwise, the seed when the application starts will overwrite the CDN directory, or the CDN refresh will overwrite the built-in directory. When the same name is used
+// The refreshable CDN market entries shall prevail, but only the merged directory will be filtered and the built-in cache of the application will not be deleted.
   const merged = {
     ...(bundledManifest ?? {}),
     ...(cdnManifest ?? {}),
@@ -143,12 +143,12 @@ function writeJsonFileSync(path: string, value: unknown): void {
   const contents = `${JSON.stringify(value, null, 2)}\n`;
   mkdirSync(dirname(path), { recursive: true });
   try {
-    // 官方目录在每次启动都会重建；同内容反复写盘会增加 Windows 上
-    // marketplace 文件被杀毒/索引器占用的概率。只跳过字节完全相同的单文件写入，
-    // 读取失败或内容变化仍执行写入并保留原有失败语义。
+// The official directory will be rebuilt every time it is started; repeatedly writing the same content to the disk will increase the number of files on Windows.
+// Probability that marketplace files are occupied by antivirus/indexers. Only skip writing to a single file with exactly the same bytes,
+// If the read fails or the content changes, writing will still be performed and the original failure semantics will be retained.
     if (readFileSync(path, "utf8") === contents) return;
   } catch {
-    // 文件不存在或暂时不可读时继续写，让真实更新失败继续向调用方暴露。
+// Continue writing when the file does not exist or is temporarily unreadable, allowing the actual update failure to continue to be exposed to the caller.
   }
   writeFileSync(path, contents, "utf8");
 }

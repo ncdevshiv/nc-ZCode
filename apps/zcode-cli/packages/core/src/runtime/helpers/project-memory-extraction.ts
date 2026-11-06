@@ -34,9 +34,9 @@ export function scheduleProjectMemoryExtraction(
   input: { model: ProjectMemoryAgentContext["model"]; traceContext: TraceContext },
 ): void {
   if (runtime.shuttingDown) return;
-  // 原因：headless 只关闭自动 Extraction，必须在读取快照或访问文件前返回，避免后台副作用。
+// Reason: headless only turns off automatic Extraction and must return before reading the snapshot or accessing the file to avoid background side effects.
   if (runtime.config.memory?.extractionEnabled === false) return;
-  // Bash cd 只改变执行 cwd，project Memory 身份必须继续使用会话 workspace root。
+// Bash cd only changes the execution cwd, the project Memory identity must continue to use the session workspace root.
   const memoryRoot = resolveEnabledProjectMemoryRoot(runtime.config, runtime.workspaceRoot);
   if (!memoryRoot) return;
   if (runtime.isRemoteWorkspace()) return;
@@ -86,7 +86,7 @@ export async function drainMemoryExtractions(
 ): Promise<void> {
   const scheduler = this.memoryExtractionScheduler;
   if (!scheduler) return;
-  // benchmark 显式等待自然结束；普通 session close 仍保留原有有界取消清理。
+// benchmark explicitly waits for the natural end; ordinary session close still retains the original bounded cancellation cleanup.
   if (timeoutMs === null) {
     await scheduler.drain();
     return;

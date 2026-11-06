@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import { createModelId, createModelProviderId } from "@zcode/contracts";
 import {
   CompactTrigger,
@@ -281,8 +282,8 @@ export async function recoverInterruptedCompactTimelines(
 function isRecoverableRunningCompactTimelineStatus(
   status: CompactTimelineStatus | undefined,
 ): boolean {
-  // 自动 compact retry 会把同一个 timeline 持久化成 retrying；
-  // 进程在 retry 间隔退出时，resume 必须把它和 started 一样收敛为 interrupted/completed。
+// Automatic compact retry will persist the same timeline into retrying;
+// When the process exits during the retry interval, resume must converge it to interrupted/completed like started.
   return status === CompactTimelineStatus.Started || status === CompactTimelineStatus.Retrying;
 }
 
@@ -303,7 +304,7 @@ export async function persistCompactSummary(
 
   const created = Date.now();
   const persistedModel = resolvePersistedModel(this, options?.model);
-  // compact summary 和后续 reminder 是同一次历史替换；任一步失败都要一起回滚。
+// compact summary and subsequent reminder are the same historical replacement; if any step fails, they will be rolled back together.
   const persistedMessageIds: MessageId[] = [messageID];
   try {
     await this.persistMessage(

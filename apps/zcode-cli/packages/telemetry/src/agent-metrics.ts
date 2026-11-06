@@ -37,8 +37,8 @@ export interface AgentTelemetryMetricRecorder {
 }
 
 /**
- * Metric 只接收已归一化、低基数的标签。高基数执行 ID 和原始业务内容只属于 Trace，
- * 不能通过这个边界进入 Metric Series。
+* Metric only accepts normalized, low-cardinality labels. High-cardinality execution IDs and original business content belong only to Trace,
+* Metric Series cannot be entered through this boundary.
  */
 export class OtelAgentTelemetryMetrics implements AgentTelemetryMetricRecorder {
   private readonly abandoned: Counter;

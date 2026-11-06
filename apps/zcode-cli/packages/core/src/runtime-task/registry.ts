@@ -7,8 +7,8 @@ import type {
 } from "@zcode/contracts";
 import type { AgentOutput } from "@zcode/contracts";
 
-// local_dynamic_workflow 与 local_workflow 刻意分开：后者是 legacy `Workflow` 工具（不可取消），
-// 前者是 workflow run（经 DynamicWorkflowRunPort.cancel 可取消）。合成一个类型，取消分派就无法区分。
+// local_dynamic_workflow is intentionally separate from local_workflow: the latter is a legacy `Workflow` tool (cannot be canceled),
+// The former is workflow run (cancel via DynamicWorkflowRunPort.cancel). Composed into a type, undispatch becomes indistinguishable.
 export type RuntimeTaskType =
   | "local_agent"
   | "local_bash"
@@ -41,7 +41,7 @@ export interface RuntimeTaskMessageSink {
 }
 
 export interface RuntimeTaskSnapshot extends SubagentTaskSnapshot {
-  /** task 注册时所属 active conversation branch；用于迟到 completion fencing。 */
+/** The active conversation branch the task belongs to when registered; used for late completion fencing. */
   branchGeneration?: number;
   exitCode?: number;
   type: RuntimeTaskType;
@@ -52,13 +52,13 @@ export interface RuntimeTaskSnapshot extends SubagentTaskSnapshot {
   pendingMessages?: RuntimeTaskPendingMessage[];
   prompt?: string;
   /**
-   * workflow run 产物的序列化文本。TaskOutput 的投影只读得到 registry 条目（dwf 从不写
-   * outputFile），所以产物必须在终态更新时就存到条目上。
+* Serialized text of workflow run product. TaskOutput's projection only reads registry entries (dwf never writes
+* outputFile), so the product must be saved to the entry when the final state is updated.
    */
   resultText?: string;
   /**
-   * 是谁请求停止这个任务（"user" = GUI / 后台面板，"model" = TaskStop）。dwf 停止分支在调
-   * 端口 cancel 之前写下它；终态通知稍后由 waiter 结算时读它。重臂（resume 新生命）随结算面复位。
+* Who requested to stop this task ("user" = GUI / backend panel, "model" = TaskStop). dwf stops branching during adjustment
+* Write it before the port cancels; read it when the final notification is later resolved by the waiter. The heavy arm (resume new life) resets with the resolution surface.
    */
   stopInitiator?: "user" | "model";
   taskType?: RuntimeTaskType;

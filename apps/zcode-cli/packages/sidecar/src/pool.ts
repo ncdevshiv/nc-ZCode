@@ -1,10 +1,10 @@
-//! Pool：按 sidecar 名复用进程，空闲回收，崩溃后按需重建。
+//! Pool: reuse the process according to the sidecar name, recycle it when idle, and rebuild it on demand after a crash.
 //!
-//! 生命周期规则：
-//!   - `acquire()` 返回可用进程（不存在则 spawn）；调用方用完 `release()`；
-//!   - 崩溃（exit）即刻从池中逐出，下次 acquire 自然重建——不自动重启风暴；
-//!   - 空闲超过 IDLE_REAP_MS 的进程被回收（unref 定时器，不拖事件循环）；
-//!   - `shutdownAll()` 供进程退出前收尾。
+//! Life cycle rules:
+//! - `acquire()` returns the available process (spawn if it does not exist); the caller is finished `release()`;
+//! - Crash (exit) is immediately evicted from the pool, and the next acquire will be rebuilt naturally - the storm will not be automatically restarted;
+//! - Processes that are idle for more than IDLE_REAP_MS are recycled (unref timer, do not drag event loop);
+//! - `shutdownAll()` is used to finish the process before exiting.
 
 import { SidecarProcess } from "./process.js";
 import { resolveSidecarBin } from "./config.js";
@@ -22,8 +22,8 @@ class PooledProcess {
   touch(): void {
     clearTimeout(this.idleTimer);
     this.idleTimer = setTimeout(() => {
-      // 先从空闲表原子逐出再关进程：进行中的 acquire 不可能拿到正在回收的进程
-      // （否则关闭与写出竞争，调用方看到 write EPIPE）。
+// First atomically evict from the free list and then shut down the process: it is impossible for the ongoing acquire to get the process being recycled
+// (Otherwise closure competes with write and the caller sees write EPIPE).
       this.onReap();
       void this.process.shutdown();
     }, IDLE_REAP_MS);
@@ -99,7 +99,7 @@ export class SidecarPool {
   }
 }
 
-/// 进程级共享 pool：facade（diff.ts）与宿主退出收尾共用同一个实例。
+/// Process-level shared pool: facade (diff.ts) and host exit end share the same instance.
 let sharedPool: SidecarPool | null = null;
 
 export function sidecarPool(): SidecarPool {

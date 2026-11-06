@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import { randomUUID } from "node:crypto";
 import type {
   Logger,
@@ -49,7 +50,7 @@ interface PoolEntry {
   connecting: Promise<McpServerStatus>;
   key: string;
   refs: Set<string>;
-  /** 同一 entry 的并发存活校验共享一次探测，避免重复 ping / 重复重连。 */
+/** Concurrent survival checks of the same entry share one probe to avoid repeated pings/repeated reconnections. */
   revalidating?: Promise<void>;
   serverName: string;
 }
@@ -102,12 +103,12 @@ export function createMcpConnectionPool(options: McpConnectionPoolOptions): McpC
     entry.closeTimer.unref?.();
   };
 
-  // 设置页的 mcpPort 是进程级的 `protocol-settings` lease，connectionKey 只由
-  // serverName + leaseId + config 组成，配置没变时每次 mcp/list 都命中同一个 entry 并直接返回
-  // 首次连接那个早已 resolve 的 promise——不重连、不探测、不打日志。HTTP/SSE MCP 被停掉又不会
-  // 派发 onclose，于是设置页永远显示"已连接并可用"，点多少次刷新都不变。
-  // 这里在显式要求 revalidate 时先确认连接仍然存活，已死则在同一个 entry 上原地重连
-  // （保持 entry 身份，其他共享该连接的 lease 不会被打断成 "not leased"）。
+// The mcpPort of the settings page is a process-level `protocol-settings` lease, and the connectionKey is only
+// It is composed of serverName + leaseId + config. When the configuration does not change, mcp/list will hit the same entry every time and return directly.
+// Connect for the first time to the already resolved promise - no reconnection, no detection, no logging. HTTP/SSE MCP is stopped but will not
+// Dispatch onclose, so the settings page will always display "Connected and available", no matter how many times you click to refresh.
+// Here, when explicitly requesting revalidate, first confirm that the connection is still alive. If it dies, reconnect in place on the same entry.
+// (Keep the entry identity, other leases sharing the connection will not be broken into "not leased").
   const revalidateEntry = async (
     entry: PoolEntry,
     config: McpServerConfig,
@@ -125,8 +126,8 @@ export function createMcpConnectionPool(options: McpConnectionPoolOptions): McpC
       const state = connected
         ? (await entry.adapter.status())[entry.serverName]?.status
         : undefined;
-      // 进行中的握手（含 OAuth 待授权）和显式停用/待信任状态不打扰：
-      // 重连会作废浏览器里已打开的授权 URL 和 PKCE/state。
+// Don't bother with ongoing handshakes (including OAuth pending authorization) and explicit deactivation/pending trust status:
+// Reconnecting will invalidate the authorization URL and PKCE/state that have been opened in the browser.
       if (state === "connecting" || state === "disabled" || state === "untrusted") {
         return;
       }
@@ -150,7 +151,7 @@ export function createMcpConnectionPool(options: McpConnectionPoolOptions): McpC
         status: "started",
       });
       entry.connecting = entry.adapter.connectServer(entry.serverName, config, connectOptions);
-      // 失败由 status()/调用方 await entry.connecting 表达，这里不重复冒泡。
+// Failure is expressed by status()/caller await entry.connecting, no repeated bubbling here.
       await entry.connecting.catch(() => undefined);
     })();
     entry.revalidating = run.finally(() => {
@@ -221,8 +222,8 @@ export function createMcpConnectionPool(options: McpConnectionPoolOptions): McpC
           await revalidateEntry(entry, config, connectOptions);
         }
       } else {
-        // 过去 pool、adapter 和 stdio PID 的日志彼此没有稳定关联键，无法从一个
-        // session 追到实际 MCP 子进程。连接上下文在 entry 创建时固定，后续 lease 共用同一 ID。
+// In the past, the logs of pool, adapter and stdio PID did not have stable correlation keys with each other and could not be obtained from one
+// Session catches up to the actual MCP child process. The connection context is fixed when the entry is created, and subsequent leases share the same ID.
         const connectionContext = createConnectionContext({
           config,
           connectOptions,
@@ -286,8 +287,8 @@ export function createMcpConnectionPool(options: McpConnectionPoolOptions): McpC
         });
       }
       if (previousKey !== key) {
-        // workspace 隔离连接会被多个 session 共享，不能把首个 session 记成唯一 owner；
-        // 单独记录 lease 生命周期才能准确表达多对一关系。
+// The workspace isolation connection will be shared by multiple sessions, and the first session cannot be recorded as the only owner;
+// Recording the lease life cycle separately can accurately express the many-to-one relationship.
         logger?.info("MCP connection lease acquired", {
           ...entry.connectionContext,
           event: "mcp.pool.lease.acquired",
@@ -444,7 +445,7 @@ function connectionKey(input: {
   leaseId: string;
   serverName: string;
 }): string {
-  // 默认 session isolation；只有明确声明 workspace 的无状态 server 才允许跨 session 复用。
+//Default session isolation; only stateless servers that explicitly declare workspace are allowed to be reused across sessions.
   const scope =
     input.config.isolation === "workspace"
       ? (resolveWorkspaceKey(input.connectOptions) ?? "")

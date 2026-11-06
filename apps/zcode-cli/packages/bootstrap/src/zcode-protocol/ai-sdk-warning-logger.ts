@@ -13,8 +13,8 @@ type AiSdkWarningGlobal = typeof globalThis & {
 };
 
 export function installZCodeProtocolAiSdkWarningLogger(logger: Logger): void {
-  // AI SDK 默认 warning logger 第一次会用 console.info 写 stdout；
-  // app-server --stdio 的 stdout 是 ZCode Protocol NDJSON 帧通道，任何普通文本都会让宿主解析失败。
+// The default warning logger of AI SDK will use console.info to write stdout for the first time;
+// The stdout of app-server --stdio is the ZCode Protocol NDJSON frame channel. Any ordinary text will cause the host to fail to parse.
   (globalThis as AiSdkWarningGlobal).AI_SDK_LOG_WARNINGS = (
     options: AiSdkWarningLoggerOptions,
   ) => {
@@ -30,7 +30,7 @@ export function installZCodeProtocolAiSdkWarningLogger(logger: Logger): void {
         warnings: warnings.map(summarizeWarning),
       });
     } catch {
-      // warning 记录不能影响真实模型请求；stdout 纯净性由不调用 console.* 保证。
+// warning logging cannot affect real model requests; stdout purity is guaranteed by not calling console.*.
     }
   };
 }

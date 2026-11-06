@@ -2,10 +2,10 @@
 // Off-Peak Tool Handlers
 // ============================================================
 // 与 cron.ts 兄弟并列。关键差异（勿照抄 cron 的防御方向）：
-// - deny 边界是「闲时派发轮」（context.offPeakTurn），不是 automation 轮——
-//   cron automation 自动轮明确放行 OffPeakCreate（定时派生闲时任务）。
-// - create 走判别联合结果：额度(3103)/资格(3101)等业务失败由 host 分类后跨协议保真，
-//   此处翻译为稳定的 CoreError，模型据此向用户转述可行动信息。
+// - The deny boundary is the "idle time distribution round" (context.offPeakTurn), not the automation round——
+// cron automation automatically releases OffPeakCreate (scheduled idle task).
+// - create determines the joint results: business failures such as quota (3103)/qualification (3101) are classified by the host and then cross-protocol fidelity is maintained.
+// Translates here to a stable CoreError, whereby the model relays actionable information to the user.
 
 import {
   CoreErrorType,
@@ -30,11 +30,11 @@ const OFF_PEAK_TOOL_TIMEOUT_MS = 30_000;
 const OFF_PEAK_MODEL_BYTES = 32_000;
 
 /**
- * 闲时派发轮的 handler 级拒绝（turn denylist 之外的第二层纵深）。
- * provider denylist 只是可见性约束；异常 provider 仍可能直接提交。handler 以
- * executor 传入的本轮事实做最终拒绝。注意：刻意不检查 automationTurn（cron 轮放行）。
- * SendMessage / Workflow 复用本函数——它们会绕开本轮 modelExecution 重新启动子 Agent
- * 并落到用户套餐；拒绝时给模型可恢复的替代路径提示。
+* Handler-level rejection of idle dispatch rounds (second depth beyond turn denylist).
+* provider denylist is only a visibility constraint; exception providers may still submit directly. handler with
+* The executor does the final rejection of the incoming round facts. NOTE: automationTurn (cron wheel release) is intentionally not checked.
+* SendMessage / Workflow reuse this function - they will bypass this round of modelExecution and restart the child Agent
+* And fall into the user package; when rejected, the model will be prompted with an alternative path that can be restored.
  */
 export function assertNotOffPeakTurn(
   context: ToolExecutionContext,
@@ -77,7 +77,7 @@ function assertOffPeakPort(
   );
 }
 
-/** 业务失败翻译为模型可转述的稳定错误；分类驱动文案，禁止靠 message 猜。 */
+/** Business failures are translated into stable errors that can be reproduced by the model; classification drives copywriting, and guessing based on message is prohibited. */
 function throwOffPeakCreateFailure(
   context: ToolExecutionContext,
   outcome: Extract<OffPeakCreateOutcome, { ok: false }>,
@@ -124,7 +124,7 @@ const offPeakCreateHandler: ToolHandler = async (input, context) => {
   assertOffPeakPort(context, "OffPeakCreate");
 
   const outcome = await context.offPeakPort.create(parsed, {
-    // 本会话即闲时任务的绑定会话，派发时 resume 本会话执行（对齐 CronCreate targetTaskId）。
+// This session is the binding session of the idle task. When dispatching, resume the execution of this session (aligned with CronCreate targetTaskId).
     sessionId: context.sessionId,
   });
   if (!outcome.ok) {
@@ -187,7 +187,7 @@ export const offPeakCreateToolEntry: ToolEntry = {
     description:
       "Create a one-off idle-time task in the current workspace: it takes a queue ticket immediately and later runs unattended in THIS session (with the full conversation history) when the server grants off-peak compute, at no plan-quota cost. There is no guaranteed start time. Unlike CronCreate (recurring or clock-scheduled work), use this for deferrable work the user wants done cheaply 'when compute is idle'. The prompt must describe the final work directly and must never ask the run to create, schedule, or configure another idle-time task or automation.",
     modelInstructions: [
-      "Use this only when the user explicitly asks for idle-time/off-peak execution (闲时任务/闲时执行/低峰跑), or explicitly accepts deferring the work to the free idle-time queue.",
+      "Use this only when the user explicitly asks for idle-time/off-peak execution, or explicitly accepts deferring the work to the free idle-time queue.",
       "Choose CronCreate instead for anything time-scheduled or recurring ('every day at 9', 'in 10 minutes'). OffPeakCreate has no clock: the server decides when the task starts.",
       "The task later continues THIS conversation unattended with the full history available, so prompt may refer to context already established here; still state the expected deliverable explicitly because nobody will answer questions during the run.",
       "By default the task runs in full-automatic mode with the default allowed model at the highest reasoning level. Only set permissionMode/model/thoughtLevel when the user explicitly asks for confirmation-gated execution, a specific model, or a lower reasoning effort.",

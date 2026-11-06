@@ -17,7 +17,7 @@ const defaultOutDir = resolve(root, "dist", "zcode");
 const defaultBaseUrl = (await loadEndpointEnv()).ZCODE_DIST_BASE_URL?.trim() || "";
 const packageDirName = "zcode";
 const usage = `Usage:
-  pnpm build:zcode
+  bun run build:zcode
   node scripts/build-zcode.mjs --skip-build
   node scripts/build-zcode.mjs --version 3.3.3-dev.1
   node scripts/build-zcode.mjs --out-dir dist/zcode
@@ -145,13 +145,13 @@ async function buildOutputs(skipBuild) {
     return;
   }
 
-  run("pnpm", ["--filter", "@zcode/cli...", "build"]);
+  run("bun", ["run", "--filter", "@zcode/cli...", "build"]);
   await rm(resolve(root, "packages", "server", "dist"), {
     force: true,
     recursive: true,
   });
-  run("pnpm", ["--filter", "@zcode/server", "build"]);
-  run("pnpm", ["--filter", "@zcode/web", "build"]);
+  run("bun", ["run", "--filter", "@zcode/server", "build"]);
+  run("bun", ["run", "--filter", "@zcode/web", "build"]);
 }
 
 async function stageZCodePackage({ packageRoot, version }) {

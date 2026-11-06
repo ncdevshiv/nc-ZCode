@@ -5,29 +5,29 @@ import type {
 } from "@zcode/contracts";
 
 /**
- * 一次尝试的准入。
+* Admission on one attempt.
  *
- * runner 在每次尝试**发出前** `admitAttempt`，拿到票据后才发请求；尝试结束（成功、失败、抛出、消费者
- * 提前放弃流）即 `release`——退避 sleep 期间不持票，所以进程级 cap 约束的是 provider 真正看到的在飞
- * 请求数。票据同时是该尝试的状态事件汇：`publishModelStatus` 把该尝试的事件也投递给它（见
- * `statusPublishOptions`），治理器据此判定结果；`release` 只是兜底，幂等。
+* The runner ** `admitAttempt` before issuing each attempt, and only sends the request after getting the ticket; the attempt ends (success, failure, throw, consumer
+* Abandon the stream early) that is, `release` - no tickets are held during the back-off sleep, so the process-level cap constrains what the provider actually sees on the fly.
+*Number of requests. The ticket is also the attempt's status event sink: `publishModelStatus` also delivers the attempt's events to it (see
+* `statusPublishOptions`), the manager determines the result accordingly; `release` is just a cover-up, idempotent.
  *
- * 请求没有 `modelRequestAdmission` 时返回一个空实现：调用点不必分叉，runner 行为逐字不变。
+* Returns an empty implementation when requesting without `modelRequestAdmission`: the call site does not have to fork and the runner behavior remains unchanged verbatim.
  */
 export interface AttemptAdmission {
-  /** 准入票据；请求没有准入端口时缺席（此时 publish 不转投）。 */
+/** Admission ticket; absent when the request does not have an admission port (publish will not redirect at this time). */
   readonly ticket?: ModelRequestAdmissionTicket;
-  /** 归还槽位；幂等（finally 与「退避 sleep 之前」两处都会调）。 */
+/** Return the slot; idempotent (both finally and "before retreating to sleep" will be adjusted). */
   release(): void;
 }
 
 const NO_ADMISSION: AttemptAdmission = { release() {} };
 
 /**
- * 等待准入。先试同步快路径 `tryAcquire`；未命中才排队 `acquire`，并在两端回调 `onQueued` / `onAdmitted`
- * （runner 据此发 `model_request_queued` / `model_request_admitted`）。没有快路径的端口分不清
- * 「排了队」与「立即放行」，所以不回调。`signal` 被 abort 时 reject（以 `signal.reason`，与 `sleep` 的
- * abort 错误同一形状，由调用方按 cancelled 归类）。
+* Waiting for admission. First try the synchronization fast path `tryAcquire`; queue `acquire` only if it fails, and call back `onQueued` / `onAdmitted` at both ends.
+* (runner sends `model_request_queued` / `model_request_admitted` accordingly). Ports without fast paths cannot be distinguished clearly
+* "Queue" and "Released immediately", so there is no callback. Reject when `signal` is abort (with `signal.reason`, same as `sleep`
+* abort errors have the same shape and are classified by canceled by the caller).
  */
 export async function admitAttempt(input: {
   admission?: ModelRequestAdmission;

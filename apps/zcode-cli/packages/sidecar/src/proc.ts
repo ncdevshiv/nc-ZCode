@@ -1,12 +1,12 @@
-//! proc facade：进程树枚举/强杀（替代 TS `taskkill /T /F` 与抓取式进程列表）。
+//! proc facade: process tree enumeration/forced killing (replaces TS `taskkill /T /F` and capture process list).
 //!
-//! 语义对齐 TS `adapters/src/mcp/process-tree.ts`：根 PID 已死/不存在时
-//! `kill_tree` 是无操作成功（空结果不报错）——这是 sidecar 契约（见
-//! native/crates/zcode-proc/README）。flag 关 = TS 原实现；flag 开 = sidecar；
-//! sidecar 不可用 → 告警一次并退回 TS 实现（不改变 best-effort 回收语义）。
+//! Semantic alignment TS `adapters/src/mcp/process-tree.ts`: when the root PID is dead/does not exist
+//! `kill_tree` is a no-operation success (no error is reported for an empty result) - this is the sidecar contract (see
+//! native/crates/zcode-proc/README). flag off = TS original implementation; flag on = sidecar;
+//! Sidecar is unavailable → Warn once and fall back to TS implementation (does not change best-effort recycling semantics).
 //!
-//! 注意：本 facade 只覆盖**已有 PID 的树**；`spawn_in_job` 需要 Windows Job
-//! 对象生命周期管理，TS 侧 `windows-job-object.ts` 仍拥有该面（README 差异表）。
+//! Note: This facade only covers **trees with existing PIDs**; `spawn_in_job` requires Windows Job
+//! Object life cycle management, TS side `windows-job-object.ts` still owns this side (README difference table).
 
 import { sidecarEnabled } from "./config.js";
 import { sidecarPool } from "./pool.js";
@@ -106,7 +106,7 @@ export async function nativeListTree(pid: number): Promise<ProcessInfo[]> {
   }
 }
 
-/** true = 已由 sidecar 完成杀树；false = 调用方应走 TS 实现。 */
+/** true = tree killing has been completed by sidecar; false = the caller should use TS implementation. */
 export async function tryNativeTerminateProcessTree(pid: number): Promise<boolean> {
   if (!sidecarEnabled("proc")) return false;
   try {

@@ -151,8 +151,8 @@ export const GIT_READONLY_SUBCOMMAND_POLICY_ENTRIES_CORE = [
   [
     "git log",
     {
-      // `git log -8` / `git log -1` 是 Git 历史查询的只读 max-count 缩写；
-      // 需要由 policy 明确声明，避免 Plan mode 错拦纯历史查询。
+// `git log -8` / `git log -1` is the read-only max-count abbreviation of Git history query;
+// It needs to be explicitly declared by policy to avoid Plan mode mistakenly blocking pure historical queries.
       allowCompactNumericCountFlag: true,
       safeFlags: GIT_LOG_SAFE_FLAGS,
       additionalCommandIsDangerousCallback: gitRevisionFormatCommandIsDangerous,

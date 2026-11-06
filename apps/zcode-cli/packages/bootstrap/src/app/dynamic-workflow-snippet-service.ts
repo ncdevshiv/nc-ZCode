@@ -1,18 +1,18 @@
 // ============================================================
-// Dynamic Workflow Snippet Service（DynamicWorkflowSnippetPort 的生产实现）
+// Dynamic Workflow Snippet Service (production implementation of DynamicWorkflowSnippetPort)
 // ============================================================
-// EvalWorkflowSnippet 的执行侧：对 scratch facade
-// 编译一次 → 同一条 lowering / 沙箱 / world-read 执行面 → 内存 journal → 同步结算。
+// Execution side of EvalWorkflowSnippet: to scratch facade
+// Compile once → same lowering / sandbox / world-read execution surface → memory journal → synchronous settlement.
 //
-// 三条不变式：
-//   1. **同一执行面**。编译走 createWorkflowProgram（scratch facade 以同一个
-//      FACADE_FILE_NAME 注入——facade 身份按声明文件名判定，换名字会让站点收集静默变空）；
-//      world read 走生产 executeWorldRead（真文件系统 / 真 git、生产 caps）。snippet 的
-//      存在理由是保真，任何「差不多」的第二实现都是它要消灭的东西。
-//   2. **完全瞬态**。InMemoryJournalStore、随机 runId、不落 dwf_* 行、不进后台任务追踪器。
-//      进程退出即消失是契约而非缺陷。
-//   3. **asks 在编译期被排除**。scratch facade 没有 agent()，所以 driver 的 ask 族方法
-//      不可达；它们抛 DriverError 只是纵深防御——运行期到达即接线 bug，大声失败。
+//Three invariants:
+// 1. **Same execution surface**. Compile createWorkflowProgram (scratch facade with the same
+// FACADE_FILE_NAME injection - the identity of the facade is determined by the declaration file name, changing the name will make the site collection silently empty);
+// world read goes to production executeWorldRead (true file system / true git, production caps). snippet's
+// The reason for existence is to maintain authenticity, and any "almost" second implementation is what it wants to eliminate.
+// 2. **Completely transient**. InMemoryJournalStore, random runId, no dwf_* lines, no background task tracker.
+// Disappearing when the process exits is a contract, not a bug.
+// 3. **asks are excluded at compile time**. The scratch facade does not have agent(), so the driver’s ask family method
+// Unreachable; they throw DriverError just for defense in depth - runtime arrival is a wiring bug and fails loudly.
 
 import { randomUUID } from "node:crypto";
 import type {
@@ -46,31 +46,31 @@ import { dynamicWorkflowChildSpawn } from "./dynamic-workflow-run-launch.js";
 import { resolveWorkflowConcurrencyCeiling } from "./workflow-concurrency-ceiling.js";
 import { executeWorldRead, type WorldReadDeps } from "./workflow-world-read.js";
 
-/** logs 的界（契约常量在 @zcode/contracts 的 eval-workflow-snippet.ts；这里避免反向依赖工具层）。 */
+/** The bounds of logs (contract constants are in eval-workflow-snippet.ts of @zcode/contracts; here to avoid reverse dependence on the tool layer). */
 const MAX_LOGS = 100;
 const MAX_LOG_CHARS = 2_048;
-/** 顶层返回值序列化上限。harness 不量 artifact 体积（RunSettlement 原样交出），这道界在这里。 */
+/** Top-level return value serialization upper limit. The harness does not measure the volume of the artifact (the RunSettlement is handed over as is). This is where the boundary lies. */
 const MAX_ARTIFACT_BYTES = 256 * 1024;
 
 const validateFn: ValidateFn = (schema, value) => validate(schema as JsonSchema, value);
 
 interface DynamicWorkflowSnippetServiceDeps {
-  /** files.glob / files.read / files.grep 落到的文件系统端口。 */
+/** The file system port where files.glob / files.read / files.grep falls. */
   fileSystemPort: FileSystemPort;
-  /** git.* world-read 落到的子进程执行端口。 */
+/** git.* The child process execution port where world-read falls. */
   executionPort: ExecutionPort;
   logger?: Logger;
-  /** 注入并发度探测，供测试固定（地板必须是 1，双核机器上 parallelism-2 == 0）。 */
+/** Inject concurrency probe, fixed for testing (floor must be 1, parallelism-2 == 0 on dual-core machines). */
   availableParallelism?: () => number;
 }
 
-/** 造 snippet 服务。返回 {@link DynamicWorkflowSnippetPort} 的实现。 */
+/** Create snippet service. Returns an implementation of {@link DynamicWorkflowSnippetPort}. */
 export function createDynamicWorkflowSnippetService(
   deps: DynamicWorkflowSnippetServiceDeps,
 ): DynamicWorkflowSnippetPort {
   const caps = (): Caps => {
     return {
-      // 并发上界与 run service / 治理器同一份实现。snippet 没有 ask，不接治理器。
+// The concurrency upper bound is the same as the run service / manager implementation. Snippet does not have ask and does not connect to the manager.
       maxConcurrency: resolveWorkflowConcurrencyCeiling(deps.availableParallelism),
     };
   };
@@ -80,8 +80,8 @@ export function createDynamicWorkflowSnippetService(
       request: DynamicWorkflowSnippetEvalRequest,
       options?: DynamicWorkflowSnippetEvalOptions,
     ): Promise<DynamicWorkflowSnippetEvalResult> {
-      // 编译一次：一个 ts.Program 同时喂诊断、站点表与 lowering（run service 不变式 2 的
-      // snippet 版）。诊断带 TS1184 / index-access 改写——自修回路的可读性与 CreateWorkflow 同源。
+// Compile once: a ts.Program simultaneously feeds diagnostics, site tables and lowering (run service invariant 2 of
+// snippet version). Diagnostics with TS1184/index-access rewrite - readability of self-learning loops from the same source as CreateWorkflow.
       const workflow = createWorkflowProgram(request.code, { facadeDts: SNIPPET_FACADE_DTS });
       const diagnostics = collectDiagnostics(workflow.program);
       if (diagnostics.length > 0) {
@@ -89,15 +89,15 @@ export function createDynamicWorkflowSnippetService(
       }
 
       const table = collectSites(workflow);
-      // world.run：snippet 是这些调用的工作台（提交前先对真命令跑通 gate 逻辑）。
-      // 非字面量 cmd 与生产同一诊断（授权面在编译期闭合）；命令集交给 driver 复验。
+// world.run: snippet is the workbench for these calls (run through the gate logic for true commands before submitting).
+// Non-literal cmd has the same diagnosis as production (authorization plane is closed at compile time); the command set is handed over to the driver for review.
       const worldRun = collectWorldRunCommands(workflow, table);
       if (worldRun.diagnostics.length > 0) {
         return { kind: "diagnostics", diagnostics: worldRun.diagnostics };
       }
       const lowered = lowerWorkflow(workflow, table);
-      // scratch facade 没有 agent()，站点表里不可能有 ask 站点；空 schema 记录让
-      // buildAskSpecs 交出空 askSpecs（引擎对缺席 spec 硬失败的保护对 snippet 自然为真）。
+// There is no agent() in the scratch facade, and there cannot be an ask site in the site table; an empty schema record will
+// buildAskSpecs Hands over empty askSpecs (the engine's protection against hard failures of absent specs is naturally true for snippets).
       const askSpecs = buildAskSpecs(table, {});
 
       const logs: string[] = [];
@@ -133,7 +133,7 @@ export function createDynamicWorkflowSnippetService(
         cwd: request.cwd,
         lowered: lowered.code,
         makeDriver: () => createSnippetDriver(worldReadDeps, captureLog),
-        // 与 run-launch 同款：入口文件回落到 OS 临时目录时留一条 warn。
+// Same as run-launch: leave a warn when the entry file falls back to the OS temporary directory.
         onWarning: (warning) => {
           deps.logger?.warn?.("Dynamic workflow entry file fell back to the OS temp dir", {
             event: "dynamic_workflow.entry_file.fallback",
@@ -152,7 +152,7 @@ export function createDynamicWorkflowSnippetService(
         event: "dynamic_workflow.snippet.settled",
         module: "bootstrap.app",
         runId,
-        // 日志上下文的 `status` 键是通用任务词汇，run 的三终态另起一键。
+// The `status` key of the log context is a common task vocabulary, and the three final states of run start with another key.
         runStatus: settlement.status,
         traceId: request.trace.traceId,
       });
@@ -190,9 +190,9 @@ export function createDynamicWorkflowSnippetService(
         };
       }
 
-      // stopped：工具调用被取消（abort 信号）或沙箱故障。对调用方归一成结构化失败——snippet
-      // 没有 resume 语义，「被停下的实验」与「失败的实验」的下一步动作相同（改了再跑一次）。
-      // 带失败的停下（沙箱崩溃 / 超时）透出它的 code，否则给 Cancelled。
+// stopped: The tool call was canceled (abort signal) or the sandbox failed. Normalizing callers into structured failures - snippet
+// There is no resume semantics. The next action of "stopped experiment" and "failed experiment" are the same (change it and run it again).
+// Stop with failure (sandbox crash/timeout) to reveal its code, otherwise give Canceled.
       return {
         kind: "failed",
         error:
@@ -206,7 +206,7 @@ export function createDynamicWorkflowSnippetService(
   };
 }
 
-/** 返回值序列化超限时给出字节数，否则 undefined。值已过 NDJSON 边界，必然 JSON-safe。 */
+/** The number of bytes is given when the serialization of the return value exceeds the limit, otherwise it is undefined. The value has passed the NDJSON boundary and must be JSON-safe. */
 function artifactOversize(artifact: unknown): number | undefined {
   if (artifact === undefined) return undefined;
   const bytes = Buffer.byteLength(JSON.stringify(artifact), "utf8");
@@ -214,8 +214,8 @@ function artifactOversize(artifact: unknown): number | undefined {
 }
 
 /**
- * snippet 的无会话 driver：world read 走生产执行面，journal 是内存实现，ask 族不可达
- * （scratch facade 无 agent()）——到达即接线 bug，抛结构化 DriverError 大声失败。
+* Snippet's sessionless driver: world read takes the production execution side, journal is implemented in memory, and the ask family is not reachable.
+* (scratch facade without agent()) - Wiring bug on arrival, failing loudly by throwing structured DriverError.
  */
 function createSnippetDriver(
   worldReadDeps: WorldReadDeps,
@@ -236,7 +236,7 @@ function createSnippetDriver(
       throw askUnreachable("respondToSubmit");
     },
     cancelAsk: () => {
-      // 取消收尾路径上的幂等清扫（引擎对在飞 ask 广播取消）；snippet 没有在飞 ask，无事可做。
+// Cancel the idempotent sweep on the ending path (the engine cancels the in-flight ask broadcast); the snippet has no in-flight ask and has nothing to do.
     },
     executeWorldRead: (op, args) => executeWorldRead(worldReadDeps, op, args),
     journal: new InMemoryJournalStore(),

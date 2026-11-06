@@ -25,10 +25,10 @@ export function defaultDbPath(): string {
 
 export async function loadLogs(options: ObservationOptions): Promise<SourceLoadResult<LogRecord>> {
   const logDir = resolve(options.logDir ?? defaultLogDir());
-  const jsonl = await readJsonlFiles(logDir, "结构化日志");
+  const jsonl = await readJsonlFiles(logDir, "Structured log");
   return {
     kind: "log",
-    label: "结构化日志",
+    label: "Structured log",
     path: logDir,
     records: jsonl.records.map(toLogRecord).filter((record) => record !== null),
     warning: jsonl.warning,
@@ -41,17 +41,17 @@ export async function loadEventLog(
   if (!options.eventPath) {
     return {
       kind: "eventlog",
-      label: "Session 事件 JSONL",
+      label: "Session event JSONL",
       records: [],
-      warning: "未配置 Session 事件 JSONL 路径。",
+      warning: "Session event JSONL path is not configured.",
     };
   }
 
   const eventPath = resolve(options.eventPath);
-  const jsonl = await readJsonlFiles(eventPath, "Session 事件 JSONL");
+  const jsonl = await readJsonlFiles(eventPath, "Session event JSONL");
   return {
     kind: "eventlog",
-    label: "Session 事件 JSONL",
+    label: "Session event JSONL",
     path: eventPath,
     records: jsonl.records.map(toEventRecord).filter((record) => record !== null),
     warning: jsonl.warning,
@@ -63,10 +63,10 @@ export function loadSqlite(options: ObservationOptions): SourceLoadResult<DbObse
   if (!existsSync(dbPath)) {
     return {
       kind: "sqlite",
-      label: "SQLite Session 数据库",
+      label: "SQLite session database",
       path: dbPath,
       records: [],
-      warning: "未找到 SQLite Session 数据库。",
+      warning: "SQLite Session database not found.",
     };
   }
 
@@ -80,14 +80,14 @@ export function loadSqlite(options: ObservationOptions): SourceLoadResult<DbObse
     };
     return {
       kind: "sqlite",
-      label: "SQLite Session 数据库",
+      label: "SQLite session database",
       path: dbPath,
       records: [observation],
     };
   } catch (error) {
     return {
       kind: "sqlite",
-      label: "SQLite Session 数据库",
+      label: "SQLite session database",
       path: dbPath,
       records: [],
       warning: error instanceof Error ? error.message : String(error),
@@ -104,7 +104,7 @@ interface JsonlReadResult {
 
 async function readJsonlFiles(inputPath: string, label: string): Promise<JsonlReadResult> {
   if (!existsSync(inputPath)) {
-    return { records: [], warning: `${label} 路径不存在。` };
+    return { records: [], warning: `${label} path does not exist.` };
   }
 
   const inputStat = await stat(inputPath);
@@ -129,7 +129,7 @@ async function readJsonlFiles(inputPath: string, label: string): Promise<JsonlRe
             records.push({ value: parsed, sourcePath: file, line: index + 1 });
           }
         } catch {
-          warnings.push(`${basename(file)}:${index + 1} 不是合法 JSON。`);
+          warnings.push(`${basename(file)}:${index + 1} is not valid JSON.`);
         }
       }
     } catch (error) {

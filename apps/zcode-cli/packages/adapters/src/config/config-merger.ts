@@ -33,8 +33,8 @@ export function mergeConfigs(...configs: PrioritizedConfig[]): RuntimeConfigPatc
     const config =
       scope === ConfigScope.Project && inputConfig.plugins
         ? (() => {
-            // Marketplace 是 Host User inventory 的目录配置，不属于 Workspace 项目配置。
-            // 保留 schema 兼容旧文件，但不能让项目层字段进入 merged RuntimeConfig/catalog。
+// Marketplace is the directory configuration of the Host User inventory and does not belong to the Workspace project configuration.
+// Keep the schema compatible with old files, but do not allow project-level fields to enter merged RuntimeConfig/catalog.
             const projectPlugins = { ...inputConfig.plugins };
             delete projectPlugins.extraKnownMarketplaces;
             return { ...inputConfig, plugins: projectPlugins };
@@ -74,14 +74,14 @@ export function mergeConfigs(...configs: PrioritizedConfig[]): RuntimeConfigPatc
       };
     }
     if (config.plugins) {
-      // Workspace Plugin 配置和 User Plugin 配置共用同一个 RuntimeConfig，不能让后一个
-      // `plugins` 对象整体覆盖前一个来源；否则 Workspace 只声明一个插件时会丢掉 User
-      // 的其它启用项和 options。enabledPlugins 按 pluginId、options 按 pluginId/option key
-      // 合并，dirs 保留两层候选根目录，最终 resolver 再做去重和路径校验。
+// Workspace Plugin configuration and User Plugin configuration share the same RuntimeConfig, and the latter cannot be
+// The `plugins` object overwrites the previous source as a whole; otherwise the User will be lost when Workspace declares only one plugin.
+// Other enablers and options. enabledPlugins by pluginId, options by pluginId/option key
+// Merge, dirs retains two levels of candidate root directories, and the final resolver performs deduplication and path verification.
       result.plugins = {
-        // Object.assign 已先把 result.plugins 指向当前高优先级层。若这里只展开
-        // result.plugins，Workspace 仅写 options 时会把 User 层 dirs 整体丢掉，导致下一次
-        // configure 连插件本身都无法发现。必须显式从 previousPlugins 开始构造。
+// Object.assign has first pointed result.plugins to the current high-priority layer. If only expand here
+// result.plugins, when Workspace only writes options, the entire User layer dirs will be lost, causing the next
+// configure can't even discover the plug-in itself. Must be explicitly constructed starting from previousPlugins.
         ...previousPlugins,
         ...config.plugins,
         ...(config.plugins.dirs
@@ -175,9 +175,9 @@ function mergeHooksConfig(
     ...current?.events,
   };
 
-  // project hooks 不能整体覆盖 user hooks，空的 project `enabled:false` 也不能
-  // 关闭 user hooks。每个配置文件只控制自己的事件，因此仅在该来源启用时追加事件，
-  // effective enabled 由任一已启用来源决定。
+// project hooks cannot cover user hooks as a whole, nor can an empty project `enabled:false`
+// Turn off user hooks. Each profile only controls its own events, so events are only appended if that source is enabled,
+// effective enabled is determined by any enabled source.
   if (next.enabled !== false) {
     for (const [eventName, matchers] of Object.entries(next.events ?? {}) as Array<
       [HookEventName, HookMatcherConfig[]]

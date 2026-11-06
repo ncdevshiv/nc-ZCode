@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import { beginLocalTurnPreparation } from "@zcode/contracts";
 import {
   CompactTrigger,
@@ -151,8 +152,8 @@ async function runModelBackedTurnStepImpl(
   const assistantPersistenceAnchor = captureAssistantPersistenceAnchor(this);
   const querySource = querySourceForTask(this.config.taskType);
   const executionModelSelection = { providerId: model.providerId, modelId: model.modelId };
-  // 请求预算由 Agent 执行链显式决定。普通 Turn 选择打满模型声明的上限，
-  // ModelFactory 不再把该请求参数伪装成长期 ModelSelection/Active Model 状态。
+// The request budget is explicitly determined by the Agent execution chain. Ordinary Turn chooses to fill the upper limit declared by the model.
+// ModelFactory no longer disguises this request parameter as long-term ModelSelection/Active Model state.
   const executionMaxOutputTokens = model.optionSpecs.maxOutputTokens.max;
   const executionContextWindow = model.properties.contextWindow;
   const modelTraceContext = createChildTraceContext(state.turnTraceContext, {
@@ -193,7 +194,7 @@ async function runModelBackedTurnStepImpl(
   const modelRequestEvent = this.createEvent(
     SessionEventType.ModelRequest,
     {
-      // 自动续写提示只属于本次请求，不应写入持久化的 ModelRequest 轨迹。
+// The automatic renewal prompt only belongs to this request and should not be written to the persistent ModelRequest track.
       messages: options.recordedMessages,
       providerId: String(model.providerId),
       modelId: String(model.modelId),
@@ -293,8 +294,8 @@ async function runModelBackedTurnStepImpl(
       turnNumber: this.turnNumber,
     });
     if (!state.turnAbortSignal.aborted && admissionRetryDelayMs !== undefined) {
-      // 第二轮及以后 Start Plan 可能在首 token 前被 admission 并发限制拒绝；
-      // 这时没有文本或 tool anchor，旧 stream recovery 不会启动，必须关闭空 assistant 后短重试。
+// In the second round and beyond, the Start Plan may be rejected by the admission concurrency limit before the first token;
+// There is no text or tool anchor at this time, the old stream recovery will not start, you must close the empty assistant and try again.
       const recoveryAttempt = beginStartPlanBusyAdmissionRetryAttempt(state);
       this.logger?.warn("Main turn retrying after Start Plan admission busy", {
         ...traceContextToLogContext(modelTraceContext),
@@ -358,8 +359,8 @@ async function runModelBackedTurnStepImpl(
       !state.turnAbortSignal.aborted &&
       isStartPlanBusyStreamRecoveryFailure(finalError)
     ) {
-      // Start Plan 运行中断流会先走 core stream recovery；恢复次数耗尽后，
-      // 继续抛原 provider 文案会和首轮繁忙失败无法区分，UI 也就不能展示“自动重试达到最大次数”。
+//Start Plan will run the interrupted stream first and go through core stream recovery; after the recovery times are exhausted,
+// Continuing to throw away the original provider copy will be indistinguishable from the first round of busy failure, and the UI will not be able to display "automatic retries reached the maximum number of times".
       finalError = createStartPlanBusyAutoRetryExhaustedError(finalError);
     }
     await streamingToolCoordinator.abandon(
@@ -377,8 +378,8 @@ async function runModelBackedTurnStepImpl(
       });
       const reasoning = latestStreamSnapshot.reasoning.filter(hasAssistantReasoningContent);
       if (latestStreamSnapshot.text.length > 0 || reasoning.length > 0) {
-        // 取消时 durable snapshot 已经持久化，但成功路径的 live history commit
-        // 和 historyRoundCount 不会执行，导致当前进程与 cold resume 的 provider history 不一致。
+// The durable snapshot has been persisted when canceling, but the live history commit of the successful path
+// and historyRoundCount will not be executed, causing the current process to be inconsistent with the provider history of cold resume.
         commitTurnRequestEntries(this, state.turnRequestState, [
           createRuntimeAssistantEntry(
             latestStreamSnapshot.text,
@@ -413,12 +414,12 @@ async function runModelBackedTurnStepImpl(
           data: {
             message: finalError instanceof Error ? finalError.message : String(finalError),
             ...(persistedErrorCode ? { code: persistedErrorCode } : {}),
-            // live TurnError 有结构化归因，但 transcript 过去未持久化，冷恢复后会丢成 runtime。
+// live TurnError has structured attribution, but transcript was not persisted in the past and will be lost to runtime after cold recovery.
             ...(persistedErrorProjection.attribution
               ? { attribution: persistedErrorProjection.attribution }
               : {}),
-            // 用户 Stop 的模型中止过去只持久化通用 error name/message，
-            // cold hydration 无法区分正常取消和真实 provider 失败，最终错误地生成 TurnError。
+// The model of user Stop only persists the general error name/message in the past.
+// cold hydration cannot distinguish between normal cancellation and real provider failure, ultimately incorrectly generating a TurnError.
             ...(persistedTurnResult ? { turnResult: persistedTurnResult } : {}),
           },
         },
@@ -453,8 +454,8 @@ async function runModelBackedTurnStepImpl(
   const providerToolCallCount = toolCalls.length;
   const localTerminalResponse = state.automationCreateLimitReached === true;
   if (state.automationCreateLimitReached && toolCalls.length > 0) {
-    // 即使 provider 在 tools=[] 后仍幻觉出工具调用，也不能重新进入执行器；
-    // 上限命中后的当前用户 turn 已经是纯文本终止边界。
+// Even if the provider still hallucinates tool calls after tools=[], it cannot re-enter the executor;
+//The current user turn after the upper limit is hit is already the plain text termination boundary.
     this.logger?.warn("Ignored tool calls after automation create limit was reached", {
       event: "automation.create_limit.tool_calls_ignored",
       module: "core.runtime",
@@ -469,8 +470,8 @@ async function runModelBackedTurnStepImpl(
   const usage = result.usage ?? {};
   const responseLength = state.modelResponse.length;
   const rawFinishReason = readRawFinishReason(result.providerMetadata);
-  // Automation create-limit 已经接管当前响应的终止语义；若在清空
-  // provider tool calls 后仍重新解释 length/context reason，纯文本终态会再续跑 3 次。
+// Automation create-limit has taken over the termination semantics of the current response; if cleared
+//The length/context reason will still be reinterpreted after provider tool calls, and the plain text final state will continue to run 3 times.
   const outputTokenContinuation = localTerminalResponse
     ? "none"
     : classifyOutputTokenContinuation({
@@ -503,8 +504,8 @@ async function runModelBackedTurnStepImpl(
     toolCalls.length === 0 &&
     isContextExceededFinishReason(result.finishReason, rawFinishReason)
   ) {
-    // 超窗 provider 可能返回空内容和 zero usage；必须先识别 overflow，
-    // 否则会被 suspicious empty 包成普通 ModelError，后续 reactive compact 无法触发。
+// Overflow provider may return empty content and zero usage; overflow must be identified first,
+// Otherwise, it will be wrapped into a normal ModelError by suspicious empty, and subsequent reactive compact cannot be triggered.
     const contextError = createModelContextExceededFinishError({
       finishReason: result.finishReason,
       rawFinishReason,
@@ -545,8 +546,8 @@ async function runModelBackedTurnStepImpl(
       rawFinishReason,
     });
   }
-  // AI SDK 可能把非标准 output-limit 归一化为 other；Runtime 已确认恢复语义后，
-  // live 事件与持久化必须统一使用 length，同时由上方 diagnostics 保留 provider 原始事实。
+// AI SDK may normalize non-standard output-limit to other; after Runtime has confirmed the recovery semantics,
+// Live events and persistence must use length uniformly, and at the same time, the original facts of the provider are retained by the diagnostics above.
   if (outputTokenContinuation !== "none") result.finishReason = "length";
   for (const reasoning of result.reasoning ?? []) {
     if (!hasAssistantReasoningContent(reasoning)) continue;
@@ -585,8 +586,8 @@ async function runModelBackedTurnStepImpl(
 
   const cacheHit =
     querySource === "main_turn" ? recordMainTurnCacheHitUsage(this, result.usage) : undefined;
-  // subagent 的文件 checkpoint 已经持久化，但旧 gate 只允许 main_turn 把
-  // 汇总写入 ModelComplete，导致 child 详情无法从权威事件恢复摘要和撤销入口。
+// The file checkpoint of subagent has been persisted, but the old gate only allows main_turn to
+// Summary is written to ModelComplete, resulting in child details unable to restore summary and undo entries from authoritative events.
   const supportsTurnFileChanges = querySource === "main_turn" || querySource === "subagent";
   const fileChanges =
     supportsTurnFileChanges && toolCalls.length === 0
@@ -596,9 +597,9 @@ async function runModelBackedTurnStepImpl(
     SessionEventType.ModelComplete,
     {
       content: state.modelResponse,
-      // 桌面 continuous 实时事件只携带当前 model_complete payload。
-      // 如果主轮次只发 usage 不发 contextWindow，旧 task stream 无法生成 usage_update，
-      // 长程任务中输入栏会拿不到 context meter 的 size 而隐藏。
+// Desktop continuous real-time events only carry the current model_complete payload.
+// If the main round only sends usage but not contextWindow, the old task stream cannot generate usage_update.
+// In long-term tasks, the input field will not be able to obtain the size of the context meter and will be hidden.
       ...(querySource === "main_turn" && executionContextWindow !== undefined
         ? { contextWindow: executionContextWindow }
         : {}),
@@ -645,8 +646,8 @@ async function runModelBackedTurnStepImpl(
   const executableToolCalls = toolCalls.filter((toolCall) => !toolCall.providerExecuted);
   const streamedToolResults = await streamingToolCoordinator.drain(executableToolCalls);
   if (outputTokenContinuation !== "none") {
-    // 首次命中 output-limit 时，当前 request 可能带有一次性的 project-memory attachment；
-    // query-local 状态必须从实际请求数组推进，不能退回请求前的数组。
+// When output-limit is hit for the first time, the current request may have a one-time project-memory attachment;
+// The query-local state must be advanced from the actual request array and cannot be returned to the array before the request.
     state.turnRequestState.entries = options.requestEntries;
     const assistantCommitted = await persistCompletedAssistantStep(this, state, {
       assistantPersistenceAnchor,
@@ -687,8 +688,8 @@ async function runModelBackedTurnStepImpl(
         data: {
           ...(exhaustedErrorProjection.code ? { code: exhaustedErrorProjection.code } : {}),
           message: exhaustedErrorProjection.message,
-          // 既有 cold hydration 用 retryable 恢复 UI recoverable；这里复用该字段，
-          // 不为单一错误扩展 transcript/hydration schema。
+// Existing cold hydration uses retryable to restore UI recoverable; this field is reused here.
+// Do not expand transcript/hydration schema for single errors.
           retryable: exhaustedError.recoverable,
           ...(exhaustedErrorProjection.attribution
             ? { attribution: exhaustedErrorProjection.attribution }
@@ -700,8 +701,8 @@ async function runModelBackedTurnStepImpl(
       modelTraceContext,
     });
     if (state.activeTurn) state.activeTurn.steerable = false;
-    // 上游 query loop 会把 max_output_tokens API-error assistant 交给外层；这里复用
-    // 既有 ModelError -> TurnError 收口表达同一实时错误，同时只结束当前 Turn command。
+// The upstream query loop will hand over the max_output_tokens API-error assistant to the outer layer; reuse here
+// The existing ModelError -> TurnError closure expresses the same real-time error and only ends the current Turn command.
     throw exhaustedError;
   }
   completeOutputTokenRecovery(state.turnRequestState);
@@ -716,8 +717,8 @@ async function runModelBackedTurnStepImpl(
   }
 
   state.toolCallCount += executableToolCalls.length;
-  // 合并修复：工具调用 assistant 必须同时进入 canonical history 与本轮 request history。
-  // 只写 canonical history 会让紧随其后的工具结果失去对应 assistant tool-call。
+// Merge fix: Tool calling assistant must enter canonical history and current round request history at the same time.
+// Only writing canonical history will cause the tool results that follow to lose the corresponding assistant tool-call.
   if (commitAssistantToTurnRequest(this, state, result, executableToolCalls)) {
     recordModelHistoryRound(state);
   }
@@ -734,7 +735,7 @@ async function runModelBackedTurnStepImpl(
 
 function buildAutomationCreateLimitFallback(input: string): string {
   if (/\p{Script=Han}/u.test(input)) {
-    return "定时任务已达到 20 个上限，本次未创建。请前往“自动化”手动删除一个已有任务后重试。";
+    return "The number of scheduled tasks has reached the upper limit of 20 and has not been created this time. Please go to \"Automation\" to manually delete an existing task and try again.";
   }
   return "The limit of 20 scheduled tasks has been reached, so no task was created. Manually delete an existing task on the Automations page, then try again.";
 }

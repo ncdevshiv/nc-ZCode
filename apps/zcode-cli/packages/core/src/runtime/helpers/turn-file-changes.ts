@@ -74,7 +74,7 @@ async function diffLineStat(
   afterContent: string,
   filePath: string,
 ): Promise<{ additions: number; deletions: number }> {
-  // flag 关 = jsdiff（facade 内部）；flag 开 = Rust zcode-diff sidecar。
+// flag off = jsdiff (internal to facade); flag on = Rust zcode-diff sidecar.
   const patch = await nativeStructuredPatch(
     filePath,
     filePath,

@@ -205,17 +205,17 @@ export function formatGoalCompletionVerificationPrompt(
     "This is a verification request only. Do not continue implementation work, do not write files, and do not call tools.",
     "Return only a JSON object with this exact shape:",
     '{"passed": boolean, "reason": string, "nextAction": string}',
-    // nextAction 会作为下一轮迭代标题展示；不限定语言时中文 goal 容易被 verifier 写成英文。
+// nextAction will be displayed as the title of the next round of iteration; when the language is not limited, the Chinese goal can easily be written in English by verifier.
     "Write reason and nextAction in the primary natural language of the objective. Keep JSON property names exactly in English.",
     "If the objective mixes languages, use the language that carries the main task request. Preserve code, commands, file paths, API names, model names, and other technical identifiers verbatim.",
     "Always include a reason field, quoting specific text from the conversation context whenever possible.",
     "First classify the objective before applying the artifact checklist.",
-    // 问候、致谢等非任务目标没有文件/命令/测试交付物；先分类可避免 verifier 把“没有交付物”误判成未完成并触发无限续跑。
+// Non-task goals such as greetings and acknowledgments do not have files/commands/test deliverables; classifying them first can prevent verifier from misjudging "no deliverables" as incomplete and triggering infinite continuation.
     "If the objective is only a conversational non-task, such as a greeting, thanks, acknowledgement, small talk, or an emoji, it has no artifact checklist. Do not fail it just because there are no files, commands, tests, gates, or deliverables.",
     "The objective text itself is authoritative for this classification. Do not reinterpret a standalone conversational non-task as a coding request merely because the assistant is a coding agent.",
     'For a conversational non-task, return {"passed": true, "reason": "<quote the greeting or reply evidence>", "nextAction": ""} once the assistant has acknowledged or reasonably answered it. Do not ask the user for a concrete task as nextAction.',
     "If the assistant replied to a conversational non-task by greeting back, introducing itself, or asking what concrete task the user wants next, that is enough evidence that the non-task objective was handled. Pass it instead of continuing.",
-    "A standalone objective like `你好`, `hi`, `thanks`, or `ok` is ordinarily a conversational non-task unless surrounding context adds a concrete software request.",
+    "A standalone objective like `hello`, `hi`, `thanks`, or `ok` is ordinarily a conversational non-task unless surrounding context adds a concrete software request.",
     'If the conversation context does not contain clear evidence that the goal is satisfied, return {"passed": false, "reason": "insufficient evidence in transcript", "nextAction": "<next smallest useful action>"} rather than guessing.',
     "If the goal appears unachievable in this session, still use the same JSON shape with passed set to false. Explain the blocker in reason and put the smallest useful user-facing unblock step in nextAction.",
     "Treat a goal as unachievable only when it is genuinely impossible in this session, for example: the goal is self-contradictory, depends on a resource or capability that is unavailable, or the assistant has explicitly tried, exhausted reasonable approaches, and stated it cannot be done.",
@@ -291,8 +291,8 @@ export function parseGoalCompletionVerificationText(
 ): GoalCompletionVerificationOutput {
   const parsed = parseJsonObject(text);
   if (!parsed) {
-    // verifier 是 goal 完成闸门，但 provider 偶发坏 JSON 属于裁判链路故障；
-    // 按产品语义 fail-open，避免已经交付的 goal 被格式错误卡在继续迭代。
+// The verifier is the goal to complete the gate, but the provider's occasionally bad JSON is a referee link failure;
+// According to product semantics, fail-open is used to prevent the delivered goal from being stuck in format errors and continuing to iterate.
     return failOpenGoalCompletionVerification(
       "The completion verifier did not return valid JSON.",
     );
@@ -313,8 +313,8 @@ export function parseGoalCompletionVerificationText(
 export function failedGoalCompletionVerification(
   reason: string,
 ): GoalCompletionVerificationOutput {
-  // 这个兜底表示 verifier 自身失败，不是模型给出的下一步。
-  // 若写入 nextAction，UI 会把内部控制文案当成下一轮迭代标题展示。
+// This caveat means that the verifier itself failed, not the next step given by the model.
+// If nextAction is written, the UI will display the internal control copy as the title of the next iteration.
   return {
     passed: false,
     reason,
@@ -324,8 +324,8 @@ export function failedGoalCompletionVerification(
 export function failOpenGoalCompletionVerification(
   reason: string,
 ): GoalCompletionVerificationOutput {
-  // 这里表示 verifier 基础设施/格式失败，不是 verifier 明确判定目标未完成。
-  // 默认通过能避免 goal 因裁判链路偶发失败被无限卡住，同时保留 reason 供日志和 UI 排查。
+// This indicates that the verifier infrastructure/format failed, not that the verifier explicitly determined that the goal was not completed.
+// Passing by default can prevent the goal from being stuck indefinitely due to occasional failure of the referee link, while retaining the reason for log and UI troubleshooting.
   return {
     passed: true,
     reason,
@@ -385,8 +385,8 @@ function parseJsonString(text: string): string | undefined {
 }
 
 function extractFencedJsonCandidate(text: string): string | undefined {
-  // goal verifier 偶尔会把结构化 JSON 包进 Markdown code fence，
-  // 甚至被外层编码成字符串；这里统一剥出 fenced 内容后再走同一个 JSON object 解析。
+// goal verifier occasionally wraps structured JSON into Markdown code fence,
+// Even encoded into a string by the outer layer; here, the fenced content is uniformly stripped out and then parsed by the same JSON object.
   const match = text
     .trim()
     .match(/^```[ \t]*(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n?```$/i);

@@ -6,8 +6,8 @@ import {
 import type { AgentRuntimeInternal } from "../internal.js";
 
 /**
- * 记录 AskUserQuestion 自动结束阶段。事件必须走 runtime 的 durable append/sink 链路，
- * 让 desktop continuous 与 web remote replayable 都恢复同一组绝对时间。
+* Log AskUserQuestion auto-end phase. Events must go through the runtime's durable append/sink link.
+* Make both desktop continuous and web remote replayable restore the same set of absolute times.
  */
 export async function recordUserInputAutoResolutionUpdate(
   this: AgentRuntimeInternal,

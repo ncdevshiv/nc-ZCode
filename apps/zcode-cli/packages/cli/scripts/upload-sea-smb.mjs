@@ -175,7 +175,7 @@ export const collectSeaUploadFiles = async ({ distDir }) => {
   if (missing.length > 0) {
     throw new Error(
       `Missing SEA binaries in ${distDir}: ${missing.join(", ")}. ` +
-        "Run `pnpm --filter @zcode/cli build:sea` first.",
+        "Run `bun run --filter @zcode/cli build:sea` first.",
     );
   }
 
@@ -253,7 +253,7 @@ export const uploadSeaBinaries = async ({
   smbUrl,
   version,
 }) => {
-  // 修复：上传入口也执行严格材料检查，--force 只控制覆盖，不能豁免许可证缺口。
+// Fix: The upload entry also performs strict material inspection, --force only controls coverage and cannot exempt license gaps.
   await readVerifiedNotices(resolve(rootDirectory, "../.."), { requireComplete: true });
   const releaseVersion = version ?? (await readRootPackageVersion({ rootDirectory }));
   const releaseName = releaseDirectoryName(releaseVersion);

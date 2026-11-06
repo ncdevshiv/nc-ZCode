@@ -1,0 +1,363 @@
+//! Real-socket WebSocket e2e: TCP + HTTP upgrade + binary frames carrying the exact
+//! channel wire bytes. The registry contains a **test-only** channel; production
+//! channels come from `zcode-app` (none is faked in product code).
+
+use std::sync::Arc;
+use std::time::Duration;
+
+use async_trait::async_trait;
+use futures_util::{SinkExt, StreamExt};
+use serde_json::json;
+use tokio::net::TcpListener;
+use tokio_tungstenite::connect_async;
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio_tungstenite::tungstenite::Message;
+use zcode_channels::{
+    CancelToken, Channel, ChannelContext, ChannelFailure, ChannelRegistry, EventBus,
+    EventSubscription,
+};
+use zcode_rpc::protocol::{FrameDecoder, PROTOCOL_MESSAGE_REGULAR};
+use zcode_rpc::{encode_frame, ChannelMessage, WireValue};
+use zcode_server::{build_router, ServerOptions};
+
+struct TestChannel {
+    bus: EventBus,
+}
+
+#[async_trait]
+impl Channel for TestChannel {
+    async fn call(
+        &self,
+        _ctx: &ChannelContext,
+        command: &str,
+        args: Vec<WireValue>,
+        _cancel: CancelToken,
+    ) -> Result<WireValue, ChannelFailure> {
+        match command {
+            "echo" => Ok(WireValue::Array(args)),
+            other => Err(ChannelFailure::method_not_found(other)),
+        }
+    }
+
+    async fn listen(
+        &self,
+        _ctx: &ChannelContext,
+        event: &str,
+        _arg: WireValue,
+    ) -> Result<EventSubscription, ChannelFailure> {
+        match event {
+            "tick" => Ok(EventSubscription::from_broadcast(self.bus.subscribe())),
+            other => Err(ChannelFailure::event_not_found(other)),
+        }
+    }
+}
+
+struct TestServer {
+    base_url: String,
+    bus: EventBus,
+}
+
+async fn spawn_server() -> TestServer {
+    let bus = EventBus::new(64);
+    let registry = Arc::new(ChannelRegistry::new());
+    registry
+        .register("test", Arc::new(TestChannel { bus: bus.clone() }))
+        .expect("register");
+    let listener = TcpListener::bind(("127.0.0.1", 0)).await.expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let options = ServerOptions::with_workspace("G:/work/zcode");
+    tokio::spawn(async move {
+        axum::serve(
+            listener,
+            build_router(registry, options).into_make_service(),
+        )
+        .await
+        .expect("serve");
+    });
+    TestServer {
+        base_url: format!("127.0.0.1:{}", addr.port()),
+        bus,
+    }
+}
+
+async fn next_binary(
+    socket: &mut tokio_tungstenite::WebSocketStream<
+        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+    >,
+) -> Vec<u8> {
+    loop {
+        let message = tokio::time::timeout(Duration::from_secs(5), socket.next())
+            .await
+            .expect("timeout waiting for a WebSocket message")
+            .expect("socket closed")
+            .expect("websocket error");
+        match message {
+            Message::Binary(bytes) => return bytes.to_vec(),
+            Message::Ping(_) | Message::Pong(_) => continue,
+            other => panic!("expected binary frame, got {other:?}"),
+        }
+    }
+}
+
+async fn send_payload(
+    socket: &mut tokio_tungstenite::WebSocketStream<
+        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+    >,
+    payload: &[u8],
+) {
+    socket
+        .send(Message::Binary(encode_frame(payload).into()))
+        .await
+        .expect("send");
+}
+
+/// Decode the 13-byte frame transport the server writes (one payload per WebSocket
+/// message) and return the channel-message payload.
+async fn next_payload(
+    socket: &mut tokio_tungstenite::WebSocketStream<
+        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+    >,
+) -> Vec<u8> {
+    let framed = next_binary(socket).await;
+    let mut decoder = FrameDecoder::default();
+    let frames = decoder.push(&framed).expect("frame must decode");
+    assert_eq!(frames.len(), 1, "one payload per server WebSocket message");
+    assert_eq!(frames[0].message_type, PROTOCOL_MESSAGE_REGULAR);
+    frames[0].payload.clone()
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+fn http_request(host: &str, request: String) -> String {
+    use std::io::{Read, Write};
+    let mut stream = std::net::TcpStream::connect(host).expect("connect");
+    stream
+        .set_read_timeout(Some(Duration::from_secs(10)))
+        .expect("timeout");
+    stream.write_all(request.as_bytes()).expect("write");
+    let mut response = String::new();
+    stream.read_to_string(&mut response).expect("read");
+    response
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn websocket_initialize_and_promise_round_trip() {
+    let server = spawn_server().await;
+    let url = format!("ws://{}/ws", server.base_url);
+    let (mut socket, _) = connect_async(url).await.expect("connect");
+
+    let initialize = next_payload(&mut socket).await;
+    assert_eq!(hex(&initialize), "040106c80100");
+
+    let request = ChannelMessage::Promise {
+        id: 0,
+        channel: "test".to_string(),
+        method: "echo".to_string(),
+        arg: WireValue::Array(vec![WireValue::Json(json!({"a": 1}))]),
+    }
+    .encode();
+    send_payload(&mut socket, &request).await;
+    let response = ChannelMessage::decode(&next_payload(&mut socket).await).expect("decode");
+    assert_eq!(
+        response,
+        ChannelMessage::PromiseSuccess {
+            id: 0,
+            data: WireValue::Array(vec![WireValue::Json(json!({"a": 1}))]),
+        }
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn fragmented_and_coalesced_frames_are_reassembled() {
+    let server = spawn_server().await;
+    let url = format!("ws://{}/ws", server.base_url);
+    let (mut socket, _) = connect_async(url).await.expect("connect");
+    let _ = next_binary(&mut socket).await;
+
+    let request_a = ChannelMessage::Promise {
+        id: 1,
+        channel: "test".to_string(),
+        method: "echo".to_string(),
+        arg: WireValue::Array(vec![WireValue::Int(1)]),
+    }
+    .encode();
+    let request_b = ChannelMessage::Promise {
+        id: 2,
+        channel: "test".to_string(),
+        method: "echo".to_string(),
+        arg: WireValue::Array(vec![WireValue::Int(2)]),
+    }
+    .encode();
+
+    let frame_a = encode_frame(&request_a);
+    // Fragment one frame across two WebSocket messages.
+    let split = frame_a.len() / 2;
+    socket
+        .send(Message::Binary(frame_a[..split].to_vec().into()))
+        .await
+        .expect("send fragment 1");
+    socket
+        .send(Message::Binary(frame_a[split..].to_vec().into()))
+        .await
+        .expect("send fragment 2");
+    let first = ChannelMessage::decode(&next_payload(&mut socket).await).expect("decode");
+    assert!(
+        matches!(first, ChannelMessage::PromiseSuccess { id: 1, .. }),
+        "{first:?}"
+    );
+
+    // Two complete frames in one WebSocket message.
+    let mut coalesced = encode_frame(&request_a);
+    coalesced.extend_from_slice(&encode_frame(&request_b));
+    socket
+        .send(Message::Binary(coalesced.into()))
+        .await
+        .expect("send coalesced");
+    let mut ids = Vec::new();
+    for _ in 0..2 {
+        match ChannelMessage::decode(&next_payload(&mut socket).await).expect("decode") {
+            ChannelMessage::PromiseSuccess { id, .. } => ids.push(id),
+            other => panic!("expected success, got {other:?}"),
+        }
+    }
+    ids.sort_unstable();
+    assert_eq!(ids, vec![1, 2]);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn event_listen_fire_and_dispose_over_the_socket() {
+    let server = spawn_server().await;
+    let url = format!("ws://{}/ws", server.base_url);
+    let (mut socket, _) = connect_async(url).await.expect("connect");
+    let _ = next_binary(&mut socket).await;
+
+    let listen = ChannelMessage::EventListen {
+        id: 7,
+        channel: "test".to_string(),
+        method: "tick".to_string(),
+        arg: WireValue::Undefined,
+    }
+    .encode();
+    send_payload(&mut socket, &listen).await;
+
+    // Give the server task time to subscribe, then fire.
+    for _ in 0..100 {
+        if server.bus.receiver_count() > 0 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    assert!(server.bus.receiver_count() > 0, "server must subscribe");
+    server.bus.send(WireValue::Json(json!({"n": 1})));
+    let fired = ChannelMessage::decode(&next_payload(&mut socket).await).expect("decode");
+    assert_eq!(
+        fired,
+        ChannelMessage::EventFire {
+            id: 7,
+            data: WireValue::Json(json!({"n": 1})),
+        }
+    );
+
+    let dispose = ChannelMessage::EventDispose { id: 7 }.encode();
+    send_payload(&mut socket, &dispose).await;
+    for _ in 0..100 {
+        if server.bus.receiver_count() == 0 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    assert_eq!(server.bus.receiver_count(), 0, "dispose must unsubscribe");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unknown_channel_errors_on_promise_and_is_silent_for_listen() {
+    let server = spawn_server().await;
+    let url = format!("ws://{}/ws", server.base_url);
+    let (mut socket, _) = connect_async(url).await.expect("connect");
+    let _ = next_binary(&mut socket).await;
+
+    let request = ChannelMessage::Promise {
+        id: 3,
+        channel: "missing".to_string(),
+        method: "x".to_string(),
+        arg: WireValue::Undefined,
+    }
+    .encode();
+    send_payload(&mut socket, &request).await;
+    match ChannelMessage::decode(&next_payload(&mut socket).await).expect("decode") {
+        ChannelMessage::PromiseError { id, data } => {
+            assert_eq!(id, 3);
+            assert_eq!(data["name"], json!("Unknown channel"));
+        }
+        other => panic!("expected PromiseError, got {other:?}"),
+    }
+
+    let listen = ChannelMessage::EventListen {
+        id: 4,
+        channel: "missing".to_string(),
+        method: "tick".to_string(),
+        arg: WireValue::Undefined,
+    }
+    .encode();
+    send_payload(&mut socket, &listen).await;
+    let pending = tokio::time::timeout(Duration::from_millis(150), socket.next()).await;
+    assert!(
+        pending.is_err(),
+        "unknown EventListen must not produce a frame"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn host_websocket_requires_a_single_use_capability() {
+    let server = spawn_server().await;
+    let host = server.base_url.clone();
+
+    let response = http_request(
+        &host,
+        format!(
+            "POST /api/rpc-host-capability HTTP/1.1\r\nHost: {host}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+        ),
+    );
+    assert!(response.starts_with("HTTP/1.1 200"), "{response}");
+    let body = response.split("\r\n\r\n").nth(1).expect("body");
+    let capability: serde_json::Value = serde_json::from_str(body).expect("capability JSON");
+    let capability = capability["capability"]
+        .as_str()
+        .expect("capability")
+        .to_string();
+
+    // Without the header the upgrade is rejected.
+    let url = format!("ws://{}/ws/host", host);
+    match connect_async(url.clone()).await {
+        Err(tokio_tungstenite::tungstenite::Error::Http(response)) => {
+            assert_eq!(response.status(), 401);
+        }
+        other => panic!("expected HTTP 401, got {other:?}"),
+    }
+
+    let mut request = url.into_client_request().expect("request");
+    request.headers_mut().insert(
+        zcode_server::host_capability::HOST_CAPABILITY_HEADER,
+        capability.parse().expect("header value"),
+    );
+    let (mut socket, _) = connect_async(request).await.expect("trusted host connect");
+    let initialize = next_payload(&mut socket).await;
+    assert_eq!(hex(&initialize), "040106c80100");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn server_info_endpoint_is_served_over_real_http() {
+    let server = spawn_server().await;
+    let response = http_request(
+        &server.base_url,
+        format!(
+            "GET /api/server-info HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n",
+            server.base_url
+        ),
+    );
+    assert!(response.starts_with("HTTP/1.1 200"), "{response}");
+    assert!(response.contains("\"protocolVersion\":1"), "{response}");
+    assert!(response.contains("G:/work/zcode"), "{response}");
+}

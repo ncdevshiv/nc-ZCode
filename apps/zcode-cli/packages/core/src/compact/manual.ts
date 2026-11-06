@@ -102,8 +102,8 @@ export function buildManualCompactBoundary(
 export function estimateMessageTokens(messages: readonly CompactModelMessage[]): number {
   return messages.reduce((total, message) => {
     let estimatedCharacterCount = modelMessageContentToTokenEstimateText(message.content).length;
-    // assistant toolCalls 独立保存在 content 之外，旧估算只读取 content，
-    // 大型工具入参会被完整发给 provider，却在 auto compact 和 preflight 中计为 0。
+// assistant toolCalls are saved independently outside content. The old estimate only reads content.
+// Large tool input will be sent to the provider in its entirety, but will be counted as 0 in auto compact and preflight.
     for (const toolCall of message.toolCalls ?? []) {
       estimatedCharacterCount += (
         toolCall.name + stringifyToolCallInputForTokenEstimate(toolCall.input)
@@ -117,8 +117,8 @@ function stringifyToolCallInputForTokenEstimate(input: unknown): string {
   try {
     return JSON.stringify(input ?? {}) ?? EMPTY_TOOL_CALL_INPUT_JSON;
   } catch {
-    // tool_use 解析失败时降级为空对象的 JSON 表示，供 estimator 估算。
-    // ZCode 的模型输入仍可能包含未知内容；异常输入不能让本地预算估算中断 compact。
+// tool_use degrades to a JSON representation of an empty object for estimation by the estimator when parsing fails.
+// Model inputs to ZCode may still contain unknown content; abnormal inputs must not cause local budget estimates to break compact.
     return EMPTY_TOOL_CALL_INPUT_JSON;
   }
 }
@@ -126,9 +126,9 @@ function stringifyToolCallInputForTokenEstimate(input: unknown): string {
 function modelMessageContentToTokenEstimateText(content: ModelMessageContent): string {
   if (typeof content === "string") return content;
 
-  // modelMessageContentToText 是“可见正文”投影，会有意隐藏 reasoning；
-  // compact fallback 却把它当作 provider 上下文体积，导致无 usage anchor 时 reasoning 全部计 0。
-  // token 估算使用独立投影，避免改变正文、memory、错误文案等既有消费者的语义。
+// modelMessageContentToText is a "visible text" projection, which will intentionally hide reasoning;
+// compact fallback treats it as the provider context volume, causing reasoning to be all counted as 0 when there is no usage anchor.
+// Token estimation uses independent projection to avoid changing the semantics of existing consumers such as text, memory, error copy, etc.
   return content
     .map((block) =>
       block.type === "reasoning" ? block.text : modelMessageContentBlockToText(block),

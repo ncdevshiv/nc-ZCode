@@ -1,0 +1,85 @@
+//! Export the registry's **input surface actually advertised to the model + the capability metadata each tool self-reports** as JSON, so
+//! `native/tools/check-tool-schemas.mjs` (the parameter surface) and `native/tools/check-tool-metadata.mjs`
+//! (the six capability fields) can each be reconciled against TS.
+//!
+//! Why this binary exists: the TS side wrote parameters like `output_mode/-C/head_limit/offset/type/multiline`
+//! into the schema the model sees, while the Rust side used to recognise only some of them — the parameters were **silently ignored** and the model assumed they worked.
+//! The other half is just as dangerous: declarations like `readOnly/timeoutMs/maxOutputBytes` decide the permission gates, plan mode and truncation,
+//! so a wrong declaration means "the model gets denied/truncated without knowing" (`ENTRY 137`: both TodoWrite issues are of this kind).
+//! This "declaration inconsistent with implementation" cannot be guarded by reading code by hand; taking both sides from the **runtime truth** turns the difference into a recomputable fact.
+//!
+//! Usage: cargo run -p zcode-host --bin tool_contracts
+
+use serde_json::{json, Value};
+
+fn main() {
+    // The **only** construction entry of the production registry (`zcode_host::build_production_registry`, the
+    // same function `HostServer::new` uses). Earlier this place wrote its own `ToolRegistry::with_defaults()`:
+    // the 4 async tools and WebSearch, which depends on the nc kernel, never entered the dump, so the two declaration gates **silently skipped**
+    // them — the tool surface a gate sees must be the same one the runtime uses, otherwise the "reconciliation" only reconciles a fake registry.
+    let workspace = std::env::temp_dir().join(format!(
+        "zcode-tool-contracts-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|elapsed| elapsed.subsec_millis())
+            .unwrap_or_default()
+    ));
+    std::fs::create_dir_all(&workspace).expect("temp workspace for the nc kernel");
+    let registry = zcode_host::build_production_registry(
+        &workspace,
+        std::sync::Arc::new(zcode_host::mcp::McpPool::new()),
+        // The gate reconciles only the **contract**: no workflow capability surface is injected, so a real run can never be triggered.
+        None,
+        // The contract probe has no user/project profile directories: the two built-ins are exactly the Agent tool surface it reconciles.
+        std::sync::Arc::new(vec![
+            zcode_host::subagent_profiles::builtin_general_purpose(),
+            zcode_host::subagent_profiles::builtin_explore(),
+        ]),
+    )
+    .expect("production registry");
+    let mut rows: Vec<Value> = registry
+        .names()
+        .into_iter()
+        .filter_map(|name| {
+            // Both the sync and the async source must be covered: what `check-tool-metadata` reconciles is the capability metadata
+            // **every** registered tool declares to the model, and missing the async tools would amount to giving them a free pass.
+            let contract = registry
+                .get(&name)
+                .map(|tool| tool.contract())
+                .or_else(|| registry.get_async(&name).map(|tool| tool.contract()))?;
+            let schema = contract.input_schema.clone();
+            let properties = schema
+                .get("properties")
+                .and_then(Value::as_object)
+                .map(|object| object.keys().cloned().collect::<Vec<_>>())
+                .unwrap_or_default();
+            let required = schema
+                .get("required")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            Some(json!({
+                "name": name,
+                "properties": properties,
+                "required": required,
+                "readOnly": contract.read_only,
+                "destructive": contract.destructive,
+                "concurrentSafe": contract.concurrent_safe,
+                "sideEffectScope": contract.side_effect_scope,
+                "timeoutMs": contract.timeout_ms,
+                "maxOutputBytes": contract.max_output_bytes,
+                "maxModelBytes": contract.max_model_bytes,
+                "previewDirection": contract.preview_direction,
+            }))
+        })
+        .collect();
+    rows.sort_by(|a, b| {
+        a["name"]
+            .as_str()
+            .unwrap_or("")
+            .cmp(b["name"].as_str().unwrap_or(""))
+    });
+    let _ = std::fs::remove_dir_all(&workspace);
+    println!("{}", serde_json::to_string(&rows).expect("serialize"));
+}

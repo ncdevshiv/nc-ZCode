@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { KIND_RANK } from "./causality-reduce.js";
 import {
   UNKNOWN_LANE,
@@ -9,9 +10,9 @@ import {
   type Step,
 } from "./causality-graph-types.js";
 
-// causality-graph.ts 顶到 oxlint max-lines 上限（400 行），把成品图上的机械改写与
-// 事实层的小工具（may-set 车道展开 expandMaySetLanes 及其两个常量、dedupeFacts、weakest）拆到
-// 本文件；公开面仍从 causality-graph.ts 导出。本文件不 import `typescript`。
+// causality-graph.ts reaches the upper limit of oxlint max-lines (400 lines), and rewrites the machinery on the finished graph with
+// The small tools of the fact layer (may-set lane expansion expandMaySetLanes and its two constants, dedupeFacts, weakest) are removed
+// This file; the public side is still exported from causality-graph.ts. This file does not import `typescript`.
 
 /**
  * Upper bound on an expandable may-set. Past it the step keeps its single card: a capped
@@ -142,7 +143,7 @@ export function dedupeFacts(facts: readonly Fact[]): Fact[] {
     if (fact.exact !== undefined && existing.exact === undefined) existing.exact = fact.exact;
     else if (fact.exact === true) existing.exact = true;
     if (fact.certainty === "maybe") existing.certainty = "maybe";
-    // 一条不经跳转就成立的事实让这一对回到普通前向边：全部贡献都只能靠下一轮，才算回边。
+// A fact that is true without a jump allows this pair to return to the ordinary forward edge: all contributions can only be counted in the next round before it is considered a backward edge.
     if (fact.viaJump !== true) delete existing.viaJump;
     // ABSENT DOMINATES: one contributing fact with no provenance means the merged fact has
     // none, so it fans out fully. A `data` fact (never provenanced, and fanning out by

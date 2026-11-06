@@ -5,7 +5,7 @@ const LOCALHOST = "127.0.0.1";
 const SUCCESS_TEXT = "Authorization successful! You may close this window and return to the CLI.";
 const FAILURE_TEXT = "Authorization failed. You may close this window and return to the CLI.";
 
-/** 授权服务器按 RFC 6749 §4.1.2.1 回传 `error` 时使用的稳定错误码。 */
+/** The stable error code used by the authorization server when returning `error` according to RFC 6749 §4.1.2.1. */
 export const MCP_OAUTH_CALLBACK_DENIED_ERROR_CODE = "MCP_OAUTH_CALLBACK_DENIED";
 
 export interface McpOAuthCallbackDeniedError extends Error {
@@ -18,7 +18,7 @@ function createCallbackDeniedError(
   oauthError: string,
   oauthErrorDescription: string | null,
 ): McpOAuthCallbackDeniedError {
-  // 不依赖错误文本做流程判断：调用方按 code/oauthError 结构化字段区分「用户拒绝」与超时。
+//Do not rely on error text for process judgment: the caller distinguishes "user rejection" and timeout based on the code/oauthError structured field.
   const error = new Error(
     `OAuth authorization was rejected by the authorization server: ${oauthError}`,
   ) as McpOAuthCallbackDeniedError;
@@ -60,17 +60,17 @@ export async function createLocalhostOAuthCallbackServer(input: {
         return;
       }
 
-      // state 不匹配过去会 reject 本事务的 callback promise。并发授权事务、
-      // 浏览器里残留的旧授权 URL 或预取请求都会打到本 listener；一个陌生 state 就能让
-      // 随后到达的正确回调再也无法成功。现在只回 400 并继续等待本 state 的回调。
+// If the state does not match, the callback promise of this transaction will be rejected in the past. Concurrent authorization transactions,
+// Any old authorization URL or prefetch request remaining in the browser will hit this listener; an unfamiliar state can make
+// The correct callback arriving subsequently can never succeed again. Now just return 400 and continue to wait for the callback of this state.
       const state = requestUrl.searchParams.get("state") ?? "";
       if (state !== input.state) {
         writeText(response, 400, FAILURE_TEXT);
         return;
       }
 
-      // state 匹配说明这确实是本事务的授权响应。用户点「拒绝」时授权服务器回
-      // error=access_denied，过去要一直等到 caller 超时才失败；现在立即 settle。
+// The state match indicates that this is indeed the authorization response for this transaction. When the user clicks "Reject", the authorization server replies
+// error=access_denied, in the past it had to wait until the caller timed out before failing; now it is settled immediately.
       const oauthError = requestUrl.searchParams.get("error");
       if (oauthError) {
         writeText(response, 400, FAILURE_TEXT);
@@ -89,8 +89,8 @@ export async function createLocalhostOAuthCallbackServer(input: {
       const code =
         requestUrl.searchParams.get("authCode") ?? requestUrl.searchParams.get("code") ?? "";
       if (!code) {
-        // state 匹配但既无 code 也无 error：授权响应不合法，本事务不可能成功，直接失败，
-        // 不消耗剩余授权窗口。
+// state matches but there is neither code nor error: the authorization response is illegal, this transaction cannot succeed and fails directly.
+//Do not consume the remaining authorization window.
         writeText(response, 400, FAILURE_TEXT);
         if (!settled) {
           settled = true;

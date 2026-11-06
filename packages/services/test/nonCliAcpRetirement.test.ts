@@ -60,7 +60,11 @@ test("current Project Memory catalog and files remain readable", async () => {
     assert.equal(file.content, "Use the current project workflow.\n");
   } finally {
     setDataBaseDir(null);
-    await rm(dir, { recursive: true, force: true });
+    try {
+      await rm(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+    } catch {
+      // Ignore cleanup errors on Windows
+    }
   }
 });
 
@@ -91,8 +95,12 @@ test("opening the task index leaves retired ACP IDs and user rows untouched", as
       reopened.close();
     }
   } finally {
-    repo.close();
-    await rm(dir, { recursive: true, force: true });
+    try { repo.close(); } catch {}
+    try {
+      await rm(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+    } catch {
+      // Ignore cleanup errors on Windows
+    }
   }
 });
 

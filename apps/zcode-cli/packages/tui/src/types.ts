@@ -229,21 +229,21 @@ export type TuiReadSubagentTranscript = (
 ) => Promise<TuiSubagentTranscriptSnapshot>;
 
 /**
- * 跨回合常驻的会话事件订阅。
+* Session event subscription that persists across rounds.
  *
- * 为什么不复用 `submitPrompt` / `sendInput` 的 per-turn `onEvent`：dwf 进度是**出回合事件**
- * （turnId 为空），per-turn sink 在回合结束即死——这正是 TUI 今天丢 dwf 事件的结构性原因。
- * 后台完成通知驱动的模型回合同理（它由 runtime 命令队列自驱，没有任何 per-turn sink 在听）。
+* Why not reuse the per-turn `onEvent` of `submitPrompt` / `sendInput`: dwf progress is **out of turn event**
+* (turnId is empty), the per-turn sink dies at the end of the turn - this is the structural reason why TUI lost the dwf event today.
+* Background completion notification-driven model return logic (it is self-driven by the runtime command queue, without any per-turn sink listening).
  *
- * 返回 unsubscribe；`replaceApp`（`/new` `/resume` `/fork`）时由 CLI 侧重挂。
+* Return unsubscribe; hung by CLI when `replaceApp` (`/new` `/resume` `/fork`).
  */
 export type TuiSubscribeSessionEvents = (sink: (event: SessionEvent) => void) => () => void;
 
 /**
- * 会话级 workflow run 摘要（`app.listDynamicWorkflowRuns`），用于冷启动/恢复时补种镜像。
+* Session-level workflow run summary (`app.listDynamicWorkflowRuns`), used for reseeding images during cold start/recovery.
  *
- * `label` / `updatedAt` 是 additive optional：老服务端不发这两个键，读侧退回 runId、不显示时间。
- * `resumable` 由服务端裁定，**绝不**在 TUI 重推导。
+* `label` / `updatedAt` are additive optional: the old server does not send these two keys, and the read side returns the runId and does not display the time.
+* `resumable` is determined by the server and **never** rederived in the TUI.
  */
 export type TuiWorkflowRunSummary = {
   runId: string;
@@ -258,17 +258,17 @@ export type TuiWorkflowRunSummary = {
 export type TuiListWorkflowRuns = () => Promise<readonly TuiWorkflowRunSummary[]>;
 
 /**
- * workflow run 的冷回放：把本会话名下、镜像里
- * 还没有的 run 从 journal 回放成进度事件信封，逐条喂给镜像的共享 reducer——重启 / `/resume`
- * 之后卡片显示的是真实步数、用量与子代理，而不是 0/0 的空壳。
+* Cold replay of workflow run: put this session under the name and in the mirror
+* The unfinished runs are played back from the journal into progress event envelopes and fed to the shared reducer of the mirror one by one - restart / `/resume`
+* Cards now show real steps, usage and subagents instead of empty shells of 0/0.
  */
 export type TuiReplayWorkflowRuns = (input: {
   excludeRunIds: ReadonlySet<string>;
 }) => Promise<readonly WorkflowRunProgressEnvelope[]>;
 
 /**
- * 当前**主会话** id。是 getter 而不是值：`/new` `/resume` `/fork` 会换会话，
- * 快照下来的 id 会立刻过期，然后把整条转写误判成外来事件。
+* The current **main session** id. It is a getter instead of a value: `/new` `/resume` `/fork` will change the session,
+* The snapshot id will expire immediately, and then the entire transcript will be misjudged as an external event.
  */
 export type TuiGetMainSessionId = () => string | undefined;
 

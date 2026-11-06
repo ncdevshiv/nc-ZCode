@@ -40,28 +40,28 @@ export interface ParamsSchema<T> {
 export interface ZCodeProtocolAgentDependencies {
   createZCodeApp(options?: Omit<ZCodeAppOptions, "providerRegistry">): ZCodeApp | Promise<ZCodeApp>;
   /**
-   * 每个 session record 的内存 event store 工厂。
-   * 默认 turn 窗口保留策略；测试可注入 spy 或 unbounded 实现做对照。
+* In-memory event store factory for each session record.
+* The default turn window retention policy; the test can be injected with spy or unbounded for comparison.
    */
   createSessionEventStore?(sessionId: string): SessionEventStorePort;
   cwd?: string;
   env?: NodeJS.ProcessEnv;
   loggerFactory?: LoggerFactory;
   mcpPort?: McpPort;
-  /** 资源管理器：`process/childProcesses` 读取 MCP 子进程 pid 与插件归属 */
+/** Resource manager: `process/childProcesses` reads the MCP child process pid and plug-in ownership */
   mcpTelemetry?: Pick<McpTelemetryTracker, "listProcesses">;
   platform?: NodeJS.Platform | string;
-  /** 仅用于构造单个 CLI/app-server 的混合 resident 策略；生产默认值由 pool 定义。 */
+/** Mixed resident strategy for constructing a single CLI/app-server only; production defaults are defined by pool. */
   sessionResidentPoolOptions?: SessionResidentPoolOptions;
-  /** 兼容旧测试/嵌入调用；新代码应通过 sessionResidentPoolOptions 设置 low-water。 */
+/** Compatible with old test/embed calls; new code should set low-water via sessionResidentPoolOptions. */
   sessionResidentTargetCount?: number;
   sessionStore?: SessionStorePort;
   version?: string;
-  /** 受信 Host 管理的 Hook policy；workspace/project 配置不得覆盖。 */
+/** Hook policy managed by trusted Host; workspace/project configuration must not be overridden. */
   workspaceHookPolicyProvider?: WorkspaceHookPolicyProvider;
-  /** 把 Host 账号状态形成的第三层 Config Overlay 同步给进程 Registry。 */
+/** Synchronize the third-layer Config Overlay formed by the Host account status to the process Registry. */
   syncAccountProviderConfig?: (snapshot: AccountProviderConfigSnapshot) => Promise<boolean>;
-  /** 连接测试前主动重读当前进程的 Config Source 并等待 Registry 发布。 */
+/** Actively reread the Config Source of the current process before connection testing and wait for the Registry to be released. */
   refreshProviderRegistry?: (reason: string) => Promise<void>;
 }
 
@@ -87,8 +87,8 @@ export interface ZCodeProtocolSessionRecord {
   createdAt: number;
   deliveryKind?: ZCodeDeliveryKind;
   /**
-   * 旧 session/subscribe 没有 unsubscribe RPC；只在真正 subscribe 时置位，不能用
-   * 会被 session/read 写入的 deliveryKind 代替。连接结束会销毁整个 CLI 进程。
+* The old session/subscribe does not have unsubscribe RPC; it is only set when actually subscribe and cannot be used.
+* will be replaced by deliveryKind written by session/read. Ending the connection destroys the entire CLI process.
    */
   legacyStreamSubscribed?: boolean;
   eventStore: SessionEventStorePort;
@@ -103,14 +103,14 @@ export interface ZCodeProtocolSessionRecord {
   updatedAt: number;
   workspace: ZCodeWorkspaceRef;
   activeAbortController?: AbortController;
-  /** background runner 释放 ready lock 后，持久化/snapshot/broadcast 尚未完成的引用计数。 */
+/** After the background runner releases the ready lock, persist the unfinished reference count of /snapshot/broadcast. */
   residencyFinalizationCount?: number;
-  /** 当前正在执行的 automation 派发 turn；只在 turn 运行期间存在，禁止递归 CronCreate。 */
+/** The currently executing automation dispatches a turn; it only exists during the running of the turn, and recursive CronCreate is prohibited. */
   activeAutomationId?: string;
-  /** 当前正在执行的闲时派发 turn；只在 turn 运行期间存在，禁止递归 OffPeakCreate。 */
+/** The currently executing idle-time dispatch turn; only exists during the running of turn, and recursive OffPeakCreate is prohibited. */
   activeOffPeakTaskId?: string;
   restoreWarning?: { message: string; type: string };
-  /** 冷恢复候选只供初始投影；新的选模事件立即清除，不能替代 Runtime 执行绑定。 */
+/** Cold recovery candidates are only for initial projection; new model selection events are cleared immediately and cannot replace Runtime to perform binding. */
   restoredModelSelection?: ModelSelection;
 }
 
@@ -122,30 +122,30 @@ export interface ZCodeProtocolClientRequestOptions {
 }
 
 export interface ZCodeProtocolAgentServerContext {
-  /** 进程退出期间，迟到的异步物化不能重新登记 session。 */
+/** During process exit, late asynchronous materialization cannot re-register the session. */
   assertServing?: () => void;
   deps: ZCodeProtocolAgentResolvedDependencies;
   logger?: Logger;
   appRuntimePreferences: {
     askUserQuestionAutoResolutionEnabled: boolean;
     modelIoFullRetentionEnabled: boolean;
-    /** host 同步的 Off-Peak 工具面门禁；缺省 false（fail-closed），供 v4 冷恢复等无 host 参数的路径读取。 */
+/** Host synchronized Off-Peak tool surface access control; default false (fail-closed), for v4 cold recovery and other paths without host parameters to read. */
     offPeakToolEnabled: boolean;
     /**
-     * host 同步的动态工作流灰度门。
-     * 缺省 false（fail-closed）：不认识该方法的旧 Host 或还没来得及同步的启动窗口里，
-     * 工作流工具面、`/workflow` 与 dynamic-workflows 技能一律不露出。
+* Host synchronized dynamic workflow grayscale gate.
+* Default false (fail-closed): In the old Host that does not know this method or the startup window that has not yet had time to synchronize,
+* The workflow tool panel, `/workflow` and dynamic-workflows skills are not exposed.
      */
     dynamicWorkflowEnabled: boolean;
   };
-  // 竖切：v4 conversation 通道（订阅/帧/命令），与旧 session/* 方法并存。
-  // 构造顺序问题（gateway 闭包持有 context）用可选字段收口，server 构造完立即赋值。
+// Vertical cut: v4 conversation channel (subscription/frame/command), coexisting with the old session/* methods.
+// The construction order problem (the gateway closure holds the context) is closed with optional fields, and the server is assigned immediately after it is constructed.
   v4Gateway?: ConversationV4Gateway;
-  // v4 前向命令 resolveInteraction 与反向请求（permission/AskUserQuestion）的汇合点。
-  // broker 注册 deferred、v4 命令面投递应答（同一实例经 binder 注入 V4CommandCoreHost）。
+// The meeting point of v4 forward command resolveInteraction and reverse request (permission/AskUserQuestion).
+// Broker registers deferred and v4 command plane delivery response (the same instance is injected into V4CommandCoreHost through binder).
   v4Interactions: V4InteractionRegistry;
-  // 单 CLI resident session 池。冷恢复入口经 waitForDeactivation 等待旧 app.close 收尾，
-  // 协议请求则持有 operation lease，禁止异步 handler 与容量回收交错。
+// Single CLI resident session pool. The cold recovery entry waits for the old app.close to finish via waitForDeactivation.
+// The protocol request holds an operation lease, prohibiting asynchronous handlers from interleaving with capacity reclamation.
   sessionResidentPool?: SessionResidentPool;
   sessions: Map<string, ZCodeProtocolSessionRecord>;
   notify(notification: ZCodeProtocolNotification): void;
@@ -192,10 +192,10 @@ export function isErrorResponse(message: ZCodeProtocolMessage): message is {
 }
 
 /**
- * 从 zod（或类 zod）校验错误里提炼可读的字段级摘要，附到 "Invalid params" 消息里。
- * 原来只回 "Invalid params" 不说哪个字段错，模型（如 browser evaluate 误传函数、
- * 坐标为 NaN 等）无从自纠、会反复瞎试。这里用鸭子类型读 ZodError.issues（不引 zod 依赖），
- * 拼成 `expression: Expected string, received function` 这类可操作提示。
+* Extract human-readable field-level summaries from zod (or zod-like) validation errors and attach them to "Invalid params" messages.
+* Originally, it only returned "Invalid params" without saying which field was wrong. Models (such as browser evaluate misinformation function,
+* The coordinates are NaN, etc.) cannot be self-corrected and will try repeatedly. Here we use duck typing to read ZodError.issues (without citing the zod dependency),
+* Spelled into `expression: Expected string, received function` such actionable prompts.
  */
 function summarizeParamsError(error: unknown): string | undefined {
   const issues = (error as { issues?: Array<{ path?: unknown[]; message?: string }> })?.issues;
@@ -248,9 +248,9 @@ export function toProtocolError(error: unknown): {
     const businessCode = "code" in error && typeof error.code === "string" ? error.code : undefined;
     return {
       code: -32603,
-      // ModelProtocolError 等业务错误的 code 需要跨 JSON-RPC 保留给 UI。
-      // 外层仍是 JSON-RPC internal error，稳定业务 code 放在 data.code 供横幅本地化。
-      // 不透传 error.context：上游上下文不保证 JSON-safe，错误响应不能因诊断信息二次失败。
+// Code for business errors such as ModelProtocolError needs to be retained for the UI across JSON-RPC.
+// The outer layer is still JSON-RPC internal error, and the stable business code is placed in data.code for banner localization.
+// No transparent transmission error.context: The upstream context does not guarantee JSON-safe, and the error response cannot fail twice due to diagnostic information.
       data: {
         name: error.name,
         stack: error.stack,
@@ -266,8 +266,8 @@ export function toProtocolError(error: unknown): {
 }
 
 function createProtocolTraceId(_sessionId: SessionId): TraceContext["traceId"] {
-  // traceId 是 session 之上的观测链路，不应由 sessionId 拼出来。
-  // 这里复用 agent/contracts 的 UUID 算法，保证 app 和 agent 两端 trace 格式一致。
+// traceId is the observation link on the session and should not be spelled out by sessionId.
+// The UUID algorithm of agent/contracts is reused here to ensure that the trace formats on both ends of the app and agent are consistent.
   return createTraceId();
 }
 
@@ -306,8 +306,8 @@ export function requireSession(
 ): ZCodeProtocolSessionRecord {
   const record = context.sessions.get(sessionId);
   if (!record) {
-    // 诊断：readSession 只读取活跃 runtime；记录缺失时要区分“冷会话尚未恢复”和“ID 已失效”，
-    // 不能只留下相同的错误文本，否则无法判断 UI 是读早了还是 task index 带来了脏引用。
+// Diagnosis: readSession only reads the active runtime; when the record is missing, distinguish between "cold session has not been restored" and "ID has expired".
+// You can't just leave the same error text, otherwise you can't tell whether the UI read early or the task index brought dirty references.
     context.logger?.warn("ZCode Protocol session runtime missing", {
       activeSessionCount: context.sessions.size,
       event: "zcode_protocol.session.require_missing",

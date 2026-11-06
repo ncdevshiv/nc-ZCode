@@ -26,15 +26,15 @@ export interface McpProcessTelemetryIdentity {
 }
 
 /**
- * 资源管理器用的 MCP 子进程视图：只回 pid 与归属，不含任何采样值。
- * 这里保留明文 serverName / pluginName——只在本机 host ↔ CLI 之间流转，
- * 不出本机，无需脱敏；Host 用它把 ps 进程树上的 pid 归到具体插件。
+* MCP subprocess view for resource manager: only returns pid and ownership, without any sampled values.
+* Keep the plain text serverName / pluginName here - only transferred between the local host ↔ CLI,
+* No need to leave the local machine, no need to desensitize; the Host uses it to assign the pid on the ps process tree to the specific plug-in.
  */
 export interface McpTrackedProcess {
   pid: number;
   serverName: string;
   mcpSource: McpTelemetrySource;
-  /** `plugin:<name>:<key>` 命名空间里的插件名；builtin host MCP（node_repl）由调用方按官方插件表补齐 */
+/** `plugin:<name>:<key>` The plug-in name in the namespace; builtin host MCP (node_repl) is completed by the caller according to the official plug-in table */
   pluginName?: string;
 }
 
@@ -65,7 +65,7 @@ export interface McpTelemetryTracker {
     source?: McpTelemetrySource;
   }): void;
   unregisterConnection(input: { connectionId: string }): void;
-  /** 当前仍有存活进程记录的 MCP 连接（纯内存，无 I/O） */
+/** There are currently MCP connections recorded by living processes (pure memory, no I/O) */
   listProcesses(): McpTrackedProcess[];
   sampleNow(): Promise<void>;
   start(): void;
@@ -113,7 +113,7 @@ export function createMcpTelemetryTracker(
     try {
       options.onEvent(event);
     } catch {
-      // 遥测为旁路，下游通知或 IPC 关闭不得改变 MCP 连接、回收或 crash 处理。
+// Telemetry is bypassed, downstream notifications or IPC shutdowns must not alter MCP connections, recycling, or crash handling.
     }
   };
 
@@ -148,7 +148,7 @@ export function createMcpTelemetryTracker(
                 connection.owners.size === 0 && connection.unownedAt !== undefined
                   ? Math.max(0, sampledAt - connection.unownedAt)
                   : 0;
-              // 保留 tracker 内部孤儿观测口径；bootstrap 不再把旧 memory 事实发上协议。
+// Retain the tracker's internal orphan observation capabilities; bootstrap no longer sends old memory facts to the protocol.
               emit({
                 arch,
                 kind: "memory",
@@ -250,9 +250,9 @@ export function createMcpTelemetryTracker(
       if (!connection || !connection.owners.delete(input.ownerId)) return;
       if (connection.owners.size !== 0) return;
       connection.unownedAt = now();
-      // process crash 后最后一个 owner 释放时，pool entry 仍会在 idle grace 内存活。
-      // 此处提前删除 registration 会让同一 workspace entry 被复用后的新进程永久失去遥测。
-      // registration 的终态由 pool closeEntry 显式 unregister，owner 释放只记录无主时间。
+// When the last owner is released after a process crash, the pool entry will still survive within idle grace.
+// Deleting the registration in advance here will cause the new process after the same workspace entry is reused to permanently lose telemetry.
+// The final state of registration is explicitly unregistered by pool closeEntry. When the owner is released, only the ownerless time is recorded.
     },
     registerConnection(input) {
       const mcpSource = input.source ?? resolveMcpSource(input.serverName);
@@ -268,8 +268,8 @@ export function createMcpTelemetryTracker(
     unregisterConnection(input) {
       const connection = connections.get(input.connectionId);
       if (!connection) return;
-      // pool entry 已进入终态，残留 lease 不能继续被视为 owner；若进程树回收失败则保留
-      // process 供后续采样标记 orphan，确认进程关闭或 OS 不再可见后再删除 registration。
+//The pool entry has entered the final state, and the remaining lease cannot continue to be regarded as the owner; if the process tree recycling fails, it will be retained.
+// The process is marked as orphan for subsequent sampling, and the registration is deleted after confirming that the process is closed or the OS is no longer visible.
       connection.owners.clear();
       connection.unownedAt ??= now();
       if (!connection.process) connections.delete(input.connectionId);
@@ -294,7 +294,7 @@ export function createMcpTelemetryTracker(
   };
 }
 
-/** `plugin:<name>:<key>` → `<name>`；非插件命名空间返回 undefined */
+/** `plugin:<name>:<key>` → `<name>`; non-plugin namespace returns undefined */
 export function resolvePluginName(serverName: string): string | undefined {
   if (!serverName.startsWith(PLUGIN_MCP_NAMESPACE_PREFIX)) return undefined;
   const name = serverName.slice(PLUGIN_MCP_NAMESPACE_PREFIX.length).split(":")[0]?.trim();
@@ -318,8 +318,8 @@ function resolveMcpId(serverName: string, source: McpTelemetrySource, idSalt: st
 }
 
 function encodeMcpIdSegment(value: string): string {
-  // 原因：encodeURIComponent 遇到孤立 surrogate 会抛 URIError，遥测编码不能反向阻断 MCP 启动。
-  // Buffer 的 UTF-8 编码会把畸形序列替换为 U+FFFD，再逐字节转义成协议允许的稳定 `%HH`。
+// Reason: encodeURIComponent will throw URIError when encountering an isolated surrogate, and telemetry encoding cannot reversely block MCP startup.
+// Buffer's UTF-8 encoding will replace the malformed sequence with U+FFFD, and then escape it byte by byte into the stable `%HH` allowed by the protocol.
   let encoded = "";
   for (const byte of Buffer.from(value, "utf8")) {
     const character = String.fromCharCode(byte);

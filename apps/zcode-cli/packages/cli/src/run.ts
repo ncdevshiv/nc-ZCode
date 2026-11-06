@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import { extractDisallowedToolsArgs, parseGlobalArgs } from "./arguments.js";
 import { createNodeLoggerFactory } from "@zcode/adapters";
 import { getRuntimeInfo, type PresentationSurface } from "@zcode/core";
@@ -240,9 +241,9 @@ const runZCodeProtocolCommand = async (
   try {
     const env = prepareCliRuntimeEnv(deps.env ?? process.env);
     const workingDirectory = (deps.cwd ?? process.cwd)();
-    // 打包态 app-server 是 desktop host 的内部协议子进程。
-    // 如果这里继续从 workspace 向上读取用户 .env，读文件失败或环境污染会在协议建立前
-    // 直接退出，外层只能看到 ZCode agent transport closed。
+// Packaged app-server is the internal protocol sub-process of the desktop host.
+// If the user .env continues to be read from the workspace here, file reading failure or environmental pollution will occur before the protocol is established.
+// Exit directly, the outer layer can only see ZCode agent transport closed.
     const dotenvResult = shouldLoadCliDotenvForProtocolServer(env)
       ? (deps.loadDotenv ?? loadCliDotenv)({
           cwd: workingDirectory,
@@ -297,8 +298,8 @@ export const run = async (ctx: RunContext, deps: RunDependencies = {}): Promise<
     return await runPluginHostCommand(ctx, ctx.argv.slice(1));
   }
 
-  // 与 plugin host 同理，且必须同样在 parseArgs 之前：SEA 下 dwf 的沙箱子进程是本二进制的
-  // 自 re-exec，argv 末位是入口文件路径——交给严格 parseArgs 只会报未知参数。
+// Same as plugin host, and must also be before parseArgs: the sandbox process of dwf under SEA is this binary
+// Since re-exec, the last bit of argv is the entry file path - if passed to strict parseArgs, only unknown parameters will be reported.
   if (isDwfChildInvocation(ctx.argv)) {
     return await runDwfChildCommand(ctx, ctx.argv.slice(1));
   }

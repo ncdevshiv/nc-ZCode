@@ -23,8 +23,8 @@ import {
   type MediaCapabilityProjection,
 } from "./media-capability.js";
 
-// 独立的视频预算无法约束请求总量；所有媒体统一按编码后的体积计入 40MiB，
-// 为正文等非媒体内容预留空间。单文件原始字节限制由附件输入/Read 层负责。
+// Independent video budget cannot limit the total request volume; all media are included in 40MiB according to the encoded volume.
+// Reserve space for non-media content such as text. The single file raw byte limit is the responsibility of the attachment input/Read layer.
 const DEFAULT_MODEL_REQUEST_MEDIA_BUDGET_BYTES = 40 * 1024 * 1024;
 
 interface MediaBlockRef {
@@ -53,8 +53,8 @@ export function projectMessagesForModelMediaPolicy(
   inputFormat: ModelInputFormat,
   options: { latestRealUserMessageIndex?: number } = {},
 ): ModelMediaPolicyProjection {
-  // 直接调用 Model 的辅助链路曾只补 capability、漏掉聚合预算；两阶段必须
-  // 在同一个请求策略边界串联，避免新增消费者继续手工拼装而遗漏其中一半。
+// Directly calling the auxiliary link of the Model once only supplemented the capability and missed the aggregation budget; both phases must
+// Concatenate at the same request strategy boundary to prevent new consumers from continuing to assemble manually and missing half of them.
   const capabilityProjection = projectMessagesForInputFormat(messages, inputFormat);
   const mediaBudgetProjection = projectMessagesForMediaBudget(capabilityProjection.messages, {
     latestRealUserMessageIndex: options.latestRealUserMessageIndex,
@@ -112,8 +112,8 @@ export function projectMessagesForMediaBudget(
         recoverable: true,
       },
     );
-    // 跨进程只传通用 INVALID_INPUT 会丢失本地化语义；请求总量错误
-    // 必须使用统一附件码，避免把 PDF 或混合附件误报成图片/视频错误。
+// Only passing general INVALID_INPUT across processes will lose localization semantics; the total number of requests is wrong
+// Unified attachment codes must be used to avoid mistakenly reporting PDF or mixed attachments as images/videos.
     error.code = errorCode;
     throw error;
   }
@@ -154,8 +154,8 @@ function resolveLatestRealUserMessageIndex(
   messages: ModelInputMessage[],
   latestRealUserMessageIndex: number | undefined,
 ): number {
-  // cacheControl 现在是 provider cache marker，latest real user 身份由
-  // provider projection 传入的 request-local index 承接；-1 明确表示没有真实用户，缺失时才回退到文本启发式。
+// cacheControl is now the provider cache marker, and the latest real user is identified by
+// Provider projection takes over the incoming request-local index; -1 clearly indicates that there is no real user, and will fall back to the text heuristic when missing.
   if (
     latestRealUserMessageIndex !== undefined &&
     Number.isInteger(latestRealUserMessageIndex) &&

@@ -1,4 +1,4 @@
-# Spec: Native crate map, sidecar protocol, stage acceptance
+﻿# Spec: Native crate map, sidecar protocol, stage acceptance
 
 Owner: pending (architecture)
 Status: S0–S5 executed 2026-09-22 (crate layer built, gates green — evidence in RUST-PORT-LOG.md ENTRY 005); S3 host integration executing 2026-09-22 (zcode-host increment, acceptance above); S5 host wiring and S4 R4 BrowserView gate remain OPEN; S6 not started
@@ -127,7 +127,7 @@ running product. A TS module may move to `old.back/` only when **all four** hold
 3. the per-workspace flag seam actually routes production traffic to the Rust
    path, and the TS path still runs green with the flag off (rollback intact);
 4. after the flip, the TS module has zero remaining importers in the workspace
-   (verified by typecheck + knip), so the move cannot break `pnpm build`.
+   (verified by typecheck + knip), so the move cannot break `bun run build`.
 
 Staged order (each stage ends with its own `old.back/` move or an explicit
 "holds" decision):
@@ -195,7 +195,268 @@ lockfile conservatively, including dev/test/build crates.
 cargo fmt --manifest-path native/Cargo.toml --all -- --check
 cargo clippy --manifest-path native/Cargo.toml --workspace --all-targets -- -D warnings
 cargo test --manifest-path native/Cargo.toml --workspace
-pnpm golden:check && pnpm typecheck && pnpm lint && pnpm fmt:check
-pnpm architecture:check --changed
+bun run golden:check && bun run typecheck && bun run lint && bun run fmt:check
+bun run architecture:check --changed
 node scripts/third-party-cargo.mjs --check   # cargo notices fresh
 ```
+
+## Chrome import (2026-11-04)
+
+Owner: `nc-code-shell`; the command surface (`import_chrome_browser_data`) is unchanged.
+
+- Windows: `Network/Cookies` + DPAPI `Local State` key + `v10`/`v11` AES-GCM,
+  CDP `Network.setCookie`; Local Storage via temp Chrome + `DOMStorage` (unchanged).
+- macOS: Keychain `Chrome Safe Storage` (`security find-generic-password`),
+  PBKDF2-HMAC-SHA1 1003 iterations, AES-128-CBC with the 16-space IV, Tauri
+  `WebviewWindow::set_cookie`.
+- Linux: same CBC path with Chrome's documented `peanuts` fallback (1 iteration),
+  matching `chromeCookieManager.ts`.
+- Chrome cookie schema 24+ strips the 32-byte host digest from the plaintext.
+- Local Storage on macOS/Linux: explicit `chrome_local_storage_import_failed`
+  (`originsFailed` counts the discovered origins); Tauri has no cross-origin
+  DOM-storage write API on WKWebView/WebKitGTK.
+- Verification: Windows tests cover PBKDF2 RFC 6070 vectors, an OpenSSL AES-CBC
+  vector, the `v10`/schema-24 framing, keychain exit mapping, and the existing
+  DPAPI DB test. The Linux branch compiles against real `rusqlite`/`cookie`/
+  `aes`/`cbc` crates in WSL; the macOS keychain branch is API-checked only.
+
+## Print-to-PDF (2026-11-04)
+
+Owner: `nc-code-shell`; the command surface (`print_page_to_pdf`) is unchanged.
+
+- Windows: WebView2 `PrintToPdf` (unchanged).
+- macOS: `WKWebView.createPDFWithConfiguration:completionHandler:` with `nil`
+  configuration; `respondsToSelector` guard returns `print_unsupported` below
+  macOS 11. Completion handler → `CFData::to_vec` → `%PDF-` validation.
+- Linux: `WebKitPrintOperation` with GTK `PrintSettings` (`Print to File`,
+  `output-uri`, `output-file-format=pdf`); `print()` runs without a dialog and
+  the produced file is read back and `%PDF-`-validated.
+- Failure contract: empty/non-PDF bytes → `print_failed`; missing output file →
+  `print_failed`; macOS < 11 → `print_unsupported`.
+- Verification: Windows build/tests green; the Linux branch compiles against
+  real `webkit2gtk 2.0.2` + `gtk 0.18` in WSL; the macOS branch is API-checked
+  only (no Apple SDK on this host). A full Linux app build still needs the
+  Tauri system packages (`libayatana-appindicator3-dev`, `librsvg2-dev`,
+  `libxdo-dev`, `libssl-dev`).
+
+## Native browser-use tool (2026-11-04)
+
+Owner: `nc-code-host` owns the tool contract and port trait; the composition root
+(`nc-code-app`) injects the implementation; `nc-code-shell` owns the CDP bridge.
+
+- Surface: one `Browser` tool whose input is a `BrowserCommand` JSON
+  (`method` + command fields). Methods: `navigate`, `back`, `forward`, `reload`,
+  `getState`, `snapshot`, `evaluate`, `screenshot`, `click`, `fill`, `type`,
+  `press`, `scroll`, `waitFor`, `list`.
+- Port: `nc_code_host::tools::browser::BrowserControlPort` with
+  `list()` and `execute(command)`. Absent port = `browser_unavailable`
+  (fail-closed); the tool never fabricates a page result.
+- Dependency edges: `nc-code-app` and `nc-code-shell` reference only the port
+  trait (`nc_code_host::tools::browser::BrowserControlPort`); neither adds host
+  business logic. `nc-code-services-agent` passes the port into
+  `HostServer::set_browser_port`.
+- Read-only methods (`getState`, `snapshot`, `list`) skip the permission prompt;
+  every other method requires approval.
+- Tauri shell: `ShellBrowserPort` targets the newest visible child webview and
+  maps commands to WebView2 `CallDevToolsProtocolMethod`. `snapshot` assigns
+  `data-zcode-ref` refs; `click`/`fill` resolve them. macOS/Linux return
+  `capability_unsupported` (no CDP endpoint).
+- Acceptance: host unit tests cover the contract, read-only classification,
+  fail-closed, and input validation; shell tests cover error-code mapping,
+  modifier bits, timeouts, result shaping and ref/key helpers. The
+  `--browser-selftest` diagnostic runs the real WebView2 path
+  (navigate → snapshot → elementInfo → click → fill → evaluate → screenshot →
+  getState → host tool wrapper) and passed on Windows 2026-11-04.
+- Playwright subset: `playwright`/`playwrightWaitForTimeout` are routed through
+  the shell. Locator operations `count`, `allTextContents`, `isVisible`,
+  `isEnabled`, `textContent`, `innerText`, `getAttribute`, `evaluate`, `waitFor`,
+  `click`, `dblclick`, `fill`, `press`, `setChecked`, `selectOption`,
+  `downloadMedia` are implemented over CSS/`css=`/`id=`/`data-testid=`/`text=`/
+  `role=`/`xpath=` selectors with `nth=` and `>>` chaining, plus the
+  `internal:` selectors the TS client generates
+  (`internal:role=/text=/label=/attr=/testid=/and=/or=/has=/has-not=/
+  has-text=/has-not-text=/control=enter-frame`). `elementScreenshot`,
+  `waitForEvent("download")`, and `downloadPath` are implemented (Windows
+  WebView2 `DownloadStarting` COM handler). `fileChooserSetFiles` fails
+  explicitly with `capability_unsupported` (IAB file uploads are unsupported by
+  the TS product too).
+- Not covered: the full Playwright injected selector engine (unknown
+  `internal:` selectors and cross-origin frame entry fail explicitly) and the
+  `agent.browsers` node_repl bridge (the Rust host has no JS plugin runtime;
+  R1/R3 in `rust-pure-native-roadmap.md` track that epic).
+
+## Playwright locator subset (2026-11-04)
+
+Owner: `nc-code-shell` (`browser_playwright.rs`) behind the host `Browser` tool.
+
+- Commands: `playwright {action, tabId?}` and
+  `playwrightWaitForTimeout {timeoutMs, tabId?}`.
+- Actions: `locator` (the operation set above), `domSnapshot`, `elementInfo`,
+  `elementScreenshot`, `evaluate`, `waitForLoadState` (`load`/
+  `domcontentloaded`), `waitForURL` (with `*` wildcards), `waitForEvent`,
+  `downloadPath`. On Windows each child webview registers a WebView2
+  `ICoreWebView2_4::add_DownloadStarting` handler that forces the destination
+  into `%TEMP%\zcode-browser-downloads` and records `{id, tab, path}`; the
+  handler is registered per creation and the event fires before bytes are
+  written, so `downloadPath` polls until the file exists. `fileChooserSetFiles`
+  is an explicit `capability_unsupported` (IAB file uploads are unsupported by
+  the TS product too); on non-Windows platforms download events report
+  `capability_unsupported` because there is no WebView2 handler.
+- Selectors: CSS, `css=`, `id=`, `data-testid=`, `text=` (substring; quoted
+  exact), `role=<role>[name="..."]`, `xpath=`, `nth=` and `>>` chaining.
+- `internal:` selectors match the syntax the TS client emits:
+  `internal:role=<role>[name="…"i|s|/re/]` (implicit ARIA roles plus
+  aria-label/aria-labelledby/label/alt/innerText accessible names),
+  `internal:text=…` (strict `s`/quoted = normalized whole-text equality; `i` =
+  case-insensitive substring, leaf-most match),
+  `internal:label=…`, `internal:attr=[name=matcher]`,
+  `internal:testid=[data-testid=…s]`, `internal:and="sel"`,
+  `internal:or="sel"`, `internal:has="sel"`, `internal:has-not="sel"`,
+  `internal:has-text=…`, `internal:has-not-text=…`, and
+  `internal:control=enter-frame` (same-origin iframes). Unknown `internal:`
+  selectors and cross-origin frame entry fail explicitly.
+- Actionability: pointer/input operations poll for existence/visibility/
+  enabled state up to the action timeout (default 3s), scroll the element into
+  view, dispatch trusted CDP mouse/key events, and verify `setChecked`.
+- Live `--browser-selftest` evidence: `playwright count: 1`,
+  `playwright textContent: "Go"`, `playwright fill: value="locator"`,
+  `playwright click: title="clicked"`, `playwright xpath count: 1`,
+  `playwright chain count: 1`, `playwright nth count: 1`,
+  `playwright elementScreenshot: base64_bytes=600`, internal role/name/text/
+  testid/attr/label/and/or/has/has-not/has-text/frame counts all matching, and
+  a real loopback `Content-Disposition: attachment` download:
+  `playwright download: id=iab-download:… bytes=17 text="selftest-download"`,
+  PASS/EXITCODE=0.
+- Tests: `browser_playwright::tests` cover the resolver script
+  (css/xpath/nth/chaining/internal), JSON embedding of the selector, press
+  modifier parsing, URL wildcards, timeout clamping, `waitForEvent` validation,
+  and `downloadPath` unknown-id handling; `browser_view::tests` covers the
+  tab-scoped download registry (unique ids, per-tab filtering, cross-tab
+  lookup); the host Browser tool tests cover read-only classification.
+
+## Native computer-use tool (2026-11-04)
+
+Owner: `nc-code-host` owns the contract (`tools/computer.rs`, `ComputerControlPort`
+trait); the composition root injects the platform implementation; `nc-code-shell`
+owns Windows capture/input (`computer_control.rs`).
+
+- Commands: `listApps`, `getState`, `screenshot`, `activate`, `move`, `click`,
+  `scroll`, `type`, `press`, `drag`, `wait`.
+- Observation: `listApps` enumerates visible top-level windows with
+  `{windowId, pid, name, title, bounds, clientOrigin, clientSize, foreground}`;
+  `getState` returns the foreground window, cursor position and virtual-screen
+  rect; `screenshot` captures a window/region/full virtual screen as a real PNG
+  (`Page.captureScreenshot` is not involved; this is GDI `BitBlt` + PNG
+  encoding), capped at 64 MP and `maxBytes` (default 8 MiB).
+- Input: `activate` uses `ShowWindow(SW_RESTORE)` + `SetForegroundWindow` and
+  reports `foreground_denied` when Windows refuses; `move`/`click`/`scroll`/
+  `drag` use `SetCursorPos` + `SendInput` mouse events; `type` sends UTF-16 code
+  units with `KEYEVENTF_UNICODE`; `press` sends a modifier chord + key through
+  `SendInput` (key names share `browser_control_scripts::key_fields`).
+  `wait` sleeps up to 30 s.
+- Fail-closed: absent port -> `computer_unavailable`; non-Windows ->
+  `capability_unsupported`; input validation happens in the host before the port
+  is touched (coordinates, button/clicks, required text/key, scroll delta, wait
+  bound).
+- Deferred (2026-11-04): macOS (`CGEvent`/`AXUIElement`) and Linux
+  (`XTest`/AT-SPI) backends are not implemented. This host has no Apple SDK and
+  no X11 display, so those branches could be neither compiled nor exercised;
+  shipping unverified input injection was rejected. The port already returns a
+  named `capability_unsupported`, so the model surface stays truthful.
+- Read-only classification: `listApps`/`getState`/`screenshot`/`wait` never
+  prompt; `activate`/`move`/`click`/`scroll`/`type`/`press`/`drag` require
+  approval.
+- Live `--computer-selftest` evidence on Windows (real Tauri window, real
+  `SendInput`): `listApps windowId=15075744 pid=31244 origin=(128,151)`,
+  `activate foreground granted`, click+`type` produced input value `"hello"`,
+  button handler set `data-clicked=1`, wheel set `scrollY=300` (`wheels=1`),
+  `Tab` accepted, screenshot 17,344 bytes PNG 716x539, drag ended at the target
+  cursor `(212,255)`, PASS/EXITCODE=0.
+- Tests: `tools::computer::tests` cover the contract surface, read-only
+  classification, fail-closed without a port, method validation, command
+  validation before the port, and forwarding to the port; shell unit tests keep
+  the existing 124+3 suite green.
+
+## Native-layer occlusion (2026-11-04)
+
+The Tauri browser pane is a native child webview above the DOM, so Radix
+poppers/menus/dialogs/tooltips/toasts cannot paint over it. The fix keeps the
+tab's requested visibility and the overlay state separate:
+
+- Shell command `browser_view_set_occluded {key, occluded}` sets a per-entry
+  `occluded` flag and applies `visible && !occluded` to the native webview.
+  `browser_view_state` now returns `{visible, occluded, effectiveVisible}` so the
+  renderer can observe both. `browser_view_set_visible` also applies the composed
+  visibility, so a concurrent show does not override an active overlay.
+- Renderer `packages/ui/src/browser-use/browserUseOcclusion.ts` watches
+  `data-radix-popper-content-wrapper`, menu/select content, `role=dialog`,
+  `role=alertdialog`, `role=menu`, `role=listbox`, `role=tooltip`,
+  `data-sonner-toast`, and the explicit `data-browser-occluder` hook. A scan runs
+  on open, on DOM mutations, on scroll/resize, and on a 120 ms interval; it only
+  reports when a visible overlay rect intersects the pane rect.
+- `BrowserViewportSurface` starts the watcher in the Tauri runtime and calls
+  `TauriBrowserGuestController.setOccluded`; Electron `<webview>` keeps DOM
+  compositing and is unaffected.
+- Live `--browser-selftest` evidence: after navigation the selftest hides the
+  webview via `apply_occluded`, asserts the native `IsWindowVisible` is false,
+  restores it, asserts it is visible again, and prints
+  `occlusion: hidden=false restored=true`; PASS/EXITCODE=0.
+- Tests: `packages/ui/test/browserUseOcclusion.test.ts` 5/5 (geometry, style,
+  selector coverage, watcher flip/restore); shell unit 125 includes the
+  `effective_visible` truth table.
+
+## Browser recording (2026-11-04)
+
+Owner: the renderer owns the capture/encode job; `nc-code-shell` owns the
+workspace write.
+
+- `recordingStart` creates `iab-recording:<uuid>` in the renderer lifecycle
+  controller and starts the capture port. The port polls
+  `Page.captureScreenshot` through `browser_view_cdp`, draws frames into a
+  canvas and records `canvas.captureStream(fps)` with `MediaRecorder`
+  (VP9/VP8 WebM).
+- `recordingStatus` returns the job snapshot and accepts a workspace-relative
+  `.webm` `outputPath`; without one the artifact defaults to
+  `browser-recordings/<job-id>.webm`.
+- `recordingCancel` aborts a running job; `close`/`closeSession` cancel the
+  matching running jobs.
+- Scripted `options.actions` (`wait`, `click`, `type`, `hover`, `move`,
+  `scroll`, `scrollTo`, `wheel`, `drag`, `waitFor`, `delayAfterMs`) execute over
+  CDP during capture; selectors/text are JSON-escaped. Unless `showCursor:
+  false`, a red cursor overlay is injected into the guest page and driven by the
+  same CDP mouse events, so it appears in the recorded frames.
+- The shell command `save_browser_recording(workspacePath, relativePath, data)`
+  validates the relative path and parent canonicalization, requires the WebM
+  EBML magic, caps the payload at 256 MiB, and writes atomically.
+- Fail-closed: no capture port -> `capability_unsupported`; a second active
+  recording on the same tab -> `execution_error`; unknown recording id ->
+  `backend_unavailable`.
+- Verification: 9 renderer recording tests (fail-closed, actions pass-through,
+  cursor/action script escaping, completed artifact write, duplicate tab,
+  cancel, invalid output paths, closeSession cancellation, CDP action
+  execution); 4 shell `browser_recording` tests; live Tauri probe wrote
+  `recordings/probe.webm` with `1A 45 DF A3 ...` and rejected
+  `../escape.webm` / non-WebM payloads. The live selftest captures 3 scripted
+  actions and verifies a red cursor pixel in the frame.
+
+### Live recording selftest (2026-11-04)
+
+`zcode-shell --browser-recording-selftest` creates a real child webview and a
+local selftest page; the page captures the child over `browser_view_cdp`,
+drives 3 scripted CDP mouse actions, injects the cursor overlay, encodes WebM
+with `MediaRecorder`, writes through `save_browser_recording`, and reports the
+artifact back to the shell. The shell verifies the workspace path, byte count,
+EBML magic, action count, and a red cursor pixel before PASS.
+
+Live Windows result (WebView2, real MediaRecorder):
+
+```
+[browser-recording-selftest] capture: 15 frames, video/webm;codecs=vp9, 3 scripted actions
+[browser-recording-selftest] cursor: visible (pixel Some([255, 73, 82]))
+[browser-recording-selftest] artifact: ...\recordings\selftest.webm (23294 bytes)
+[browser-recording-selftest] PASS
+```
+
+`ffprobe` on a kept artifact: `codec_name=vp9`, `width=800`, `height=600`,
+`format_name=matroska,webm`, `duration ~1.95s`. Set
+`ZCODE_RECORDING_SELFTEST_KEEP=1` to keep the workspace for inspection.

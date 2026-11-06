@@ -1,10 +1,10 @@
-//! diff facade：jsdiff 兼容面，背后是 Rust sidecar（`zcode-diff`，byte-parity：
-//! 87 个真实 jsdiff@9 fixture）。flag 关 = jsdiff 原路径（零行为变化）；flag 开 =
-//! sidecar，**不可用时降级 jsdiff 并告警一次**（可用性事故不影响用户轮次），协议/
-//! handler 错误一律抛错（配置与版本偏移是构建事故，不静默）。
+//! diff facade: jsdiff compatibility surface, behind which is Rust sidecar (`zcode-diff`, byte-parity:
+//! 87 real jsdiff@9 fixtures). flag off = jsdiff original path (zero behavior change); flag on =
+//! sidecar, **downgrade jsdiff when unavailable and alert once** (availability incidents do not affect user rounds), protocol/
+//! Handler errors will always be thrown (configuration and version offsets are build accidents and will not be silent).
 //!
-//! 超时语义对齐 jsdiff：`timeout` 到期 → sidecar 返回 null → 本层映射为
-//! `undefined`（jsdiff 的超时返回值）。调用方已有的 `patch?.hunks ?? []` 继续成立。
+//! Timeout semantic alignment jsdiff: `timeout` expires → sidecar returns null → this layer is mapped to
+//! `undefined` (timeout return value of jsdiff). The caller's existing `patch?.hunks ?? []` continues to be established.
 
 import {
   applyPatch as jsdiffApplyPatch,
@@ -95,8 +95,8 @@ export async function nativeUnifiedPatch(
   newHeader?: string,
   options?: StructuredPatchOptions,
 ): Promise<string | undefined> {
-  // sidecar 的 diff.unified 镜像 jsdiff `createTwoFilesPatch`（两文件补丁：
-  // label 只进 ---/+++ 头）；fallback 必须同语义，否则 flag 两侧行为不一致。
+// sidecar's diff.unified image jsdiff `createTwoFilesPatch` (two file patch:
+// label only goes into ---/+++ header); fallback must have the same semantics, otherwise the behavior of both sides of flag will be inconsistent.
   if (!sidecarEnabled("diff")) {
     return jsdiffCreateTwoFilesPatch(
       oldFileName,
@@ -109,7 +109,7 @@ export async function nativeUnifiedPatch(
     );
   }
   try {
-    // sidecar 协议形状：{"patch": string | null}（null = 超时）。
+// sidecar protocol shape: {"patch": string | null} (null = timeout).
     const result = (await callDiffMethod("diff.unified", {
       old: oldStr,
       new: newStr,

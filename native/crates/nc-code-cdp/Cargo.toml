@@ -1,0 +1,19 @@
+[package]
+name = "nc-code-cdp"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "R3 raw CDP client island: replaces playwright-core with a hand-rolled Chrome DevTools Protocol client (managed launch, system-browser discovery, AX-tree snapshot, page commands, screenshots)"
+
+[dependencies]
+base64 = "0.22"
+futures-util = "0.3"
+serde.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["net", "process", "rt-multi-thread", "sync", "time", "io-util", "macros"] }
+tokio-tungstenite = "0.29"
+
+[dev-dependencies]
+tempfile = "3"

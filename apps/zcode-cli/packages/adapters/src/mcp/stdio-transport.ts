@@ -26,8 +26,8 @@ interface StdioProcessExitInfo {
 
 type ProcessTreeStdioServerParameters = StdioServerParameters & {
   /**
-   * 官方 stdio MCP 的逐消息身份载荷提供器。它作为 spawn 参数的非执行字段保留，确保 SDK
-   * 为 modern probe 克隆 sibling transport 时，`server/discover` 与正式 session 使用同一注入边界。
+* Official per-message identity payload provider for stdio MCP. It is reserved as a non-executable field of the spawn parameter, ensuring that the SDK
+* When cloning the sibling transport for modern probe, `server/discover` uses the same injection boundary as the formal session.
    */
   requestMetaProvider?: StdioRequestMetaProvider;
 };
@@ -37,10 +37,10 @@ interface ProcessTreeStdioClientTransportOptions {
 }
 
 /**
- * SDK 2.0 会为 stdio 版本探测创建一次性兄弟进程，但其私有回收钩子只终止直接子进程。
- * launcher/watchdog 派生的后代会因此变成孤儿；在同一个钩子里先回收整棵进程树，再让
- * SDK 清理 pipe 和读取缓冲区。原型上必须直接拥有 `_dispose`，SDK 才会把该 transport
- * 识别为可安全克隆的探测 transport。
+* SDK 2.0 creates one-time sibling processes for stdio version detection, but its private recycling hook only kills direct child processes.
+* Descendants derived from launcher/watchdog will become orphans; first recycle the entire process tree in the same hook, and then let
+* SDK cleans pipe and read buffer. The prototype must have `_dispose` directly before the SDK will use the transport
+* Probe transport identified as safe to clone.
  */
 export class ProcessTreeStdioClientTransport extends StdioClientTransport {
   private childProcess?: ChildProcess;
@@ -68,12 +68,12 @@ export class ProcessTreeStdioClientTransport extends StdioClientTransport {
     try {
       windowsJobObject.terminate();
     } catch {
-      // 继续执行 close 与 taskkill 回退。
+// Continue to execute close and taskkill rollback.
     } finally {
       try {
         windowsJobObject.close();
       } catch {
-        // 句柄关闭失败不能阻断 SDK pipe 清理。
+// Failure to close the handle cannot block SDK pipe cleanup.
       }
     }
   }
@@ -103,14 +103,14 @@ export class ProcessTreeStdioClientTransport extends StdioClientTransport {
     }
     child.once("exit", recordExit);
 
-    // staging 曾把 Job Object 接管和退出观测各自合入成两个同名 start()，导致 CLI
-    // 构建直接报 Duplicate function implementation；这里合并两个职责，保留 Windows
-    // 进程树托管和跨平台退出记录。
+// staging once combined the Job Object takeover and exit observations into two start()s with the same name, resulting in CLI
+// Build and report directly to Duplicate function implementation; here merge the two responsibilities and retain Windows
+// Process tree hosting and cross-platform exit logging.
     if (process.platform !== "win32" || this.pid == null) return;
     try {
       this.windowsJobObject = await this.windowsJobObjectFactory(this.pid);
     } catch {
-      // 原生托管不可用时保留 taskkill 回退，不能让 MCP 建连因可选能力失败。
+// Keep the taskkill fallback when native hosting is unavailable, and do not allow MCP connection establishment to fail due to optional capabilities.
       this.windowsJobObject = undefined;
     }
   }
@@ -132,7 +132,7 @@ function mergeRequestMeta(
   message: JSONRPCMessage,
   requestMeta: Record<string, unknown> | undefined,
 ): JSONRPCMessage {
-  // JSON-RPC response 没有 method，不得给响应伪造 params。只修改 client 发出的请求与通知。
+// JSON-RPC response does not have a method, and forged params must not be given to the response. Only the requests and notifications sent by the client are modified.
   if (!("method" in message) || !requestMeta || Object.keys(requestMeta).length === 0) {
     return message;
   }
@@ -142,7 +142,7 @@ function mergeRequestMeta(
     ...message,
     params: {
       ...params,
-      // 宿主刚解析的官方身份载荷必须覆盖调用方残留值，避免旧凭证继续存活。
+// The official identity payload just parsed by the host must overwrite the caller's residual value to prevent the old credentials from continuing to survive.
       _meta: { ...existingMeta, ...requestMeta },
     },
   } as JSONRPCMessage;
@@ -161,7 +161,7 @@ Object.defineProperty(ProcessTreeStdioClientTransport.prototype, "_dispose", {
       try {
         await terminateMcpStdioProcessTree(pid);
       } catch {
-        // SDK 的探测回收本来就是 best effort；仍需继续释放 pipe，避免协商永久卡住。
+// The SDK's detection and recycling is inherently best effort; it is still necessary to continue to release the pipe to avoid the negotiation being permanently stuck.
       }
     }
 

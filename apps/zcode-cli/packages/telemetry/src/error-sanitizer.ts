@@ -26,7 +26,7 @@ export function sanitizeTelemetryError(error: unknown): SanitizedTelemetryError 
     error instanceof Error ? error.message : stringValue(record.message),
   );
   const chain = errorObjectChain(error);
-  // 修复原因：链包含输入本身；没有独立嵌套对象时不能把同一个错误重复登记为 cause。
+// Reason for fix: The chain contains the input itself; the same error cannot be registered as cause repeatedly without independent nested objects.
   const cause = chain.length > 1 ? sanitizeCause(chain[chain.length - 1]!) : undefined;
   return {
     ...(cause ? { cause } : {}),
@@ -37,11 +37,11 @@ export function sanitizeTelemetryError(error: unknown): SanitizedTelemetryError 
 }
 
 /**
- * 同一个源异常会沿 Attempt -> Call -> Step -> Turn 冒泡。错误正文只应记录在最靠近
- * 来源、最先认领它的 Span；父层继续记录 outcome/failure_stage，但不复制同一份正文。
+* The same source exception will bubble up along Attempt -> Call -> Step -> Turn. The error text should only be logged closest to
+* Source, the Span that first claimed it; the parent layer continues to record outcome/failure_stage, but does not copy the same text.
  *
- * 包装错误的 cause 链也参与认领：AdapterError(cause=ProviderError) 不会在上层重新覆盖
- * Provider Attempt 已记录的原始错误。WeakSet 不延长异常对象生命周期。
+* The cause chain of packaging errors also participates in claiming: AdapterError(cause=ProviderError) will not be re-covered in the upper layer
+* Provider Attempt The original error logged. WeakSet does not extend the exception object life cycle.
  */
 export function claimSanitizedTelemetryError(error: unknown): SanitizedTelemetryError | undefined {
   const objects = errorObjectChain(error);
@@ -53,8 +53,8 @@ export function claimSanitizedTelemetryError(error: unknown): SanitizedTelemetry
 
 export function sanitizeErrorMessage(value: string | undefined): string | undefined {
   if (!value) return undefined;
-  // 错误可能携带整段响应正文；先做有界截断再正则清洗，避免 Telemetry 为恶意或异常
-  // Provider 消息承担无界 CPU/内存成本。
+// The error may carry the entire response body; perform bounded truncation first and then regular cleaning to prevent Telemetry from being malicious or abnormal.
+// Provider messages bear unbounded CPU/memory cost.
   const sanitized = value
     .slice(0, 4_096)
     .replace(/\bhttps?:\/\/[^\s"'<>]+/giu, sanitizeUrl)
@@ -108,7 +108,7 @@ function errorObjectChain(error: unknown): object[] {
     seen.add(current);
     result.push(current);
     const record = current as Record<string, unknown>;
-    // 部分流包装器使用 adapterError/error；沿单条优先链复用同一认领机制，避免父 Span 重复记录。
+// Some stream wrappers use adapterError/error; reuse the same claim mechanism along a single priority chain to avoid repeated recording of the parent Span.
     current = [record.cause, record.adapterError, record.error].find(
       (nested) => nested && typeof nested === "object",
     );

@@ -198,9 +198,9 @@ export function applyPreToolPermissionDecision(
   mode: CollaborationMode,
 ): PermissionDecisionResult {
   if (permissionDecision.decision === "deny") return permissionDecision;
-  // alwaysAsk 声明出来的确认（如 workflow 运行确认）不能被 PreToolUse hook
-  // 的整体 allow 悄悄抹掉——那等于给"任何模式都要问"开了一个静默后门。自动化仍有正规出口：
-  // PermissionRequest hook 可以应答这次弹窗（见 runPermissionRequestHooks）。
+// Confirmations declared by alwaysAsk (such as workflow run confirmation) cannot be hooked by PreToolUse
+// Silently erase the entire allow - that is equivalent to opening a silent backdoor for "ask in any mode". There are still formal exports for automation:
+// PermissionRequest hook can answer this pop-up window (see runPermissionRequestHooks).
   if (
     hookResult.permissionBehavior === "allow" &&
     permissionDecision.decision === "ask" &&

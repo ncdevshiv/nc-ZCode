@@ -1,12 +1,12 @@
 /**
- * REPL cell 的同步错误由 NodeReplSession 兜底，但 fire-and-forget 的异步错误
- * （如未 await 的 tab.* 调用在 turn 中断时被 reject）会按 Node 默认策略击穿整个 server
- * 进程。子进程一死，会话内 Browser Use 从此不可用。这里把异步错误降级为 stderr 日志：
- * runtime 状态保留、协议 stdout 不受影响。
+* REPL cell's synchronization errors are handled by NodeReplSession, but fire-and-forget's asynchronous errors
+* (If the tab.* call without await is rejected when the turn is interrupted), the entire server will be penetrated according to Node's default strategy.
+* Process. Once the child process dies, Browser Use within the session is no longer available. Here the asynchronous errors are downgraded to stderr logs:
+* Runtime state is preserved and protocol stdout is not affected.
  *
- * 父进程退出后 stderr 会报 EPIPE。旧 handler 又把 EPIPE 堆栈写回同一条
- * stderr，形成 EPIPE -> uncaughtException -> stderr.write -> EPIPE 的无限循环。
- * 输出管道关闭表示 MCP client 已不可达，必须直接进入 shutdown，不能继续写诊断。
+* After the parent process exits, stderr will report EPIPE. The old handler writes back the same EPIPE stack
+* stderr, forming an infinite loop of EPIPE -> uncaughtException -> stderr.write -> EPIPE.
+* Closing the output pipe means that the MCP client is unreachable and must enter shutdown directly, and cannot continue to write diagnostics.
  */
 export declare function installNodeReplProcessGuards(input: {
     onOutputClosed: (error: Error) => void;

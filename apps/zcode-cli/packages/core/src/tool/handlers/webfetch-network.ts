@@ -49,8 +49,8 @@ export async function fetchAndExtractContent(options: {
   let response: HttpClientResponse | undefined;
 
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
-    // ZCode WebFetch 从 agent runtime 所在机器出网；移除 DNS preflight 后，
-    // 每个真实 GET 前仍要阻断 URL 字面量本地/私网目标，避免 NO_PROXY 绕过安全边界。
+// ZCode WebFetch goes out of the network from the machine where the agent runtime is located; after removing DNS preflight,
+// URL literal local/private network targets must still be blocked before each real GET to avoid NO_PROXY bypassing the security boundary.
     await assertWebFetchLiteralEgress(currentUrl);
 
     const requestId = `net_${crypto.randomUUID()}`;
@@ -94,8 +94,8 @@ export async function fetchAndExtractContent(options: {
         url: response.url,
       });
     } catch (error) {
-      // Node/undici 的顶层网络错误常只有 "fetch failed"，需要把最底层 cause
-      // 和 code 暴露给用户，否则连接重置、DNS、代理等不同问题在工具结果里完全不可区分。
+// The top-level network error of Node/undici is often only "fetch failed", so the bottom-level cause needs to be
+// and code are exposed to users, otherwise different issues such as connection reset, DNS, proxy, etc. will be completely indistinguishable in the tool results.
       const errorMessage = formatWebFetchRequestError(error, currentUrl);
       await emitNetworkRequestStatus(options.context, {
         completedAt: new Date().toISOString(),
@@ -135,7 +135,7 @@ export async function fetchAndExtractContent(options: {
       );
     }
 
-    // 网络层按响应类别收口，避免重定向/HTTP 错误误进入正文抽取和模型处理。
+// The network layer is closed according to the response category to avoid redirection/HTTP errors from entering text extraction and model processing.
     if (!isRedirectStatus(response.status)) break;
     const redirect = classifyRedirect(response, currentUrl, redirects, options.originalUrl);
     if (isFetchTerminalResult(redirect)) return redirect;
@@ -250,8 +250,8 @@ function throwIfProxyBlocked(response: HttpClientResponse, currentUrl: URL): voi
 }
 
 function formatEgressBlockedMessage(message: string, domain: string): string {
-  // 底层 public egress 会看到 DNS 解析结果，但 WebFetch 错误会进入模型上下文，
-  // 不能把被阻断域名解析出的内网/metadata IP 当作探测结果暴露给模型。
+// The underlying public egress will see the DNS resolution results, but WebFetch errors will enter the model context.
+// The intranet/metadata IP resolved from blocked domain names cannot be exposed to the model as detection results.
   if (message.includes("resolved to")) {
     return `HTTP public egress blocked ${domain} because it resolved to a non-public address`;
   }

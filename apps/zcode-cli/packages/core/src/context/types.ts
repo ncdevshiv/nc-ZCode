@@ -102,7 +102,7 @@ export interface OutputStylePromptConfig {
 export interface ContextBuilderConfig {
   workingDirectory: string;
   envInfo: EnvInfo;
-  /** 当前步骤的执行对象，不进入 Context Source 或持久化环境快照。 */
+/** The execution object of the current step, does not enter the Context Source or persistence environment snapshot. */
   model?: Model;
   presentationSurface?: PresentationSurface;
   currentDate?: string;
@@ -116,9 +116,9 @@ export interface ContextBuilderConfig {
   skillMetadataBudget?: number;
   customSystemPrompt?: string;
   /**
-   * 动态工作流子代理（workflow child）的身份输入。在场即走 builder 的第三条路径：
-   * 基座段（CLI prefix、安全行、Harness、memory）+ 工作流子代理契约 + persona 叠加，
-   * 而不是像 `customSystemPrompt` 那样整段替换。与 `customSystemPrompt` 互斥。
+* Identity input for dynamic workflow child. Take the third path of the builder when you are there:
+* Base segment (CLI prefix, security row, Harness, memory) + workflow subagent contract + persona overlay,
+* Instead of replacing the entire section like `customSystemPrompt`. Mutually exclusive with `customSystemPrompt`.
    */
   workflowActor?: WorkflowActorContext;
   language?: string;
@@ -128,8 +128,8 @@ export interface ContextBuilderConfig {
 }
 
 /**
- * 工作流子代理的身份输入：有效名（匿名缺席）、作者写的 persona system prompt（可缺席）。
- * 没有工具档位：每个子代理都有完整工作工具集，契约只有一份文本。
+* Identity input for workflow subagent: valid name (anonymous absent), persona system prompt written by the author (can be absent).
+* No tool stalls: Each sub-agent has a complete working tool set, and there is only one text of the contract.
  */
 export interface WorkflowActorContext {
   name?: string;

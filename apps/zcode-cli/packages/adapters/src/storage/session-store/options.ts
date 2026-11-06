@@ -9,9 +9,9 @@ export type ForkCommitFaultStage =
 
 export interface SqliteSessionStoreOptions {
   dbPath?: string;
-  /** 仅供事务原子性测试；生产调用不得设置。 */
+/** For transaction atomicity testing only; must not be set for production calls. */
   forkCommitFaultAt?: ForkCommitFaultStage;
-  /** 仅供启动锁等待边界测试；生产调用使用默认值。 */
+/** For startup lock wait boundary testing only; production calls use default values. */
   startupLockTimeoutMs?: number;
 }
 

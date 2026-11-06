@@ -1,8 +1,8 @@
 /**
- * engine.ts 顶到 oxlint max-lines 上限（400 行），把 `report()` 的发布路径（序列化探针、
- * replay 去重、标签校验、两个上限、一次写）拆到本文件；公开面仍从 engine.ts 导出。
+* engine.ts reaches the upper limit of oxlint max-lines (400 lines), and changes the release path of `report()` (serialization probe,
+* replay deduplication, tag verification, two upper limits, write once) is split into this file; the public side is still exported from engine.ts.
  *
- * 自由函数经 {@link EngineState} 接缝读写引擎状态；WorkflowEngine.report 只是薄委托。
+* Free function to read and write engine state via {@link EngineState} seam; WorkflowEngine.report is just a thin delegate.
  */
 
 import { inputHash } from "./hash.js";
@@ -14,21 +14,21 @@ import type { InstanceRef } from "./types.js";
 import { refToString, WorkflowError } from "./types.js";
 
 /**
- * 发布一条中间结果（Boundary A 的 `report`）。同步、无返回值、无 driver 往返：
- * 落一行 journal + 发一个事件就结束。
+* Publish an intermediate result (Boundary A's `report`). Synchronous, no return value, no driver round trip:
+* Drop a line in journal + send an event and end.
  *
- * 四件事，顺序是有讲究的：
+* The order of these four things is important:
  *
- * 1. **序列化探针先行**。用 `JSON.stringify` 一次拿到两样东西：item 到底能不能被 JSON
- *    表示，以及它的字节数（上限的度量）。必须在 canonicalJson 之前——带环的 item 会让
- *    canonicalJson 递归爆栈，那是一次崩溃而不是一次可读的失败。
- * 2. **replay 命中即跳过**：不发事件、不重写记录。跳过之前先比对 inputHash，不一致按
- *    纯度违约让 run 大声失败。这条比对是**防御性的**（一条报告派生自 journal 已经钉住的
- *    值），但它是免费的，而这里的偏移意味着整个 replay 不可靠——Results 面板的读者绝不
- *    应该在不知情的情况下看到那种东西。
- * 3. **上限先于落库**：条数与单条字节数任一超出即 `ReportCapExceeded` 失败整个 run。
- *    run 级而非 node 级，因为 `report` 返回 `void`，没有可拒绝进去的地方。
- * 4. **一次写**：`completed`、无 actor 字段。
+* 1. **Serialization probe goes first**. Use `JSON.stringify` to get two things at once: whether item can be JSON
+* means, and its number of bytes (a measure of the upper limit). Must precede canonicalJson - a ringed item will make
+* canonicalJson recursively explodes the stack, which is a crash rather than a readable failure.
+* 2. **replay skips when hit**: no event is sent, no record is rewritten. Compare inputHash before skipping, if inconsistent, press
+* Purity default makes run fail loudly. This comparison is **defensive** (a report derived from one that the journal has pinned
+* value), but it's free, and the offset here means that the entire replay is unreliable - readers of the Results panel never
+* That's the kind of thing that should be seen without knowing it.
+* 3. **The upper limit precedes the dropout**: If either the number of entries or the number of bytes in a single entry exceeds `ReportCapExceeded`, the entire run will fail.
+* run level instead of node level, because `report` returns `void` and there is no way to deny it.
+* 4. **Write once**: `completed`, no actor field.
  */
 export function publishReport(
   state: EngineState,
@@ -42,10 +42,10 @@ export function publishReport(
 
   const serialized = probeReportItem(state, instance, item);
   if (serialized === undefined) return; // 探针已 failRun
-  // inputHash 刻意**只覆盖 item**，标签不进哈希：标签是站点上的编译期字面量，而 resume
-  // 要求脚本逐字节相同（script_hash），所以同一 (siteId, ordinal) 的标签不可能变。把它加进
-  // 哈希输入的唯一效果，是让**每一条**既有 journal 里的无标签 report 在 resume 时
-  // InputHashMismatch——一次没有任何收益的破坏性载荷形变。
+// inputHash deliberately **only covers item**, and labels are not hashed: labels are compile-time literals on the site, and resume
+// Scripts are required to be the same byte by byte (script_hash), so tags with the same (siteId, ordinal) cannot change. add it to
+// The only effect of hash input is to make **each** unlabeled report in the existing journal appear when resume
+// InputHashMismatch - A destructive load deformation with no gain.
   const hash = inputHash(item);
 
   const recorded = state.journal.getNode(state.runId, siteId, ordinal);
@@ -57,9 +57,9 @@ export function publishReport(
     return; // replay 去重：静默跳过（无事件、不重复 append）
   }
 
-  // 标签在场：它必须已经被声明为**预置**产物。查在上限之前——一个指向不存在看板的标签
-  // 是脚本写错了，不是容量事件，两者混在一起会让错误码骗人。
-  // failRun 而不是拒绝，理由与 report 的两个上限完全相同：void 返回没有拒绝通道。
+// Tag present: it must have been declared as a **preset** product. Check before the upper limit - a label pointing to a non-existent board
+// The script is written incorrectly, not the capacity event. Mixing the two together will make the error code deceptive.
+// failRun instead of reject for exactly the same reason as report's two upper bounds: void returns no reject channel.
   if (artifactId !== undefined && !isDeclaredPreset(state, artifactId)) {
     state.failRun(
       new WorkflowError(
@@ -82,8 +82,8 @@ export function publishReport(
     inputHash: hash,
     status: "completed",
     result: item,
-    // 打了标签的 report 行是「看板 = journal 的投影」这条不变式的落点：一个看板的每个点
-    // 就是一行 kind = report ∧ artifact_id = 该 id。
+//The labeled report line is the placement point of the invariant "Kanban = projection of journal": each point of a Kanban board
+// Just one line kind = report ∧ artifact_id = the id.
     ...(artifactId === undefined ? {} : { artifactId }),
   });
   state.record({
@@ -95,18 +95,18 @@ export function publishReport(
 }
 
 /**
- * report 的**运行期 JSON 护栏**（编译期的可序列化诊断是 suspenders，这里是 belt）。
- * 返回 item 的序列化文本；不可表示时 failRun 并返回 undefined。
+* Runtime JSON guardrails for * report (serializable diagnostics at compile time are suspenders, here belt).
+* Returns the serialized text of item; failRun and returns undefined if not representable.
  *
- * 为什么用 `JSON.stringify` 而不是 `canonicalJson`：canonicalJson 是**全函数**的（把
- * undefined/函数静默折成 `"null"`，遇到环则递归爆栈），这正是它作为哈希输入该有的样子，
- * 但作为护栏它会把一个残缺的 item 悄悄落进 journal。`JSON.stringify` 相反：环与 bigint
- * 抛错、undefined/函数/symbol 返回 undefined——两种情形都能被抓成一次大声的失败。
+* Why use `JSON.stringify` instead of `canonicalJson`: canonicalJson is **full function** (put
+* undefined/The function is silently folded into `"null"`, and the stack is recursively exploded when it encounters a loop). This is exactly what it should look like as a hash input.
+* But as a guardrail, it will quietly drop a damaged item into the journal. `JSON.stringify` opposite: ring vs. bigint
+* Throw error, undefined/function/symbol return undefined - both cases can be caught as a loud failure.
  *
- * 错误码选 `DriverError` 而不是 `ReportCapExceeded`：这不是一个上限（上限是数量），而是
- * 「item 不是 JSON」这条契约被破坏，而那条契约的正门是编译期诊断。走到这里说明有东西
- * 绕过了正门（典型是经 `any` 造出的环），所以它是一次契约破裂而不是一次容量事件——
- * 让 `ReportCapExceeded` 只表示上限，读者才能据码行动。
+* Select `DriverError` instead of `ReportCapExceeded` for the error code: this is not an upper limit (the upper limit is the number), but
+* The contract "item is not JSON" is broken, and the main gate of that contract is compile-time diagnosis. Coming here means there is something
+* bypasses the main gate (typically a ring created by `any`), so it is a contract break rather than a capacity event -
+* Let `ReportCapExceeded` only represent the upper limit so readers can act accordingly.
  */
 function probeReportItem(
   state: EngineState,
@@ -128,7 +128,7 @@ function probeReportItem(
     return undefined;
   }
   if (serialized === undefined) {
-    // JSON.stringify 对 undefined / 函数 / symbol 返回 undefined。
+// JSON.stringify returns undefined for undefined / function / symbol.
     state.failRun(
       new WorkflowError(
         "DriverError",
@@ -141,7 +141,7 @@ function probeReportItem(
   return serialized;
 }
 
-/** report 的两个上限（条数、单条字节数）。任一超出即 failRun 并返回 false。 */
+/** Two upper limits for report (number of entries, number of bytes in a single entry). Any exceedance failsRun and returns false. */
 function reserveReport(state: EngineState, instance: InstanceRef, serialized: string): boolean {
   const bytes = utf8ByteLength(serialized);
   if (bytes > REPORT_CAPS.maxItemSerializedBytes) {
@@ -169,9 +169,9 @@ function reserveReport(state: EngineState, instance: InstanceRef, serialized: st
 }
 
 /**
- * 一个字符串的 UTF-8 字节数（report 单条上限的度量）。用 `TextEncoder`（ECMAScript/WHATWG
- * 标准全局）而不是 `Buffer.byteLength`：本包保持零 node 内建依赖。上限论的是**字节**而非
- * 字符——一份中文 findings 的字符数只有字节数的三分之一，按字符计会让上限形同虚设。
+* The number of UTF-8 bytes in a string (a measure of the report's single upper limit). Use `TextEncoder` (ECMAScript/WHATWG
+* standard global) instead of `Buffer.byteLength`: this package maintains zero node built-in dependencies. The upper limit is about bytes, not
+* Characters - The number of characters in a Chinese finding is only one-third of the number of bytes, which makes the upper limit useless in terms of characters.
  */
 function utf8ByteLength(value: string): number {
   return new TextEncoder().encode(value).length;

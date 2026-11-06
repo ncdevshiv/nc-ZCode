@@ -1,0 +1,24 @@
+[package]
+name = "nc-code-services-agent"
+version = "3.14.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "nc-code-agent service channel: v4 conversation/session bridge over the in-process nc-code-host runtime"
+
+[dependencies]
+async-trait = "0.1"
+indexmap = { version = "2", features = ["serde"] }
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml = "0.9"
+tokio.workspace = true
+nc-code-channels = { path = "../nc-code-channels" }
+nc-code-host = { path = "../nc-code-host" }
+# bench-only: measure the real js kernel (fresh vs persistent) against the TS executor.
+nc-code-node-repl = { path = "../nc-code-node-repl" }
+nc-code-rpc = { path = "../nc-code-rpc" }
+nc-code-service-core = { path = "../nc-code-service-core" }
+nc-code-services-automation = { path = "../nc-code-services-automation" }
+nc-code-services-provider = { path = "../nc-code-services-provider" }

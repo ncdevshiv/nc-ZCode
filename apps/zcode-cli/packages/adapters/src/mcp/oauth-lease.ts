@@ -8,12 +8,12 @@ import { isRecord, mcpOAuthCredentialKey } from "./oauth-credentials.js";
 const MCP_OAUTH_PENDING_AUTHORIZATION_KEY = "pending_authorization";
 
 /**
- * 授权 lease 的竞争等待预算。
+* Competition for authorized leases pending budget.
  *
- * 不能用 0：`acquireFileLock` 在竞争时先判断 `elapsed >= maxWaitMs`，之后才尝试回收
- * abandoned lock。零等待会直接超时、永远不执行 owner-dead 检查；持锁进程崩溃后授权功能
- * 将永久不可用。给一个短预算即可保证「失败前至少做一次 owner-dead 回收」，同时把 follower
- * 的额外延迟限制在人机授权流程里无感的量级。
+* Cannot be used 0: `acquireFileLock` will first determine `elapsed >= maxWaitMs` during competition, and then try to recycle
+* abandoned lock. Zero wait will time out directly and never execute owner-dead check; authorization function after the lock-holding process crashes
+* will be permanently unavailable. Giving a short budget can ensure "at least one owner-dead recycling before failure", and at the same time, follower
+* The additional delay is limited to a magnitude that is insignificant in the human-machine authorization process.
  */
 const AUTHORIZATION_LEASE_MAX_WAIT_MS = 250;
 const AUTHORIZATION_LEASE_RETRY_DELAYS_MS = [25] as const;
@@ -25,10 +25,10 @@ interface McpOAuthAuthorizationLease {
 }
 
 /**
- * lease 文件路径。
+* lease file path.
  *
- * basename 只允许 hash 与连字符：credential key prefix 形如 `mcp:oauth:<hash>`，冒号在
- * Windows 文件名中非法，直接拼进路径会让整个授权流程在 Windows 上失败。
+* basename only allows hash and hyphen: credential key prefix is ​​in the form of `mcp:oauth:<hash>`, with colon in
+* The Windows file name is illegal. Directly entering the path will cause the entire authorization process to fail on Windows.
  */
 function resolveAuthorizationLeasePath(credentialsFilePath: string, keyPrefix: string): string {
   return join(dirname(credentialsFilePath), `${sanitizeKeyPrefix(keyPrefix)}.authz`);
@@ -39,11 +39,11 @@ export function sanitizeKeyPrefix(keyPrefix: string): string {
 }
 
 /**
- * 尝试成为授权 leader。抢不到返回 `undefined`（调用方转 follower），不阻塞等待。
+* Try to become an authorized leader. If it cannot be grabbed, it returns `undefined` (the caller switches to follower), and does not block and wait.
  *
- * 同进程竞争同样由 `mkdir` 的互斥保证：第二个 caller 的 `mkdir` 收到 EEXIST，随后读到的
- * owner PID 是本进程自己且存活，因此不会误回收，正确降级为 follower。所以不需要额外的
- * 进程内注册表。
+* Competition with the same process is also guaranteed by the mutual exclusion of `mkdir`: the second caller's `mkdir` receives EEXIST, and then reads
+* The owner PID is the process itself and is alive, so it will not be recycled by mistake and will be downgraded to a follower correctly. So no additional
+* In-process registry.
  */
 export async function tryAcquireAuthorizationLease(input: {
   credentialsFilePath: string;
@@ -63,7 +63,7 @@ export async function tryAcquireAuthorizationLease(input: {
     };
   } catch (error) {
     if (getErrorCode(error) === ZCODE_FILE_LOCK_TIMEOUT_ERROR_CODE) return undefined;
-    // EACCES/EPERM 等表示凭据目录不可写，交互授权无论如何都不可能成功，必须上报而不是静默降级。
+// EACCES/EPERM, etc. indicate that the credential directory is not writable, interactive authorization is unlikely to succeed in any case, and must be reported instead of silently downgraded.
     throw error;
   }
 }
@@ -101,7 +101,7 @@ export async function publishPendingAuthorization(
   await credentialStore.save(pendingKey(keyPrefix), JSON.stringify(stored));
 }
 
-/** 读取 pending；已过期视为不存在（TTL 只用于展示判断，不承担锁所有权语义）。 */
+/** Read pending; expired data is considered non-existent (TTL is only used to display judgment and does not assume lock ownership semantics). */
 export async function loadPendingAuthorization(
   credentialStore: SharedZCodeCredentialStore,
   keyPrefix: string,
@@ -137,10 +137,10 @@ export async function loadPendingAuthorization(
 }
 
 /**
- * 只删除本 attempt 发布的 pending。
+* Only delete the pending published by this attempt.
  *
- * 删除必须按 attempt CAS：旧 leader 的 `finally` 若无条件删除，会抹掉新 leader 刚发布的
- * pending，follower 随即失去授权 URL。先读当前值确认归属，再按原始值 compare-and-delete。
+* Deletion must be done by attempt CAS: if the `finally` of the old leader is unconditionally deleted, it will erase the `finally` of the new leader.
+* pending, the follower will lose the authorization URL. First read the current value to confirm ownership, and then compare-and-delete according to the original value.
  */
 export async function deletePendingAuthorizationIfOwned(
   credentialStore: SharedZCodeCredentialStore,
@@ -154,7 +154,7 @@ export async function deletePendingAuthorizationIfOwned(
   try {
     parsed = JSON.parse(raw);
   } catch {
-    // 无法解析的残留值只有在确实是当前值时才清理。
+// Unresolvable residual values ​​are only cleaned up if they are indeed the current value.
     return await credentialStore.deleteIfValue(key, raw);
   }
   if (!isRecord(parsed) || parsed.attempt_id !== attemptId) return false;

@@ -32,7 +32,7 @@ export function createBorrowedSubagentMcpAccess(
     ),
   };
   const rejectLifecycleMutation = (): never => {
-    // child 借用 parent adapter，不拥有 MCP 连接生命周期。
+// The child borrows the parent adapter and does not own the MCP connection life cycle.
     throw new Error("Subagent MCP port cannot mutate parent connection lifecycle");
   };
 
@@ -49,7 +49,7 @@ export function createBorrowedSubagentMcpAccess(
         return parentPort.callTool(request, options);
       },
       async close() {
-        // child 结束时不向 parent adapter 传播 close。
+//Do not propagate close to the parent adapter when the child ends.
       },
       async connectConfiguredServers() {
         return rejectLifecycleMutation();

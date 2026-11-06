@@ -34,7 +34,7 @@ export function analysisContainsGitAndDirectoryChange(
     hasDirectoryChange ||= name === "cd" || name === "pushd" || name === "popd";
   }
 
-  // 因为 git 可能在目标目录加载 hooks/config；普通 `cd && grep/find` 仍可只读放行。
+// Because git may load hooks/config in the target directory; ordinary `cd && grep/find` can still be read-only.
   return hasGit && hasDirectoryChange;
 }
 
@@ -175,7 +175,7 @@ function hasBareGitIndicators(directory: string): boolean {
     const head = lstatSync(headPath);
     if (head.isFile() || head.isSymbolicLink()) return true;
   } catch {
-    // 缺少 HEAD 不是裸仓库信号，继续检查 objects/refs。
+// Missing HEAD is not a bare repository signal, continue checking objects/refs.
   }
   return ["objects", "refs"].some((child) => pathExists(join(directory, child)));
 }

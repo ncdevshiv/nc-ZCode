@@ -236,9 +236,9 @@ export function claimLegacySessionWorkspace(
 ): number {
   const sessionIDs = [...new Set(input.sessionIDs)];
   if (sessionIDs.length === 0) return 0;
-  // 3.3.6 的 SSH/WSL session 没有 workspace_id，3.4 sessions-index 又按完整
-  // identity 严格查询，升级后历史任务全部不可见。这里只认 host tasks-index 给出的精确
-  // taskId allowlist，并叠加实际目录和 NULL identity，不能退化成按路径批量认领。
+// The SSH/WSL session of 3.3.6 does not have workspace_id, and the 3.4 sessions-index is complete again.
+//identity is strictly queried, and all historical tasks will be invisible after the upgrade. Only the accuracy given by host tasks-index is recognized here.
+// taskId allowlist, superimposes the actual directory and NULL identity, and cannot degenerate into batch claiming by path.
   const result = db
     .prepare(
       `update session
@@ -255,8 +255,8 @@ export function repairLegacyRemoteSessionWorkspace(
   db: DatabaseSync,
   input: RepairLegacyRemoteSessionWorkspaceInput,
 ): boolean {
-  // 3.4.2 把 WSL identity 当成执行路径，生产路径还可能先被 path.resolve
-  // 拼到真实 cwd 后落库。只按单 session 和完整旧目录精确迁移，禁止模糊搜索或批量认领。
+// 3.4.2 Treat WSL identity as the execution path. The production path may also be resolved by path.resolve first.
+// After getting the real cwd, drop it into the library. Only single sessions and complete old directories are precisely migrated, and fuzzy searches or batch claims are prohibited.
   const result = db
     .prepare(
       `update session
@@ -282,8 +282,8 @@ export function repairRemoteSessionPaths(
   db: DatabaseSync,
   input: RepairRemoteSessionPathsInput,
 ): boolean {
-  // 路径自愈曾复用全字段 updateSession，把读取快照中的标题、权限、回滚和
-  // 归档状态覆盖到并发新值上。维护性迁移只能拥有路径字段，并用旧路径做 CAS。
+// Path self-healing reuses the full field updateSession to read the title, permissions, rollback and
+// Archive state is overwritten with concurrent new values. Maintenance migration can only have the path field and use the old path for CAS.
   const result = db
     .prepare(
       `update session

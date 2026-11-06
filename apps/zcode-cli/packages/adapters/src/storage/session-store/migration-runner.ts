@@ -61,8 +61,8 @@ export async function runSqliteSessionMigrationsAsync(
   dbPath: string,
   options: AsyncSqliteMigrationOptions = {},
 ): Promise<void> {
-  // 同步 SQLite 仅短暂等待一次；真正的启动等待让出事件循环，通知可以先 flush。
-  // 业务连接不能继承升级的一小时等待预算。迁移结束（含失败）恢复原有 5 秒策略。
+// Synchronous SQLite only waits for a short time; the real startup wait gives way to the event loop, and the notification can be flushed first.
+//Business connections cannot inherit the one-hour waiting budget for upgrade. After the migration is completed (including failure), the original 5-second policy will be restored.
   db.exec(`pragma busy_timeout = ${ASYNC_NATIVE_BUSY_TIMEOUT_MS}`);
   const steps = migrationSteps(
     db,
@@ -78,7 +78,7 @@ export async function runSqliteSessionMigrationsAsync(
         try {
           await options.onProgress?.(step);
         } catch {
-          /* 错误通知失败不能覆盖原数据库异常。 */
+/* Error notification failure cannot overwrite the original database exception. */
         }
       } else await options.onProgress?.(step);
     }
@@ -86,7 +86,7 @@ export async function runSqliteSessionMigrationsAsync(
     failed = true;
     throw error;
   } finally {
-    // 通知传输失败也会关闭 generator 的事务，不能将半迁移连接交给业务。
+// Notification transmission failure will also close the generator's transaction, and the semi-migrated connection cannot be handed over to the business.
     try {
       steps.return();
       db.exec(`pragma busy_timeout = ${DEFAULT_SQLITE_STARTUP_LOCK_TIMEOUT_MS}`);
@@ -111,7 +111,7 @@ function* migrationSteps(
   });
   let transactionStarted = false;
   function* acquire(operation: () => void): Generator<MigrationStep, void> {
-    // 每个拿锁阶段独立报告：预检前的未知等待不能吞掉确认迁移后的等待。
+//Each lock-taking phase is reported independently: the unknown wait before preflight cannot swallow up the wait after confirmed migration.
     let waitingReported = false;
     let retryDelayMs = WAL_RETRY_INITIAL_DELAY_MS;
     while (true) {
@@ -119,7 +119,7 @@ function* migrationSteps(
         operation();
         return;
       } catch (error) {
-        // SQLITE_LOCKED 常指同连接/共享缓存冲突；只重试外部写者竞争的 SQLITE_BUSY。
+// SQLITE_LOCKED often refers to same-connection/shared-cache conflicts; only retry SQLITE_BUSY for external writer competition.
         if (!isSqliteBusyError(error)) throw error;
         const remainingMs = deadline - Date.now();
         if (remainingMs <= 0) throw lockTimeoutError(error, dbPath);
@@ -146,7 +146,7 @@ function* migrationSteps(
         );
       }
     });
-    // 预检只决定展示；真正执行仍在拿锁后逐项核对，其他窗口完成后不会重复迁移。
+// The preflight only determines the display; the actual execution is still checked one by one after the lock is obtained, and other windows will not be migrated again after completion.
     yield* acquire(() => {
       migrationFacts = {
         kind: inspectMigrationKind(db, dbPath),
@@ -155,13 +155,13 @@ function* migrationSteps(
       };
     });
     yield progress("checking");
-    // SQLite 是唯一协调者；拿锁后读取真实账本，等待者不会重复迁移已提交项。
+// SQLite is the only coordinator; after taking the lock, the real ledger is read, and the waiter will not repeatedly migrate submitted items.
     yield* acquire(() => db.exec("begin immediate"));
     transactionStarted = true;
     db.exec(`create table if not exists schema_migration (
       id text primary key, checksum text not null, app_version text, time_applied integer not null
     )`);
-    // 拿锁后记录起点，避免预检时其他写者尚未提交；后续迁移不得覆盖它。
+// Record the starting point after taking the lock to avoid that other writers have not yet submitted during preflight; subsequent migrations must not overwrite it.
     const baseline = db.prepare("SELECT id FROM schema_migration ORDER BY id DESC LIMIT 1").get();
     if (migrationFacts)
       migrationFacts.lastAppliedMigrationId = baseline
@@ -177,7 +177,7 @@ function* migrationSteps(
           completed++;
           continue;
         }
-        // 预检后出现新待执行项时，以锁内账本为准提升种类，不能带 none 执行 SQL。
+// When a new item to be executed appears after preflight, the type will be promoted based on the ledger in the lock. SQL cannot be executed with none.
         if (migrationFacts?.kind === "none") migrationFacts.kind = "upgrade";
         yield {
           ...progress("migrating"),
@@ -185,7 +185,7 @@ function* migrationSteps(
           completed,
           total: SQLITE_MIGRATIONS.length,
         };
-        // 本 hotfix 只调整启动等待；执行与账本校验共用冻结原 SQL，避免维护两套转换语义。
+// This hotfix only adjusts the startup wait; execution and ledger verification share the frozen original SQL to avoid maintaining two sets of conversion semantics.
         db.exec(migration.sql);
         if (migrationFacts) migrationFacts.executedCount++;
         db.prepare(
@@ -202,12 +202,12 @@ function* migrationSteps(
     if (migrationFacts) migrationFacts.committedCount = migrationFacts.executedCount;
     yield progress("ready");
   } catch (error) {
-    // 先回滚，再通知失败；通知不能让业务看到仍在事务内的 failed。
+// Roll back first, then notify the failure; the notification cannot allow the business to see the failed transaction that is still within the transaction.
     if (transactionStarted && db.isTransaction) {
       try {
         db.exec("rollback");
       } catch {
-        /* 关闭连接时恢复，保留原始异常。 */
+/* Recover when closing the connection, retaining the original exception. */
       }
     }
     transactionStarted = false;
@@ -224,7 +224,7 @@ function* migrationSteps(
       try {
         db.exec("rollback");
       } catch {
-        /* 调用方关闭连接，保留原始异常。 */
+/* The caller closes the connection and retains the original exception. */
       }
     }
   }
@@ -314,7 +314,7 @@ function ensureMigrationChecksum(
   );
 }
 
-/** 只读小型迁移账本，不扫描消息表；存在表但无账本的历史库属于升级。 */
+/** Read only the small migration ledger, and do not scan the message table; the history database with a table but no ledger is an upgrade. */
 function inspectMigrationKind(db: DatabaseSync, dbPath: string): DatabaseMigrationFacts["kind"] {
   const hasLedger = db
     .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_migration'")

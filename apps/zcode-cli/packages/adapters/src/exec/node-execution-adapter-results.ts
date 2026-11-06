@@ -47,7 +47,7 @@ export class NodeExecutionAdapterResults extends NodeExecutionAdapterBase {
         outputLimitExceeded ? "none" : (request.outputLimit?.persistOutput ?? "none"),
       );
     }
-    // 仅对空输出且非零退出进行文件系统诊断，不把正常无输出命令误报为丢失。
+//Only conduct file system diagnosis for empty output and non-zero exit, and do not falsely report normal no-output commands as lost.
     if (result.text === "" && exit.code !== undefined && exit.code !== 0 && exit.code !== 137) {
       const diagnostic = await diagnoseLostBashOutput(file.path);
       if (diagnostic) result = { ...result, text: diagnostic };
@@ -101,7 +101,7 @@ export class NodeExecutionAdapterResults extends NodeExecutionAdapterBase {
       originalPersistOutput === "always"
         ? stream.artifactPath !== undefined
         : originalPersistOutput === "on_truncate" && stream.truncated;
-    // Bash 直写保留完整原始文件；仅通用 pipe 执行在结算时应用 artifact 预算。
+// Bash write-through preserves the full original file; only generic pipe execution applies artifact budget at settlement time.
     if (shouldKeepArtifact && originalMaxArtifactBytes === undefined) return stream;
     if (
       shouldKeepArtifact &&
@@ -115,8 +115,8 @@ export class NodeExecutionAdapterResults extends NodeExecutionAdapterBase {
       try {
         await rm(path, { force: true });
       } catch {
-        // foreground lifecycle 的主结算曾与 artifact 清理耦合，删除异常会让
-        // outcome 永久悬空。清理仅是 best-effort；结果仍按 foreground 契约隐藏冗余路径。
+// The main settlement of the foreground lifecycle was once coupled with artifact cleanup. Deleting the exception will cause
+//outcome is permanently left empty. Cleanup is best-effort only; the result still hides redundant paths by foreground contract.
       }
     }
     if (
@@ -150,7 +150,7 @@ export class NodeExecutionAdapterResults extends NodeExecutionAdapterBase {
         await handle.close();
       }
     } catch {
-      // 截断失败不能阻塞已经完成的命令；保留真实 artifact 元数据，避免伪报已截断。
+// Truncation failure cannot block the completed command; retain the real artifact metadata to avoid false reports of truncation.
       return stream;
     }
     return {

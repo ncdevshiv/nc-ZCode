@@ -1,10 +1,10 @@
-//! image facade：位图处理（替代 TS `adapters/src/image` 的 jimp 热路径）。
+//! image facade: Bitmap processing (replaces the jimp hot path of TS `adapters/src/image`).
 //!
-//! 语义：sidecar `info` 读尺寸、`transform` 做 contain/cover/fill 变换 + 编码。
-//! **parity 级别是语义级而非字节级**（jimp 与 Rust image 编码器字节不同，
-//! 见 native/crates/zcode-image/README 差异表）：本 facade 保证「尺寸/格式/
-//! mime 决策」一致，像素采样允许差异——model-vision 输入是视觉语义，不是文件
-//! 字节。flag 关 = jimp；flag 开 = sidecar；不可用 → 告警并退回 jimp。
+//! Semantics: sidecar `info` reads size, `transform` does contain/cover/fill transformation + encoding.
+//! **parity level is semantic level rather than byte level** (jimp is different from Rust image encoder byte,
+//! See native/crates/zcode-image/README difference table): This facade guarantees "size/format/
+//! mime decisions are consistent, pixel sampling allows differences - model-vision input is visual semantics, not files
+//! byte. flag off = jimp; flag on = sidecar; unavailable → warn and return to jimp.
 
 import { sidecarEnabled } from "./config.js";
 import { sidecarPool } from "./pool.js";
@@ -65,8 +65,8 @@ export async function nativeImageInfo(data: Buffer): Promise<ImageInfo> {
 }
 
 /**
- * 变换并编码。ops 按顺序执行；`scaleToFit` 与 `contain` 同义（装入保持比例，
- * 对齐 sidecar 契约）。quality 默认 100，只对 jpeg 生效（镜像 TS）。
+* Transform and encode. ops are executed sequentially; `scaleToFit` is synonymous with `contain` (loads maintain scale,
+* align sidecar contract). Quality defaults to 100, only effective for jpeg (mirror TS).
  */
 export async function nativeTransformImage(
   data: Buffer,
@@ -98,7 +98,7 @@ export async function nativeTransformImage(
   }
 }
 
-/** true = 已由 sidecar 完成；false = 调用方应走 jimp。 */
+/** true = Completed by sidecar; false = caller should go jimp. */
 export async function tryNativeResizeToFit(
   data: Buffer,
   mediaType: string,

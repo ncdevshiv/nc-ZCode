@@ -72,7 +72,7 @@ export function readWorld(
   // 命中即写一行与 settleWorldRead 同形的 completed 记录 + 发 node-settled(cached)，
   // **不调 driver**：world-run 的效应绝不静默重放。
   // 缓存关闭后不再问表（也不推进游标）：命令文本没变，但它读到的世界可能已被某个 live 子代理
-  // 改写。
+// Rewrite.
   const imported = state.importClosed() ? undefined : state.importedWorld.take(hash);
   if (imported !== undefined) {
     state.journal.putNode({
@@ -89,13 +89,13 @@ export function readWorld(
     return Promise.resolve(imported.result);
   }
 
-  // live world-read：不受 actor FIFO / 并发上限约束（harness IO）。
+// live world-read: not subject to actor FIFO / concurrency upper limit (harness IO).
   if (state.isRunSettled()) return Promise.reject(state.runError());
-  // live 的 world.run 是一笔写入（效应，不是读）：它一旦执行，工作区就与前驱留下的不同，所以在
-  // 派发**之前**关导入缓存——与子代理的改写工具同一条规则、同一个时刻（动手前）。world-read 不关：
-  // 读不改变世界。
+// world.run of live is a write (effect, not read): once it is executed, the workspace is different from the one left by the predecessor, so in
+// Turn off the import cache before dispatching - the same rules and the same time as the subagent's rewrite tool (before action). world-read is not relevant:
+// Reading doesn’t change the world.
   if (kind === "world-run") closeImportCache(state, instance, "world-run");
-  // 准入即落 running：崩溃于执行中的世界读取 resume 可据此重新执行。
+// Fall after admission running: Crash in the executing world read resume can be re-executed accordingly.
   state.journal.putNode({
     runId: state.runId,
     siteId,
@@ -128,11 +128,11 @@ export function readWorld(
 function settleWorldRead(
   state: EngineState,
   instance: InstanceRef,
-  // putNode 是 upsert（整条替换），settle 若写死 world-read 会把准入时的 world-run
-  // 悄悄改回去——kind 必须与准入同源。
+// putNode is an upsert (whole replacement). If settle is hard-coded, world-read will replace the world-run at the time of admission.
+// Quietly change it back - kind must have the same origin as admission.
   kind: NodeKind,
   hash: string,
-  // 同一条理由：准入写下的有界输入必须随结算的整条替换回来。
+// Same reason: the bounded input written by the admission must be replaced with the entire settlement.
   input: WorldReadInput,
   outcome:
     | { status: "completed"; result: unknown }
@@ -158,10 +158,10 @@ function settleWorldRead(
 }
 
 /**
- * 关闭导入缓存（幂等）。两个触发点，都是**第一笔写入之前**：
- * driver 上报某个 live 子代理即将执行改写工具（`mutating-tool`），或一条 `world.run` 要 live 执行
- * （`world-run`）。只在本次真是修订 run 时发 `import-cache-closed` 事件——它是 resume 时恢复
- * 「门已关」的唯一事实来源；非修订 run 没有表可关，标志位无害但不发事件。
+* Turn off import caching (idempotent). The two trigger points are both **before the first write**:
+* The driver reports that a live subagent is about to execute the mutating tool (`mutating-tool`), or a `world.run` is to be executed live
+* (`world-run`). The `import-cache-closed` event is only sent when this revision is run - it is resumed when resume
+* The only source of truth for "the door is closed"; a non-revised run has no table to close, the flag is harmless but no event occurs.
  */
 export function closeImportCache(
   state: EngineState,
@@ -181,12 +181,12 @@ export function closeImportCache(
 }
 
 /**
- * resume 时恢复关门判定与「曾 live 的 ask 实例」集合。
+* When resume is resumed, the closing judgment is restored and the "ask instances that were once live" are collected.
  *
- * 事实来源是本 run 自己的事件：live 节点在准入时发 `node-queued`（ask 的带 actor ref），缓存
- * 命中只发 `node-settled cached:true`，所以「哪些 ask 曾 live」是精确集合。门是否已关则由
- * `import-cache-closed` 事件决定——ask 转 live 不再意味着关门（它可能一个文件都没碰），只有
- * 写入才关，而写入这件事只有这条事件记着。零 schema 变更。
+* The source of fact is this run's own event: the live node sends `node-queued` (ask with actor ref) during admission, cache
+* Hits only emit `node-settled cached:true`, so "which ask was live" is an exact set. Whether the door is closed depends on
+* `import-cache-closed` event decision - ask to live no longer means closing the door (it may not touch a file), only
+* It is only closed when writing, and only this event is remembered for writing. Zero schema changes.
  */
 export function recoverImportClosure(
   journal: JournalStorePort,

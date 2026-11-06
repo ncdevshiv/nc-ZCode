@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import { createPartId, traceContextToLogContext, TurnMachineImpl } from "../deps.js";
 import type {
   MessageId,
@@ -59,8 +60,8 @@ export async function executeToolCallsForModelStep(
   const modelSelection = { providerId: model.providerId, modelId: model.modelId };
   const coreToolCalls: ToolCall[] = options.toolCalls.map((tc) => ({
     id: tc.id as ToolCallId,
-    // Model step admission 已完成类型/ID 校验；这里保留可恢复的原始空白名称，
-    // 让 executor 强制走 registry miss，而不是把 storage 占位值当成真实工具。
+// Model step admission has completed type/ID verification; the original blank name that can be restored is retained here.
+// Let the executor force a registry miss instead of treating the storage placeholder value as a real tool.
     name: tc.name,
     input: tc.input,
   }));
@@ -139,9 +140,9 @@ export async function executeToolCallsForModelStep(
     });
   }
 
-  // assistant tool_use 已经进入 history 后，Stop 不能在 tool result
-  // 创建前直接抛出。继续把 aborted signal 交给 executor，由现有取消路径为
-  // 每个 tool call 生成 ToolCancelled result，再由 turn loop 感知 abort。
+// After assistant tool_use has entered history, Stop cannot be in tool result
+// Throw directly before creation. Continue to hand over the aborted signal to the executor, and the existing cancellation path is
+// Each tool call generates ToolCancelled result, and then the turn loop senses abort.
   const schedule = await this.scheduleTools(coreToolCalls);
   state.turnMachine = new TurnMachineImpl(
     state.turnMachine.scheduleTools(coreToolCalls, this.toScheduleState(schedule)),
@@ -185,8 +186,8 @@ export async function executeToolCallsForModelStep(
       subagentModelOverride: state.subagentModelOverride,
       model: state.model,
       onBatchStart: async (toolCallIds) => {
-        // 已取消的 batch 仍由 executor 返回 cancelled results，但不能把从未进入
-        // handler 的 tool parts 误标记为 running。
+// The canceled batch is still returned by the executor canceled results, but it cannot be never entered
+// The handler's tool parts are incorrectly marked as running.
         if (state.turnAbortSignal?.aborted) return;
         for (const toolCallId of toolCallIds) {
           const toolCall = toolCallById.get(toolCallId as ToolCallId);
@@ -331,8 +332,8 @@ export async function executeToolCallsForModelStep(
                 status: "error",
                 input: persisted.input,
                 error: result.error?.message ?? content,
-                // state.error 面向 UI / 日志，可能比模型实际收到的
-                // modelContent 更笼统；仅附加保存 string 内容供冷恢复精确重放。
+// state.error is UI/log oriented and may be larger than what the model actually receives
+// modelContent is more general; only additionally saves the string content for accurate replay of cold recovery.
                 metadata: {
                   ...mcpToolPartMetadata(
                     this.registry.getMetadata(result.toolName)?.mcpPresentation,
@@ -365,8 +366,8 @@ export async function executeToolCallsForModelStep(
       ),
     ]);
     try {
-      // checkpoint 是 tool result 闭合后的附加操作。Stop 若在这里
-      // 触发，必须先继续提交所有 sibling tool results，不能提前进入 reminder flush。
+// checkpoint is an additional operation after tool result is closed. Stop if here
+// To trigger, all sibling tool results must be submitted first, and reminder flush cannot be entered in advance.
       await this.emitFileMutationCheckpoint({
         abortSignal: state.turnAbortSignal,
         events: state.events,
@@ -425,8 +426,8 @@ export async function executeToolCallsForModelStep(
   if (stopTurnResult) {
     await persistToolModelStepFinish(this, state, options);
     if (stopTurnResult.turnControl?.reason === "automation_create_limit") {
-      // 上限错误只能由用户手动释放名额。把普通 error 继续交给模型，
-      // 导致模型循环 List/Delete/Create，甚至尝试 Bash 绕过。当前 turn 只保留一次文本收口。
+// Upper limit error can only be released manually by the user. Continue to hand over ordinary errors to the model,
+// Causes the model to loop List/Delete/Create, even try a Bash bypass. Currently, turn only retains one text closing.
       state.automationCreateLimitReached = true;
       recordCompletedToolBatch(state);
       this.logger?.info("Automation create limit switched turn to text-only response", {
@@ -511,8 +512,8 @@ async function enqueueFollowUpUserInputFromToolResult(
     return;
   }
 
-  // ExitPlanMode 审批反馈必须升级成真实 user message；
-  // 如果这里被拒绝，说明 active turn 状态异常或输入超过 steer 限制，不能静默吞掉。
+// ExitPlanMode approval feedback must be upgraded to a real user message;
+// If it is rejected here, it means that the active turn status is abnormal or the input exceeds the steer limit and cannot be swallowed silently.
   this.logger?.warn("Failed to queue follow-up user input from tool result", {
     ...traceContextToLogContext(traceContext),
     activeTurnId: steerResult.activeTurnId,

@@ -29,9 +29,9 @@ export type WorkspaceHookDispatchDecision =
       skipLifecycle?: boolean;
     };
 
-// 软门禁:准入层完成评估后通过此 port 上报 pending 状态。
-// pendingCount = configuredEnabled && admissionClass === "pending" 的声明数。
-// pendingCount === 0 也要上报(供投影层清空提示条)。
+//Soft access control: After the access layer completes the evaluation, it reports the pending status through this port.
+// pendingCount = configuredEnabled && admissionClass === The number of declarations for "pending".
+// pendingCount === 0 must also be reported (for the projection layer to clear the prompt bar).
 export interface WorkspaceHookAdmissionState {
   pendingCount: number;
   bundleDigest: string;

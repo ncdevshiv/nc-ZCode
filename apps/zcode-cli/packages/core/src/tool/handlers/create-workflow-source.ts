@@ -1,10 +1,10 @@
 // ============================================================
-// CreateWorkflow - 入参的校验与归一化
+// CreateWorkflow - verification and normalization of input parameters
 // ============================================================
 //
-// 这个模块是**两条来源合流成一份脚本**的地方，也是全流程唯一一次读盘。合流点必须保持单一：
-// 放回 handler 里，它会逐渐被 handler 的分支缠住，下一个人自然就会再开一条「保存的 run 特殊
-// 处理」的岔路，而那条岔路的第一个受害者是确认窗——它会开始展示与将要执行的东西不同的字节。
+// This module is where **two sources are combined into one script**, and it is also the only time the disk is read in the entire process. The confluence point must remain single:
+// Put it back in the handler, it will gradually be entangled with the handler's branch, and the next person will naturally open another "saved run special"
+// processing", and the first victim of that fork is the confirmation window - it will start showing bytes that are different from what is going to be executed.
 
 import {
   CREATE_WORKFLOW_ARGS_WITHOUT_PATH_ERROR,
@@ -25,7 +25,7 @@ import {
 import { writeWorkflowDraft } from "./workflow-drafts.js";
 import { readWorkflowScriptFile } from "./workflow-path-source.js";
 
-/** 业务失败的错误码，与既有 handler failure 惯例同一形状。 */
+/** The error code of business failure, the same shape as the existing handler failure convention. */
 const CREATE_WORKFLOW_FAILURE_CODE = 400;
 
 function failure(message: string): ToolHandlerFailure {
@@ -33,23 +33,23 @@ function failure(message: string): ToolHandlerFailure {
 }
 
 /**
- * 来源三选一（外加「`args` 只跟 `path` 走」），只对**模型发出的**入参成立。
+* Choose one of three sources (plus "`args` only follows `path`"), which is only true for the ** input parameters sent by the ** model.
  *
- * 这条不能写进 zod：归一化之后 `script` 与 `saved` / `path` 同时在场是合法执行态，而 schema 会在
- * handler 的 parse 与 hook 改写后的二次校验上把它炸掉——且只在非内联路径上炸。
+* This article cannot be written into zod: after normalization, the presence of `script` and `saved` / `path` at the same time is a legal execution state, and schema will be in
+* The handler's parse and hook will be blown up after the rewritten secondary verification - and only on non-inline paths.
  */
 export function validateCreateWorkflowSource(
   input: unknown,
 ): { result: true } | ToolHandlerFailure {
   const parsed = CreateWorkflowInputSchema.safeParse(input);
-  // schema 本身的失败已由 executor 在更早的位置收口，这里只管 XOR。
+// The failure of the schema itself has been closed by the executor at an earlier position, and only XOR is used here.
   if (!parsed.success) return { result: true };
   const sources = [parsed.data.script, parsed.data.saved, parsed.data.path].filter(
     (source) => source !== undefined,
   );
   if (sources.length !== 1) return failure(CREATE_WORKFLOW_SOURCE_ERROR);
-  // `args` 与 `path` 同进同退：`saved` 的实参走 `saved.args`，内联脚本没有声明可校验。静默
-  // 忽略会让调用方以为参数生效了，而脚本读到的 `args` 是空的。
+// `args` and `path` go together: the actual parameters of `saved` go to `saved.args`, and the inline script has no declaration to verify. silence
+// Ignoring it will make the caller think that the parameters are valid, and the `args` read by the script is empty.
   if (parsed.data.args !== undefined && parsed.data.path === undefined) {
     return failure(CREATE_WORKFLOW_ARGS_WITHOUT_PATH_ERROR);
   }
@@ -57,36 +57,36 @@ export function validateCreateWorkflowSource(
 }
 
 /**
- * 并发上界的钳制：`[1, 天花板]`。
- * 超天花板的值**被压低而不是被拒**——模型说「至多 32 个」时用户要的是一个上界，不是一次报错。
+* Concurrency upper bound clamp: `[1, ceiling]`.
+* Values ​​that exceed the ceiling are suppressed instead of rejected - when the model says "up to 32", what the user wants is an upper bound, not an error.
  *
- * 天花板未知（端口缺席，或宿主的端口没有 `concurrencyCeiling`）时原样放行：端口实现自己还会
- * 钳一次，这里少钳一次只会让确认窗显示一个偏大的数，而拒绝执行会让整条路径塌掉。
+* When the ceiling is unknown (the port is absent, or the host's port does not have `concurrencyCeiling`), it is released as is: the port implementation itself will still
+* Clamp once. One less clamp here will only make the confirmation window display a larger number, and refusing to execute will cause the entire path to collapse.
  *
- * `CreateWorkflow` 与 `AmendWorkflow` 共用本函数：同一个数在两个工具上钳出不同结果，是那种
- * 只会在用户改一次并发时才被发现的不一致。
+* `CreateWorkflow` and `AmendWorkflow` share this function: the same number will produce different results on the two tools.
+* Inconsistencies that are only discovered when the user changes the concurrency once.
  */
 export function clampWorkflowMaxConcurrency(value: number, ceiling: number | undefined): number {
-  // 值已过 schema（正整数），下界仍然写出来：这个 helper 是两个工具的共用入口，schema 换了
-  // 也不该让 0 或负数穿过去。
+//The value has passed the schema (positive integer), and the lower bound is still written: this helper is the common entrance of the two tools, and the schema has been changed
+// Nor should 0 or negative numbers pass through.
   const atLeastOne = Math.max(1, value);
   return ceiling === undefined ? atLeastOne : Math.min(atLeastOne, Math.max(1, ceiling));
 }
 
 /**
- * 子代理模型的归一化结果：解出来的规范形，或一个业务失败。
+* The normalized result of the sub-agent model: the solved canonical form, or a business failure.
  *
- * 判别位用 `result` 而不是自造一个 `ok`：调用点要能把失败原样 `return` 出去，而
- * `ToolHandlerFailure` 的判别位就是 `result: false`。
+* Use `result` instead of creating a self-made `ok` for the judgment bit: the call point must be able to `return` the failure as it is, and
+* The discriminant bit of `ToolHandlerFailure` is `result: false`.
  */
 type SubagentModelResolution = { result: true; canonical?: string } | ToolHandlerFailure;
 
 /**
- * 把 `subagent_model` 解析成规范形（`CreateWorkflow` 的那一半；`AmendWorkflow` 的三态在
- * amend-workflow.ts，两边共用 `resolveModelReference`）。
+* Parse `subagent_model` into canonical form (the half of `CreateWorkflow`; the three states of `AmendWorkflow` in
+* amend-workflow.ts, shared by both sides `resolveModelReference`).
  *
- * 端口缺席而字段在场时**明确拒绝**，不静默放行：一个宿主解不了的字符串一路传下去，最后会
- * 在子代理第一次开口时炸——离用户按下确认已经很远，而且那时看起来像是模型的问题。
+* When the port is absent but the field is present, it is **explicitly rejected** and not silently allowed: a string that the host cannot understand is passed along and will eventually
+* Explodes when the subagent first opens its mouth - well before the user presses confirm, and looks like a problem with the model at that point.
  */
 function resolveCreateSubagentModel(
   requested: string | undefined,
@@ -95,28 +95,28 @@ function resolveCreateSubagentModel(
   if (requested === undefined) return { result: true };
   if (catalog === undefined) return failure(SUBAGENT_MODEL_UNAVAILABLE);
   const resolution = resolveModelReference(requested, catalog.listModels());
-  // 解不出来即整次调用失败：什么都没启动、确认窗也不开（与「保存的定义不存在」同一条路）。
+// If it cannot be solved, the entire call fails: nothing is started, and the confirmation window is not opened (the same path as "the saved definition does not exist").
   if (!resolution.ok) return failure(resolution.message);
   return { result: true, canonical: resolution.canonical };
 }
 
-/** 宿主没有模型目录时的拒绝文案（`AmendWorkflow` 共用，所以是常量而不是内联字符串）。 */
+/** Rejection text when the host has no model directory (common to `AmendWorkflow`, so constant rather than inline string). */
 export const SUBAGENT_MODEL_UNAVAILABLE =
   "This host cannot choose a subagent model; omit subagent_model.";
 
 /**
- * 把入参归一化成执行事实。内联来源是**恒等函数**（一次盘操作都不做）；saved 来源解析文件、
- * 校验实参、回填默认值、写下一份工作副本，产出 `{name, script, saved: {name, args, path, scope,
- * draft}}`；`path` 来源读那个文件（带元数据块就剥掉块并校验 `args`），产出
+* Normalize input parameters into execution facts. The inline source is the **identity function** (no disk operation is performed); the saved source parsing file,
+* Verify actual parameters, backfill default values, write a working copy, and output `{name, script, saved: {name, args, path, scope,
+* draft}}`; `path` source reads that file (with metadata blocks, strip off the blocks and verify `args`), output
  * `{name, script, path, args?, script_line_offset?}`。
  *
- * 归一化后 `script` 一定在场，所以下游（hook、权限规则、prepareApproval、handler）对三条
- * 来源是同一段代码。`saved` / `path` 此后只是**来龙去脉**：run 标签的兜底、实参的持久化与
- * 脚本文件的记录读它们，执行一个字节都不读它们。
+* After normalization, `script` must be present, so the downstream (hook, permission rules, prepareApproval, handler) has three
+*The source is the same code. `saved` / `path` is just the ins and outs from now on: the details of the run tag, the persistence of the actual parameters and
+* The logging of the script file reads them, and the execution does not read a single byte of them.
  *
- * `ceiling` 是本机的并发天花板（`port.concurrencyCeiling?.()`，缺席即不钳）；`catalog` 是本机
- * 的模型目录（`context.modelCatalogPort`，缺席即不能选模型）。`max_concurrency` 与
- * `subagent_model` 都是顶层字段，三条来源同样处理。
+* `ceiling` is the concurrency ceiling of the local machine (`port.concurrencyCeiling?.()`, if it is absent, it will not be clamped); `catalog` is the local concurrency ceiling
+* The model catalog (`context.modelCatalogPort`, if it is absent, the model cannot be selected). `max_concurrency` and
+* `subagent_model` are all top-level fields, and the three sources are processed in the same way.
  */
 export async function resolveCreateWorkflowInput(
   input: unknown,
@@ -129,7 +129,7 @@ export async function resolveCreateWorkflowInput(
   const model: CreateWorkflowInput = parsed.data;
   const requested = model.max_concurrency;
 
-  // 模型解析排在读盘之前：三条来源同一段代码，而一次解不出来的调用不该先去扫一遍磁盘。
+// Model parsing comes before disk reading: three sources come from the same code, and a call that cannot be solved should not scan the disk first.
   const subagentModel = resolveCreateSubagentModel(model.subagent_model, catalog);
   if (!subagentModel.result) return subagentModel;
   const subagentModelField =
@@ -146,14 +146,14 @@ export async function resolveCreateWorkflowInput(
     });
   }
 
-  // 内联：恒等。内联路径必须一次盘都不碰——那是「零回归」的可测形式。
+// Inline: Identity. The inline path must not be touched once - that is a measurable form of "zero regression".
   if (model.saved === undefined) {
-    // 两个例外都是「改写它不读盘，不改写则确认窗显示的不是将要生效的东西」：钳过头的并发
-    // 上界，和还没归一成规范形的模型名。两者都没动时仍然逐字节恒等。
+// Both exceptions are "If you rewrite it, it will not read the disk. If you don't rewrite it, the confirmation window will not display what will take effect.": Overcrowded concurrency
+// Upper bound, and model name that has not been normalized to canonical form. When neither is touched, it remains the same byte by byte.
     const clamped =
       requested === undefined ? undefined : clampWorkflowMaxConcurrency(requested, ceiling);
-    // 模型名比的是**原始**入参而不是 `model.subagent_model`：schema 带 `.trim()`，所以两端有
-    // 空白的字符串解析出来与规范形相等，而恒等放行会让确认窗显示那串空白。
+// The model name compares to the **original** input parameters instead of `model.subagent_model`: the schema has `.trim()`, so there are
+// The blank string is parsed to be equal to the canonical form, and the identity release will cause the confirmation window to display the string of blanks.
     const rawSubagentModel = (input as { subagent_model?: unknown } | null)?.subagent_model;
     if (clamped === requested && subagentModel.canonical === rawSubagentModel) {
       return { result: true, input };
@@ -183,8 +183,8 @@ export async function resolveCreateWorkflowInput(
     );
   }
 
-  // 工作副本就在这一次读之后写下，写的是**刚读到的那串字节**（元数据块一起），所以不可能有
-  // 第二次读与它分叉。定义本身永不因为一次 run 被改动：模型改的是这份拷贝
+// The working copy is written after this read. What is written is the string of bytes just read (together with the metadata block), so there is no possibility
+// The second read forks with it. The definition itself is never changed from one run: the model is modified by this copy.
   const draft = await writeWorkflowDraft({
     cwd,
     name: model.name ?? found.name,
@@ -194,39 +194,39 @@ export async function resolveCreateWorkflowInput(
   return {
     result: true,
     input: {
-      // 未指定展示名时取保存的名字：跨会话枚举出来的 run 因此仍认得出是哪个工作流，而不是
-      // 一串裸 runId。`readWorkflowName` 的既有读取规则（读 input.name）因此原样命中。
+// When the display name is not specified, the saved name is taken: run enumerated across sessions, so you can still recognize which workflow it is, instead of
+// A string of bare runIds. The existing read rule for `readWorkflowName` (reading input.name) therefore hits unchanged.
       name: model.name ?? found.name,
-      // 逐字的脚本本体。旧桌面的 `readWorkflowScript(raw.script)` 因此**构造上**命中——
-      // 不是兼容处理。
+// Verbatim script body. Old desktop's `readWorkflowScript(raw.script)` so **structural** hits -
+// Not compatible.
       script: found.script,
       saved: {
         name: found.name,
         args: validated.args,
         path: found.path,
         scope: found.scope,
-        // 草稿写不下去时字段整个缺席（尽力而为），模型面随之退回旧文案。
+// When the draft cannot be written, the entire field will be absent (do your best), and the model will return to the old copy.
         ...(draft === undefined ? {} : { draft: draft.path }),
       },
-      // 拷贝逐字节带着元数据块，所以诊断的文件行要跳过块的那几行。
+//Copy byte-by-byte with metadata blocks, so the diagnostic file lines should skip the lines of the block.
       ...(found.bodyLineOffset === 0 ? {} : { script_line_offset: found.bodyLineOffset }),
       ...(requested === undefined
         ? {}
         : { max_concurrency: clampWorkflowMaxConcurrency(requested, ceiling) }),
-      // saved 分支是从零拼一份新入参的，所以每个顶层字段都要在这里被点名一次，否则它会被
-      // 静默丢掉——而「只在 saved 路径上丢」是最难被发现的那种失效。
+// The saved branch is composed of new parameters from scratch, so each top-level field must be named here once, otherwise it will be
+// Silently discarded - and "only discarded on the saved path" is the most difficult to detect failure.
       ...subagentModelField,
     } satisfies CreateWorkflowInput,
   };
 }
 
 /**
- * `path` 来源的归一化。
+* Normalization of `path` sources.
  *
- * 不写草稿：文件已经是工作副本了，再抄一份只会让模型下一次不知道该改哪一个。
+* Don’t write a draft: The file is already a working copy, and copying it again will only make the model not know which one to change next time.
  *
- * 带元数据块的文件按保存定义解析，`args` 按块里的声明校验（默认值一并补齐）；没有块的文件整个
- * 是脚本，此时给了 `args` 就是错——没有任何声明能校验它们，静默丢掉会让调用方以为参数生效了。
+* Files with metadata blocks are parsed according to the saving definition, and `args` is verified according to the declaration in the block (the default value is also filled in); files without blocks are completely
+* is a script. It is an error to give `args` at this time - no statement can verify them, and silently discarding them will make the caller think that the parameters are valid.
  */
 async function resolvePathSource(
   model: CreateWorkflowInput,
@@ -259,11 +259,11 @@ async function resolvePathSource(
   return {
     result: true,
     input: {
-      // 与 saved 分支同一条纪律：这里是从零拼一份新入参，每个顶层字段都要被点名一次。
+// The same discipline as the saved branch: here is a new input parameter from scratch, and each top-level field must be named once.
       ...(model.name === undefined ? {} : { name: model.name }),
       script: file.script,
       path: file.path,
-      // 声明为空时实参恒为 `{}`；不造空壳键，与内联 run 的「没有实参」保持同一种形状。
+// When declared empty, the actual parameter is always `{}`; no empty shell key is created, and it maintains the same shape as the "no actual parameter" of inline run.
       ...(Object.keys(validated.args).length === 0 ? {} : { args: validated.args }),
       ...(file.bodyLineOffset === 0 ? {} : { script_line_offset: file.bodyLineOffset }),
       ...extraFields,
@@ -272,11 +272,11 @@ async function resolvePathSource(
 }
 
 /**
- * 解析失败的说明。找不到时**列出实际可用的名字**（带作用域标签）：模型猜错一个名字后最有用
- * 的下一步信息就是正确的那一批，否则它只会再猜一次。
+* Description of parsing failure. **List actual available names** (with scope labels) when not found: most useful if the model guesses a wrong name
+* The next information is the correct batch, otherwise it will just guess again.
  *
- * 找不到的文案分两档：给了 `scope` 说「该作用域下没有」，没给说「哪都没有」——两种都把两个
- * 档案里的名字都列出来，好让模型看清它要的那个是不是在另一档。
+* The copy that cannot be found is divided into two categories: if it is given `scope`, it will say "it is not in this scope", and if it is not given, it will say "it is not found anywhere" - in both cases, put two
+* List the names in the files so that the model can see if the one it wants is in another file.
  */
 function describeResolveFailure(
   name: string,
@@ -310,8 +310,8 @@ function describeResolveFailure(
 }
 
 /**
- * 两个档案里实际可用的名字，各带作用域标签。定向扫每一根（不做遮蔽），好让被项目档遮蔽的
- * 全局定义也出现在清单里——模型据此才知道要拿它得指定 `scope: "global"`。
+* The names actually available in the two files, each with a scope label. Directionally scan each root (without masking) so that those covered by the project file
+* The global definition also appears in the manifest - this is how the model knows to specify `scope: "global"` to access it.
  */
 function describeAvailableWorkflows(cwd: string): string {
   const project = listSavedWorkflows({ cwd, scope: "project" }).entries;
@@ -326,7 +326,7 @@ function describeAvailableWorkflows(cwd: string): string {
   return `Available saved workflows: ${tagged.join(", ")}. Use ListSavedWorkflows for their descriptions.`;
 }
 
-/** 参数声明的紧凑复述，附在参数校验失败之后，好让模型一次改对而不是再猜一轮。 */
+/** A compact restatement of the parameter declaration, appended after parameter validation failure, so that the model can be corrected in one go rather than having to guess again. */
 function describeArgsDeclaration(
   label: string,
   args: SavedWorkflowArgsDeclaration | undefined,

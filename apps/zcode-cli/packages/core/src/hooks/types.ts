@@ -21,8 +21,8 @@ export interface HookCallbackContext {
 }
 
 /**
- * 配置 Hook 的执行器可以附带 stderr 等诊断；这些信息只进入生命周期事件，
- * 不参与 Hook 决策，也不会作为 Hook JSON 输出暴露给模型。
+* The executor configured with Hook can come with diagnostics such as stderr; these information only enter the life cycle events,
+* Does not participate in Hook decisions and is not exposed to the model as Hook JSON output.
  */
 export interface HookCallbackDiagnostics {
   errorMessage?: string;

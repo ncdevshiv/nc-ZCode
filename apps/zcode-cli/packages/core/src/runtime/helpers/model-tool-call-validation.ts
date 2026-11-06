@@ -70,8 +70,8 @@ function normalizeRuntimeModelToolName(
       typeof context.toolCallId === "string" &&
       context.toolCallId.trim().length > 0
     ) {
-      // Adapter 后仍可能存在自定义 Model 实现；runtime admission 必须与
-      // Adapter 一致保留可闭合的 client-executed 空名，而不是再次把 turn 截断。
+// There may still be a custom Model implementation behind the Adapter; runtime admission must be consistent with
+// Adapter consistently retains the closable client-executed empty name instead of truncating turn again.
       return value;
     }
   }

@@ -78,7 +78,7 @@ export type ModelReasoningControlType =
   | "provider_default"
   | "unknown";
 
-/** 调用点只声明用户/业务请求的 reasoning 意图，Provider Adapter 决定最终事实。 */
+/** The call point only declares the reasoning intention of the user/business request, and the Provider Adapter determines the final fact. */
 export interface ModelReasoningCallHint {
   requestedLevel?: string;
   explicit?: {
@@ -89,7 +89,7 @@ export interface ModelReasoningCallHint {
   };
 }
 
-/** 一次最终 Provider 请求的 canonical reasoning 事实。 */
+/** The canonical reasoning fact for a final Provider request. */
 export interface ModelReasoningObservation {
   capability: ModelReasoningCapabilityStatus;
   requestedState: ModelReasoningState;
@@ -103,7 +103,7 @@ export interface ModelReasoningObservation {
 }
 
 /**
- * 受控调用专属事实。禁止 prompt、message、header、body、原始 URL、命令和工具 I/O。
+* Controlled call exclusive fact. Prompt, message, header, body, raw URL, command and tool I/O are prohibited.
  */
 export interface ModelApiCustomAttributes {
   compactionOuterAttempt?: number;
@@ -251,7 +251,7 @@ export type ModelAttemptFailureStage =
   | "validation"
   | "unhandled";
 
-/** Provider/SDK 实际返回的有界结束原因，不在领域层折叠成 other。 */
+/** The bounded end reason actually returned by Provider/SDK is not collapsed into other at the domain level. */
 export type ModelFinishReason = string;
 
 export interface ResolvedModelTelemetryDescriptor {
@@ -354,7 +354,7 @@ export interface ModelExecutionTelemetryPort {
 }
 
 /**
- * App 注入和 Standalone 初始化共用的进程级 Owner。一个 CLI 进程只能创建一个 Owner。
+* Process-level Owner shared by App injection and Standalone initialization. A CLI process can only create one Owner.
  */
 export interface AgentTelemetryRuntimeOwner {
   readonly agentExecution: AgentExecutionTelemetryPort;

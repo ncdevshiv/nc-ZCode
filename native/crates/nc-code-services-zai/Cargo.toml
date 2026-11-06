@@ -1,0 +1,11 @@
+[package]
+name = "nc-code-services-zai"
+version = "3.14.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Disabled Z.ai service (ZCode services removed)"
+
+[dependencies]
+nc-code-channels = { path = "../nc-code-channels" }

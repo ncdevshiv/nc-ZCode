@@ -1,15 +1,15 @@
 // ============================================================
-// 情势截面的**子代理花名册**：每个子代理此刻在干什么
+// **Sub-agent roster** for situational cross-section: what each sub-agent is doing at the moment
 // ============================================================
-// 一个子代理 = 一个 actor 实例，它名下的
-// ask 按 `actorSeq` 依次跑，所以「它此刻在干什么」= 它那条 ask 链走到哪了。
+// a subagent = an actor instance under which
+// ask is run sequentially by `actorSeq`, so "what is it doing at the moment" = where is its ask chain.
 //
-// 三份取数各司其职，不互相冒充：
-//   - **actor 行 / 节点行**（journal）：谁存在、每次 ask 成没成、花了多少 token。行是持久事实，
-//     没有上界，也不会被投影的淘汰规则吃掉。
-//   - **归约状态**：这次 ask 的任务摘要与进度读数（`instructionsHead` / `turn` / `toolCalls` /
-//     `lastTool`）、以及节点的阶段坐标——它们只活在事件上，行上没有这些列。
-//   - **事件索引**：一切时刻。见 -roster-events.ts 的文件头。
+// The three numbers each perform their own duties and do not pretend to be each other:
+// - **actor row/node row** (journal): who exists, whether each ask was successful, and how many tokens were spent. Action is a lasting fact,
+// There is no upper bound, and it will not be eaten by the elimination rule of projection.
+// - **Reduction status**: Task summary and progress reading of this ask (`instructionsHead` / `turn` / `toolCalls` /
+// `lastTool`), and the node's stage coordinates - they only live on events, there are no such columns on rows.
+// - **Event Index**: All moments. See the header of -roster-events.ts.
 
 import type {
   DynamicWorkflowRunPendingQuestion,
@@ -26,10 +26,10 @@ import {
   type RosterNodeTrace,
 } from "./dynamic-workflow-run-roster-events.js";
 
-/** 节点行的「还没结算」状态，也是 `unfinished` / `leftoverRunning` 的判据。 */
+/** The "not yet settled" status of the node row is also the criterion of `unfinished` / `leftoverRunning`. */
 export const NODE_ROW_RUNNING = "running";
 
-/** 一个子代理名下的 ask 行，按 `actorSeq` 升序（缺这一列的老行排在最前，顺序稳定）。 */
+/** The ask rows under the name of a subagent are sorted in ascending order by `actorSeq` (old rows missing this column are ranked first, and the order is stable). */
 function asksOf(
   nodes: readonly NodeRecord[],
   actor: Pick<ActorRecord, "siteId" | "ordinal">,
@@ -40,11 +40,11 @@ function asksOf(
 }
 
 /**
- * 花名册，按 actor 行的顺序（= 铸造顺序）。**恒返回数组**，一个 actor 都没有就是空数组：
- * 「这个 run 有几个子代理」永远是个有答案的问题，而 0 就是那个答案。
+*Roster, in actor row order (=casting order). **Always returns an array**. If there is no actor, it is an empty array:
+* "How many subagents does this run have?" is always a question with an answer, and 0 is that answer.
  *
- * `pendingQuestions` 为 `undefined` 即「这次读查不到停驻表」（run 在别的进程名下）：那时
- * **没有任何子代理会被报成 `parked`**，因为此刻分不出「没人在等」与「不知道」。
+* `pendingQuestions` is `undefined`, that is, "the parking table cannot be found in this read" (run is under the name of another process): at that time
+* **No sub-agent will be reported as `parked`**, because at this moment it is impossible to distinguish between "no one is waiting" and "don't know".
  */
 export function buildSubagentViews(input: {
   actors: readonly ActorRecord[];
@@ -61,8 +61,8 @@ export function buildSubagentViews(input: {
   return actors.map((actor) => {
     const asks = asksOf(nodes, actor);
     const settled = asks.filter((ask) => ask.status !== NODE_ROW_RUNNING);
-    // 同一个子代理的 ask 是串行的，所以「在跑的那一条」至多一条；真有多条时取 actorSeq
-    // 最大的那条——它是最近被派下去的。
+// The same subagent's ask is serial, so "the one running" can be at most one; if there are more than one, use actorSeq
+// The biggest one - it was sent down recently.
     const runningAsk = asks.filter((ask) => ask.status === NODE_ROW_RUNNING).at(-1);
     const trace =
       runningAsk === undefined
@@ -90,7 +90,7 @@ export function buildSubagentViews(input: {
       ...(parkedOn === undefined ? {} : { parkedOn }),
       stepsSettled: settled.length,
       stepsFailed: settled.filter((ask) => ask.status === "failed").length,
-      // 只累计已结算 ask 的 token：在飞的那条还没有账（`stats` 由 driver 在结算时回填）。
+//Only accumulate the tokens of settled ask: the one in flight has not yet been accounted for (`stats` is backfilled by the driver during settlement).
       tokens: settled.reduce((total, ask) => total + (ask.stats?.tokens ?? 0), 0),
       ...lastProgressField(asks, index),
     };
@@ -98,8 +98,8 @@ export function buildSubagentViews(input: {
 }
 
 /**
- * 子代理的处境。**判定顺序就是这段代码的顺序**，前一条命中即定案——顺序本身是契约的一部分：
- * 一个停驻等答案的子代理同时也「有 ask 在跑」，报 `executing` 就会把它要人命的那件事藏起来。
+* The situation of the subagent. **The decision order is the order of this code**, the previous hit is the final decision - the order itself is part of the contract:
+* A subagent parked waiting for an answer also has "ask running". Reporting `executing` will hide its life-threatening incident.
  */
 function subagentStateOf(input: {
   terminal: boolean;
@@ -110,7 +110,7 @@ function subagentStateOf(input: {
 }): DynamicWorkflowRunSubagentState {
   const { terminal, running, waiting, parked, lastAskFailed } = input;
   if (terminal) {
-    // 终态 run 上三个活着的词全部退场：还标着 running 的行只说明进程死在了它下面。
+// All three alive words on the final state run exit: the line still marked running only means that the process died under it.
     if (running) return "unfinished";
     return lastAskFailed ? "failed" : "done";
   }
@@ -119,7 +119,7 @@ function subagentStateOf(input: {
   return lastAskFailed ? "failed" : "idle";
 }
 
-/** 当前 ask 的截面：身份来自行，任务与进度来自归约状态，时刻来自事件索引。 */
+/** The cross-section of the current ask: the identity comes from the self, the task and progress come from the reduction state, and the time comes from the event index. */
 function currentAskOf(
   ask: NodeRecord,
   reduced: ReadonlyMap<string, WorkflowRunNode>,
@@ -148,8 +148,8 @@ function currentAskOf(
 }
 
 /**
- * 它当前（或最后）那次 ask 出生在哪个阶段；两条 ask 都读不出时退到 actor 自己的出生阶段。
- * 阶段坐标只在归约状态上，所以这里查的是归约节点，不是行。
+* The stage in which the current (or last) ask was born; when neither ask can be read, it returns to the actor's own birth stage.
+* The stage coordinates are only in the reduction state, so what is checked here is the reduction node, not the row.
  */
 function phaseNameField(input: {
   actor: Pick<ActorRecord, "siteId" | "ordinal">;
@@ -171,7 +171,7 @@ function phaseNameField(input: {
   return born === undefined ? {} : { phaseName: born };
 }
 
-/** 它最后一次被观察到在动的时刻：名下任一 ask 的最后一条进度类事件。 */
+/** The last time it was observed moving: the last progress event of any ask under its name. */
 function lastProgressField(
   asks: readonly NodeRecord[],
   index: RosterEventIndex,

@@ -54,8 +54,8 @@ export function createReadFileStateMetadataFromEntry(input: {
   const entry = input.entry;
   if (!entry) return undefined;
   if (entry.mtimeMs === undefined || entry.sizeBytes === undefined || !entry.revisionId) {
-    // resume stale guard 必须恢复文件时间戳和 adapter revision；
-    // 缺 freshness metadata 的历史文件状态不能冒充已读，否则会放过 stale 写入。
+// resume stale guard must restore file timestamps and adapter revision;
+//Historical file status lacking freshness metadata cannot be pretended to be read, otherwise stale writing will be missed.
     return undefined;
   }
 

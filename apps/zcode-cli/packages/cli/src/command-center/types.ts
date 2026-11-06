@@ -57,7 +57,7 @@ export type CommandCenterPluginSetResult = {
 };
 
 export type CommandCenterPluginUninstallResult = {
-  // null 表示该插件未安装（幂等 no-op）。
+// null means the plugin is not installed (idempotent no-op).
   removed: { id: string; name: string } | null;
 };
 
@@ -222,25 +222,25 @@ export type CommandCenterApp = {
     runId?: string;
   }): Promise<CommandCenterExpertWorkflowResult>;
   /**
-   * workflow run 的枚举面，服务 `/dwf list`。可选能力：dwf journal 不可用时整个 run service
-   * 不构造，此成员随之缺席——命令据此回「不可用」而不是空表。
-   * 服务端已按父会话过滤（listRunsByParentSession），返回的每一行都属于本会话。
+* Enumeration side of workflow run, service `/dwf list`. Optional capability: run the entire service when dwf journal is unavailable
+* If not constructed, the member will be absent - the command will return "unavailable" instead of an empty list.
+* The server has been filtered by parent session (listRunsByParentSession), and each row returned belongs to this session.
    */
   listDynamicWorkflowRuns?(input: { limit?: number }): Promise<DynamicWorkflowRunSessionSummary[]>;
   /**
-   * workflow run 的冷回放，服务 TUI 镜像的冷启动：
-   * journal → 与 live 同一种进度载荷。可选能力，缺席条件同 {@link listDynamicWorkflowRuns}。
+* Cold replay of workflow run, cold start of service TUI image:
+* journal → The same progress load as live. Optional capability, the absence conditions are the same as {@link listDynamicWorkflowRuns}.
    */
   replayDynamicWorkflowRuns?(input: {
     excludeRunIds: ReadonlySet<string>;
   }): Promise<DynamicWorkflowRunProgressPayload[]>;
   /**
-   * workflow run 的取消面，服务 `/dwf cancel`。runId ≡ taskId ≡ workId（同一把标识）。
+* Cancellation side of workflow run, service `/dwf cancel`. runId ≡ taskId ≡ workId (same identification).
    */
   cancelBackgroundTask?(taskId: string): Promise<BackgroundTaskCancelResult>;
   /**
-   * workflow run 的恢复面，服务 `/dwf resume`。失败走结构化 reason 而不是 throw，
-   * 命令原样呈现服务端裁定——`resumable` 绝不在客户端重新推导。
+* Resume surface of workflow run, service `/dwf resume`. Use structured reason instead of throw when failure occurs.
+* Commands render server-side rulings as is - `resumable` is never re-derived on the client.
    */
   resumeWorkflowRun?(input: {
     workId: string;
@@ -316,7 +316,7 @@ export type CommandCenterDeps = {
     kind?: "slash_command",
   ) => Promise<unknown> | unknown;
   resumeApp(sessionId?: string): Promise<CommandCenterApp>;
-  /** 用户主动切换成功后保存完整默认选择；恢复会话与自动初始化不调用。 */
+/** After the user actively switches successfully, the complete default selection is saved; session recovery and automatic initialization are not called. */
   saveDefaultModelSelection?: (selection: ModelSelection) => Promise<void>;
   logout?: () => Promise<CommandCenterLogoutResult>;
   setLocale?: (locale: UiLocale) => Promise<CommandCenterLocaleResult> | CommandCenterLocaleResult;

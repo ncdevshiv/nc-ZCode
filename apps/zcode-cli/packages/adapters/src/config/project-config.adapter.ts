@@ -79,10 +79,10 @@ export function loadProjectConfigFile(
           hookCandidate: createWorkspaceHookSourceInput({
             path: result.path,
             workingDirectory: resolve(options.workingDirectory ?? baseDir),
-            // hooks 字段已由 loadFileConfig 经 ZCodeConfigFileSchema（shared 单源
-            // schema）完成运行时校验；这里的 parse 仅做类型桥接——HooksRuntimeConfigPatch
-            // 与 WorkspaceHooksConfig 是两个领域类型（执行 side vs 配置 side，字段语义有
-            // 微差），不共享 TS 结构。禁止改成 as 断言绕过校验。
+// The hooks field has been passed by loadFileConfig via ZCodeConfigFileSchema (shared single source
+// schema) to complete runtime verification; the parse here only does type bridging - HooksRuntimeConfigPatch
+// and WorkspaceHooksConfig are two field types (execution side vs configuration side, field semantics are
+// slight difference), does not share the TS structure. It is forbidden to change to as assertion to bypass verification.
             hooks: workspaceHooksConfigSchema.parse(hooks),
             discoveryOrder: options.discoveryOrder ?? 0,
             explicitProjectConfig: options.explicitProjectConfig,

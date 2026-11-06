@@ -1,0 +1,16 @@
+{
+  "zcodeHostLib": "PASS",
+  "zcodeServicesAgent": "FAIL",
+  "errors": [
+    "set_inline_responses not found on HostServer",
+    "session_view not found",
+    "session_transcript_view not found",
+    "session_usage not found",
+    "load_session not found",
+    "session_task_type not found",
+    "session_ids not found",
+    "workflow_service not found",
+    "set_automation_port not found"
+  ],
+  "note": "These methods are referenced by richer agent services but not implemented in HostServer."
+}

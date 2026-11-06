@@ -140,7 +140,7 @@ async function execGitNoThrow(
     const failure = error as ExecFileFailure;
     return {
       code: typeof failure.code === "number" ? failure.code : 1,
-      // 命令失败时丢弃 stdout/stderr，避免把不可靠的错误输出写入 provider-visible git context。
+// Discard stdout/stderr when the command fails to avoid writing unreliable error output to the provider-visible git context.
       stderr: "",
       stdout: "",
     };
@@ -165,7 +165,7 @@ function splitGitStatusForContext(status: string): string[] {
 ... (truncated because it exceeds 2k characters. If you need more information, run "git status" using ${gitStatusToolName()})`
       : status;
 
-  // 与上游 CLI 保持一致：git status 只按 2k 字符截断，不按文件条目数截断，避免 provider-visible prompt 形状漂移。
+// Consistent with the upstream CLI: git status is only truncated by 2k characters, not by the number of file entries, to avoid provider-visible prompt shape drift.
   return boundedStatus.split(/\r?\n/u).filter((line) => line.length > 0);
 }
 

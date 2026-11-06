@@ -21,7 +21,7 @@ export interface McpResourceProcess {
   mcpId: string;
   pid: number;
   startedAt: number;
-  /** 探针 await 期间重启或注销的旧实例不能贡献资源或修改 tracker。 */
+/** Old instances that are restarted or logged out during probe await cannot contribute resources or modify the tracker. */
   isCurrent(): boolean;
   observed(
     samples: readonly ProcessProbeSample[] | undefined,
@@ -42,7 +42,7 @@ export interface McpResourceTelemetryOptions {
   timer?: McpResourceTimer;
 }
 
-/** 一个 tracker 一个定时器和探针；CPU 基线只活到下次采样，不保存历史序列。 */
+/** A tracker, a timer and a probe; the CPU baseline only lives until the next sampling and does not save the historical sequence. */
 export function createMcpResourceTelemetry(options: McpResourceTelemetryOptions) {
   const probe = options.processProbe ?? createProcessProbe({ platform: options.platform });
   const logicalCpuCount = options.logicalCpuCount ?? Math.max(1, cpus().length);
@@ -107,7 +107,7 @@ export function createMcpResourceTelemetry(options: McpResourceTelemetryOptions)
         };
         const baseline = new Map<number, number>();
         for (const sample of tree) {
-          // 共享根或嵌套根只计一次，防止同一 OS 进程污染应用总量。
+// Shared roots or nested roots are only counted once to prevent the same OS process from polluting the application total.
           if (seenPids.has(sample.pid)) continue;
           seenPids.add(sample.pid);
           group.processCount += 1;
@@ -130,7 +130,7 @@ export function createMcpResourceTelemetry(options: McpResourceTelemetryOptions)
       previousAt = sampledAt;
       if (groups.size > 0) options.onResourceSamples?.([...groups.values()]);
     } catch {
-      // 采样/通知失败不能影响 MCP 生命周期，也不能把跨失败窗口的 CPU 时间算成五分钟均值。
+// Sampling/notification failures cannot affect the MCP lifecycle, nor can CPU time across the failure window be calculated as a five-minute average.
       previous.clear();
       previousAt = undefined;
     } finally {
@@ -147,7 +147,7 @@ export function createMcpResourceTelemetry(options: McpResourceTelemetryOptions)
         }, ZCODE_MCP_RESOURCE_SAMPLE_INTERVAL_MS);
         handle.unref?.();
       } catch {
-        // 保持原 tracker 的旁路语义：定时器不可用不能阻断 MCP 连接。
+// Maintain the bypass semantics of the original tracker: the MCP connection cannot be blocked if the timer is unavailable.
       }
     },
     stop() {
@@ -159,7 +159,7 @@ export function createMcpResourceTelemetry(options: McpResourceTelemetryOptions)
       try {
         if (activeHandle) timer.clearInterval(activeHandle);
       } catch {
-        // 清理失败不阻断 Agent 退出；上面的代际已使在途结果失效。
+// Cleanup failure does not prevent the Agent from exiting; the above generation has invalidated the in-transit results.
       }
     },
   };

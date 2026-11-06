@@ -1,0 +1,22 @@
+{
+  "workspaceLibCheck": "PASS",
+  "zcodeHostLibCheck": "PASS",
+  "workspaceAllTargets": "FAIL (test targets)",
+  "remainingErrors": "zcode-host test targets reference uncompiled richer modules",
+  "cratesRecovered": [
+    "zcode-services-workspace",
+    "zcode-services-offpeak",
+    "zcode-services-plugins",
+    "zcode-services-provider",
+    "zcode-services-git",
+    "zcode-services-extensions",
+    "zcode-node-repl",
+    "zcode-cdp",
+    "zcode-proc",
+    "zcode-provider",
+    "zcode-services-automation",
+    "zcode-services-agent",
+    "zcode-host (lib only)"
+  ],
+  "cratesStillFailing": []
+}

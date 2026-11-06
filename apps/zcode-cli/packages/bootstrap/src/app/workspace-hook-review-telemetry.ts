@@ -19,7 +19,7 @@ export class WorkspaceHookReviewTelemetry {
     this.emit("workspace_hook.review_request_created", {
       bundleDigest: request.bundleDigest,
       generation: request.generation,
-      // Trust 落盘条数诊断：记录 request 与实际 grant 数，识别静默丢失。
+// Diagnosis of the number of Trust disks: record the number of requests and actual grants, and identify silent losses.
       requestItemCount: request.items.length,
       requestEnabledCount: request.items.filter((item) => item.configuredEnabled).length,
     });
@@ -51,8 +51,8 @@ export class WorkspaceHookReviewTelemetry {
       action: decision.action,
       bundleDigest: target.bundleDigest,
       generation: target.generation,
-      // 与 requestEnabledCount 对不上即为静默丢失：decisionAccepted 只在 applyDecision
-      // 成功后发出，因此「已接受却少写」无法从既有字段看出。
+// If it does not match requestEnabledCount, it is lost silently: decisionAccepted is only available in applyDecision
+// Issued after success, so "accepted but less written" cannot be seen from the existing fields.
       ...(counts?.grantedRecordCount === undefined
         ? {}
         : { grantedRecordCount: counts.grantedRecordCount }),
@@ -63,7 +63,7 @@ export class WorkspaceHookReviewTelemetry {
   }
 
   /**
-   * revoke 观测：撤销是否成功、撤了几条都需要可见，否则排障时无从判断。
+* Revoke observation: Whether the revocation is successful and how many items have been withdrawn need to be visible, otherwise it will be impossible to judge when troubleshooting.
    */
   revoked(bundleDigest: string, revokedCount: number): void {
     this.emit("workspace_hook.revoked", {
@@ -77,10 +77,10 @@ export class WorkspaceHookReviewTelemetry {
     this.emit("workspace_hook.trust_store_failure", {
       bundleDigest,
       reasonCode: "workspace_hooks_trust_store_corrupt",
-      // applyDecision 可因非存储原因抛错（resolveWorkspaceHookReviewDigests
-      // 对未知 reviewItemId、coordinator 内部错误等）。若全部失败一律报成
-      // trust_store_corrupt 且丢弃 cause，日志只剩 reasonCode，排查无从定位真实原因。
-      // reasonCode 保持不变（新增需 contracts 枚举评审），errorMessage 用于回溯真实原因。
+// applyDecision can throw an error due to non-storage reasons (resolveWorkspaceHookReviewDigests
+// For unknown reviewItemId, coordinator internal error, etc.). If all fails, success will be reported
+// trust_store_corrupt and discard cause, leaving only reasonCode in the log, making it impossible to locate the real cause for troubleshooting.
+// reasonCode remains unchanged (new additions require contracts enumeration review), errorMessage is used to trace back to the real reason.
       ...(errorMessage ? { errorMessage } : {}),
     });
   }
@@ -91,9 +91,9 @@ export class WorkspaceHookReviewTelemetry {
     errorMessage?: string,
   ): void {
     this.emit(
-      // toggle 失败按 WorkspaceHookMutationError.code 透传，reasonCode 覆盖 write/rebuild
-      // 之外的情况：mismatch 走专属事件，其余未归类失败记为 toggle_failure，
-      // 避免把写前失败误记成 config_rebuild_failure（错误归属倒错）。
+// If toggle fails, press WorkspaceHookMutationError.code to transparently transmit, reasonCode overwrites write/rebuild
+// Other situations: mismatch takes exclusive events, and other unclassified failures are recorded as toggle_failure.
+// Avoid mistaking write-before failures as config_rebuild_failure (error attribution perversion).
       reasonCode === "workspace_hooks_snapshot_mismatch"
         ? "workspace_hook.snapshot_mismatch"
         : reasonCode === "workspace_hooks_config_rebuild_failed"

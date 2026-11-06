@@ -124,5 +124,5 @@ rule (strict types + runtime validation in `packages/shared/src/zcode-protocol/i
    (D4.1–D4.5).
 3. Kill/restart: executor crash mid-stream releases the session admission gate via
    the existing settle path; no stuck busy state (verifiable in both delivery profiles).
-4. `pnpm typecheck` and `pnpm lint` pass on the TS side; Rust side has its own tests —
+4. `bun run typecheck` and `bun run lint` pass on the TS side; Rust side has its own tests —
    both results reported honestly, no claimed pass without execution.

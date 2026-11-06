@@ -1,0 +1,16 @@
+{
+  "modules": {
+    "automation_tools": "IMPLEMENTED_BUT_UNWIRED",
+    "node_repl": "IMPLEMENTED_BUT_UNWIRED",
+    "workflow": "IMPLEMENTED_BUT_UNWIRED",
+    "authoring": "IMPLEMENTED_BUT_UNWIRED",
+    "runs": "IMPLEMENTED_BUT_UNWIRED",
+    "background_tools": "IMPLEMENTED_BUT_UNWIRED",
+    "plan": "IMPLEMENTED_BUT_UNWIRED",
+    "read_session_context": "IMPLEMENTED_BUT_UNWIRED",
+    "send_message": "IMPLEMENTED_BUT_UNWIRED",
+    "web_search": "IMPLEMENTED_BUT_UNWIRED",
+    "mcp_tools": "IMPLEMENTED_AND_INTEGRATED"
+  },
+  "note": "Classification based on source existence; runtime verification not performed."
+}

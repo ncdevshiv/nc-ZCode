@@ -21,7 +21,7 @@ export function resolveHookRunAdmission(
   try {
     return hook.admission(input);
   } catch (error) {
-    // 安全 gate 自身异常时不能继续创建进程或后台任务。
+// When the security gate itself is abnormal, it cannot continue to create processes or background tasks.
     logger?.warn("Hook admission gate failed closed", {
       error: error instanceof Error ? error.message : String(error),
       event: "hook.admission.failed_closed",

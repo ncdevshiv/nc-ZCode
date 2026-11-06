@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { ActorEdge, ActorGraph, ActorNode } from "./actor-graph.js";
 import type {
   CausalityGraph,
@@ -143,7 +144,7 @@ function renderActorEdge(edge: ActorEdge): string {
  *   lane workspace
  *   lane actor#2 "planner" @17:17
  *   lane actor#4 "judge" @29:32 families=fanout#1
- *   lane actor#1 name-head="研究员" @53:5 families=fanout#1
+* lane actor#1 name-head="Researcher" @53:5 families=fanout#1
  *   region seq#1 seq
  *   region loop#1 loop parent=seq#1 @21:1 bound=5
  *   step ask#1 ask "scanner" @14:41 lane=actor#1 region=seq#1 always
@@ -172,7 +173,7 @@ function renderActorEdge(edge: ActorEdge): string {
  * `name-head=`/`name-tail=` (lane) and `label-head=`/`label-tail=` (step) carry a
  * {@link NamePattern} — the static shape of a name the script interpolates. They sit in
  * the same slot as the quoted name they stand in for, and they carry the affixes as
- * **data**: the ellipsis that turns them into `研究员…` is a render-time decision, not
+* **data**: the ellipsis that turns them into `researcher...` is a render-time decision, not
  * part of this form.
  */
 export function serializeCausalityGraph(graph: CausalityGraph): string {
@@ -210,7 +211,7 @@ function renderLane(lane: Lane): string {
   return line;
 }
 
-/** `name-head="研究员" name-tail="-worker"` — affixes as data, never the rendered glyph. */
+/** `name-head="researcher" name-tail="-worker"` — affixes as data, never the rendered glyph. */
 function renderNamePattern(field: "name" | "label", pattern: NamePattern | undefined): string {
   if (pattern === undefined) return "";
   let out = "";

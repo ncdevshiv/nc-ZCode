@@ -84,7 +84,19 @@ import { useIsOfficeMode } from "@/hooks/useInterfaceMode.js";
 import { clearSelectionSideChat } from "@/lib/selectionSideChatRuntime.js";
 import { clearConversationSelectionReferenceScope } from "@/lib/conversationSelectionReference.js";
 import { subscribeTaskLifecycle } from "@/lib/taskLifecycleEvents.js";
-
+import {
+  buildBrowserUseTabSnapshot,
+  createBrowserUseLifecycleController,
+  getBrowserUseTabUrl,
+  publishBrowserUseTabSnapshot,
+  registerBrowserUseLifecycleController,
+  subscribeBrowserUseTabUrl,
+  subscribeBrowserUseTabViewport,
+} from "@/browser-use/browserUseLifecycle.js";
+import {
+  createBrowserUseRecordingPort,
+  type BrowserUseRecordingPlatform,
+} from "@/browser-use/browserUseRecordingPort.js";
 export interface BrowserNavigationRequest {
   id: string;
   targetTabId: string;
@@ -264,6 +276,78 @@ export function useAppPanels(options: {
       );
     },
     [commitSidePaneState, workspaceRemoteSessionId],
+  );
+
+  // Renderer-owned browser-use lifecycle: the side-pane state is the single
+  // source of truth, and `close` delegates the shell webview teardown to
+  // `browserViewCloseTab` so the renderer and shell stay in one write path.
+  const recordingPort = useMemo(
+    () =>
+      createBrowserUseRecordingPort({
+        platform: (platform ?? {}) as BrowserUseRecordingPlatform,
+        workspacePath: workspaceAbsPath,
+        remoteSessionId: workspaceRemoteSessionId,
+      }),
+    [platform, workspaceAbsPath, workspaceRemoteSessionId],
+  );
+  const browserUseLifecycle = useMemo(
+    () =>
+      createBrowserUseLifecycleController(
+        {
+          getState: () => latestSidePaneMemoryRef.current.sidePaneState,
+          commit: (updater) => commitSidePaneState(updater),
+          getUrl: getBrowserUseTabUrl,
+          reveal: () => revealSidePaneForCurrentOwner(),
+          closeShellTab: (payload) => platform?.browserViewCloseTab?.(payload),
+          recording: recordingPort,
+        },
+        {
+          workspaceKey: activeWorkspaceKey,
+          remoteSessionId: workspaceRemoteSessionId ?? undefined,
+          sessionId: sidePaneOwnerId,
+        },
+      ),
+    [
+      activeWorkspaceKey,
+      commitSidePaneState,
+      platform,
+      recordingPort,
+      revealSidePaneForCurrentOwner,
+      sidePaneOwnerId,
+      workspaceRemoteSessionId,
+    ],
+  );
+
+  useEffect(
+    () => registerBrowserUseLifecycleController(browserUseLifecycle),
+    [browserUseLifecycle],
+  );
+
+  const publishBrowserUseSnapshot = useCallback(() => {
+    publishBrowserUseTabSnapshot(
+      buildBrowserUseTabSnapshot(
+        latestSidePaneMemoryRef.current.sidePaneState,
+        {
+          workspaceKey: activeWorkspaceKeyRef.current,
+          remoteSessionId: workspaceRemoteSessionId ?? undefined,
+          sessionId: sidePaneOwnerIdRef.current,
+        },
+      ),
+    );
+  }, [workspaceRemoteSessionId]);
+
+  useEffect(() => {
+    publishBrowserUseSnapshot();
+  }, [publishBrowserUseSnapshot, sidePaneState]);
+
+  useEffect(
+    () => subscribeBrowserUseTabViewport(publishBrowserUseSnapshot),
+    [publishBrowserUseSnapshot],
+  );
+
+  useEffect(
+    () => subscribeBrowserUseTabUrl(publishBrowserUseSnapshot),
+    [publishBrowserUseSnapshot],
   );
 
   useEffect(() => {

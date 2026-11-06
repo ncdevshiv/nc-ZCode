@@ -4,8 +4,8 @@ import { estimateMessageTokens, hasEnoughMessagesToCompact } from "./manual.js";
 import type { LocalMicrocompactPolicyConfig } from "./microcompact.js";
 
 export const DEFAULT_COMPACT_CONTEXT_WINDOW = 200_000;
-// 正常请求默认输出已收敛到 32K，auto compact 必须预留同一目标；
-// 否则请求预算和压缩窗口会继续按两套常量计算。
+// The default output for normal requests has converged to 32K, and the same target must be reserved for auto compact;
+// Otherwise the request budget and compression window will continue to be calculated as two sets of constants.
 export const DEFAULT_AUTOCOMPACT_OUTPUT_RESERVE_TOKENS = 32_000;
 const PREFLIGHT_AUTOCOMPACT_OUTPUT_RESERVE_TOKENS = 21_000;
 export const MAX_OUTPUT_TOKENS_FOR_SUMMARY = 20_000;
@@ -66,15 +66,15 @@ export interface AutoCompactDecision {
 
 export function getEffectiveContextWindowSize(config: AutoCompactPolicyConfig = {}): number {
   const contextWindow = positiveInt(config.contextWindow) ?? DEFAULT_COMPACT_CONTEXT_WINDOW;
-  // provider 的 context window 是 input + output 共享窗口；自动压缩只能让出输入侧，
-  // 因此阈值分母必须先扣掉当前模型允许的 output token，而不是继续吃完整 contextWindow。
+// The context window of the provider is the input + output shared window; automatic compression can only give way to the input side.
+// Therefore, the threshold denominator must first deduct the output token allowed by the current model instead of continuing to eat the entire contextWindow.
   const reserve = Math.min(getAutoCompactOutputReserveTokens(config), contextWindow);
   return Math.max(0, contextWindow - reserve);
 }
 
 export function getAutoCompactOutputReserveTokens(config: AutoCompactPolicyConfig = {}): number {
   const maxOutputTokens = positiveInt(config.maxOutputTokens);
-  // 旧 legacy 分支为完整模型输出预留窗口，既过早压缩又要求远端选择；现在统一保留至多 21K。
+// The old legacy branch reserved a window for full model output, which both compressed prematurely and required remote selection; now uniformly reserves up to 21K.
   return Math.min(
     maxOutputTokens ?? DEFAULT_AUTOCOMPACT_OUTPUT_RESERVE_TOKENS,
     PREFLIGHT_AUTOCOMPACT_OUTPUT_RESERVE_TOKENS,

@@ -1,0 +1,26 @@
+{
+  "desktopUsesTypeScript": true,
+  "rustOnProductionPath": false,
+  "tsDependencies": [
+    "@zcode/server",
+    "@zcode/services",
+    "@zcode/shared",
+    "@zcode/rpc",
+    "@zcode/client",
+    "@zcode/provider",
+    "@zcode/provider-node"
+  ],
+  "rustAvailable": [
+    "zcode-server",
+    "zcode-app",
+    "zcode-host",
+    "zcode-provider"
+  ],
+  "missingInRustProduction": [
+    "desktop host process wiring",
+    "database ownership transfer",
+    "session ownership transfer",
+    "event routing transfer",
+    "background worker integration"
+  ]
+}

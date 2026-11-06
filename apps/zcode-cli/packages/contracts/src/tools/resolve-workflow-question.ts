@@ -1,11 +1,11 @@
 // ============================================================
-// ResolveWorkflowQuestion Tool - 主代理回答 actor 升级上来的阻塞问题
+// ResolveWorkflowQuestion Tool - The main agent answers blocking questions caused by actor upgrades
 // ============================================================
-// 见端口 `DynamicWorkflowRunPort.resolveQuestion`
+// See port `DynamicWorkflowRunPort.resolveQuestion`
 // （interfaces/dynamic-workflow-run.port.ts）。
 //
-// 只收 qid 而不收 `(run_id, question_id)` 对：qid 全局唯一（跨 run），多 run 并发时让模型
-// 自己配对是错配的温床。失败走 ToolHandlerFailure（core 侧），所以本输出只有成功形。
+// Only accept qid but not `(run_id, question_id)` Right: qid is globally unique (across runs), and the model is used when multiple runs are concurrent
+// Pairing yourself is a breeding ground for mismatches. In case of failure, ToolHandlerFailure (core side) is used, so this output is only successful.
 
 import { z } from "zod";
 import { toToolJsonSchema } from "./json-schema.js";
@@ -14,8 +14,8 @@ export const RESOLVE_WORKFLOW_QUESTION_TOOL_NAME = "ResolveWorkflowQuestion";
 
 export const ResolveWorkflowQuestionInputSchema = z
   .object({
-    // snake_case 照 GetWorkflowRun 的 run_id / ResumeWorkflowRun 的 run_id：在模型眼里这是
-    // 同一族的不透明标识键。
+// snake_case is based on the run_id of GetWorkflowRun / the run_id of ResumeWorkflowRun: in the eyes of the model, this is
+// Opaque identification keys of the same family.
     question_id: z
       .string()
       .min(1)
@@ -39,7 +39,7 @@ export const ResolveWorkflowQuestionOutputSchema = z
   .object({
     ok: z.literal(true),
     qid: z.string().min(1),
-    /** 给模型的确认文案（散文不是契约字段，schema 只保证在场）。 */
+/** Confirmation copy for the model (prose is not a contract field, schema only guarantees presence). */
     response: z.string(),
   })
   .strict();

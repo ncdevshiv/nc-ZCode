@@ -23,11 +23,11 @@ export function createCliProviderRefreshReporter(
   return {
     onBuiltinRefreshError(error: unknown) {
       stderr.write(
-        `ZCode Built-in 刷新失败: ${error instanceof Error ? error.message : "unknown error"}\n`,
+        `ZCode Built-in refresh failed: ${error instanceof Error? error.message: "unknown error"}\n`,
       );
     },
     onBuiltinRefreshResult(event: ZCodeBuiltinRefreshEvent) {
-      // TTL 检查不是生产事件；成功更新才默认留痕，不能输出 CDN URL 查询参数或内容。
+// TTL check is not a production event; only successful updates will leave traces by default, and CDN URL query parameters or content cannot be output.
       if (event.result === "updated" || process.env.NODE_ENV !== "production") {
         stderr.write(
           `ZCode Built-in ${event.result}${event.reason ? ` (${event.reason})` : ""}${event.revision === undefined ? "" : ` revision=${event.revision} source=CDN`}\n`,
@@ -49,7 +49,7 @@ interface PrepareCliProviderRuntimeEnvOptions {
   readonly platform?: string;
 }
 
-/** 为运行 Core 或写入模型选择的 CLI Entry 定位同一 Environment 的 Provider Config。 */
+/** Provider Config that locates the same Environment for the CLI Entry selected to run Core or write the model. */
 export async function prepareCliProviderRuntimeEnv(
   options: PrepareCliProviderRuntimeEnvOptions,
 ): Promise<Record<string, string>> {
@@ -88,7 +88,7 @@ export async function prepareCliProviderRuntimeEnv(
     activeFilePath: cachePaths.activeFilePath,
     watch: false,
   });
-  // 入口只准备资源和路径；下载由 Prompt/TUI 长生命周期 Runtime 持有并取消。
+// The entry only prepares resources and paths; the download is held and canceled by the Prompt/TUI long life cycle Runtime.
   try {
     await source.read();
   } finally {
@@ -142,17 +142,43 @@ async function resolveBundledZCodeBuiltinProviderConfig(input: {
     });
   }
 
+  // Bun single-file builds embed `zcode-builtin.json` with `--asset`; read it
+  // from the embedded filesystem and materialize it under the data dir so the
+  // release artifact does not need a sibling `provider/` directory.
+  const bunEmbedded = await readBunEmbeddedProviderConfig();
+  if (bunEmbedded) {
+    return materializeZCodeBuiltinProviderConfig({
+      environmentConfigRoot: join(input.dataBaseDir, ".zcode", "v2"),
+      content: bunEmbedded,
+    });
+  }
+
   const entrypoint = input.entrypoint?.trim();
-  if (!entrypoint) throw new Error("无法定位 CLI ZCode Built-in Provider Config：缺少入口路径");
-  // 全局 bin 可以是软链接，随包配置必须相对真实入口定位。
-  const entryDirectory = dirname(realpathSync(resolve(entrypoint)));
+  if (!entrypoint) throw new Error("Unable to locate CLI ZCode Built-in Provider Config: Missing entry path");
+// The global bin can be a soft link, and the package configuration must be positioned relative to the real entry.
+// Bun compiled binaries expose a virtual argv[1] (~BUN/$bunfs) that realpathSync cannot resolve.
+  const bundled = /~BUN|\$bunfs/u.test(entrypoint);
+  const entryDirectory = dirname(realpathSync(bundled ? process.execPath : resolve(entrypoint)));
   const candidates = [
     join(entryDirectory, "provider", "zcode-builtin.json"),
     resolve(entryDirectory, "../../../../../config/provider/zcode-builtin.json"),
   ];
   const candidate = candidates.find((filePath) => existsSync(filePath));
   if (candidate) return candidate;
-  throw new Error(`无法定位 CLI ZCode Built-in Provider Config：${candidates.join(", ")}`);
+  throw new Error(`Unable to locate CLI ZCode Built-in Provider Config: ${candidates.join(", ")}`);
+}
+
+interface BunEmbeddedFile {
+  readonly name: string;
+  text(): Promise<string>;
+}
+
+async function readBunEmbeddedProviderConfig(): Promise<string | undefined> {
+  const bun = (globalThis as { Bun?: { embeddedFiles?: readonly BunEmbeddedFile[] } }).Bun;
+  const files = bun?.embeddedFiles;
+  if (!files) return undefined;
+  const config = files.find((file) => file.name === "zcode-builtin.json");
+  return config ? await config.text() : undefined;
 }
 
 function getSeaProviderConfigAssets(): SeaProviderConfigAssets | undefined {

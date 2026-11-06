@@ -5,17 +5,17 @@ import type {
 import type { ZCodeProtocolAgentServerContext } from "./server-types.js";
 
 /**
- * 让 legacy 反向 RPC（interaction/requestPermission 等）与 v4 resolveInteraction 命令
- * 竞速：谁先送达应答谁生效。
+* Let legacy reverse RPC (interaction/requestPermission, etc.) work with the v4 resolveInteraction command
+* Racing: Whoever delivers the response first will take effect.
  *
- * 实现方式是"以 RPC 为主 await，v4 命中时取消 RPC"：
- * - 在 v4Interactions 登记 interactionId（= 业务 requestId，与 v4 投影
- *   PendingInteraction.interactionId 同源）；v4 应答到达时记下 answer 并 abort 内部
- *   controller，使 requestClient 以 ProtocolRequestError(-32021) 拒绝。
- * - catch 里发现已有 v4 answer 就返回映射结果（吞掉取消错误）；否则原样抛出
- *   （包括调用方 outerSignal 触发的取消），保持旧路径错误语义不变。
- * - finally 统一注销登记 + 摘除 outerSignal 监听，晚到的 v4 应答按未命中处理
- *   （resolveInteraction handler 幂等收口）。
+* The implementation method is "use RPC as the main await, and cancel RPC when v4 hits":
+* - Register interactionId in v4Interactions (= business requestId, with v4 projection
+* PendingInteraction.interactionId (same origin); when v4 response arrives, record answer and abort internally
+* controller, causing requestClient to reject with ProtocolRequestError(-32021).
+* - If v4 answer is found in the catch, the mapping result will be returned (swallowing the cancellation error); otherwise, it will be thrown as is
+* (including cancellation triggered by the caller's outerSignal), keeping the old path error semantics unchanged.
+* - finally unregister unified + remove outerSignal monitoring, late v4 responses are treated as misses
+* (resolveInteraction handler idempotent closure).
  */
 export async function raceClientRequestWithV4Interaction<T>(
   context: ZCodeProtocolAgentServerContext,
@@ -26,8 +26,8 @@ export async function raceClientRequestWithV4Interaction<T>(
   registrationOptions?: V4InteractionRegistrationOptions,
 ): Promise<T> {
   const controller = new AbortController();
-  // 每次尝试独立等待失败通知；成功仍由 registry 的 V4 answer 解除等待。
-  // 仅复位布尔值唤不醒已经 await 的 legacy 应答；复用一次性通知又会让重试提前放行。
+// Each attempt independently waits for failure notification; success is still released by the registry's V4 answer.
+// Simply resetting the Boolean value will not wake up the awaited legacy response; reusing the one-time notification will allow retries to be released in advance.
   let fullAccessFailure: Promise<void> | undefined;
   let finishAnswer!: () => void;
   const answerReady = new Promise<void>((resolve) => {
@@ -43,7 +43,7 @@ export async function raceClientRequestWithV4Interaction<T>(
     outerSignal?.addEventListener("abort", forwardAbort, { once: true });
   }
 
-  // 用容器而非裸值区分"应答就是 undefined 字段"与"尚未应答"。
+// Use containers instead of raw values ​​to distinguish "response is an undefined field" from "not yet answered".
   let v4Answer: { answer: V4InteractionAnswer } | undefined;
   const unregister = context.v4Interactions.register(
     interactionId,

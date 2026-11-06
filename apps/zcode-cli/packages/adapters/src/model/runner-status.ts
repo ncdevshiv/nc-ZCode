@@ -15,8 +15,8 @@ import {
   resolveModelApiCallObservation,
 } from "@zcode/contracts";
 import { UNBOUNDED_RETRY_MAX_ATTEMPTS } from "./retry-budget.js";
-// 请求归因 header 一族住在 runner-attribution.ts（max-lines 拆分）；公开面仍从本文件导出，
-// 既有 importer 不必改路径。
+// Request attribution header family lives in runner-attribution.ts (max-lines split); the public side is still exported from this file,
+// There is no need to change the path of the existing importer.
 import { resolveModelRequestSessionType } from "./runner-attribution.js";
 import type { AiSdkModelTextRequest, ResolvedAiSdkModel } from "./runner-runtime.js";
 import { stringMetadata } from "./runner-record.js";
@@ -120,8 +120,8 @@ export function createAttemptStatusContext(
 
   return {
     ...statusContext,
-    // adapter retry 会发起新的物理 provider 请求；
-    // 复用首轮 requestId 会让上游日志和 retry-after 诊断串错请求。
+// adapter retry will initiate a new physical provider request;
+// Reusing the first round of requestId will allow upstream logs and retry-after to diagnose mismatched requests.
     requestId: crypto.randomUUID(),
   };
 }
@@ -147,8 +147,8 @@ function initialReasoningObservation(
 }
 
 /**
- * 准入等待两端的状态事件：`admitAttempt` 的 `tryAcquire` 未命中即 `queued`，拿到票即
- * `admitted`（带排队时长）。此时还没有票据，所以不经 ticket 投递——治理器不需要这两条。
+* Status events at both ends of admission waiting: `tryAcquire` of `admitAttempt` is `queued` if it misses, and `queued` is when the ticket is obtained.
+* `admitted` (with queue length). There are no tickets yet, so no ticket delivery is required - the manager does not need these two items.
  */
 export function admissionWaitPublishers(
   statusContext: ModelStatusContext,
@@ -187,8 +187,8 @@ export async function publishModelStatus(
   event: ModelNetworkStatusEvent,
   options: {
     /**
-     * 本次尝试的准入票据：它是该尝试专属的
-     * 状态事件汇，治理器从这里读结果。与 request/telemetry sink 同一条投递纪律（失败只告警）。
+* The admission ticket for this attempt: it is unique to this attempt
+* Status event sink, the manager reads the results from here. The same delivery discipline as request/telemetry sink (only alerts on failure).
      */
     admissionTicket?: ModelStatusSink;
     failureError?: unknown;
@@ -238,8 +238,8 @@ export async function publishModelStatus(
 }
 
 /**
- * Provider 流式里程碑只发给进程级 Telemetry Sink，不写 SessionEvent。
- * requestStatusSink 属于对话产品状态，不能被纯观测事件污染。
+* Provider streaming milestones are only sent to process-level Telemetry Sink and do not write SessionEvents.
+* requestStatusSink belongs to the dialogue product status and cannot be contaminated by pure observation events.
  */
 export async function publishModelTelemetryMilestone(
   event: Extract<
@@ -275,7 +275,7 @@ export function modelStatusContextToLogContext(
     attempt,
     baseURL: statusContext.baseURL,
     maxAttempts: statusContext.maxAttempts,
-    // maxAttempts 为 0 表示无上限：maxRetries 同样以 0 表达，而不是 max(0, -1) 巧合得到的 0。
+// maxAttempts is 0, which means there is no upper limit: maxRetries is also expressed as 0, not the 0 obtained by max(0, -1) by coincidence.
     maxRetries:
       statusContext.maxAttempts === UNBOUNDED_RETRY_MAX_ATTEMPTS
         ? UNBOUNDED_RETRY_MAX_ATTEMPTS

@@ -1,19 +1,19 @@
 // ============================================================
-// Anthropic strict 工具 schema：资格判定 + 子集折叠
+// Anthropic strict tool schema: qualification determination + subset folding
 // ============================================================
-// Anthropic `strict: true` 用 constrained decoding 保证 tool_use.input 恰好满足 input_schema，
-// 但只接受 JSON Schema 的一个子集（API 文档「JSON Schema Limitations」）：
-//   支持：object/array/string/integer/number/boolean/null、enum/const/anyOf/allOf、
-//         一组 string format、`additionalProperties: false`（所有 object 必填）。
-//   不支持：数值约束（minimum/maximum/multipleOf）、字符串长度约束、复杂数组约束、递归 $ref、
-//         `additionalProperties` 取 false 以外的值。
-// 本模块把一份普通 schema 变成严格子集里的等价物：能折的约束**折进 description**（模型仍读得到，
-// 引擎侧校验器仍强制），折不了的形状返回 undefined（调用方原样发送、不带 strict）。
-// 首个使用者是 dwf mono 子代理的 typed `submit_result`。
+// Anthropic `strict: true` uses constrained decoding to ensure that tool_use.input exactly satisfies input_schema,
+// But only accepts a subset of JSON Schema (API document "JSON Schema Limitations"):
+// Support: object/array/string/integer/number/boolean/null, enum/const/anyOf/allOf,
+// A set of string format, `additionalProperties: false` (required for all objects).
+// Not supported: numerical constraints (minimum/maximum/multipleOf), string length constraints, complex array constraints, recursion $ref,
+// `additionalProperties` takes a value other than false.
+// This module turns a common schema into its equivalent in a strict subset: foldable constraints **folded into description** (the model can still be read,
+// The engine side validator is still mandatory), and the shape that cannot be folded returns undefined (the caller sends it as it is, without strict).
+// The first user is typed `submit_result` of the dwf mono subagent.
 
 import type { JsonSchema } from "@zcode/contracts";
 
-/** strict 模式认识的 string format；其余 format 折进 description。 */
+/** String format recognized by strict mode; other formats are folded into description. */
 const STRICT_STRING_FORMATS = new Set([
   "date-time",
   "time",
@@ -27,7 +27,7 @@ const STRICT_STRING_FORMATS = new Set([
   "uuid",
 ]);
 
-/** 折进 description 的关键字及其措辞。 */
+/** Folds in the description keyword and its wording. */
 const FOLDED_KEYWORDS: Record<string, (value: unknown) => string> = {
   minimum: (v) => `minimum ${String(v)}`,
   maximum: (v) => `maximum ${String(v)}`,
@@ -43,20 +43,20 @@ const FOLDED_KEYWORDS: Record<string, (value: unknown) => string> = {
 };
 
 /**
- * 判断 modelId 是否为 Anthropic 首方直连模型（裸 `claude-` 前缀；`anthropic/claude-…` 等
- * 网关路由 ID 不算）。只有首方模型走 strict。兼容网关可能拒绝不认识的工具字段，因此
- * 资格判定和 provider 能力边界必须保持分开；无法确认资格时沿用普通 schema 行为。
+* Determine whether the modelId is an Anthropic first-party direct connection model (bare `claude-` prefix; `anthropic/claude-...`, etc.
+*Gateway routing ID does not count). Only the first-party model adopts strict. Compatible gateways may reject tool fields they don't recognize, so
+* Qualification determination and provider capability boundaries must be kept separate; normal schema behavior is used when qualification cannot be confirmed.
  */
 export function isAnthropicFirstPartyModelId(modelId: string | undefined): boolean {
   return typeof modelId === "string" && modelId.startsWith("claude-");
 }
 
 /**
- * 把 schema 转成 strict 子集里的等价物；形状不可表达时返回 undefined。
+* Convert schema to its equivalent in the strict subset; returns undefined if the shape is inexpressible.
  *
- * 不可表达 = `$ref`/`$defs`（递归）、`additionalProperties` 是 schema（Record<string, T>）、
- * 空 schema `{}`（`unknown`，无 type 可约束）、tuple（`prefixItems`）。可折叠 = FOLDED_KEYWORDS
- * 与 strict 之外的 `format`。object 缺省补 `additionalProperties: false`（合成侧本就发射它）。
+* Not expressible = `$ref`/`$defs` (recursive), `additionalProperties` is schema(Record<string, T>),
+* Empty schema `{}` (`unknown`, no type to constrain), tuple (`prefixItems`). FOLDED = FOLDED_KEYWORDS
+* `format` other than strict. object defaults to `additionalProperties: false` (compositing side emits it).
  */
 export function toStrictToolSchema(schema: JsonSchema): JsonSchema | undefined {
   const out = strictNode(schema);
@@ -84,7 +84,7 @@ function strictNode(node: JsonSchema): StrictNode {
     out[key] = value;
   }
 
-  // 递归：properties / items / anyOf / allOf / additionalProperties。
+// Recursive: properties/items/anyOf/allOf/additionalProperties.
   if (isRecord(out.properties)) {
     const properties: Record<string, JsonSchema> = {};
     for (const [name, child] of Object.entries(out.properties)) {
@@ -115,12 +115,12 @@ function strictNode(node: JsonSchema): StrictNode {
 
   const types = Array.isArray(out.type) ? out.type : out.type === undefined ? [] : [out.type];
   if (types.includes("object")) {
-    // Record<string, T>：additionalProperties 是 schema → 严格子集表达不了。
+// Record<string, T>: additionalProperties is schema → strict subset cannot be expressed.
     if (isRecord(out.additionalProperties)) return INELIGIBLE;
     if (out.additionalProperties !== false) out.additionalProperties = false;
     if (!isRecord(out.properties)) out.properties = {};
   }
-  // 空 schema（unknown）：没有任何可约束的东西，strict 不接受。
+// Empty schema (unknown): There is nothing to constrain, strict does not accept it.
   if (Object.keys(out).length === 0 && notes.length === 0) return INELIGIBLE;
 
   if (notes.length > 0) {

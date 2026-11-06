@@ -5,6 +5,7 @@ import type {
   EmbeddedBrowserViewportPreference,
 } from "@zcode/shared";
 import { DEFAULT_BROWSER_VIEWPORT_ZOOM } from "@/browser-use/browserViewportZoom.js";
+import { setBrowserUseTabViewport } from "@/browser-use/browserUseLifecycle.js";
 import { DEFAULT_RESPONSIVE_BROWSER_VIEWPORT_SIZE } from "@/browser-use/ResponsiveBrowserViewport.js";
 import { usePlatform } from "@/hooks/usePlatform.js";
 import { logger } from "@/logger.js";
@@ -82,6 +83,9 @@ export function useResponsiveBrowserViewportControl({
 
   const updateControlledViewport = useCallback(
     (viewport: BrowserViewportSize | null) => {
+      // The renderer owns the guest viewport; publish it for the lifecycle
+      // snapshot (`listUserTabs`) before the shell round-trip.
+      setBrowserUseTabViewport(browserKey, viewport);
       const request = platform.browserViewUpdateViewport?.({ tabId: browserKey, viewport });
       if (!request) return;
       void request
@@ -97,6 +101,13 @@ export function useResponsiveBrowserViewportControl({
         });
     },
     [browserKey, onViewportSynchronized, platform],
+  );
+
+  useEffect(
+    () => () => {
+      setBrowserUseTabViewport(browserKey, null);
+    },
+    [browserKey],
   );
 
   useEffect(() => {

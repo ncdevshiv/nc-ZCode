@@ -2,7 +2,7 @@ import type { ModelRequestAuth } from "@zcode/contracts";
 import type { CommandPayloadMap } from "@zcode/shared/zcode-protocol-v4";
 import type { SendInputOptions } from "../app/types.js";
 
-/** 两种输入协议共用执行材料投影；不把 Secret/Ticket 放入可持久化的 intent。 */
+/** Both input protocols share execution material projection; do not put Secret/Ticket into persistent intent. */
 export function createModelExecutionContext(
   input: NonNullable<CommandPayloadMap["sendText"]["modelExecution"]>,
 ): NonNullable<SendInputOptions["modelExecution"]> {

@@ -25,9 +25,9 @@ import type { AgentRuntimeInternal } from "../internal.js";
 import { emitControlOnlyUserTurn, persistWorkflowLaunchUserMessage } from "./control-only-turn.js";
 
 /**
- * `startSavedWorkflowRun` 的结构化结果。成功给 run 的两把关联键（`runId` ≡ backgroundTaskId ≡
- * cancelBackgroundWork 的 workId；`toolCallId` 联工具卡 → 详情页）；失败走 `reason` 判别键
- * （house rule：错误码而非文本做流程判断），`message` 携带人可读原因供 GUI 行内展示。
+* Structured results of `startSavedWorkflowRun`. Successfully given two associated keys to run (`runId` ≡ backgroundTaskId ≡
+* workId of cancelBackgroundWork; `toolCallId` (connected to tool card → details page); failure to use `reason` judgment key
+* (house rule: use error codes instead of text for process judgment), `message` carries human-readable reasons for GUI inline display.
  */
 export type StartSavedWorkflowRunResult =
   | { ok: true; runId: string; toolCallId: string }
@@ -43,21 +43,21 @@ export type StartSavedWorkflowRunResult =
       message?: string;
     };
 
-/** 编译诊断合并后的界（≈2KB）：诊断随 ACK 的 `message` 走协议，过长的堆栈没有阅读价值。 */
+/** Compiled diagnostic merged bounds (≈2KB): Diagnosis follows the ACK `message` protocol, and a stack that is too long is of no reading value. */
 const COMPILE_DIAGNOSTICS_MAX_CHARS = 2_000;
 
 /**
- * 中枢直接启动一个已保存的工作流。
+* Hub launches a saved workflow directly.
  *
- * 它是 `port.submit` 的**第二个调用方**，与 `CreateWorkflow` 工具路径同构：同一段 saved 归一化
- * （`resolveSavedWorkflow` + `validateWorkflowArgs`，不复制）、同一个后台追踪器
- * （`trackExternalBackgroundTask` 喂一个合成 CreateWorkflow 描述子），产出的 run 对通知 / 取消 /
- * 恢复 / 详情侧板不可区分。区别只在：不经 `ToolExecutor.execute`（绕开权限判定 + `alwaysAsk`——
- * 这正是本特性的全部意义，用户在中枢里的点击就是同意），并以一条 controlOnly 「启动轮」把用户的
- * 真实动作落进会话（模型直到完成 / 提问通知到来才第一次听说这次 run）。
+* It is the **second caller** of `port.submit`, which is isomorphic to the `CreateWorkflow` tool path: the same section saved is normalized
+* (`resolveSavedWorkflow` + `validateWorkflowArgs`, no copy), the same background tracker
+* (`trackExternalBackgroundTask` feeds a synthetic CreateWorkflow descriptor), the output run pair notification / cancellation /
+*Restore/Details side panels are indistinguishable. The only difference is: without `ToolExecutor.execute` (bypassing permission determination + `alwaysAsk`——
+* This is the whole point of this feature, the user clicks in the hub to agree), and uses a controlOnly "launch wheel" to turn the user's
+* Real action falls into the session (the model doesn't hear about the run for the first time until completion/question notifications arrive).
  *
- * 顺序固定，且 ①② 失败在**任何持久化之前**（无 run、无消息、无事件、无任务）；④ 之后的失败只记
- * 日志不回滚（run 已在飞、可在侧板取消），仍返回 ok。
+* The order is fixed, and ①② failure occurs before **any persistence** (no run, no message, no event, no task); ④ subsequent failures are only recorded
+* The log is not rolled back (the run is already in flight and can be canceled on the side panel), and ok is still returned.
  */
 export async function startSavedWorkflowRun(
   this: AgentRuntimeInternal,
@@ -70,15 +70,15 @@ export async function startSavedWorkflowRun(
 ): Promise<StartSavedWorkflowRunResult> {
   const traceContext = input.traceContext ?? this.rootTraceContext;
 
-  // (0) 忙碌会话拒绝。本方法只对刚建的空会话有意义；把启动排进活动 turn 的队列需要 controlOnly
-  // 轮与 provider grammar 协调（属「加入当前会话」的未来工作）。GUI 只对空会话发它，故正常不触发。
+// (0) Busy session rejected. This method is only meaningful for newly created empty sessions; queuing the startup into the queue of the active turn requires controlOnly
+// Coordinate with provider grammar (future work of "join current session"). The GUI only sends it to empty sessions, so it is not triggered normally.
   if (this.hasActiveOrQueuedTurnWork()) {
     return { ok: false, reason: "session_busy" };
   }
 
   const cwd = this.workingDirectory;
 
-  // (1) 解析 + 实参校验：复用 create-workflow-source 的同一段归一化（第二个调用方，不复制）。
+// (1) Parsing + actual parameter verification: reuse the same normalization section of create-workflow-source (second caller, no copy).
   const found = resolveSavedWorkflow({ cwd, name: input.name, scope: input.scope });
   if (!found.ok) {
     if (found.reason === "invalid_name") {
@@ -98,8 +98,8 @@ export async function startSavedWorkflowRun(
             : `No ${input.scope} workflow named '${input.name}'.`,
       };
     }
-    // parse_error / read_error：文件在但坏了。对 GUI 与「找不到」是同一个下一步（这个名字跑不
-    // 起来），归 not_found；但 message 说清是文件问题而非名字问题，好让用户去修文件而不是改名字。
+// parse_error / read_error: The file exists but is broken. For GUI it is the same next step as "not found" (this name cannot run
+// get up), return to not_found; but the message clearly states that it is a file problem rather than a name problem, so that the user can repair the file instead of changing the name.
     return {
       ok: false,
       reason: "not_found",
@@ -119,8 +119,8 @@ export async function startSavedWorkflowRun(
     };
   }
 
-  // (2) 编译。任一诊断即拒绝——与 CreateWorkflow 对编不过脚本的处理同一条原则（弹一个注定失败的
-  // run 只是延迟同一个错误）。诊断进 message，有界。
+// (2) Compile. Any diagnosis is rejected - the same principle as CreateWorkflow's handling of unscriptable (playing a doomed to fail)
+// run just delays the same error). Diagnosis into message, bounded.
   const analysis = analyzeScript(found.script);
   if (!analysis.ok || analysis.diagnostics.length > 0) {
     return {
@@ -133,42 +133,42 @@ export async function startSavedWorkflowRun(
     };
   }
 
-  // —— 到此为止零副作用：无 run、无消息、无事件、无任务。——
+// - Zero side effects so far: no runs, no messages, no events, no tasks. ——
 
   const port = this.dynamicWorkflowRunPort;
   if (port === undefined) {
-    // 端口缺席（stub / 单测宿主）：GUI 拿到能力不支持面。刻意不降级成「假装启动了」。
+//Port is absent (stub/single test host): GUI access capability does not support the surface. Deliberately not downgrading to "pretending to be activated".
     return { ok: false, reason: "start_failed", message: "dynamic workflow port unavailable" };
   }
 
-  // 提交前先初始化上下文并持久化父会话。actor 的 session_task_link 通过
-  // parent_session_id 引用父会话；父行不存在时，首个 actor 的创建会因外键约束失败。
-  // 父会话以工作流名为首输入标题，后续启动轮会幂等复用。提交失败时由 GUI 在收到
-  // rejected ACK 后通过 deleteSession 回收空会话。
+// Initialize the context and persist the parent session before submitting. actor's session_task_link passes
+// parent_session_id refers to the parent session; when the parent row does not exist, the creation of the first actor will fail due to foreign key constraints.
+//The parent session starts with the workflow name as the input title, and subsequent startup rounds will be reused idempotently. Submission fails when received by the GUI
+// Recycle the empty session through deleteSession after rejected ACK.
   await this.ensureContextInitialized(traceContext);
   await this.ensureSessionPersisted(found.name, traceContext);
 
-  // (3) toolCallId：`launch-` 前缀，日志与工具卡可辨于模型工具调用 id（`tool_*`）与 resume 重臂。
+// (3) toolCallId: `launch-` prefix, logs and tool cards can be distinguished from the model tool call id (`tool_*`) and resume heavy arm.
   const toolCallId = `launch-${randomUUID()}`;
   const hasArgs = Object.keys(validated.args).length > 0;
-  // 发起锚点：直接启动没有用户轮，铸一个 UUID v7 同时充当
-  // run 的 `run-launched.inputId` 与下面 controlOnly 启动轮的 inputId——启动轮 run 卡与子代理的
-  // agent_step 因此挂在同一个 message 下。
+// Launch anchor point: directly launch without user wheel, cast a UUID v7 and act as
+// run's `run-launched.inputId` and the inputId of the controlOnly launch wheel below - launch wheel run card and subagent
+// agent_step is therefore hung under the same message.
   const launchInputId = uuidv7();
-  // 提交的声明阶段表读与启动轮 display 同一个「分析结果 → 有界显示图」投影（阶段来自控制流层，
-  // 只传因果图就没有阶段），再过同一个 createWorkflowPhaseNames——两条路上同一脚本画同一条侧栏轨道。
+// The submitted statement stage table reading and the startup wheel display have the same "Analysis Result → Bounded Display Map" projection (the stage comes from the control flow layer,
+// Only pass the cause and effect diagram without phases), and then pass the same createWorkflowPhaseNames - the same script draws the same sidebar track on both roads.
   const launchGraph = boundGraphOfAnalysis(analysis);
   const phaseNames = createWorkflowPhaseNames(launchGraph);
-  // 「同时在跑」表的下标指向 `phaseNames`，所以它必须来自同一张图、同一次投影。
+// The index of the "running at the same time" table points to `phaseNames`, so it must come from the same image and the same projection.
   const phaseAlongside =
     phaseNames === undefined ? undefined : createWorkflowPhaseAlongside(launchGraph);
 
-  // (3b) 工作副本。中枢直接启动与 `CreateWorkflow` 的 saved 来源是同一件事，所以拷贝也按同一条
-  // 规矩写：逐字节（元数据块一起）、保存的定义本身一个字都不动。写不成就没有 `scriptPath`——run 照常起，
-  // 只是终态通知里没有可编辑的文件可指。
+// (3b) Working copy. The direct startup of the hub is the same thing as the saved source of `CreateWorkflow`, so the copy also follows the same procedure.
+// Rule writing: byte by byte (metadata block together), the saved definition itself does not change a word. If you can't write it, there will be no `scriptPath` - run as usual.
+// It's just that there is no editable file to point to in the final notification.
   const draft = await writeWorkflowDraft({ cwd, name: found.name, source: found.source });
 
-  // (4) 提交启动。提交失败（拒绝 / 抛错）在启动轮之前退出——绝不吞成带 runId 的成功。
+// (4) Submit start. Submit failures (rejection/thrown errors) exit before starting the round - never result in success with runId.
   let runId: string;
   try {
     const submitted = await port.submit({
@@ -190,11 +190,11 @@ export async function startSavedWorkflowRun(
   }
 
   const launchText = buildLaunchMessageText(found.name, found.scope, runId, validated.args);
-  // 图与脚本随启动轮走：run 详情侧板与轮尾 run 卡按 toolCallId 找「发起行」取 display.causalityGraph
-  // 与 input.script，直接启动没有工具行，就把同一份 display 与脚本挂在启动元数据上
-  // （否则直接启动的 run 侧板无图、无脚本）。display 走与 CreateWorkflow 同一个「分析结果 → 显示图」
-  // 投影，三层（站点 / 阶段 / 子代理卡）一并在场——这里曾手拼实参而只传了因果图，
-  // 图有站点却没有阶段与子代理卡，侧板因此只剩一条空脊线。
+// Pictures and scripts follow the startup wheel: run details side panel and wheel tail run card press toolCallId to find the "initiation row" and get display.causalityGraph
+//With input.script, start directly without tool line, hang the same display and script on the startup metadata
+// (Otherwise, the run side panel started directly will have no picture or script). display follows the same path as CreateWorkflow "Analysis results → Display graph"
+// Projection, three layers (site/stage/sub-agent card) are present together - here I have manually assembled the actual parameters and only passed the cause and effect diagram,
+// The figure has sites but no stages and sub-agent cards, so there is only an empty ridge line on the side panel.
   const display = displayOfAnalysis(analysis);
   const meta = boundWorkflowLaunchMeta({
     runId,
@@ -208,10 +208,10 @@ export async function startSavedWorkflowRun(
     script: found.script,
   });
 
-  // ④ 之后的失败只记日志不回滚：run 已在飞，可在侧板取消；把它撤回反而制造一个无归属的孤儿 run。
+// ④ Subsequent failures will only be logged and not rolled back: the run is already in flight and can be canceled on the side panel; withdrawing it will create an orphan run without ownership.
   try {
-    // (5) 启动轮：user 可见消息（synthetic + workflowLaunch 元数据）+ history + controlOnly turn
-    // 边界；会话标题 = 工作流名（ensureSessionPersisted 以名为首输入标题）。
+// (5) Launch wheel: user visible message (synthetic + workflowLaunch metadata) + history + controlOnly turn
+// Boundary; session title = workflow name (ensureSessionPersisted enters the title starting with name).
     const messageId = createMessageId();
     await emitControlOnlyUserTurn.call(this, {
       messageId,
@@ -231,10 +231,10 @@ export async function startSavedWorkflowRun(
         }),
     });
 
-    // (6) 后台追踪：合成一个 CreateWorkflow 描述子走 executor 的同一条 trackBackgroundTask
-    // （runtime-task registry 登记 = 会话回收护栏、BackgroundTaskStarted、终态 waiter、结算通知）。
-    // `input.name` 喂通知主题（workflowTaskSubject），`name: CreateWorkflow` 让 per-tool 生命周期
-    // 分派归 "workflow"——完成通知 / 取消 / 恢复 / 详情侧板零改动。
+// (6) Background tracking: synthesize a CreateWorkflow descriptor and run the same trackBackgroundTask of the executor
+// (runtime-task registry registration = session recycling guardrail, BackgroundTaskStarted, final state waiter, settlement notification).
+// `input.name` feeds the notification subject (workflowTaskSubject), `name: CreateWorkflow` lets the per-tool life cycle
+// Assigned to "workflow" - completion notification / cancel / restore / zero changes to the details side panel.
     const toolCall: ExecutableToolCall = {
       id: toolCallId,
       name: CREATE_WORKFLOW_TOOL_NAME,
@@ -271,8 +271,8 @@ export async function startSavedWorkflowRun(
 }
 
 /**
- * 启动轮的模型面规范句（英文，不本地化——它进 provider transcript，是模型下一回合读到的东西）。
- * 有实参时把实参以 JSON 块附上；末句无条件劝阻重复启动（run 已在飞，进度以通知形式回来）。
+* The model-side specification sentence of the startup wheel (English, not localized - it enters the provider transcript, which is what the model reads in the next turn).
+* If there are actual parameters, attach the actual parameters as a JSON block; the last sentence unconditionally discourages repeated starts (the run is already in flight, and the progress will be returned in the form of notifications).
  */
 function buildLaunchMessageText(
   name: string,
@@ -291,8 +291,8 @@ function buildLaunchMessageText(
 }
 
 /**
- * 编译诊断合并成一段有界文本（`L{line}:C{column} {message}` 逐条）。中枢启动与 GUI「配置」共用：
- * 两者都把诊断经 ACK 的 `message` 交给 GUI 的有界等宽块。
+* Compile diagnostics merged into a bounded text (`L{line}:C{column} {message}` item by item). Hub launch is shared with the GUI "Configuration":
+* Both pass diagnostic ACKed `message` to bounded equal-width blocks of the GUI.
  */
 export function boundedCompileDiagnostics(
   heading: string,

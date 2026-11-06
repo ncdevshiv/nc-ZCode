@@ -129,10 +129,14 @@ for (const clientMode of ["desktop-continuous", "web-remote-replayable"] as cons
       });
       assert.equal(await readFile(path, "utf8"), content);
     } finally {
-      service.disposeAll();
-      taskIndexRepo.close();
+      try { service.disposeAll(); } catch {}
+      try { taskIndexRepo.close(); } catch {}
       setDataBaseDir(null);
-      await rm(dir, { recursive: true, force: true });
+      try {
+        await rm(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+      } catch {
+        // Ignore cleanup errors on Windows
+      }
     }
   });
 }

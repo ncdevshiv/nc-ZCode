@@ -14,11 +14,11 @@ export type ToolSideEffectScope =
   | "userInteraction";
 
 /**
- * 会改写工作区的副作用范围：文件系统、git、
- * 以及无法证明只读的 shell / 宿主执行。`network`、`session`、`userInteraction`、`none` 不碰工作区。
- * dynamic-workflow 的导入缓存据此判「第一笔写入」——一次工具调用在解析后的能力上 `readOnly !== true`
- * 且范围落在这个集合里，就是一笔写入。判定放在 contracts 是因为产生标记的执行器（core）与消费它的
- * driver（bootstrap）都要用同一条规则。
+* Will rewrite the side effect scope of the workspace: file system, git,
+* and unproven read-only shell/host execution. `network`, `session`, `userInteraction`, `none` do not touch the workspace.
+* The import cache of dynamic-workflow determines the "first write" based on this - the ability of a tool call to parse `readOnly !== true`
+* and the range falls within this collection, it is a write. The decision is placed on contracts because the executor (core) that generates the tag is different from the one that consumes it.
+* Driver (bootstrap) must use the same rule.
  */
 export const WORKSPACE_MUTATING_SIDE_EFFECT_SCOPES: ReadonlySet<ToolSideEffectScope> = new Set<ToolSideEffectScope>([
   "workspace",
@@ -26,7 +26,7 @@ export const WORKSPACE_MUTATING_SIDE_EFFECT_SCOPES: ReadonlySet<ToolSideEffectSc
   "system",
 ]);
 
-/** 一次工具调用（按解析后的能力）是否会改写工作区。缺席的范围按会改写处理（保守：未声明即不可信）。 */
+/** Whether a tool call (by parsed capabilities) will overwrite the workspace. The scope of absence will be treated as if it were rewritten (conservative: if it is not stated, it is not credible). */
 export function isWorkspaceMutatingToolCall(capability: {
   readOnly?: boolean | undefined;
   sideEffectScope?: ToolSideEffectScope | undefined;
@@ -38,8 +38,8 @@ export function isWorkspaceMutatingToolCall(capability: {
 }
 
 /**
- * 只服务于协议本身、不看也不动外部世界的副作用范围：`session` 是把结果 / 问题交回调用方
- * （dynamic-workflow 的 `submit_result`、`escalate` 就在这一档），`userInteraction` 是问用户。
+* The scope of side effects that only serve the protocol itself and do not look at or touch the external world: `session` is to return the result/problem to the caller
+* (dynamic-workflow's `submit_result` and `escalate` are in this file), `userInteraction` is to ask the user.
  */
 const PROTOCOL_ONLY_SIDE_EFFECT_SCOPES: ReadonlySet<ToolSideEffectScope> = new Set<ToolSideEffectScope>([
   "session",
@@ -47,12 +47,12 @@ const PROTOCOL_ONLY_SIDE_EFFECT_SCOPES: ReadonlySet<ToolSideEffectScope> = new S
 ]);
 
 /**
- * 一次工具调用是否**看或动了外部世界**（读文件、跑命令、访问网络……）。
+* Whether a tool call **sees or touches the outside world** (read files, run commands, access the network...).
  *
- * 与 `isWorkspaceMutatingToolCall` 的分工：那个判「写」，用来决定何时关掉 amend-resume 的导入缓存；
- * 这个判「碰」，用来决定一条缓存条目是不是**纯**的（纯 = 只按指令与转录前缀作答，关门后仍可命中）。
- * 读也算碰：`Read` 声明的范围是 `none`（它不产生副作用），可它的答案取决于工作区。所以判定是排除法
- * ——只把协议档（`session` / `userInteraction`）排除，其余一律算碰；范围缺席同样算碰。
+* Division of work with `isWorkspaceMutatingToolCall`: that judgment "write" is used to decide when to turn off the import cache of amend-resume;
+* This judgment "touch" is used to determine whether a cache entry is **pure** (pure = only answers according to the command and transcription prefix, and can still hit after closing the door).
+* Reading counts as a hit: `Read` is declared in scope `none` (it produces no side effects), but its answer depends on the workspace. Therefore, the judgment is elimination method
+* ——Only exclude the protocol files (`session` / `userInteraction`), and the rest will be counted as collisions; the absence of scope will also be counted as collisions.
  */
 export function isWorldTouchingToolCall(capability: {
   sideEffectScope?: ToolSideEffectScope | undefined;
@@ -172,10 +172,10 @@ export interface ToolContractDeclaration {
   inputSchema: Record<string, unknown>;
   outputSchema: Record<string, unknown>;
   /**
-   * 声明 `inputSchema` **有资格**走 provider 的严格模式（Anthropic `strict: true`：constrained
-   * decoding 保证 tool_use.input 恰好满足 schema）。只是资格，不是命令：adapter 按 provider /
-   * model 决定是否真的下发，并负责把 strict 子集表达不了的关键字折进 description。缺席即不严格。
-   * 首个使用者是 dwf mono 子代理的 typed `submit_result`。
+* Declare `inputSchema` **eligible** to take the provider's strict mode (Anthropic `strict: true`: constrained
+* decoding ensures that tool_use.input exactly satisfies the schema). Just a qualification, not a command: adapter by provider /
+* The model decides whether to actually deliver it, and is responsible for folding keywords that cannot be expressed by the strict subset into description. Absence is not strict.
+* The first user is typed `submit_result` of the dwf mono subagent.
    */
   strict?: boolean;
   requiresUserInteraction?: boolean;

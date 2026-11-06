@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import { raceClientRequestWithV4Interaction } from "./interaction-response-race.js";
 import {
   ASK_USER_QUESTION_TOOL_NAME,
@@ -62,7 +63,7 @@ async function requestPermission(
   options?: PermissionBrokerRequestOptions,
 ): Promise<PermissionBrokerResult> {
   const permissionOptions = buildProtocolPermissionOptions(request);
-  // v3 反向 RPC 的选项列表：会话免确认只在 v4 投放（旧桌面回传 response 原文，认不出会话语义）。
+// v3 reverse RPC option list: session confirmation-free is only delivered in v4 (the old desktop returns the original response text and cannot recognize the session semantics).
   const legacyPermissionOptions = buildProtocolPermissionOptions({
     ...request,
     optionsPolicy: toLegacyPermissionOptionsPolicy(request.optionsPolicy),
@@ -89,8 +90,8 @@ async function requestPermission(
         zcodePermissionResponseSchema,
         withInteractionRequestRecovery(options, signal),
       ),
-    // v4 answer → ZCodePermissionResponse：optionId 语义来自 v4 reducer 合成的
-    // allowOnce/allowAlways/deny（见 product-projection onPermissionRequested）。
+// v4 answer → ZCodePermissionResponse: optionId semantics synthesized from v4 reducer
+// allowOnce/allowAlways/deny (see product-projection onPermissionRequested).
     (answer) => {
       const response = v4AnswerToPermissionResponse(answer, permissionOptions, request.toolName);
       return response.decision === "deny" && answer.freeText?.trim()
@@ -124,8 +125,8 @@ async function requestPermission(
   );
   return {
     ...response,
-    // 兼容原因：legacy 客户端允许省略 reason；普通用户拒绝仍需向模型明确工具未执行，
-    // 否则 core 会回退为通用的 `Permission denied for <tool>`，无法阻止绕过式尝试。
+// Compatibility reason: legacy client allows reason to be omitted; ordinary users still need to make it clear to the model that the tool is not executed if they refuse.
+// Otherwise core will fall back to the generic `Permission denied for <tool>`, which cannot prevent bypass attempts.
     ...(response.decision === "deny" && !response.reason?.trim()
       ? { reason: PERMISSION_DENIED_BY_USER_CONTENT }
       : {}),
@@ -134,15 +135,15 @@ async function requestPermission(
 }
 
 /**
- * v4 permission 应答映射：优先按 optionId 精确匹配 buildProtocolPermissionOptions
- * 合成的选项（allow_project 携带 permissionUpdates 持久化规则，不能丢）；投影侧
- * 合成的 allowAlways 语义等价 allow_project。未知 optionId 按 deny 兜底——权限
- * 语义下宁可拒绝也不放行未知应答。
+* v4 permission response mapping: Prioritize exact matching of buildProtocolPermissionOptions by optionId
+* Synthetic options (allow_project carries permissionUpdates persistence rules and cannot be lost); projection side
+* Synthetic allowAlways semantically equivalent to allow_project. Unknown optionId Press deny to reveal the details - permissions
+* Semantics would rather reject than allow unknown responses.
  *
- * workflow Refine：该选项只在 v4 投影
- * 合成、不进 legacy 选项列表，所以在精确匹配之前特判。freeText 为空、或非
- * CreateWorkflow 工具伪造该 optionId，都落到既有 deny 兜底且不带 reasonSource——
- * 反馈升级为 user message 的通道必须只对真实用户输入开放。
+* workflow Refine: This option is only available in v4 projection
+* Synthetic, does not enter the legacy option list, so special judgment is made before exact matching. freeText is empty or not
+* The CreateWorkflow tool forges the optionId and falls into the existing deny without reasonSource——
+* The channel where feedback is upgraded to user message must only be open to real user input.
  */
 function v4AnswerToPermissionResponse(
   answer: V4InteractionAnswer,
@@ -169,8 +170,8 @@ function v4AnswerToPermissionResponse(
     if (exact.kind === "deny") {
       return { decision: "deny", reason: buildPermissionDeniedContent(answer.freeText) };
     }
-    // 会话免确认：会话语义在这里合成，而不是放进
-    // option.response——wire 上 zcodePermissionUpdateSchema 是 strict，旧桌面多一个字段就丢事件。
+// Confirmation-free session: session semantics are synthesized here rather than put in
+// option.response——zcodePermissionUpdateSchema on wire is strict. If there is an additional field on the old desktop, the event will be lost.
     if (exact.kind === SESSION_ALLOW_PERMISSION_OPTION_KIND) {
       return {
         ...exact.response,
@@ -188,7 +189,7 @@ function v4AnswerToPermissionResponse(
   if (answer.optionId === "allowOnce") {
     return { decision: "allow", reason: "Approved once" };
   }
-  // deny/rejectOnce/rejectAlways、未知 optionId、无 optionId 全部落 deny。
+// deny/rejectOnce/rejectAlways, unknown optionId, no optionId all deny.
   return { decision: "deny", reason: buildPermissionDeniedContent(answer.freeText) };
 }
 
@@ -232,9 +233,9 @@ async function requestUserInput(
         zcodeUserInputResponseSchema,
         withInteractionRequestRecovery(options, signal),
       ),
-    // v4 答 AskUserQuestion：freeText/optionId 落到单题 answer 槽位
-    // （normalizeAskUserQuestionResponseContent 的 content.answer 兼容路径）；
-    // deny 落 decline。多题场景等 v4 投影建模 userInput kind 后再精确映射。
+// v4 answer AskUserQuestion: freeText/optionId falls into the single question answer slot
+// (content.answer compatible path of normalizeAskUserQuestionResponseContent);
+// deny decline. Multi-question scenes, etc. are accurately mapped after v4 projection modeling userInput kind.
     (answer) => v4AnswerToUserInputResponse(answer),
     createInteractionRegistrationOptions(
       request,
@@ -248,9 +249,9 @@ async function requestUserInput(
 }
 
 function v4AnswerToUserInputResponse(answer: V4InteractionAnswer): ZCodeUserInputResponse {
-  // answer.action 存在（host adapter respondElicitation 收敛路径）
-  // 时按旧 respondUserInput 语义精确直传——content 携带多题 answers/annotations，
-  // normalizeAskUserQuestionResponseContent 继续负责 schema 收敛。
+// answer.action exists (host adapter respondElicitation convergence path)
+// According to the old respondUserInput semantics, accurate direct transmission - content carries multiple answers/annotations,
+// normalizeAskUserQuestionResponseContent continues to be responsible for schema convergence.
   if (answer.action) {
     return answer.action === "accept"
       ? { action: "accept", content: answer.content ?? {} }
@@ -293,8 +294,8 @@ async function requestExitPlanModeApproval(
         zcodeUserInputResponseSchema,
         withInteractionRequestRecovery(options, signal),
       ),
-    // v4 答 plan approval：allow 类 optionId = 批准；freeText = 计划反馈
-    // （planApprovalResponseToBrokerResult 走 plan_approval_feedback deny）；否则 decline。
+// v4 answer plan approval: allow class optionId = approval; freeText = plan feedback
+// (planApprovalResponseToBrokerResult goes plan_approval_feedback deny); otherwise decline.
     (answer) => v4AnswerToPlanApprovalResponse(answer),
     createInteractionRegistrationOptions(request, "other"),
   );
@@ -303,8 +304,8 @@ async function requestExitPlanModeApproval(
 }
 
 function v4AnswerToPlanApprovalResponse(answer: V4InteractionAnswer): ZCodeUserInputResponse {
-  // 同 v4AnswerToUserInputResponse——host adapter 收敛路径直传
-  // action/content，planApprovalResponseToBrokerResult 继续做 approve/feedback 归一。
+// Same as v4AnswerToUserInputResponse——host adapter convergence path direct transmission
+// action/content, planApprovalResponseToBrokerResult continue to normalize approve/feedback.
   if (answer.action) {
     return answer.action === "accept"
       ? { action: "accept", content: answer.content ?? {} }
@@ -343,12 +344,12 @@ function withInteractionRequestRecovery(
 ): PermissionBrokerRequestOptions & { reannounceIntervalMs: number } {
   return {
     ...options,
-    // v4 竞速：内部 signal 已级联外层 options.signal（见 raceClientRequestWithV4Interaction），
-    // v4 应答命中时经它取消悬空的反向 RPC。
+// v4 racing: The internal signal has been cascaded to the outer options.signal (see raceClientRequestWithV4Interaction),
+// The reverse RPC through which the dangling is canceled when the v4 reply hits.
     signal,
-    // 桌面/恢复链路里 UI 可能只从 snapshot 恢复出 pending 交互，
-    // 但 host 里原 protocol id 对应的内存登记已丢失。等待用户响应期间按同一业务
-    // requestId 重发现有协议请求，让 host 重新登记可响应的 protocolRequestId。
+// The UI in the desktop/restore link may only restore pending interactions from snapshot.
+// But the memory registration corresponding to the original protocol id in the host has been lost. While waiting for user response, press the same service
+// requestId rediscovers the existing protocol request and allows the host to re-register the protocolRequestId that can respond.
     reannounceIntervalMs: INTERACTION_REQUEST_REANNOUNCE_INTERVAL_MS,
   };
 }
@@ -464,9 +465,9 @@ function normalizeAskUserQuestionResponseContent(
     normalized.annotations = annotations;
   }
 
-  // UI 为兼容旧单题路径会同时提交 answer_0 / answer。
-  // AskUserQuestionInputSchema 是 strict，直接把这些旧字段合并回 tool input 会触发
-  // Tool input failed inputSchema validation，所以这里只保留 schema 明确允许的字段。
+// To be compatible with the old single question path, the UI will submit answer_0 / answer at the same time.
+//AskUserQuestionInputSchema is strict, directly merging these old fields back into the tool input will trigger
+// Tool input failed inputSchema validation, so only fields explicitly allowed by the schema are retained here.
   return normalized;
 }
 
@@ -492,8 +493,8 @@ function normalizeAskUserQuestionAnswers(
     }
   });
 
-  // action=accept + content.answers={} 是 runtime 自动继续的显式成功语义；
-  // 必须保留空对象，和 content 完全缺失（旧客户端批准但未提供答案）区分。
+// action=accept + content.answers={} is the explicit success semantics of runtime automatic continuation;
+// Empty objects must be preserved, and content is completely missing (old clients approved but did not provide an answer) to distinguish.
   if (isRecord(content.answers) && Object.keys(content.answers).length === 0) {
     return {};
   }
@@ -616,8 +617,8 @@ function readAskUserQuestionTexts(input: Record<string, unknown>): string[] {
 
 function normalizeAnswerValue(value: unknown): string | undefined {
   if (typeof value === "string") {
-    // 旧客户端曾用空字符串表示跳过；统一丢弃 blank，避免其进入
-    // answers 后被 core 当作用户偏好。非空答案同时在协议边界去除外围空白。
+// The old client used an empty string to indicate skipping; discard blank to prevent it from entering
+// answers are later treated as user preferences by core. Non-null answers also strip peripheral whitespace at protocol boundaries.
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : undefined;
   }

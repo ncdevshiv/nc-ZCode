@@ -1,31 +1,31 @@
-/* off-peak（闲时任务）排队协议的适配层特判。
-   语义只对 Model Config 显式声明 off-peak-queue 协议的请求生效——业务码 3105/3102
-   在其它 bigmodel API 可能另有含义，禁止写进全局 failure-provider-business-codes 映射表。
+/* Special adaptation layer judgment for off-peak (idle time task) queuing protocol.
+The semantics only take effect for requests in which Model Config explicitly declares the off-peak-queue protocol - business code 3105/3102
+In other bigmodel APIs, it may have other meanings, prohibiting writing into the global failure-provider-business-codes mapping table.
 
-   - 429（含业务码 3105）= 排队应答：单次等待 min(Retry-After, 5min) 钳制 × 无限幂等探测；
-     调用方冻结 attempt 预算（否则默认 11 次后被误判为 API 失败）；abort 贯穿 sleep。
-   - 400/3102 = 票据不可用（active 3h 到期 / ready 废票）：立即以稳定标记落败，
-     desktop 端识别标记改走"同 task_id 重取号 → resume 续跑"，不是普通失败。
-   - 首派弃派不在适配层实现：首派挂网关时 ready 5min TTL 到期自然触发
-     3102 → 续跑回队，等待上界 ≈ TTL + 一次钳制探测 ≤ 10min，满足规则意图且少一套状态。 */
+- 429 (including business code 3105) = queued response: single waiting min(Retry-After, 5min) clamp × infinite idempotent detection;
+The caller freezes the attempt budget (otherwise it will be misjudged as API failure after 11 times by default); abort runs through sleep.
+- 400/3102 = Ticket unavailable (active 3h expiration / ready invalid ticket): immediately defeated with stable mark,
+The desktop identification mark is changed to "same task_id retrieval number → resume", which is not an ordinary failure.
+- The abandonment of the first party is not implemented in the adaptation layer: when the first party connects to the gateway, the ready 5min TTL expiration is triggered naturally.
+3102 → Continue running back to the team, waiting for the upper bound ≈ TTL + one clamp detection ≤ 10min, which meets the intent of the rule and has one less set of states. */
 import type { ClassifiedModelFailure } from "./failure-classifier.js";
 import { isProviderBusinessError } from "./model-execution.js";
 
 /**
- * ⚠ 与 desktop 侧 @zcode/shared/src/off-peak-types.ts 的同名常量跨包同值（wire 契约）：
- * providerId 随 per-turn runtimeModel 注入，错误标记随 task 终态错误文本回传，改动须两侧同步。
+* ⚠ The constant with the same name in @zcode/shared/src/off-peak-types.ts on the desktop side has the same value across packages (wire contract):
+* The providerId is injected with the per-turn runtimeModel, and the error mark is returned with the task final error text. Changes must be synchronized on both sides.
  */
 export const OFF_PEAK_TICKET_EXPIRED_MARKER = "off-peak-ticket-expired";
 
-/** 单次排队等待钳制：min(Retry-After, 5min)；无 Retry-After 时保守 60s 探测。 */
+/** Single queue waiting clamp: min(Retry-After, 5min); when there is no Retry-After, the detection is conservatively 60s. */
 const OFF_PEAK_QUEUE_WAIT_CAP_MS = 5 * 60_000;
 const OFF_PEAK_QUEUE_WAIT_DEFAULT_MS = 60_000;
 
 type OffPeakFailureDecision = { kind: "queued"; delayMs: number } | { kind: "ticketExpired" };
 
 /**
- * 判定 off-peak 特有失败语义；非 idle plan provider 一律返回 null（零影响）。
- * error 需传 unwrapRetryError 之后的原始错误（ProviderBusinessError 才能读到业务码）。
+* Determine the unique failure semantics of off-peak; non-idle plan providers will always return null (zero impact).
+* error needs to pass the original error after unwrapRetryError (ProviderBusinessError can read the business code).
  */
 export function resolveOffPeakFailureDecision(params: {
   offPeak: boolean;
@@ -36,11 +36,11 @@ export function resolveOffPeakFailureDecision(params: {
   const businessCode = isProviderBusinessError(params.error)
     ? params.error.providerCode
     : undefined;
-  // 服务端最新契约使用 3102；保留 3001 兼容滚动发布期间的旧网关响应。
+// The latest contract on the server side uses 3102; retain 3001 to be compatible with the old gateway response during rolling release.
   if (businessCode === "3102" || businessCode === "3001") {
     return { kind: "ticketExpired" };
   }
-  // 排队真实信号 = HTTP 429（3105 带 Retry-After）；无业务码的裸 429 同样按排队处理。
+//Queue real signal = HTTP 429 (3105 with Retry-After); naked 429 without business code is also processed as queued.
   if (businessCode === "3105" || params.failure.statusCode === 429) {
     return {
       kind: "queued",

@@ -38,8 +38,8 @@ export function maybeStartGoalSummaryTitleGeneration(
     return false;
   }
 
-  // 与 Session Title 一致：后台任务在入队时冻结触发 Span，而不是依赖之后的
-  // AsyncLocalStorage 恰好仍保留原 Context。
+// Consistent with Session Title: the background task freezes and triggers Span when it is enqueued, rather than relying on subsequent
+// AsyncLocalStorage happens to still retain the original Context.
   const causation = this.agentTelemetry.captureCausation();
   const generation = generateAndPersistGoalSummaryTitle
     .call(this, input, targetID, traceContext, causation)
@@ -270,8 +270,8 @@ async function generateAndPersistGoalSummaryTitle(
     traceContext,
   });
   if (!generated) {
-    // 第一轮迭代标题只读 target.summaryTitle；标题模型空响应时也要写入目标语义兜底，
-    // 否则 UI 只能退回“第 1 次迭代”，看起来像 summaryTitle 丢失。
+// The title of the first round of iteration is read-only target.summaryTitle; when the title model responds with an empty response, the target semantics must also be written.
+// Otherwise the UI will just fall back to "iteration 1" and it will look like summaryTitle is missing.
     await persistFallbackGoalSummaryTitle.call(this, {
       objective: input,
       reason: "empty_model_title",

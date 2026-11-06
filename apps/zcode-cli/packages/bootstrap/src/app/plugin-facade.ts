@@ -28,8 +28,8 @@ interface CreatePluginFacadeOptions {
 
 function createPluginFacade(options: CreatePluginFacadeOptions): PluginFacade {
   let enabledPlugins = { ...options.configResult.config.plugins.enabledPlugins };
-  // 会话内还要镜像 suppressedBuiltins：卸载内置插件后若沿用启动时的旧抑制集合，后续 list
-  // 会把它重新解析出来。和 enabledPlugins 同样维护本地副本，随卸载更新。
+// The session also needs to be mirrored suppressedBuiltins: If the old suppression set at startup is used after uninstalling the built-in plug-in, the subsequent list
+// Will parse it again. Like enabledPlugins, a local copy is maintained and updated upon uninstallation.
   let suppressedBuiltins = [...options.configResult.config.plugins.suppressedBuiltins];
   const commonOptions = () => ({
     configResult: currentConfigResult(options.configResult, enabledPlugins, suppressedBuiltins),
@@ -62,12 +62,12 @@ function createPluginFacade(options: CreatePluginFacadeOptions): PluginFacade {
         pluginId: plugin,
       });
       if (removed) {
-        // 卸载会清掉 user config 里的 enabledPlugins[id]；同步本地缓存，避免后续 list 仍按旧值解析启用态。
+// Uninstalling will clear enabledPlugins[id] in user config; synchronize the local cache to prevent subsequent lists from still parsing the enabled status according to the old value.
         const next = { ...enabledPlugins };
         delete next[removed.id];
         enabledPlugins = next;
-        // 内置（官方）插件卸载是写 suppressedBuiltins 标记；同步本地抑制集合，
-        // 否则同一会话内后续 list 会用启动时的旧集合，把它重新解析出来。
+// To uninstall the built-in (official) plug-in, write the suppressedBuiltins tag; synchronize the local suppression collection,
+// Otherwise, subsequent lists in the same session will use the old collection at startup and re-parse it.
         if (removed.marketplace === ZCODE_OFFICIAL_PLUGIN_MARKETPLACE) {
           if (!suppressedBuiltins.includes(removed.id)) {
             suppressedBuiltins = [...suppressedBuiltins, removed.id];

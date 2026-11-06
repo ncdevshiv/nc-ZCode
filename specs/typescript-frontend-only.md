@@ -4,13 +4,13 @@
 > 日期口径：`.architecture-ts-baseline.json` 的 `generatedAt` / `bootstrappedAt` 与
 > 逃生舱的 `expires` 比较**一律用 UTC**（`toISOString()`）；本文的散文日期是本地日期。
 > 两者可能差一天，读基线时按 UTC 理解。
-> **强制范围**：「机器强制」目前 = `pnpm architecture:check` +
-> `pnpm verify:pre-push`。本仓库**没有 CI workflow 跑架构门禁**（`.github/` 里没有
+> **强制范围**：「机器强制」目前 = `bun run architecture:check` +
+> `bun run verify:pre-push`。本仓库**没有 CI workflow 跑架构门禁**（`.github/` 里没有
 > 这一步），所以绕过 `verify:pre-push` 的提交不会被本门禁拦住。这是已知的执行缺口，
 > 不代表没有门禁。
 > 本 spec 是 `architecture-policy.yaml` 中 `languageBoundary` 段的**规范来源**；
 > 两者冲突时以本 spec 为准，policy 是它的可执行投影。
-> 执行入口：`pnpm architecture:check`（即 `scripts/architecture/architecture-check.mjs`）。
+> 执行入口：`bun run architecture:check`（即 `scripts/architecture/architecture-check.mjs`）。
 
 ## 0. 不变量
 
@@ -181,7 +181,7 @@ ENOENT 分支），门禁不是「变松」而是「整个跑不起来」。它�
     "version": 1,
     "rule": "ts-frontend-only",
     "generatedAt": "2026-09-28",
-    "generator": "pnpm architecture:ts-baseline:update",
+    "generator": "bun run architecture:ts-baseline:update",
     "totals": { "files": 2282, "lines": 510755 },
     "debt": { "apps/zcode-cli/…/foo.ts": 123 }, // 路径 -> 生成当天的行数
     "acceptedGrowth": [], // 每次被批准的扩大事件，追加不覆盖
@@ -190,7 +190,7 @@ ENOENT 分支），门禁不是「变松」而是「整个跑不起来」。它�
 
 - 语义：**基线 = 生成当天的债务快照**。之后任何路径只要行数超过自己那条基线，
   就是违例；删除或缩小自动减债。
-- 再生成：`pnpm architecture:ts-baseline:update`。它打印
+- 再生成：`bun run architecture:ts-baseline:update`。它打印
   新增 / 删除 / 扩大 / 缩小 的分类计数与总行数差。
 - **默认只允许收缩**。若新基线总行数 > 旧基线总行数，命令**拒绝写入**，
   必须显式 `--accept-growth --reason "<为什么>" --approved-by "<谁>"`。
@@ -340,7 +340,7 @@ owner：`main` / 用户。
 
 `scripts/architecture/policy.mjs:4` 直接 `import { parse as parseYaml } from "yaml"`，
 但根 `package.json` 的 `devDependencies` 里没有 `yaml`，它只是靠 pnpm 的提升
-（hoisting）才解析得到。`pnpm knip` 把它报在 _Unlisted dependencies_ 下（全仓 8 条，
+（hoisting）才解析得到。`bun run knip` 把它报在 _Unlisted dependencies_ 下（全仓 8 条，
 全部是既有基线）。
 
 **这不是本次变更引入的**：main 已用 `git show HEAD:scripts/architecture/policy.mjs`
@@ -355,13 +355,13 @@ owner：`main` / 用户。
 
 与语言边界无关：本条不改变任何 `languageBoundary` 行为，也不影响棘轮数字。
 
-顺带澄清，避免以后被误读成回归：`pnpm knip` **可以正常运行**（exit 1 是"有发现"，
+顺带澄清，避免以后被误读成回归：`bun run knip` **可以正常运行**（exit 1 是"有发现"，
 不是"跑不起来"），当前实测 unused files 29 / unused exports 361 / unused dependencies 54 /
 unlisted dependencies 8。其中 unlisted 段有一条指向 `scripts/architecture/policy.mjs:4:36`
 的 `yaml`——**该 import 在 HEAD 上就存在**（`git show HEAD:scripts/architecture/policy.mjs`），
 不是本轮引入；而 29 个 unused files 里**本轮自己的文件贡献 0 条**。
 
-> **更正记录（本条曾被写错）**：本 spec 早前版本称 `pnpm knip` "当前 exit 2、
+> **更正记录（本条曾被写错）**：本 spec 早前版本称 `bun run knip` "当前 exit 2、
 > 根因既有、因此本轮不修"。那是**错的**——它并非既有仓库缺陷，而是审计自己在
 > round 1 的一次误操作删掉了 `packages/*/node_modules`（pnpm 工作区软链）造成的
 > 临时环境损坏。环境修复后 knip 完全可复现上述数字。**教训**：「既有缺陷 / 不是回归」
@@ -389,7 +389,7 @@ owner：`main` / 用户。
 
 `.gitattributes` 只覆盖 `*.mjs|*.sh|*.ts|*.tsx|*.json|*.md`。在一台
 `core.autocrlf=true` 的 Windows 主机上，新 checkout 的 `*.js` / `*.html` / `*.css` /
-`*.yml` 会被转成 CRLF，于是 `pnpm fmt:check` **在零内容变化的情况下失败**。
+`*.yml` 会被转成 CRLF，于是 `bun run fmt:check` **在零内容变化的情况下失败**。
 
 对棘轮无影响：CRLF 与 LF 的行数完全相同。
 

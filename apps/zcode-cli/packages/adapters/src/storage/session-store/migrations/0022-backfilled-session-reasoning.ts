@@ -1,5 +1,5 @@
-// 0020 可能以不带档位的 assistant 回填会话选择；只能给迁移后未动过的会话补同模型 user 档位。
-// 本表冻结 0020/0021 的身份规则，不引用实时目录，也不改旧 migration 的内容或 checksum。
+// 0020 It is possible to backfill session selection with assistant without gears; only untouched sessions after migration can be filled with model user gears.
+// This table freezes the identity rules of 0020/0021, does not reference the real-time directory, and does not change the content or checksum of the old migration.
 const officialProviders = [
   "account:zai-start-plan",
   "account:bigmodel-start-plan",

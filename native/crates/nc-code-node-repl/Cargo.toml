@@ -1,0 +1,15 @@
+[package]
+name = "nc-code-node-repl"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "R2 node_repl island: capability-detected external Node kernel (no embedded JS engine), fail-closed when the user has no Node"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+# Process tree recycling and reuse nc-code-proc (Windows Job / killpg semantics have been implemented and verified in this island),
+# Do not reimplement taskkill /T /F in this crate. After being exposed and exported, the host only needs to rely on this crate.
+nc-code-proc = { path = "../nc-code-proc" }

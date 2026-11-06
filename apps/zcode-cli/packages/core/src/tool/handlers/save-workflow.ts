@@ -1,22 +1,22 @@
 // ============================================================
 // SaveWorkflow Tool Handler
 // ============================================================
-// 把一段 dwf 脚本连同元数据存成项目里的可复用定义。
+//Save a dwf script together with metadata as a reusable definition in the project.
 //
-// 形状刻意与 CreateWorkflow 同构，因为对模型来说这是同一件事的两个动词：
-//   1. 先用**同一个**检查器编译脚本。编不过 → 直接回诊断，不弹窗、不落盘。让用户去批准
-//      一段编不过的代码，只会用一个不产生任何效果的决策打断 agent 自己的改错重试回路
-//      （create-workflow.ts 的同一条注释）。
-//   2. 干净 → 确认窗。写文件进用户的仓库是一次不可撤销的外向动作，永远要问。
-//   3. Allow → 落盘。
+// The shape is intentionally isomorphic to CreateWorkflow because to the model these are two verbs for the same thing:
+// 1. First compile the script using **the same** checker. Can't edit → Return to diagnosis directly, no pop-up window, no disk placement. Let users approve
+// A piece of code that cannot be programmed will only interrupt the agent's own error correction and retry loop with a decision that has no effect.
+// (same comment in create-workflow.ts).
+// 2. Clean → Confirmation window. Writing a file into the user's repository is an irrevocable outward action, always ask.
+// 3. Allow → Place the order.
 //
-// 与 CreateWorkflow 的关键差别在**确认窗要问的问题**：那边问"要不要花这笔钱跑这段代码"，
-// 这边问"要不要把这段代码留在仓库里、以后可能被别人再跑"。回答它所需的事实——落点、
-// 元数据、以及**这次是新建还是覆盖**——由 `resolveInput` 算进归一化入参，本工具因此
-// 刻意**不带任何 display**：入参通道对每个客户端版本都是无 schema 的透传，而 display 上
-// 的新字段旧客户端读不到、甚至会让整块载荷校验不过（见 tool-result-metadata.ts 的
-// 字段集合注释）。新桌面按 toolName 读入参渲染富确认块，覆盖与否由 `overwrite` 字段区分；
-// 旧桌面与 legacy v3 得到通用权限提示 + 完整入参 JSON——降级但内容完整。
+// The key difference with CreateWorkflow is the question asked in the confirmation window: "Do you want to spend the money to run this code?"
+// The question here is "Should I leave this code in the warehouse so that it may be run by others in the future?" Facts needed to answer it - landing point,
+// Metadata, and **whether this time is new or overwritten** - are calculated into the normalized input parameters by `resolveInput`, so this tool
+// Deliberately **without any display**: the input parameter channel is transparent transmission without schema for each client version, and the display
+// The new fields cannot be read by the old client, and may even cause the entire payload to fail to be verified (see tool-result-metadata.ts
+// Field collection annotation). The new desktop reads the parameters according to toolName and renders the rich confirmation block. Whether to overwrite or not is distinguished by the `overwrite` field;
+// Old desktop and legacy v3 get common permission prompt + complete input JSON - downgraded but complete content.
 
 import {
   SAVE_WORKFLOW_SENTINEL_IN_SCRIPT_ERROR,
@@ -59,7 +59,7 @@ const SAVE_WORKFLOW_FAILURE_CODE = 400;
 const DIAGNOSTICS_NOT_SAVED_NOTE =
   "NOTE: Nothing was saved — fix the errors above and call the tool again.";
 
-/** 元数据视图：输入的三个字段拢成 frontmatter 要写的那个对象。 */
+/** Metadata view: The three input fields are combined into the object to be written by frontmatter. */
 function toMeta(parsed: SaveWorkflowInput): SavedWorkflowMeta {
   return {
     description: parsed.description,
@@ -69,11 +69,11 @@ function toMeta(parsed: SaveWorkflowInput): SavedWorkflowMeta {
 }
 
 /**
- * 模型入参上的语义校验，在 hook 之前收口。
+* Semantic verification on model input parameters is closed before hook.
  *
- * 自带 frontmatter 的脚本按业务失败拒绝，而**不做**「检测到就替换」的聪明合并：合并之后
- * 模型无从分辨自己传的 description 和文件里那个哪一个生效，而 encode 的幂等性（文件里
- * 永远只有一个 frontmatter 块）也就没了守卫。
+* The script with built-in frontmatter is rejected according to business failure, but does not do the smart merge of "replace when detected": after the merge
+* The model has no way of distinguishing between the description passed by itself and the one in the file, which one takes effect, and the idempotence of encode (in the file
+* There is always only one frontmatter block) and there are no guards.
  */
 function validateSaveWorkflowInput(input: unknown): ToolInputValidationResult {
   const parsed = SaveWorkflowInputSchema.safeParse(input);
@@ -97,8 +97,8 @@ function validateSaveWorkflowInput(input: unknown): ToolInputValidationResult {
     };
   }
 
-  // 自带 frontmatter 的检查只对**内联**正文成立：`script_path` 指的常常是一份从保存定义抄来的
-  // 草稿，它本来就带着块，而 `resolveInput` 会把块丢掉。对它报错等于禁掉这条路径的主要用法。
+// The built-in frontmatter check only works for **inline** text: `script_path` usually refers to a copy from the saved definition
+// Draft, it originally comes with blocks, and `resolveInput` will throw away the blocks. Reporting an error to it is equivalent to disabling the main usage of this path.
   if (parsed.data.script?.trimStart().startsWith(SAVED_WORKFLOW_SENTINEL) === true) {
     return {
       result: false,
@@ -111,14 +111,14 @@ function validateSaveWorkflowInput(input: unknown): ToolInputValidationResult {
 }
 
 /**
- * 归一化：把落点、覆盖判定与遮蔽事实算出来填进入参。
+* Normalization: Calculate the landing point, coverage determination and shading facts and fill in the input parameters.
  *
- * 这些事实是确认窗的决策关键内容（批准一次覆盖 = 同意丢掉磁盘上那一份；遮蔽提示 = 告诉用户
- * 这份定义在本项目里会不会被同名的另一档挡住），走**入参**而不是 display，因为入参通道对每个
- * 客户端版本都是无 schema 的透传——旧桌面与 legacy v3 因此也拿得到完整内容，而 display 上的
- * 新字段它们读不到，甚至会让整块载荷校验不过。
+* These facts are key to the decision-making process in the confirmation window (approve one overwrite = agree to discard the copy on disk; mask prompt = tell the user
+* Will this definition be blocked by another file with the same name in this project?), use **input parameter** instead of display, because the input channel is different for each
+* The client versions are transparent transmission without schema - the old desktop and legacy v3 can also get the complete content, while the display
+* They cannot read new fields, and may even make the entire payload fail to be verified.
  *
- * 作用域不再回填：它是模型必填字段，这里只按它选根算 `path` / `overwrite` / `shadowing`。
+* The scope is no longer backfilled: it is a required field in the model, here only the root is selected to count `path` / `overwrite` / `shadowing`.
  */
 async function resolveSaveWorkflowInput(
   input: unknown,
@@ -127,8 +127,8 @@ async function resolveSaveWorkflowInput(
   const parsed = SaveWorkflowInputSchema.safeParse(input);
   if (!parsed.success) return { result: true, input };
 
-  // `script_path` 先读成正文：确认窗要展示将要落盘的那串字节，而窗在 handler 之前。
-  // 块被丢掉（只留正文）——元数据由本次调用的字段说了算，那才是用户批准的东西。
+// `script_path` is read into the text first: the confirmation window should display the string of bytes that will be written to the disk, and the window is before the handler.
+// The chunk is discarded (only the text remains) - the metadata is determined by the fields in this call, and that's what the user approves.
   let script = parsed.data.script;
   if (parsed.data.script_path !== undefined) {
     const read = await readWorkflowScriptFile({ cwd, inputPath: parsed.data.script_path });
@@ -147,7 +147,7 @@ async function resolveSaveWorkflowInput(
       ...(script === undefined ? {} : { script }),
       path: savedWorkflowPath(savedWorkflowRoot(cwd, scope), name),
       overwrite: savedWorkflowExists({ cwd, name, scope }),
-      // 无同名时省略该键：一个 undefined 会给每次保存挂一个噪音字段。
+// Omit this key when there is no same name: an undefined will cause a noise field to be attached to each save.
       ...(shadowing === undefined ? {} : { shadowing }),
     } satisfies SaveWorkflowInput,
   };
@@ -157,12 +157,12 @@ const saveWorkflowHandler: ToolHandler = async (input, context) => {
   const parsed = SaveWorkflowInputSchema.parse(input) as SaveWorkflowInput;
   const cwd = context.workingDirectory ?? ".";
   const scope = parsed.scope;
-  // 落点由归一化填好；缺席只可能是有人绕过了 executor 的生命周期，此时自己算一遍而不是崩。
+// The drop point is filled in by normalization; the absence can only be caused by someone bypassing the executor's life cycle. At this time, it will be counted again instead of crashing.
   const path = parsed.path ?? savedWorkflowPath(savedWorkflowRoot(cwd, scope), parsed.name);
   const script = parsed.script;
   if (script === undefined) {
-    // 到不了：validateInput 挡掉「两个都不给」，resolveInput 会把 `script_path` 读成 `script`。
-    // 真发生了说明有人绕过了 executor 的生命周期，说出来好过静默存一个空文件。
+// Unable to reach: validateInput blocks "neither", resolveInput will read `script_path` as `script`.
+// If it really happens, it means someone has bypassed the executor's life cycle. It is better to tell it than to silently save an empty file.
     throw new Error("SaveWorkflow handler received input without a resolved script");
   }
 
@@ -185,12 +185,12 @@ const saveWorkflowHandler: ToolHandler = async (input, context) => {
     } satisfies SaveWorkflowOutput;
   }
 
-  // 写失败（只读挂载、权限）向上冒泡成工具调用失败：绝不吞成一个报告了路径的成功输出，
-  // 那会让模型据此告诉用户"已保存"。
+// Write failures (read-only mounts, permissions) bubble up into tool call failures: never swallowed into a successful output reporting the path,
+// That will cause the model to tell the user "saved" accordingly.
   //
-  // `overwritten` 由**写的那一刻**重新判定，不读入参里那个 `overwrite`：入参上的那个是给
-  // 确认窗与 hook 看的事实，而 hook 能改写入参——让它改变落盘后的自述会把一个展示字段
-  // 变成一个行为开关。
+// `overwritten` is re-determined from the moment ** is written, and the one in the input parameter is not read. `overwrite`: The one on the input parameter is for
+// The confirmation window is the same as the fact that the hook looks at, and the hook can rewrite the parameters - letting it change the readme after placing the order will create a display field
+// Become a behavior switch.
   const written = saveSavedWorkflow({
     cwd,
     name: parsed.name,
@@ -221,18 +221,18 @@ const saveWorkflowHandler: ToolHandler = async (input, context) => {
 };
 
 /**
- * 判断"把这段脚本写进仓库"值不值得打断用户。
+* Determine whether "write this script into the warehouse" is worth interrupting the user.
  *
- * **不带 display**：确认窗要展示的一切——脚本、元数据、落点、是不是覆盖——都已经在归一化
- * 入参里了。新桌面按 `toolName === "SaveWorkflow"` 读入参渲染富确认块，旧桌面与 legacy v3
- * 得到带完整入参的通用权限提示：降级但内容完整，而且在**所有**版本组合上成立。往
- * display 上加一个新 kind 反而只有新客户端读得到（见 tool-result-metadata.ts 的注释）。
+* **Without display**: Everything to be displayed in the confirmation window - scripts, metadata, drop points, whether it is overwritten or not - is already normalized
+* Entered the ginseng. Press `toolName === "SaveWorkflow"` on the new desktop to read in the parameters and render the rich confirmation block, the old desktop and legacy v3
+* Get a general permission prompt with complete input parameters: downgraded but complete, and valid on **all** version combinations. Past
+* Adding a new kind to display can only be read by new clients (see the comments of tool-result-metadata.ts).
  *
- * 编不过的脚本直接放行给 handler：它会回诊断且不落盘，没有可裁决的东西就不该有窗。
+* Scripts that cannot be edited are directly released to the handler: it will return the diagnosis and will not be placed on the disk. If there is nothing to judge, there should be no window.
  */
 function prepareSaveWorkflowApproval(input: unknown): ToolApprovalGate {
   const parsed = SaveWorkflowInputSchema.safeParse(input);
-  // 归一化之后 `script` 必在场；缺席即有人绕过了生命周期，此时放行给 handler 报错。
+// After normalization, `script` must be present; if it is absent, someone has bypassed the life cycle. At this time, it will be released and an error will be reported to the handler.
   if (!parsed.success || parsed.data.script === undefined) return { gate: "proceed" };
   return analyzeScript(parsed.data.script).ok ? { gate: "ask" } : { gate: "proceed" };
 }
@@ -250,19 +250,19 @@ export const saveWorkflowToolEntry: ToolEntry = {
     name: SAVE_WORKFLOW_TOOL_NAME,
     description: SAVE_WORKFLOW_TOOL_DESCRIPTION,
     readOnly: false,
-    // 覆盖一个已有定义会丢掉磁盘上那一份，但确认窗会先把这件事说清楚；与 Write 同档。
+// Overwriting an existing definition will lose the copy on disk, but the confirmation window will make this clear first; same file as Write.
     destructive: false,
     concurrentSafe: false,
     timeoutMs: SAVE_WORKFLOW_TIMEOUT_MS,
     maxOutputBytes: SAVE_WORKFLOW_MODEL_BYTES,
-    // 写的是项目里的一个文件，与 Write/Edit 同一个作用域。
+// What is written is a file in the project, which is in the same scope as Write/Edit.
     sideEffectScope: "workspace",
     riskLevel: "medium",
     needsApproval: true,
   },
   handler: saveWorkflowHandler,
   validateInput: (input) => validateSaveWorkflowInput(input),
-  // 把落点与覆盖判定算进入参：确认窗与 hook 读的是同一份事实，且对所有客户端版本可见。
+// Enter the drop point and coverage judgment calculation into parameters: the confirmation window and hook read the same fact, and are visible to all client versions.
   resolveInput: (input, context) =>
     resolveSaveWorkflowInput(input, context.workingDirectory ?? "."),
   prepareApproval: prepareSaveWorkflowApproval,
@@ -273,7 +273,7 @@ export const saveWorkflowToolEntry: ToolEntry = {
   formatModelContent: formatSaveWorkflowModelContent,
   permission: {
     permission: "saveWorkflow",
-    // 诊断用，不面向用户：确认窗自己渲染本地化标题。
+// For diagnostic purposes, not for users: the confirmation window renders the localized title by itself.
     reason: "saveWorkflow.confirmation: user must confirm writing the workflow into the project",
     riskLevel: "medium",
     sideEffectScope: "workspace",
@@ -281,11 +281,11 @@ export const saveWorkflowToolEntry: ToolEntry = {
     patternSources: ["toolName"],
     alwaysAllowPatternSources: ["toolName"],
     denyPriority: "beforeAsk",
-    // 与 CreateWorkflow 同档：写进仓库的东西会被提交、被别人看见、以后被再次运行，
-    // 任何权限模式（含 yolo / plan）都要先问。
+// Same file as CreateWorkflow: things written into the warehouse will be submitted, seen by others, and run again in the future.
+// Any permission mode (including yolo / plan) must be asked first.
     alwaysAsk: true,
-    // 每次调用写的是不同的文件与不同的内容，持久项目规则记不住"这一次的决定"，
-    // 只会把这道确认永久关掉。
+// Each call writes a different file and different content. The persistent project rules cannot remember "this decision".
+// This confirmation will only be turned off permanently.
     askOptions: { allowAlways: false },
   },
   resultBudget: {

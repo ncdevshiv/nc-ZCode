@@ -1,0 +1,26 @@
+﻿{
+  "factSource": "native/fixtures/service-channels.json",
+  "channels": {
+    "total": 40,
+    "boundaryRemoved": 11,
+    "expectedToRegister": 29,
+    "registered": 29
+  },
+  "members": {
+    "total": 471,
+    "boundaryRemoved": 146,
+    "expectedToPort": 325,
+    "ported": 325,
+    "percent": 100
+  },
+  "additionalChannels": {
+    "zai-claim": "specs/rust-backend-replacement.md ┬º4.1 / specs/zai-claim-boundary.md"
+  },
+  "gaps": [],
+  "v4Methods": {
+    "boundary": 14,
+    "factSource": 35
+  },
+  "errors": []
+}
+[coverage] All transplantable channels have been registered, members have distribution point evidence, and all boundaries have spec sources

@@ -1,0 +1,27 @@
+schema Plan {
+  steps: string[]
+  rationale: string
+}
+
+workflow "nws-linear" {
+  args { repo: string }
+
+  artifact.board("summary", {
+    key: "repo",
+    status: "state",
+    columns: ["planned", "done"],
+    title: "Plan summary"
+  });
+
+  phase "plan";
+  let planner = agent("planner", "You produce short, concrete plans.");
+  let plan: Plan = await planner.ask("Draft a plan for " + args.repo);
+
+  phase "execute";
+  let readme = await files.read("README.md");
+  report({ repo: args.repo, state: "done", steps: plan.steps, readmeLength: readme.length }, "summary");
+  await artifact.markdown("plan", plan.rationale);
+  log("plan published");
+
+  return { steps: plan.steps, rationale: plan.rationale, readmeLength: readme.length };
+}

@@ -1,31 +1,31 @@
 /**
- * 父进程 harness（Boundary A 的宿主侧 + 沙箱进程编排）。
+* Parent process harness (host side of Boundary A + sandbox process orchestration).
  *
- * 职责：把一份 workflow 脚本（或已 lowered 的函数体）在受控子进程里跑起来，用 NDJSON 桥接
- * 子进程的 `__host.*` 调用到一个 {@link WorkflowEngine} 实例，最终返回引擎的 {@link RunSettlement}。
- * 本包**只**依赖 `@zcode/dynamic-workflow` 与 node 内建——证明整条管线 app-free 可跑，
- * 绝不 import `@zcode/core`/`@zcode/contracts`/`@zcode/bootstrap`/`@zcode/adapters`。
+* Responsibility: Run a workflow script (or lowered function body) in a controlled sub-process and use NDJSON to bridge it
+* The child process's `__host.*` calls to a {@link WorkflowEngine} instance and ultimately returns the engine's {@link RunSettlement}.
+* This package **only** relies on `@zcode/dynamic-workflow` and node built-in - proving that the entire pipeline can run app-free,
+* Never import `@zcode/core`/`@zcode/contracts`/`@zcode/bootstrap`/`@zcode/adapters`.
  *
- * 时序（happy path）：
+* Timing (happy path):
  *
  *   parent                         child(vm)
- *     │  write <cwd>/.zcode/workflow-runs/<runId>.mjs（payload: lowered+args 内嵌）
+* │ write <cwd>/.zcode/workflow-runs/<runId>.mjs (payload: lowered+args embedded)
  *     │  spawn(node <entry>)
  *     │──────────────────────────▶│  build __host in context
- *     │◀── create-actor(local#1) ──│  createActor 同步返回 local#1
+* │◀── create-actor(local#1) ──│ createActor returns local#1 synchronously
  *     │  map local#1 → ActorId     │
  *     │◀── request ask(local#1) ───│  await __host.ask(...)
  *     │  engine.ask → driver.startAsk … settle
  *     │── response(value) ────────▶│  resolve
- *     │◀────── complete(ok,value) ──│  脚本 return
+* │◀────── complete(ok,value) ──│ script return
  *     │  engine.complete(value) → settled=completed
  *
- * 失败/取消：run 的裁决归引擎所有。终结失败（脚本抛错 error-complete、子进程崩溃/非零退出、
- * 墙钟超时、子进程行 JSON 解析失败）都调 `engine.fail(error)`（结算 failed + journal failure_json）；
- * abort 信号是唯一的"真取消"，调 `engine.stop(initiator)`（结算 stopped；`signal.reason` 为
- * `"model"` 即主代理 TaskStop，`"interrupted"` 即宿主 App 关闭时停下自己拥有的 run，否则算用户）。引擎自身的 run 级失败
- * （reportCap/inputHash/unknownActor）同样经 engine.settled 冒出。harness 侧的 first-wins
- * finalize 只管子进程清理（清 timer、关 stdin、kill child），不自造结算。
+* Failure/cancellation: The decision of the run belongs to the engine. Termination failed (script threw error-complete, child process crashed/non-zero exit,
+* Wall clock timeout, subprocess line JSON parsing failure) are called `engine.fail(error)` (settlement failed + journal failure_json);
+* The abort signal is the only "true cancellation", adjust `engine.stop(initiator)` (clearance stopped; `signal.reason` is
+* `"model"` means the main agent TaskStop, `"interrupted"` means stopping its own run when the host App is closed, otherwise it is counted as a user). The engine's own run level failed
+* (reportCap/inputHash/unknownActor) also appears via engine.settled. first-wins on harness side
+* finalize only cleans up the child process (clearing timer, turning off stdin, killing child), and does not create its own settlement.
  */
 
 import { spawn, type ChildProcess } from "node:child_process";
@@ -47,61 +47,61 @@ import { type ChildMessage, type ChildPayload, type ResponseMessage } from "./pr
 import { renderChildEntry } from "./child-source.js";
 import { writeChildEntryFile, type HarnessWarning } from "./child-entry-file.js";
 
-/** driver 工厂：harness 先建 sink（引擎的向上回报面），交给工厂造 driver，再以该 driver 建引擎。 */
+/** Driver factory: The harness first builds the sink (the upward return side of the engine), gives it to the factory to build the driver, and then uses the driver to build the engine. */
 export type DriverFactory = (sink: WorkflowReportSink) => WorkflowDriver;
 
 /**
- * {@link runWorkflowScript} 的入参。执行体来自 `scriptText` 或 `lowered`（后者优先）；
- * 两者同时给出正是「编译一次」的形态——调用方自己编译得到 `lowered`，同时把作者写的
- * `scriptText` 交下来落库。
+* Input parameters of {@link runWorkflowScript}. The execution body comes from `scriptText` or `lowered` (the latter takes precedence);
+* Both give the form of "compile once" at the same time - the caller compiles it by himself and gets `lowered`, and at the same time, the author writes
+* `scriptText` is handed over and dropped into the library.
  *
- * **harness 绝不校验这一对是否自洽**：它无法校验（判断 `lowered` 是否真由 `scriptText`
- * 降级而来，等于把编译再跑一遍，而那正是「编译一次」要省掉的那次）。递进来一份对不上的
- * 组合，落库的 `script_text` 就会与实际执行的代码不符，resume 的比对基准随之失真——
- * 这份自洽性归调用方所有。
+* **harness never checks whether this pair is self-consistent**: it cannot be checked (whether `lowered` is really determined by `scriptText`
+* Downgrading is equivalent to running the compilation again, and that is the time that "compile once" will omit). Hand in a copy that doesn't match
+* combination, the `script_text` dropped into the library will be inconsistent with the actual executed code, and the comparison benchmark of resume will be distorted——
+* This self-consistency belongs to the caller.
  */
 export interface RunWorkflowOptions {
   /**
-   * 作者写的 workflow 脚本源码，两个用途：
-   * 1. `lowered` 缺省时由 harness lower 它得到执行体；
-   * 2. **始终**作为 run 元数据落 `dwf_run.script_text`（resume 的比对基准是作者原文，
-   *    不是 lowered 函数体）。
+* The workflow script source code written by the author has two uses:
+* 1. `lowered` defaults to harness lower to get the execution body;
+* 2. **Always** falls into `dwf_run.script_text` as run metadata (the comparison benchmark of resume is the author’s original text,
+* is not a lowered function body).
    */
   scriptText?: string;
   /**
-   * 已 lowered 的 async 函数体（自由标识符仅 `__host`）。绕过编译器，直接喂沙箱——
-   * 安全测试用它投喂手写 lowered 体（vm 契约本身才是被测对象），编译一次的路径用它
-   * 交出自己那一次编译的产物。给出时优先于 `scriptText` 作为执行体。
+* Lowered async function body (free identifier only `__host`). Bypass the compiler and feed the sandbox directly——
+* Use it for security testing to feed handwritten lowered bodies (the vm contract itself is the object under test), and use it for compiled paths
+* Hand over the product of your compilation. When given, takes precedence over `scriptText` as the executable body.
    */
   lowered?: string;
   runId?: string;
-  /** driver 工厂（见 {@link DriverFactory}）。driver 自带 journal 与 emit。 */
+/** driver factory (see {@link DriverFactory}). The driver comes with journal and emit. */
   makeDriver: DriverFactory;
   caps: Caps;
-  /** 每 ask 站点的静态规格。**必须覆盖脚本里的每个 ask 站点**——引擎把缺席当接线错误硬失败。 */
+/** Static specs for each ask site. **Every ask site in the script must be overridden** - the engine treats absences as hard failures as wiring errors. */
   askSpecs: ReadonlyMap<string, AskSpec>;
-  /** 注入的 schema 校验器（引擎不 import schema 实现）。 */
+/** Injected schema validator (engine does not import schema implementation). */
   validate: ValidateFn;
-  /** 外部取消信号：中止在飞 ask 并 kill 子进程，run 结算 cancelled。 */
+/** External cancellation signal: abort ask on the fly and kill the child process, run clear cancelled. */
   signal?: AbortSignal;
-  /** 墙钟超时（ms）：到点 kill 子进程，run 结算 failed。缺省不限。 */
+/** Wall clock timeout (ms): At the point where the child process is killed, run settlement failed. The default is no limit. */
   timeoutMs?: number;
-  /** 子进程堆上限（MB），映射为 `--max-old-space-size`。缺省 256。 */
+/** The upper limit of the child process heap (MB), mapped to `--max-old-space-size`. Default 256. */
   maxOldSpaceSizeMb?: number;
   /**
-   * 子进程 spawn 策略的替代形态：给出时 spawn `process.execPath [...argsPrefix, <entry path>]`，
-   * **不带任何 Node CLI 旗标**。
+* Alternative form of child process spawn strategy: when given spawn `process.execPath [...argsPrefix, <entry path>]`,
+* **Without any Node CLI flags**.
    *
-   * 存在理由：SEA 单文件二进制不解释 Node CLI 旗标，缺省路径的 `--max-old-space-size` 会作为
-   * 普通 token 落进 CLI 的严格 parseArgs 而必然报错退出（每个 workflow run 在 SEA 下都失败）。SEA 下
-   * 由 bootstrap 传入隐藏子命令名作为 argsPrefix，子进程自 re-exec 本二进制并在 parseArgs 之前
-   * `import()` 入口文件、调它的 `start`。
+* Reason for existence: SEA single-file binary does not interpret Node CLI flags, the default path's `--max-old-space-size` will be used as
+* Ordinary tokens that fall into the CLI's strict parseArgs will inevitably exit with an error (each workflow run fails under SEA). SEA under
+* The hidden subcommand name is passed in as argsPrefix by bootstrap, and the subprocess will re-exec the binary automatically before parseArgs
+* `import()` entry file, call its `start`.
    *
-   * 代价：堆上限只能由入口文件自己 `v8.setFlagsFromString` best-effort。
+* Cost: The heap upper limit can only be set by the entry file itself `v8.setFlagsFromString` best-effort.
    */
   childSpawn?: { argsPrefix: readonly string[] };
   /**
-   * 非致命状况的上报口（今日只有一种：入口文件写不进项目 `.zcode/`，回落到了 OS 临时目录）。
+* Reporting port for non-fatal situations (there is only one type today: the entry file cannot be written into the project `.zcode/` and falls back to the OS temporary directory).
    * harness 是 app-free 的，没有 logger；bootstrap 把它接到自己的 warn 日志。
    */
   onWarning?: (warning: HarnessWarning) => void;
@@ -165,15 +165,15 @@ const STDERR_LIMIT = 64 * 1024;
 /**
  * 跑一份 workflow 脚本至结算。返回引擎的 {@link RunSettlement}。
  * 失败一等公民，但分两类：脚本抛错是脚本之错，
- * 归一成 `{status:"errored", error}`；子进程无法启动 / 崩溃 / 墙钟超时 / 协议损坏是宿主侧故障，
- * 重跑很可能就好，归一成 `{status:"stopped", reason:"interrupted", error}`（可 resume）。
- * 两者都绝不静默吞掉。
+* Normalized to `{status:"errored", error}`; the child process cannot start / crashes / wall clock timeout / protocol damage is a host-side fault,
+* It is possible to just rerun, and return it to `{status:"stopped", reason:"interrupted", error}` (can be resumed).
+* Neither is swallowed in silence.
  */
 export async function runWorkflowScript(options: RunWorkflowOptions): Promise<RunSettlement> {
   const lowered = resolveLowered(options);
   const runId = options.runId ?? "run";
 
-  // sink 晚绑定：引擎在 driver 之后构造，但 driver 需要 sink 回报——用转发代理打破环依赖。
+// Sink late binding: The engine is constructed after the driver, but the driver needs the sink to return - use a forward proxy to break the ring dependency.
   let engine!: WorkflowEngine;
   const sink: WorkflowReportSink = {
     askSubmitAttempted: (instance, payload) => engine.askSubmitAttempted(instance, payload),
@@ -181,12 +181,12 @@ export async function runWorkflowScript(options: RunWorkflowOptions): Promise<Ru
     askProgress: (instance, progress) => engine.askProgress(instance, progress),
     askStats: (instance, stats) => engine.askStats(instance, stats),
     askFailed: (instance, error) => engine.askFailed(instance, error),
-    // 确定性模型侧错误 → 整个 run 停下，同样只是转发。
+// Deterministic model side error → The entire run stops, and it is also only forwarded.
     stopRun: (error) => engine.stopRun(error),
-    // 自适应并发的三个纯观察与 run 级停滞观察，同样只是转发。
+// The three pure observations and run-level stagnant observations of adaptive concurrency are also only forwarding.
     askWaiting: (instance, info) => engine.askWaiting(instance, info),
     askExecuting: (instance) => engine.askExecuting(instance),
-    // 唯一会让引擎做决策的观察（关导入缓存），同样只是转发。
+// The only observation that allows the engine to make decisions (off import cache) is also just forwarding.
     askMutating: (instance) => engine.askMutating(instance),
     concurrencyChanged: (change) => engine.concurrencyChanged(change),
     runStalled: (info) => engine.runStalled(info),
@@ -198,8 +198,8 @@ export async function runWorkflowScript(options: RunWorkflowOptions): Promise<Ru
     caps: options.caps,
     askSpecs: options.askSpecs,
     validate: options.validate,
-    // 元数据 verbatim 转交，缺省保持缺席（不落成 undefined 键）。cwd 与子进程实际使用的
-    // 是同一个值，所以这里也记 process.cwd() 的兜底——落库的 cwd 就是 run 真正跑的目录。
+// Metadata verbatim transfer, default remains absent (undefined key is not implemented). cwd is actually used by the child process
+// is the same value, so the bottom line of process.cwd() is also recorded here - the cwd dropped into the library is the directory where run actually runs.
     ...(options.scriptText === undefined ? {} : { scriptText: options.scriptText }),
     ...(options.name === undefined ? {} : { name: options.name }),
     ...(options.args === undefined ? {} : { args: options.args }),
@@ -217,16 +217,16 @@ export async function runWorkflowScript(options: RunWorkflowOptions): Promise<Ru
   const cwd = options.cwd ?? process.cwd();
   const payload: ChildPayload = {
     lowered,
-    // 实参只在启动时过界一次（run 生命周期内是常量）。
+//The actual parameter only crosses the bounds once at startup (it is a constant during the run life cycle).
     ...(options.args === undefined ? {} : { args: options.args }),
-    // 堆上限随 payload 进入口文件，只为 argsPrefix 路径服务：那条路上没有 Node 旗标可传，
-    // 入口文件只能自己 best-effort 设。缺省路径由真旗标生效，入口文件看到旗标就跳过。
+//The upper limit of the heap is determined by the payload entry file and only serves the argsPrefix path: there is no Node flag to pass on that path.
+//The entry file can only be set by best-effort yourself. The default path is taken into effect by the true flag, and the entry file is skipped when it sees the flag.
     maxOldSpaceSizeMb,
   };
 
-  // payload 不过命令行：Windows 的命令行上限 32,767 字符，整份 lowered 脚本放上去一过约 18 KB
-  // 就 `spawn ENAMETOOLONG`。写成入口文件，
-  // argv 只剩一条路径，长度与脚本大小无关。
+// payload is limited to the command line: the Windows command line limit is 32,767 characters, and the entire lowered script is about 18 KB
+// Just `spawn ENAMETOOLONG`. Written as an entry file,
+// argv has only one path left, and its length has nothing to do with the script size.
   let child: ChildProcess;
   try {
     const entry = writeChildEntryFile({
@@ -243,20 +243,20 @@ export async function runWorkflowScript(options: RunWorkflowOptions): Promise<Ru
       {
         cwd,
         stdio: ["pipe", "pipe", "pipe"],
-        // 桌面端 agent 由 Electron Helper 运行（process.execPath 指向 Helper），而 CLI
-        // 启动时会把 ELECTRON_RUN_AS_NODE 从自身 env sanitize 掉。不显式带上它，子进程会按完整
-        // Electron/Chromium 应用启动并卡在 GPU 初始化——永远沉默也不退出，run 卡死在 run-started。
-        // 纯 Node 的 execPath 下该变量无效，无副作用（同 official-plugin-runtime.ts 的处理）。
-        // 两条 spawn 策略都要带：桌面打包态同样可能走 argsPrefix 路径。
+// The desktop agent is run by the Electron Helper (process.execPath points to the Helper), and the CLI
+// ELECTRON_RUN_AS_NODE will be sanitized from its own env during startup. If you do not bring it explicitly, the child process will press the complete
+// Electron/Chromium application starts and gets stuck on GPU initialization - always silent and never exits, run gets stuck on run-started.
+// This variable is invalid under pure Node's execPath and has no side effects (same processing as official-plugin-runtime.ts).
+//Both spawn strategies are required: Desktop packaging state may also use the argsPrefix path.
         env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
       },
     );
   } catch (cause) {
-    // Node 只把 EACCES/EAGAIN/EMFILE/ENFILE/ENOENT 转成 error
-    // 事件，其余 spawn 失败（ENAMETOOLONG、E2BIG…）**同步抛**。此时引擎已构造、journal 行已以
-    // running 落库；让异常直接冒出去会绕过引擎结算——注册表记成终态，journal 行却永远
-    // running，随后的 resume_from 被「has not settled yet」拒绝。入口文件写不下（两个目录都
-    // 失败）同理。一律经引擎结算 stopped(interrupted)：宿主侧故障，可 resume。
+// Node only converts EACCES/EAGAIN/EMFILE/ENFILE/ENOENT into error
+//Event, other spawn failed (ENAMETOOLONG, E2BIG...) **synchronous throw**. At this point the engine has been constructed and the journal line has been
+// Running is dropped; letting the exception pop up directly will bypass the engine settlement - the registry is recorded as final, but the journal line is forever
+// running, subsequent resume_from is rejected by "has not settled yet". The entry file cannot be written (both directories are
+// failed) the same way. All resolved by the engine stopped (interrupted): Host side failure, can be resumed.
     const message = cause instanceof Error ? cause.message : String(cause);
     engine.stop(
       "interrupted",
@@ -270,7 +270,7 @@ export async function runWorkflowScript(options: RunWorkflowOptions): Promise<Ru
   return bridge({ child, engine, runId, signal: options.signal, timeoutMs: options.timeoutMs });
 }
 
-/** 解析 lowered 体：优先 `lowered`，否则 lower `scriptText`（脏脚本抛错，不启动子进程）。 */
+/** Parse lowered body: `lowered` is preferred, otherwise lower `scriptText` (dirty script throws an error and does not start the child process). */
 function resolveLowered(options: RunWorkflowOptions): string {
   if (options.lowered !== undefined) return options.lowered;
   if (options.scriptText === undefined) {
@@ -289,21 +289,21 @@ function resolveLowered(options: RunWorkflowOptions): string {
 interface BridgeDeps {
   child: ChildProcess;
   engine: WorkflowEngine;
-  /** 只用于 abort 归一里的错误文本（"interrupted" 那一支要指名是哪个 run 被关掉的）。 */
+/** Only used for error text in abort normalization (the "interrupted" one should specify which run was shut down). */
   runId: string;
   signal?: AbortSignal;
   timeoutMs?: number;
 }
 
 /**
- * NDJSON 桥接 + 生命周期收敛。single-writer finalize：无论从引擎结算、子进程退出、超时还是
- * abort 触达，第一个到达者胜出，随后 kill 子进程并兑现结果。
+* NDJSON bridging + lifecycle convergence. single-writer finalize: regardless of engine settlement, child process exit, timeout, or
+* When abort is reached, the first one to arrive wins, and then kills the child process and honors the result.
  */
 function bridge(deps: BridgeDeps): Promise<RunSettlement> {
   const { child, engine, runId, signal, timeoutMs } = deps;
 
-  // local#N（child-local 句柄）→ engine ActorId 的映射；stdio FIFO + 同步 create-actor 处理保证
-  // 任何引用某句柄的 ask 到达前，该映射已就绪。
+// mapping of local#N (child-local handle) → engine ActorId; stdio FIFO + synchronous create-actor handling guarantees
+// The map is ready before any ask that references a handle arrives.
   const actorMap = new Map<string, ActorId>();
   let stderr = "";
   let finalized = false;
@@ -321,14 +321,14 @@ function bridge(deps: BridgeDeps): Promise<RunSettlement> {
       resolve(settlement);
     };
 
-    // 终结失败（脚本抛错 / 子进程崩溃 / 超时 / 协议损坏）都是 run 失败：交给引擎的公有 fail()，
-    // 由它 first-wins 结算、driver 侧取消在飞 ask、journal 记 failed + failure_json——run 的裁决
-    // 归引擎所有，journal 与调用方看到的结果不分叉。子进程清理由 finalize（经 engine.settled）负责。
+// Termination failures (script throw error / child process crash / timeout / protocol damage) are all run failures: handed over to the public fail() of the engine,
+// Settlement by first-wins, driver side cancellation on the fly ask, journal record failed + failure_json——run decision
+// Owned by the engine, the journal does not diverge from the results seen by the caller. Child process cleanup is handled by finalize (via engine.settled).
     const failRun = (error: WorkflowError): void => {
       if (finalized) return;
       engine.fail(error);
     };
-    // 宿主侧故障（沙箱崩溃 / 超时 / 协议损坏）：stopped(interrupted)，可 resume。
+// Host-side failure (sandbox crash/timeout/protocol damage): stopped (interrupted), can be resumed.
     const interruptRun = (message: string, cause?: unknown): void => {
       if (finalized) return;
       engine.stop(
@@ -337,10 +337,10 @@ function bridge(deps: BridgeDeps): Promise<RunSettlement> {
       );
     };
 
-    // abort 是唯一的"真取消"：走 engine.stop(initiator)，结算 stopped。initiator 经
-    // `AbortController.abort(reason)` 过来：字面 "model"、amend 路径的
-    // `{ superseded: newRunId }`（后继 id 随原因同一笔落库）、字面 "interrupted"（宿主 App
-    // 关闭，见下），其余一律 "user"。
+// abort is the only "true cancellation": go to engine.stop(initiator) and settle stopped. initiator
+// `AbortController.abort(reason)` comes from: literal "model", amend path
+// `{ superseded: newRunId }` (successor id will be stored with the same reason), literal "interrupted" (host App
+// Close, see below), the rest are all "user".
     function onAbort(): void {
       if (finalized) return;
       const reason: unknown = signal?.reason;
@@ -349,9 +349,9 @@ function bridge(deps: BridgeDeps): Promise<RunSettlement> {
         engine.stop("superseded", undefined, supersededBy);
         return;
       }
-      // 宿主主动停下自己拥有的 run（run service 的 close()）。它不是用户取消：带 Interrupted 失败编码落库，与超时 /
-      // 沙箱崩溃同一族——stopped(interrupted) 可 resume，而 stopped(user) 在 UI 上读作
-      // 「用户按了停止」。错误文本指名 run 与成因，下一次激活时详情页据它解释这一行。
+// The host actively stops its own run (close() of run service). It is not user cancelled: Failed encoding with Interrupted dropped library, with timeout /
+// Sandbox crashes are in the same family - stopped(interrupted) can be resumed, while stopped(user) is read on the UI as
+// "The user pressed stop". The error text names the run and the cause, and the details page will interpret this line according to it the next time it is activated.
       if (reason === "interrupted") {
         engine.stop(
           "interrupted",
@@ -365,7 +365,7 @@ function bridge(deps: BridgeDeps): Promise<RunSettlement> {
       engine.stop(reason === "model" ? "model" : "user");
     }
 
-    // 一切结算（complete / fail / stop / 引擎内部 cap 失败）都经 engine.settled 冒出到 finalize。
+// All settlements (complete/fail/stop/engine internal cap failure) emerge to finalize through engine.settled.
     void engine.settled.then(finalize);
 
     if (signal !== undefined) {
@@ -388,7 +388,7 @@ function bridge(deps: BridgeDeps): Promise<RunSettlement> {
     child.stderr?.on("data", (chunk: Buffer) => {
       stderr = trimTail(stderr + chunk.toString("utf8"), STDERR_LIMIT);
     });
-    // 子进程退出后仍可能有 response 待写：给 stdin 挂 error 监听，避免 EPIPE 冒成未捕获异常。
+// There may still be a response to be written after the child process exits: hang error monitoring on stdin to prevent EPIPE from causing uncaught exceptions.
     child.stdin?.on("error", () => undefined);
 
     reader = createInterface({ input: child.stdout! });
@@ -398,7 +398,7 @@ function bridge(deps: BridgeDeps): Promise<RunSettlement> {
       try {
         message = JSON.parse(line) as ChildMessage;
       } catch (cause) {
-        // 子进程行 JSON 损坏：暴露而非吞掉。
+// Child process row JSON corruption: exposed instead of swallowed.
         interruptRun(
           `The workflow sandbox process emitted a line that is not valid NDJSON: ${line}`,
           cause,
@@ -414,7 +414,7 @@ function bridge(deps: BridgeDeps): Promise<RunSettlement> {
 
     child.on("close", (code, sig) => {
       if (finalized) return;
-      // 子进程退出但引擎未结算：崩溃/被杀而无 complete。以 stderr 归因。
+// Child process exited but engine not settled: crashed/killed without complete. Attributed to stderr.
       const reason =
         stderr.trim().length > 0
           ? stderr.trim()
@@ -431,14 +431,14 @@ interface MessageDeps {
   failRun: (error: WorkflowError) => void;
 }
 
-/** 分发一条 child→parent 消息。ask/world-read 异步桥接到引擎并回 response（搭载最新预算）。 */
+/** Distributes a child→parent message. ask/world-read asynchronously bridges to the engine and responds (with the latest budget). */
 function handleChildMessage(message: ChildMessage, deps: MessageDeps): void {
   const { engine, actorMap, child, failRun } = deps;
 
   switch (message.kind) {
     case "create-actor": {
-      // 同步处理：在任何引用该句柄的 ask 之前把映射建好（stdio FIFO 前提）。createActor 是纯同步的，
-      // 若 run 已结算会同步抛错——此时没有 response 通道，捕获后归为 run 失败（多为无害的收尾竞态）。
+// Synchronous processing: Build the mapping before any ask that references the handle (stdio FIFO prerequisite). createActor is purely synchronous,
+// If the run has been settled, an error will be thrown synchronously - there is no response channel at this time, and the run will be classified as a failure after capture (mostly a harmless ending race condition).
       try {
         const actorId = engine.createActor(
           message.siteId,
@@ -458,9 +458,9 @@ function handleChildMessage(message: ChildMessage, deps: MessageDeps): void {
       return;
     }
     case "event":
-      // 同步分派，与 log 一致：事件通道的 FIFO 顺序对 report 与 declare-artifact 都是承重的
-      // （父进程 journal 的就是到达的东西，而一条打了标签的 report 必须晚于它的声明落库），
-      // 异步化会让到达顺序与 journal 顺序脱钩。
+// Synchronous dispatch, consistent with log: the FIFO order of the event channel is load-bearing for both report and declare-artifact
+// (The journal of the parent process is what arrives, and a tagged report must be dropped later than its declaration),
+// Asynchronization will decouple the arrival order from the journal order.
       if (message.type === "report") {
         engine.report(message.siteId, message.item, message.artifactId);
       } else if (message.type === "declare-artifact") {
@@ -475,7 +475,7 @@ function handleChildMessage(message: ChildMessage, deps: MessageDeps): void {
       if (message.ok) {
         engine.complete(message.value);
       } else {
-        // 脚本抛错：run 失败（错误明细来自沙箱）。
+// The script throws an error: run failed (error details come from the sandbox).
         const err = message.error;
         failRun(
           new WorkflowError("DriverError", err?.message ?? "The workflow script threw an error", {
@@ -494,7 +494,7 @@ function handleChildMessage(message: ChildMessage, deps: MessageDeps): void {
   }
 }
 
-/** 桥接一次需应答的 host 调用（ask / world-read）到引擎，settle 后回 response。 */
+/** Bridge a host call that needs to be answered (ask / world-read) to the engine, and return the response after settling. */
 function handleRequest(
   message: Extract<ChildMessage, { kind: "request" }>,
   deps: MessageDeps,
@@ -508,7 +508,7 @@ function handleRequest(
       ok,
       ...(ok ? { value } : { error: toWireError(error) }),
     };
-    // 子进程可能已退出（取消/失败收尾）：仅在可写时写，EPIPE 等 I/O 竞态吞在此边界（run 已在结算）。
+// The child process may have exited (cancelled/failed to end): only write when writable, I/O races such as EPIPE are swallowed at this boundary (run is already settling).
     const stdin = child.stdin;
     if (stdin === null || !stdin.writable) return;
     stdin.write(`${JSON.stringify(response)}\n`, () => undefined);
@@ -518,7 +518,7 @@ function handleRequest(
   if (message.type === "ask") {
     const actorId = actorMap.get(message.actor ?? "");
     if (actorId === undefined) {
-      // 映射缺失（理应不会发生：FIFO 保证）——归一成 UnknownActor 结构化拒绝，不静默。
+// Missing mapping (should not happen: FIFO guarantee) - normalizes to UnknownActor structured rejection, not silent.
       respond(
         false,
         undefined,
@@ -530,8 +530,8 @@ function handleRequest(
   } else if (message.type === "publish-artifact") {
     const op = message.artifactOp;
     if (op === undefined) {
-      // 缺 op 是接线错误（lowering 恒填它）。**不编一个默认值**：一个被当成 file 处理的
-      // markdown 发布，错误会出现在离故障点很远的地方。归一成结构化拒绝，脚本看得见。
+// Missing op is a wiring error (lowering always fill it in). **Do not program a default value**: one is treated as file
+// Markdown publishing, errors will appear far away from the point of failure. Normalized into structured rejection, the script is visible.
       respond(
         false,
         undefined,
@@ -544,8 +544,8 @@ function handleRequest(
     }
     promise = engine.publishArtifact(message.siteId, op, message.args ?? []);
   } else {
-    // op/args 原样转交引擎：本层不看 op、不校验元数（那是 driver 的职责）。缺失 args 归一为空数组，
-    // 让 driver 的实参校验大声拒绝，而不是在这里悄悄编一个默认值。
+// Op/args are handed over to the engine as is: this layer does not look at the op or check the byte (that is the responsibility of the driver). Missing args are normalized to an empty array,
+// Let the driver's actual parameter validation reject it out loud instead of quietly coding a default value here.
     promise = engine.worldRead(message.siteId, message.op ?? "read", message.args ?? []);
   }
 
@@ -565,7 +565,7 @@ function handleRequest(
   );
 }
 
-/** WorkflowError → 线形态（保留 code/violations/finalText，供沙箱脚本 try/catch 结构化处理）。 */
+/** WorkflowError → Line form (code/violations/finalText is reserved for structured processing by sandbox script try/catch). */
 function toWireError(error: WorkflowError | undefined): ResponseMessage["error"] {
   if (error === undefined) return { name: "Error", message: "unknown error" };
   const wire: NonNullable<ResponseMessage["error"]> = {
@@ -578,13 +578,13 @@ function toWireError(error: WorkflowError | undefined): ResponseMessage["error"]
   return wire;
 }
 
-/** 保留字符串尾部 limit 字节内的内容（stderr 截断）。 */
+/** Keep the content within limit bytes at the end of the string (stderr truncated). */
 function trimTail(value: string, limit: number): string {
   if (Buffer.byteLength(value, "utf8") <= limit) return value;
   return value.slice(-limit);
 }
 
-/** abort reason 是 `{ superseded: <runId> }` 时取出后继 id；其余形状返回 undefined。 */
+/** When abort reason is `{ superseded: <runId> }`, the successor id is taken out; other shapes return undefined. */
 function readSupersededBy(reason: unknown): string | undefined {
   if (typeof reason !== "object" || reason === null) return undefined;
   const value = (reason as { superseded?: unknown }).superseded;

@@ -1,0 +1,24 @@
+// Benchmark fixture mirroring `workflow_linear.ts` one action per action:
+// one phase marker, one actor, one typed ask, one phase marker, one world read,
+// one report, one markdown publish, one return. The site table is the same shape the
+// TypeScript front-end produces for the same work:
+//   actor#1  ask#1  world-read#1  report#1  artifact#1
+// phase markers carry no site id in either language.
+
+schema Plan {
+  steps: string[]
+  rationale: string
+}
+
+workflow "bench-linear" {
+  phase "plan";
+  let planner = agent("planner", "You are a planning subagent. Produce short, concrete plans.");
+  let plan: Plan = await planner.ask("Draft a 3-step plan for documenting this repository. Fields: steps (3 short strings), rationale (one sentence).");
+
+  phase "execute";
+  let readme = await files.read("README.md");
+  report({ readmeBytes: readme.length, planSteps: plan.steps.length });
+  await artifact.markdown("summary", "## Plan\n\n" + plan.rationale);
+
+  return { rationale: plan.rationale, steps: plan.steps };
+}

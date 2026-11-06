@@ -1,11 +1,11 @@
 /**
- * Trust store 文件 schema 已下沉到 `@zcode/shared/workspace-hook-trust-store-file`
- * 作为单一权威实现（services 层无法依赖 apps 下的 contracts，
- * 只好手写局部校验，导致 UI 与 runtime 对同一损坏文件结论分裂）。
+* Trust store file schema has been sunk to `@zcode/shared/workspace-hook-trust-store-file`
+* Implemented as a single authority (the services layer cannot rely on contracts under apps,
+* Had to write partial verification by hand, causing the UI and runtime to split their conclusions on the same damaged file).
  *
- * 此处 re-export 保持 contracts 既有 import 路径（adapters/bootstrap/core 等）
- * 不变；shared 与 contracts 分属 zod4 / zod3 实例，本 re-export 不得被
- * contracts 内部的 zod3 schema 组合引用。
+* Here re-export keeps the existing import path of contracts (adapters/bootstrap/core, etc.)
+* Unchanged; shared and contracts belong to zod4 / zod3 instances respectively, this re-export shall not be
+* Zod3 schema composite reference inside contracts.
  */
 export {
   WORKSPACE_HOOK_TRUST_STORE_SCHEMA_VERSION,

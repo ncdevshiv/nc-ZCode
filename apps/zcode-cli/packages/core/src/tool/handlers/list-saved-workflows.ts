@@ -1,12 +1,12 @@
 // ============================================================
 // ListSavedWorkflows Tool Handler
 // ============================================================
-// 枚举本项目（= 会话工作目录）保存的 dwf 定义。
+// Enumerate the dwf definitions saved by this project (= session working directory).
 //
-// 与 ListWorkflowRuns 是**两件事**，且两个描述都要把这件事说穿：那个列的是跑过的 run
-// （历史、有状态、有 runId），这个列的是可以拿来跑的定义（清单、无状态、有名字）。模型最
-// 容易犯的错就是把「有哪些工作流可用」问成「有哪些工作流跑过」，然后回答用户"你没有任何
-// 工作流"——而项目里其实存着五个。
+// and ListWorkflowRuns are **two things**, and both descriptions must make this clear: the one listed is the run run
+// (history, stateful, with runId), this list lists the definitions that can be run (list, stateless, with name). The model is the most
+//An easy mistake is to ask "What workflows are available" instead of "What workflows have run", and then answer the user "You don't have any
+//Workflow" - and there are actually five of them in the project.
 
 import {
   LIST_SAVED_WORKFLOWS_TOOL_NAME,
@@ -22,7 +22,7 @@ import type { ToolEntry, ToolHandler } from "../types.js";
 import { listSavedWorkflows } from "./saved-workflows/index.js";
 
 const LIST_SAVED_WORKFLOWS_TIMEOUT_MS = 10_000;
-/** 照 ListWorkflowRuns：清单刻意轻（一次目录扫描可答），24k 足够几十条还留着余量。 */
+/** According to ListWorkflowRuns: The list is deliberately light (one directory scan can answer), 24k is enough for dozens of items and still leaves a margin. */
 const LIST_SAVED_WORKFLOWS_MODEL_BYTES = 24_000;
 
 const LIST_SAVED_WORKFLOWS_DESCRIPTION = [
@@ -37,23 +37,23 @@ const LIST_SAVED_WORKFLOWS_DESCRIPTION = [
 const listSavedWorkflowsHandler: ToolHandler = async (input, context) => {
   ListSavedWorkflowsInputSchema.parse(input);
 
-  // cwd 恒取本会话的工作目录：模型无权跨项目扫盘，这同时是 `sideEffectScope: "none"` 的前提。
+// cwd always retrieves the working directory of this session: the model does not have permission to scan across projects, which is also the prerequisite for `sideEffectScope: "none"`.
   const { entries, invalid } = listSavedWorkflows({ cwd: context.workingDirectory ?? "." });
 
   return {
     workflows: entries,
-    // 为空时缺席：一个空数组会给每次调用挂一个噪音字段。
+// Absent when empty: An empty array will add a noise field to each call.
     ...(invalid.length > 0 ? { invalid } : {}),
   } satisfies ListSavedWorkflowsOutput;
 };
 
 /**
- * 模型面：一个 XML-ish 容器 + 一 workflow 一块。
+* Model side: an XML-ish container + a workflow piece.
  *
- * 与 ListWorkflowRuns 的**单行**属性式刻意不同：run 是低信息密度的高基数实体（50 行都长
- * 一个样，属性挤一行正好），而一个保存的 workflow 带着描述、使用时机和参数表——这些是模型
- * 用来**选**工作流的依据，挤成一行会把选择所需的信息压没。条数也低得多（一个项目里几个到
- * 几十个），撑得起每条几行。
+* Deliberately different from the **single-line** attribute format of ListWorkflowRuns: run is a high-cardinality entity with low information density (50 lines long
+* The same thing, the attributes fit into one row), and a saved workflow comes with a description, usage time and parameter list - these are models
+* Used to **select** the basis for the workflow. Squeezing it into a row will suppress the information required for selection. The number of items is also much lower (a few to a few in one project)
+* Dozens), supporting several lines per line.
  */
 function formatListSavedWorkflowsModelContent(output: unknown): ModelMessageContent {
   const parsed = ListSavedWorkflowsOutputSchema.safeParse(output);
@@ -62,7 +62,7 @@ function formatListSavedWorkflowsModelContent(output: unknown): ModelMessageCont
   const { workflows, invalid } = parsed.data;
 
   if (workflows.length === 0 && invalid === undefined) {
-    // 「这个项目没存过 workflow」必须说成一句话：空容器容易被读成「工具没答上来」。
+// "This project has no saved workflow" must be said in one sentence: an empty container is easily read as "the tool is not available".
     return [
       '<saved_workflows count="0">',
       `No workflows are saved in this project yet. Saved definitions live in ${SAVED_WORKFLOW_PROJECT_DIR}/.`,
@@ -101,7 +101,7 @@ function formatListSavedWorkflowsModelContent(output: unknown): ModelMessageCont
   ].join("\n");
 }
 
-/** 名字与路径进属性位：两者都可能带引号（路径尤其），不转义会造出畸形标签。 */
+/** Name and path attributes: Both may be quoted (especially paths), and not escaping will create malformed tags. */
 function escapeAttribute(value: string): string {
   return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;");
 }
@@ -132,12 +132,12 @@ export const listSavedWorkflowsToolEntry: ToolEntry = {
     riskLevel: "low",
     sideEffectScope: "none",
     needsApproval: false,
-    // 输入里没有路径主体（cwd 来自会话上下文），所以模式只按工具名匹配。
+// There is no path body in the input (cwd comes from the session context), so the pattern only matches by tool name.
     patternSources: ["toolName"],
     alwaysAllowPatternSources: ["toolName"],
     denyPriority: "beforeAsk",
-    // 刻意**不**继承 SaveWorkflow / CreateWorkflow 的 alwaysAsk：那两道 gate 的理由分别是
-    // 「写用户的仓库」与「执行整块代码」，读清单不属于任何一条。
+// Deliberately **not** inherit the alwaysAsk of SaveWorkflow / CreateWorkflow: the reasons for the two gates are
+// "Write the user's warehouse" and "Execute the entire code", the read list does not belong to either one.
   },
   resultBudget: {
     maxInlineBytes: LIST_SAVED_WORKFLOWS_MODEL_BYTES,

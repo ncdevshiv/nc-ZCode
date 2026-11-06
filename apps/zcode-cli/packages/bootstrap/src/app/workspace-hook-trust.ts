@@ -36,15 +36,15 @@ interface WorkspaceHookRuntimeSecurity {
   admission: WorkspaceHookRuntimeAdmissionPort;
   snapshot: WorkspaceHookBundleSnapshot;
   /**
-   * Trust store 是文件，而 coordinator 的
-   * persistentRecords 是 per-session 内存镜像，只在 session 创建时 load 一次。
-   * Settings 行内信任（无 task 的 pretrust 路径）直接写文件后返回，运行中 session
-   * 的 coordinator 既不更新记录也不 bump revision——已信任 Hook 继续被拒、banner
-   * pendingCount 停留旧值。pretrust 授权成功后必须调用本方法把文件内容重载进本
-   * session 的 coordinator 并重发 admission 状态，与 task 内 respond 路径对齐。
+* Trust store is a file, and coordinator's
+* persistentRecords is a per-session memory image, which is only loaded once when the session is created.
+* Settings inline trust (pretrust path without task) directly writes the file and returns, running session
+* The coordinator neither updates the record nor bumps the revision - the trusted Hook continues to be rejected and the banner
+* pendingCount stays at the old value. After pretrust authorization is successful, this method must be called to reload the file content into this
+* The coordinator of the session and resends the admission status, aligned with the respond path in the task.
    */
   reloadTrust(): Promise<void>;
-  /** 软门禁:按需开审核 flow,无 pending 项时为安全 no-op */
+/** Soft access control: open the audit flow on demand, and it is safe no-op when there are no pending items */
   requestReview(target: {
     workspaceIdentity: string;
     bundleDigest: string;
@@ -87,7 +87,7 @@ export function createWorkspaceHookRuntimeSecurity(input: {
   snapshot?: WorkspaceHookBundleSnapshot;
   userConfigPath: string;
   workingDirectory: string;
-  /** 测试注入临时 HOME；生产不传，Trust store 落在真实 ~/.zcode/security。 */
+/** Test injects temporary HOME; production does not transfer, Trust store falls into real ~/.zcode/security. */
   homeDir?: string;
 }): WorkspaceHookRuntimeSecurity | undefined {
   if (!input.snapshot) return undefined;
@@ -97,8 +97,8 @@ export function createWorkspaceHookRuntimeSecurity(input: {
     coordinatorEpoch: crypto.randomUUID(),
     policyProvider,
   });
-  // Rollout 关闭时必须保持旧 hard block，且不能读取已有 Trust store；Trust 文件保留，
-  // 方便后续重新打开开关后继续使用用户已做出的选择。
+// When Rollout is closed, the old hard block must be kept, and the existing Trust store cannot be read; the Trust file is retained.
+// It is convenient to continue to use the choices made by the user after turning the switch back on.
   const trustEnabled = input.workspaceHookTrustEnabled === true;
   const store = trustEnabled
     ? createDefaultFileWorkspaceHookTrustStore({
@@ -114,8 +114,8 @@ export function createWorkspaceHookRuntimeSecurity(input: {
       })
     : Promise.resolve();
   let controller: WorkspaceHookReviewController | undefined;
-  // 软门禁:onAdmissionStateChanged → 发射 WorkspaceHookAdmissionUpdated 会话事件。
-  // activate() 完成 evaluate 后、replaceSnapshot 后均会触发,供投影层写入 snapshot 字段。
+//Soft access control:onAdmissionStateChanged → Emit WorkspaceHookAdmissionUpdated session event.
+// activate() will be triggered after completing evaluate and replaceSnapshot, allowing the projection layer to write the snapshot field.
   const onAdmissionStateChanged: ((state: WorkspaceHookAdmissionState) => void) | undefined =
     input.emitAdmissionEvent
       ? (state) => {
@@ -178,9 +178,9 @@ export function createWorkspaceHookRuntimeSecurity(input: {
     reloadTrust: async () => {
       if (!trustEnabled || !store) return;
       await loadWorkspaceHookTrustStore({ coordinator, logger: input.logger, store });
-      // replacePersistentTrustRecords 已 bump revision 并清空 evaluation 缓存；
-      // activate 幂等（跳过 ready 等待），重新 evaluate 并重发 admission 状态
-      // （pendingCount === 0 也会发，用于清空 banner）。
+// replacePersistentTrustRecords has bumped revision and cleared evaluation cache;
+// activate is idempotent (skip waiting for ready), re-evaluate and re-send the admission status
+// (pendingCount === 0 will also be sent, used to clear the banner).
       await admission.activate("resume");
     },
     requestReview: (target) =>

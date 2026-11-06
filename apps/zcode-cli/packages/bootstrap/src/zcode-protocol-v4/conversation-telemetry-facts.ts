@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import type {
   CompactLifecyclePayload,
   DynamicWorkflowRunProgressPayload,
@@ -158,8 +159,8 @@ function eventTimestamp(event: SessionEvent): number {
 function automationAdmission(inputId: string | undefined, automationId: string | undefined) {
   if (!inputId || !automationId) return {};
   const parsed = parseAutomationRunId(inputId);
-  // inputId 不是本 automation 的 runId（历史入口漏传、异常透传）时不猜触发方式：
-  // 只保留关联 ID，避免把普通输入误标成 schedule 或从无关字符串切出伪 scheduledAt。
+// When the inputId is not the runId of this automation (historical entry is missed, exception is transparently transmitted), the trigger method is not guessed:
+// Only keep the association ID to avoid mislabeling ordinary input as schedule or cutting out pseudo scheduledAt from irrelevant strings.
   if (!parsed || parsed.automationId !== automationId) return { automationId };
   return {
     automationId,
@@ -251,8 +252,8 @@ function modelRequestQueueKey(sessionId: string, querySource: string | undefined
 }
 
 function isStepUsageQuerySource(querySource: string | undefined): boolean {
-  // `workflow_child`：动态工作流子代理。
-  // 该来源必须放行，否则子代理的 token 进不了业务埋点。
+// `workflow_child`: dynamic workflow subagent.
+// This source must be released, otherwise the subagent's token cannot enter the business bureau.
   return (
     querySource === undefined ||
     querySource === "main_turn" ||
@@ -282,9 +283,9 @@ function compactTerminalStatus(
 }
 
 /**
- * 把本进程 live SessionEvent 中的轮次起止归一成 `turn.started` / `turn.terminal` 事实，
- * 供 App/服务端统计运行中的会话数。事实不带正文，只带 admission 给出的 inputId 与终态摘要。
- * 该类不读取 transcript/snapshot，因而无法在 hydration/recovery 时补造事件。
+* Unify the start and end of the rounds in the live SessionEvent of this process into `turn.started` / `turn.terminal` facts,
+* For the App/server to count the number of running sessions. The fact does not have text, only the inputId and final state summary given by admission.
+* This class does not read transcript/snapshot, so it cannot recreate events during hydration/recovery.
  */
 export class ConversationTelemetryFactNormalizer {
   private readonly firstStreamChunks = new BoundedKeySet();
@@ -325,7 +326,7 @@ export class ConversationTelemetryFactNormalizer {
           payload.backgroundSource === "workflow"
             ? payload.backgroundSource
             : undefined;
-        // 用户轮与 background wake 均由 admission 提供 inputId，不混用持久化 messageId。
+// Both user wheel and background wake are provided with inputId by admission, and persistent messageId is not mixed.
         const inputId = optionalString(payload.inputId);
         if (turnKey && inputId) this.sourceCommandByTurn.set(turnKey, inputId);
         return conversationTelemetryFactSchema.parse({
@@ -344,8 +345,8 @@ export class ConversationTelemetryFactNormalizer {
       }
       case SessionEventType.ModelNetworkStatus: {
         const payload = event.payload as ModelNetworkStatusPayload;
-        // 准入等待的两端不是 provider 请求状态：
-        // fact 的 status 枚举不收它们，显式跳过而不是让 schema.parse 抛出。
+// Both ends of the admission wait are not provider request status:
+// fact's status enumeration does not accept them, skip them explicitly instead of letting schema.parse throw.
         if (payload.type === "model_request_queued" || payload.type === "model_request_admitted") {
           return null;
         }
@@ -473,9 +474,9 @@ export class ConversationTelemetryFactNormalizer {
         const error =
           event.type === SessionEventType.ToolCallError ? (payload as ToolCallErrorPayload) : null;
         const display = recordValue(result?.result.display);
-        // runtime 把 perf 改为 nested detail，旧 normalizer 仍把它
-        // 原样塞进扁平 strict fact，导致整条工具终态被丢弃。这里必须只做显式白名单映射，
-        // 不能再次透传 detail 或本地诊断用的 command.hash。
+// runtime changes perf to nested detail, the old normalizer still changes it
+// Insert the flat strict fact as it is, causing the entire tool's final state to be discarded. Only explicit whitelist mapping must be done here,
+// The detail or command.hash used for local diagnosis cannot be transparently transmitted again.
         const performance = toToolPerformanceFact(result?.result.perf);
         const phase =
           event.type === SessionEventType.ToolCallStarted
@@ -508,8 +509,8 @@ export class ConversationTelemetryFactNormalizer {
             : {}),
           ...(result?.result.error ? { errorMessage: result.result.error.message } : {}),
           ...skillTelemetryFactFields(toolName, error?.skillMetadata ?? result?.skillMetadata),
-          // subagent mirror 把父子关联放在工具事件 payload 顶层，旧 normalizer
-          // 只读取 result.display，导致 agent_id 等字段在进入 agent_step 前被静默丢弃。
+// subagent mirror puts the parent-child relationship at the top level of tool event payload, old normalizer
+// Only result.display is read, causing fields such as agent_id to be silently discarded before entering agent_step.
           ...mirroredSubagentToolFields(rawPayload, display),
           ...(performance ? { performance } : {}),
         });
@@ -568,9 +569,9 @@ export class ConversationTelemetryFactNormalizer {
         } else {
           this.completedModelRequests.delete(requestQueueKey);
         }
-        // 标题 sidecar 沿用当前 turnId，若把它的 ModelComplete 也转成
-        // usage.delta，renderer 会把每轮标题的 64/8 tokens 累加进主对话 completion。
-        // 本期只放行主轮和 subagent request usage；sidecar/compact/tool_internal 仍不外送。
+//The title sidecar inherits the current turnId. If its ModelComplete is also converted to
+// usage.delta, the renderer will accumulate 64/8 tokens of each round of title into the main dialogue completion.
+// In this issue, only the main wheel and subagent request usage are released; sidecar/compact/tool_internal is still not available for delivery.
         if (!isStepUsageModelComplete(payload)) return null;
         const usage = recordValue(payload.usage);
         return conversationTelemetryFactSchema.parse({
@@ -600,8 +601,8 @@ export class ConversationTelemetryFactNormalizer {
         });
       }
       case SessionEventType.DynamicWorkflowRunProgress: {
-        // 动态工作流子代理的归属事实：actor-created 登记、
-        // run-settled 结算；其余引擎事件不进埋点。
+// The ownership fact of the dynamic workflow subagent: actor-created registration,
+// run-settled settlement; other engine events will not be buried.
         return workflowLifecycleFactFromProgress(
           base,
           event.payload as DynamicWorkflowRunProgressPayload,
@@ -628,7 +629,7 @@ export class ConversationTelemetryFactNormalizer {
             : {}),
           background: payload.background === true,
           ...(optionalString(payload.status) ? { status: optionalString(payload.status) } : {}),
-          // stopped 可独立收口后台埋点；保留 Runtime 已有错误，避免失败汇总丢失原因。
+// stopped can independently close the background buried points; retain existing errors in Runtime to avoid failure and summary loss reasons.
           ...(event.type === SessionEventType.SubagentStopped && optionalString(payload.error)
             ? { errorMessage: optionalString(payload.error) }
             : {}),

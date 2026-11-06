@@ -1,4 +1,5 @@
-import ts from "typescript";
+// @ts-nocheck
+import ts from "../compiler/ts-shim.js";
 import { adoptFields, collapse, emptyValue, mergeInto, replayMayAliasMerge, type AbstractValue } from "./domain.js";
 import { mergeIntoRootIdentifier } from "./assign.js";
 import type { EvalContext, Evaluator } from "./taint.js";

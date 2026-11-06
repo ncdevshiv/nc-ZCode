@@ -1,8 +1,8 @@
-//! @zcode/sidecar —— Rust native sidecar 的 TS 桥（S1 islands，spec:
-//! specs/rust-native-crates.md cutover 章节）。
+//! @zcode/sidecar - TS bridge for Rust native sidecar (S1 islands, spec:
+//! specs/rust-native-crates.md cutover chapter).
 //!
-//! 公开面刻意收窄：协议类型 + 进程/pool 生命周期 + diff facade。新 island 接入时
-//! 在此加 facade，不在业务代码里 spawn 进程。
+//! The public surface is deliberately narrowed: protocol type + process/pool life cycle + diff facade. When new island is connected
+//! Add facade here, do not spawn the process in the business code.
 
 export {
   SidecarMethodError,
@@ -65,6 +65,6 @@ export {
   type DiffLinesChunk,
   type StructuredPatchOptions,
 } from "./diff.js";
-// jsdiff 的结构形状由本包独占（运行时与类型都收敛在 adapter 内）；业务包不再
-// 直接依赖 `diff`。
+// The structural shape of jsdiff is exclusive to this package (the runtime and types are all converged in the adapter); the business package is no longer
+// Directly depends on `diff`.
 export type { StructuredPatch } from "diff";

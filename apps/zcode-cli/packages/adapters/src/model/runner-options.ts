@@ -16,7 +16,7 @@ type ExperimentalIncludeWithResponseBody = {
   responseBody?: boolean;
 };
 
-/** zcode-plan 业务码常只出现在 finish chunk 的 response.body，流式路径需显式开启。 */
+/** zcode-plan business code often only appears in the response.body of the finish chunk, and the streaming path needs to be explicitly enabled. */
 function shouldIncludeStreamResponseBody(resolved: ResolvedAiSdkModel): boolean {
   return (
     resolved.providerKind === "openai-compatible" && resolved.accountAccess?.mode === "start-plan"
@@ -148,10 +148,10 @@ export function createStreamTextOptions(input: {
     // printing its generic system-message warning to process stderr.
     allowSystemInMessages: true,
     maxRetries: 0,
-    // AI SDK 会吞掉 Anthropic message_start 等 metadata 事件；compact 需要
-    // 在 adapter 内观察 raw event 才能精确结束 SSE retry，raw chunk 不会上送 Core/UI。
+// AI SDK will swallow metadata events such as Anthropic message_start; compact requires
+// Only by observing the raw event in the adapter can the SSE retry be accurately ended. The raw chunk will not be sent to Core/UI.
     includeRawChunks: input.request.preserveProviderStreamBoundaries ? true : undefined,
-    // zcode-plan 的业务码可能只在流式响应尾部 body 里，需保留 responseBody 供错误分类读取。
+// The business code of zcode-plan may only be in the tail body of the streaming response, and the responseBody needs to be reserved for error classification and reading.
     experimental_include: createStreamExperimentalInclude(input),
   }) as AiSdkStreamTextOptions;
 }
@@ -200,8 +200,8 @@ function withNativeGenerateOutputFormat(input: {
   const anthropicOptions = asPlainRecord(input.providerOptions?.anthropic);
   return {
     ...input.providerOptions,
-    // Lite role 的真实模型 ID 可能不在 AI SDK 的静态能力表中；
-    // 显式 schema 必须继续生成目标 output_config，而不能退化成 JSON tool。
+// The real model ID of the Lite role may not be in the static capability table of the AI ​​SDK;
+// The explicit schema must continue to generate the target output_config and cannot degenerate into the JSON tool.
     anthropic: { ...anthropicOptions, structuredOutputMode: "outputFormat" },
   };
 }

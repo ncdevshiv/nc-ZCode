@@ -3,8 +3,8 @@ import { fileURLToPath } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const workspaceRoot = fileURLToPath(new URL("../", import.meta.url));
-// 当前 Vite dev server 只监听 localhost，不接受 127.0.0.1。
-// 之前这里一直轮询 127.0.0.1，会导致 preLaunchTask 永远不 ready，后续 Electron 启动任务完全不执行。
+//The current Vite dev server only listens to localhost and does not accept 127.0.0.1.
+// Previously, 127.0.0.1 has been polled here, which will cause the preLaunchTask to never be ready, and subsequent Electron startup tasks will not be executed at all.
 const viteUrl = "http://localhost:5174";
 let child;
 
@@ -32,8 +32,8 @@ async function waitForServer() {
 }
 
 child = spawn(
-  process.platform === "win32" ? "pnpm.cmd" : "pnpm",
-  ["--filter", "@zcode/desktop", "exec", "vite", "dev"],
+  process.platform === "win32" ? "bun.exe" : "bun",
+  ["--cwd=packages/desktop", "x", "vite", "dev"],
   {
     cwd: workspaceRoot,
     stdio: "inherit",

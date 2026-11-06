@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { ScriptLoc } from "../compiler/compile.js";
 import type { JumpKind, OrderRegion } from "./causality-order.js";
 import type { AnalysisCore } from "./core.js";

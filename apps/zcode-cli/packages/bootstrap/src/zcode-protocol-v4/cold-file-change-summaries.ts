@@ -63,9 +63,9 @@ function selectWorkspaceCheckpointsForFileSummary(
     return byMessageId;
   }
 
-  // 旧事件和缺失 user messageId 映射的普通 TurnStarted
-  // 只能用事件 turnId 兜底。split product turn 带 "~q" 后缀，禁止按 runtime turnId
-  // 合并，避免 queued/drained 场景串轮。
+//Old events and plain TurnStarted with missing user messageId mapping
+// You can only use the event turnId to find out. split product turn has "~q" suffix, it is forbidden to press runtime turnId
+// Merge to avoid queued/drained scenes.
   return checkpoints.filter(({ turnId }) => turnId === String(targetTurnId));
 }
 
@@ -126,7 +126,7 @@ async function aggregateWorkspaceCheckpoints(
 ): Promise<V4ConversationFileChangesResult> {
   const byPath = new Map<string, FileChangeAggregate>();
 
-  // checkpoint 顺序就是同一轮文件写入顺序，必须串行聚合 first-before → final-after。
+// The checkpoint sequence is the same round of file writing sequence, which must be serially aggregated first-before → final-after.
   for (const { checkpoint } of checkpoints) {
     const artifact = parseWorkspaceCheckpointArtifact(
       JSON.parse(await readArtifact(checkpoint.snapshotRef)),
@@ -269,7 +269,7 @@ async function createFinalPatch(
   beforeContent: string,
   afterContent: string,
 ): Promise<DiffHunk[]> {
-  // flag 关 = jsdiff（facade 内部）；flag 开 = Rust zcode-diff sidecar。
+// flag off = jsdiff (internal to facade); flag on = Rust zcode-diff sidecar.
   const patch = await nativeStructuredPatch(path, path, beforeContent, afterContent, undefined, undefined, {
     timeout: 5_000,
   });

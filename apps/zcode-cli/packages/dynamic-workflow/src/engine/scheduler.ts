@@ -1,12 +1,12 @@
 /**
- * ask 调度器：把"每 actor FIFO + hold 规则 + 并发上限派发 + ask 结算"从引擎主体拆出，
- * 使两个文件都聚焦、可读（并满足单文件行数上限）。引擎通过 {@link SchedulerHost} 注入其
- * 依赖（driver、caps、序号分配、run 级失败），调度器只负责 ask 生命周期，不管 run 生命周期。
+* ask scheduler: separate "per actor FIFO + hold rules + concurrent upper limit dispatch + ask settlement" from the engine main body,
+* Make both files focused and readable (and meet the maximum number of lines in a single file). The engine injects it via {@link SchedulerHost}
+* Dependencies (driver, caps, sequence number allocation, run-level failure), the scheduler is only responsible for the ask life cycle, regardless of the run life cycle.
  *
- * 关键规则见 engine.ts 顶部说明：命中短路、actorSeq 准入顺序、replay 的 hold 规则、串行 actor。
+* See the description at the top of engine.ts for key rules: hit short circuit, actorSeq admission order, replay hold rules, serial actors.
  *
- * 内部类型与 SchedulerHost 在 scheduler-types.ts；submit / turn 的向上回报处理在 scheduler-submit.ts
- * （拆分原因：oxlint max-lines 上限 400 行）。SchedulerHost 在此原地再导出，导入路径不变。
+* The internal types and SchedulerHost are in scheduler-types.ts; the upward return processing of submit / turn is in scheduler-submit.ts
+* (Reason for splitting: oxlint max-lines limit is 400 lines). SchedulerHost is exported here again, and the import path remains unchanged.
  */
 
 import { inputHash } from "./hash.js";
@@ -41,7 +41,7 @@ export class AskScheduler {
   private readonly liveNodes = new Map<string, AskNode>();
   private activeAsks = 0;
 
-  /** scheduler-submit.ts 的自由函数经它查 live 节点、按结果结算（见 {@link SubmitSeam}）。 */
+/** The free function of scheduler-submit.ts checks the live node and settles according to the result (see {@link SubmitSeam}). */
   private readonly submitSeam: SubmitSeam;
 
   constructor(private readonly host: SchedulerHost) {
@@ -62,8 +62,8 @@ export class AskScheduler {
   }
 
   /**
-   * 注册一个 actor（创建站点 × 序号）。`imported` 是 amend-resume 的导入候选：引擎已在
-   * createActor 里按有效名 + 规范化 persona 匹配过，调度器只负责消费它。
+* Register an actor (create site × serial number). `imported` is an import candidate for amend-resume: the engine is already in
+* Matched by effective name + normalized persona in createActor, the scheduler is only responsible for consuming it.
    */
   registerActor(
     ref: ActorRef,
@@ -87,19 +87,19 @@ export class AskScheduler {
       liveQueue: [],
       ...(imported === undefined ? {} : { imported }),
     };
-    // 不能把 journal 记录的 sessionId 预解析成 actor.session/sessionPromise：
-    // 让 resume 后的 ensureSession 跳过 driver.createActorSession。但生产 driver 的会话表
-    // **只**在 createActorSession 里填充，startAsk 按表查会话——于是 resume 重新派发的每个
-    // ask 都以「未知会话」失败。纯 replay（零派发）与 fake driver（startAsk 不查表）都暴露
-    // 不了它。会话身份本就归 driver 所有（生产铸造函数按 (runId, actorRef) 纯确定，重挂时
-    // 铸出同一个 id）；journal 的 dwf_actor.session_id 是记录、不是权威，所以这里绝不从
-    // journal 短路会话——首次派发一律走 driver.createActorSession（见 ensureSession）。
+// The sessionId recorded in the journal cannot be pre-parsed into actor.session/sessionPromise:
+// Let ensureSession after resume skip driver.createActorSession. But the session table of the production driver
+// **Only** fill in createActorSession, startAsk checks the session according to the table - so resume redistributes each
+// ask all failed with "unknown session". Both pure replay (zero dispatch) and fake driver (startAsk does not look up the table) are exposed
+// Can't do it. The session identity is owned by the driver (the production casting function is purely determined by (runId, actorRef), and when re-hanging
+// cast the same id); the journal's dwf_actor.session_id is a record, not an authority, so it will never be used here.
+//Journal short-circuit session - the first dispatch will always go through driver.createActorSession (see ensureSession).
     this.actors.set(id, actor);
     this.actorOrder.push(actor);
     return actor;
   }
 
-  /** 受理一次 ask：完结命中短路（走 hold 规则），running 命中或未命中则 live 派发。 */
+/** Accept an ask once: the completion hit is short-circuited (follow the hold rule), and the running hit or miss will be distributed live. */
   admitAsk(siteId: string, actorId: ActorId, instructions: string, spec: AskSpec): Promise<unknown> {
     const actor = this.actors.get(actorId)!;
     const ordinal = this.host.nextOrdinal(siteId);
@@ -109,7 +109,7 @@ export class AskScheduler {
 
     const recorded = this.journal.getNode(this.host.runId, siteId, ordinal);
     if (recorded !== undefined) {
-      // 命中即防御性校验 inputHash——不一致说明纯度契约被破坏，run 大声失败。
+// A hit is a defensive check inputHash - inconsistency indicates that the purity contract is broken, and the run fails loudly.
       if (recorded.inputHash !== hash) {
         const err = hashMismatch(instance, recorded.inputHash, hash);
         this.host.failRun(err);
@@ -117,13 +117,13 @@ export class AskScheduler {
       }
       const seq = recorded.actorSeq ?? 0;
       if (recorded.status === "running") {
-        // 崩溃于执行中：按记录的 actorSeq 位置重新 live 派发（hold 规则保证其准入次序）。
+// Crash in execution: re-dispatch live according to the recorded actorSeq position (the hold rule guarantees its admission order).
         actor.pendingRecorded.set(seq, () => {
           actor.imported?.reconcileRecorded(seq, recorded.inputHash, this.host.wasLiveBeforeResume(instance));
           this.admitLive(instance, actor, seq, instructions, hash, spec, deferred);
         });
       } else {
-        // completed / failed：短路结算，无 driver 调用。
+// completed / failed: short circuit settlement, no driver call.
         actor.pendingRecorded.set(seq, () => {
           actor.imported?.reconcileRecorded(seq, recorded.inputHash, this.host.wasLiveBeforeResume(instance));
           this.releaseCachedAsk(instance, recorded, deferred);
@@ -133,8 +133,8 @@ export class AskScheduler {
       return deferred.promise;
     }
 
-    // 未命中（fresh）：注册到 pendingLive，按到达顺序在记录节点排空后准入并分配新的 actorSeq。
-    // 分配到 seq 之后先问导入缓存（amend-resume）：命中即 cached settle，不 live。
+// Miss (fresh): Register to pendingLive, admit and allocate new actorSeq in order of arrival after the record node is drained.
+// After assigning to seq, first ask the import cache (amend-resume): if the hit is cached, it will not live.
     actor.pendingLive.push(() => {
       const seq = actor.nextAdmitSeq++;
       if (this.tryImportedSettle(instance, actor, seq, hash, deferred)) return;
@@ -145,7 +145,7 @@ export class AskScheduler {
     return deferred.promise;
   }
 
-  /** 把一个 ask 作为 live 节点准入：建节点、准入即落 running 记录、入队并记事件。 */
+/** Admit an ask as a live node: create the node, drop the running record after admission, join the queue and record the event. */
   private admitLive(
     instance: InstanceRef,
     actor: Actor,
@@ -169,7 +169,7 @@ export class AskScheduler {
       dispatched: false,
     };
     this.liveNodes.set(refToString(instance), node);
-    // 准入即落 running（携 actorSeq + inputHash）：崩溃于执行中的节点 resume 可据此重新派发。
+// Fall after admission running (with actorSeq + inputHash): the node that crashes during execution resume can be redistributed accordingly.
     this.journal.putNode({
       runId: this.host.runId,
       siteId: instance.siteId,
@@ -182,8 +182,8 @@ export class AskScheduler {
       status: "running",
     });
     actor.liveQueue.push(node);
-    // 指令开头随出生事件一起落轨：这里的 instructions 还是
-    // 作者的原文——driver 的质量 / schema 尾注在 startAsk 里才追加，所以摘要里不会混进引擎的话。
+// The beginning of the instruction is derailed with the birth event: the instructions here are still
+// Author's original text - driver quality / schema endnotes are only added in startAsk, so the engine words will not be mixed into the summary.
     const instructionsHead = headOfInstructions(instructions);
     this.host.record({
       type: "node-queued",
@@ -193,20 +193,20 @@ export class AskScheduler {
       actorSeq: seq,
       ...(instructionsHead === undefined ? {} : { instructionsHead }),
     });
-    // 转 live **不**关导入缓存。曾经在这里关：任一 ask live
-    // 即视为工作区可能被改写。那是拿时钟代替依赖——同一个 Promise.all 里排在第一个未命中之后的
-    // 兄弟 ask 全被判失效，而它们之间没有任何依赖（实测 50 路扇出丢 6 个命中，5 路扇出
-    // 丢掉唯一的 1 个）。现在关门的是**第一笔写入**：driver 在子代理即将执行改写工具时上报
-    // askMutating，或一条 world.run live 执行；在此之前的世界与前驱留下的世界相同，缓存命中都成立。
+// Switch to live without turning off the import cache. Once closed here: any ask live
+// This means that the workspace may be overwritten. That's using a clock instead of a dependency - after the first miss in the same Promise.all
+// Brothers ask are all invalidated, and there is no dependence between them (actually measured 50-way fan-out lost 6 hits, 5-way fan-out
+// Discard the only 1). What is closed now is the **first write**: reported by the driver when the subagent is about to execute the rewrite tool
+// askMutating, or a world.run live execution; the world before this is the same as the world left by the predecessor, and cache hits are established.
   }
 
   /**
-   * fresh ask 准入时问一次导入缓存（amend-resume）。命中即 **cached settle** 并返回 true
-   * （调用方不再 live）；判定与分歧记账全在 {@link ImportedActorState}。
+* fresh ask asks once to import the cache (amend-resume) during admission. Hits **cached settle** and returns true
+* (The caller is no longer live); judgment and disagreement accounting are all in {@link ImportedActorState}.
    *
-   * 命中写一行**真** dwf_node，只发 `node-settled cached:true`——与 replay 命中的
-   * {@link releaseCachedAsk} 同一副姿态：不发 node-queued / node-dispatched，
-   * 不入 liveQueue，不建会话，不占 `actor.current`。
+* Write a line if hit **true** dwf_node, only send `node-settled cached:true` - hit with replay
+* {@link releaseCachedAsk} The same attitude: no node-queued / node-dispatched,
+* Does not enter liveQueue, does not create a session, and does not occupy `actor.current`.
    */
   private tryImportedSettle(
     instance: InstanceRef,
@@ -215,10 +215,10 @@ export class AskScheduler {
     hash: string,
     deferred: Deferred<unknown>,
   ): boolean {
-    // 缓存已关闭 ⇒ 只放**纯** ask（前驱记下 toolCalls === 0）：它只依赖指令与转录前缀，与工作区
-    // 无关，所以对旧世界的答案对新世界同样成立；带工具的条目即便同哈希也转 live——它读过的
-    // 工作区可能已被改写。转 live 的那个 ask 让该 actor 分歧（转录从此不同），已消费前缀仍是种子
-    // 边界的依据。
+// Caching is turned off ⇒ Only put **pure** ask (precursor notes toolCalls === 0): it only relies on the command and transcription prefix, and the workspace
+// irrelevant, so the answer to the old world is also true to the new world; entries with tools are also transferred to live - even if they have the same hash - it has read
+// The workspace may have been overwritten. The ask that transferred live makes the actor different (the transcription will be different from now on), and the consumed prefix is ​​still the seed
+// The basis for the boundary.
     const entry = this.host.importCacheClosed()
       ? actor.imported?.takeIfPure(seq, hash)
       : actor.imported?.take(seq, hash);
@@ -229,14 +229,14 @@ export class AskScheduler {
     return true;
   }
 
-  // ——————————————————————————————— 向上回报 ———————————————————————————————
+// ————————————————————————————————— Return upwards————————————————————————————————
 
-  /** submit_result 到达：方法体在 scheduler-submit.ts 的 handleSubmitAttempted。 */
+/** submit_result arrives: The method body is handleSubmitAttempted in scheduler-submit.ts. */
   submitAttempted(instance: InstanceRef, payload: unknown): void {
     handleSubmitAttempted(this.submitSeam, instance, payload);
   }
 
-  /** turn 结束（无 submit）：方法体在 scheduler-submit.ts 的 handleTurnEnded。 */
+/** Turn ends (without submit): The method body is in handleTurnEnded of scheduler-submit.ts. */
   turnEnded(instance: InstanceRef, finalText: string): void {
     handleTurnEnded(this.submitSeam, instance, finalText);
   }
@@ -247,10 +247,10 @@ export class AskScheduler {
       node.lastStats = stats;
       return;
     }
-    // 节点已离开 liveNodes——typed-accept 主导路径：submit 停 turn 并在 settle 时落库，而真实
-    // actor 的用量在 turn 解析后（submit 之后）才知道，故 stats 在结算之后才到达。回填已结算的
-    // journal 记录：只新增/覆写 stats，保留 status/result/actorSeq/inputHash/error/kind/actor 身份。
-    // 尽力而为且幂等；预算扣减仍在 engine.askStats（此处只补 journal 完整性）。
+// The node has left liveNodes - typed-accept dominant path: submit stops turn and is dropped when settling, while the real
+//The actor usage is not known until the turn is parsed (after submit), so stats arrive after settlement. Backfill settled
+// Journal record: only add/overwrite stats, retain status/result/actorSeq/inputHash/error/kind/actor identity.
+// Best effort and idempotent; budget deductions are still in engine.askStats (only journal integrity is supplemented here).
     const recorded = this.journal.getNode(this.host.runId, instance.siteId, instance.ordinal);
     if (recorded === undefined) return;
     this.journal.putNode({ ...recorded, stats });
@@ -262,19 +262,19 @@ export class AskScheduler {
     this.settleFailed(node, error);
   }
 
-  /** 该实例是否仍是在飞（已准入、未结算）的 live ask——限流观察事件只对这样的节点有意义。 */
+/** Whether the instance is still flying (admitted, unsettled) live ask - current limiting observation events are only meaningful for such nodes. */
   isLive(instance: InstanceRef): boolean {
     const node = this.liveNodes.get(refToString(instance));
     return node !== undefined && !node.settled;
   }
 
-  /** 在飞 ask 所属子代理的有效名（关门事件里点名用）；不在飞即 undefined。 */
+/** The valid name of the subagent to which ask belongs when in flight (used for naming in the closing event); when not in flight, it is undefined. */
   liveActorName(instance: InstanceRef): string | undefined {
     const node = this.liveNodes.get(refToString(instance));
     return node === undefined || node.settled ? undefined : node.actor.persona.name;
   }
 
-  /** 中止所有在飞 ask：run 取消/失败时用。emitCancelled 为真时补发 node-settled(cancelled)。 */
+/** Abort all in-flight ask:run when canceling/failing. Reissue node-settled(cancelled) when emitCancelled is true. */
   abortInFlight(error: WorkflowError, emitCancelled: boolean): void {
     for (const node of this.liveNodes.values()) {
       if (node.settled) continue;
@@ -289,7 +289,7 @@ export class AskScheduler {
     this.activeAsks = 0;
   }
 
-  // ——————————————————————————————— 内部：准入 / 派发 ———————————————————————————————
+// ————————————————————————————————— Internal: Admission/Distribution —————————————————————————————
 
   private drainAdmission(actor: Actor): void {
     let progressed = true;
@@ -317,7 +317,7 @@ export class AskScheduler {
       this.host.record({ type: "node-settled", instance, outcome: "ok", cached: true });
       deferred.resolve(recorded.result);
     } else {
-      // 已记录的失败也要短路复现：脚本可能已 try/catch 过它并据此分支，replay 必须重放同一 rejection。
+// Recorded failures are also subject to short-circuit replay: the script may have try/catched it and branched accordingly, and replay must replay the same rejection.
       this.host.record({ type: "node-settled", instance, outcome: "failed", cached: true, error: recorded.error });
       deferred.reject(WorkflowError.fromJSON(recorded.error!));
     }
@@ -344,9 +344,9 @@ export class AskScheduler {
       session = await this.ensureSession(node.actor);
     } catch (cause) {
       if (this.host.isRunSettled() || node.settled) return;
-      // 把 cause 的文本带进 message：WorkflowError.toJSON 只落 code/message，cause 不进 journal 也
-      // 无人记日志，于是「创建 actor 会话失败」在 GUI / journal 里成了无法诊断的黑盒
-      // （实机上底层其实是 session_task_link 的 FOREIGN KEY constraint failed）。
+//Bring the text of cause into message: WorkflowError.toJSON only falls into code/message, cause does not enter journal either
+// No one keeps logs, so "Failed to create actor session" becomes an undiagnosable black box in the GUI/journal
+// (The bottom layer on the real machine is actually the FOREIGN KEY constraint failed of session_task_link).
       this.settleFailed(
         node,
         new WorkflowError(
@@ -358,9 +358,9 @@ export class AskScheduler {
       return;
     }
     if (this.host.isRunSettled() || node.settled) return;
-    // node-dispatched 在会话就绪之后。进程级并发闸门
-    // 不在这里：它按**模型请求**准入，住在 driver 之下的 runtime deps 里；调度器只守
-    // per-run 的 ask 级上界。
+// node-dispatched after the session is ready. Process level concurrency gate
+// Not here: it is admitted by **model request** and lives in the runtime deps under the driver; the scheduler only
+// per-run ask-level upper bound.
     this.host.record({ type: "node-dispatched", instance: node.instance });
     node.dispatched = true;
     const message: AskMessage = {
@@ -373,14 +373,14 @@ export class AskScheduler {
 
   private ensureSession(actor: Actor): Promise<SessionRef> {
     if (actor.sessionPromise !== undefined) return actor.sessionPromise;
-    // 种子只有到分歧点才知道（运行期发现），所以必须在这里、由引擎侧交给 driver——引擎持有
-    // 导入态，driver 持有会话 store，这个签名是两者的最小汇合点。
+// The seed is only known at the divergence point (discovered during runtime), so it must be handed over to the driver by the engine here - the engine holds it
+//In the import state, the driver holds the session store. This signature is the minimum convergence point of the two.
     const seed = actor.imported?.seed();
     const promise = this.host.driver.createActorSession(actor.ref, actor.persona, seed).then((session) => {
       actor.session = session;
-      // resolvedModel 由宿主侧的 runtime 工厂在 createActorSession **内部**写下（它才知道
-      // "lite" 落到哪个模型）。putActor 是整条记录的替换，所以这条写入必须把刚写下的值读回来
-      // 带过去，否则这里就会把它抹掉——档位解析的审计与 resume 依据随之丢失。
+// resolvedModel is written **inside** createActorSession by the runtime factory on the host side (it only knows
+// Which model "lite" falls into). putActor is the replacement of the entire record, so this write must read back the value just written
+// Bring it over, otherwise it will be erased here - the audit and resume basis for gear parsing will be lost.
       const resolvedModel = this.journal.getActor(
         this.host.runId,
         actor.ref.siteId,
@@ -401,7 +401,7 @@ export class AskScheduler {
     return promise;
   }
 
-  // ——————————————————————————————— 内部：结算 ———————————————————————————————
+// ——————————————————————————————— Internal: Settlement ——————————————————————————————
 
   private settleOk(node: AskNode, artifact: unknown): void {
     if (node.settled) return;
@@ -415,12 +415,12 @@ export class AskScheduler {
   private settleFailed(node: AskNode, error: WorkflowError): void {
     if (node.settled) return;
     node.settled = true;
-    // 结算失败必须落 journal（覆盖准入时的 running）：失败是"完结"，且脚本可能已观察到该 rejection
-    // 并据此分支，replay 必须复现它——journal 化失败是重放正确性的硬性要求，而非可选。
+// Settlement failure must fall into the journal (overriding running during admission): failure is "complete", and the script may have observed the rejection
+// and branch accordingly, replay must reproduce it - journalization failure is a requirement for replay correctness, not optional.
     this.journal.putNode(this.nodeRecordFor(node, { status: "failed", error: error.toJSON() }));
     this.host.record({ type: "node-settled", instance: node.instance, outcome: "failed", error: error.toJSON() });
     this.finishLiveNode(node);
-    // 节点失败只 reject 该 ask，不失败整个 run（脚本可 try/catch）。
+// If the node fails, only the ask will be rejected, and the entire run will not fail (the script can be try/catch).
     node.deferred.reject(error);
   }
 
@@ -455,19 +455,19 @@ export class AskScheduler {
   }
 }
 
-/** replay 命中但 inputHash 不一致——纯度契约被破坏，run 大声失败。 */
+/** replay hits but inputHash is inconsistent - purity contract broken, run fails loudly. */
 export function hashMismatch(instance: InstanceRef, expected: string, got: string): WorkflowError {
   return new WorkflowError(
     "InputHashMismatch",
     `Replay hit at ${refToString(instance)} but inputHash differs (expected ${expected}, got ` +
       `${got}): the script is not deterministic, so the journal cannot be replayed.`,
-    // 结构化 mismatch 与 ScriptHashMismatch 对齐：两个哈希不一致错误共用同一个字段，
-    // 读端不必再从 message 文本里抠哈希。
+// Structured mismatch aligns with ScriptHashMismatch: two hash inconsistency errors share the same field,
+// The reader no longer has to extract the hash from the message text.
     { mismatch: { expected, got } },
   );
 }
 
-/** cause → 一行有界文本（Error 取 message，其余 String()；空则给占位）。 */
+/** cause → A line of bounded text (Error takes message, the rest is String(); if empty, placeholder is given). */
 function describeCause(cause: unknown): string {
   const text = cause instanceof Error ? cause.message : String(cause);
   const trimmed = text.trim();
@@ -476,8 +476,8 @@ function describeCause(cause: unknown): string {
 }
 
 /**
- * 作者指令的开头（{@link INSTRUCTIONS_HEAD_MAX_CHARS} 个字符，去两端空白，**不加省略号**）。
- * 空指令返回 undefined：缺席的键比一个空串诚实——读面据此退回「不知道它被交代了什么」。
+* The beginning of the author directive ({@link INSTRUCTIONS_HEAD_MAX_CHARS} characters, stripped of whitespace, **without ellipses**).
+* Empty commands return undefined: an absent key is more honest than an empty string - the reader returns "I don't know what it was told" accordingly.
  */
 function headOfInstructions(instructions: string): string | undefined {
   const trimmed = instructions.trim();

@@ -84,8 +84,8 @@ function projectInitialModelValidationIssues(
   const jsonProjection: ToolInputValidationIssue[] = [];
   const jsonProjectionIdentities = new Set<string>();
 
-  // runtime issues 判断错误是否真实存在，JSON issues 提供目标字段结构。
-  // 先建立一对一映射，避免再把两套有序列表直接前后拼接而破坏字段校验顺序。
+// Runtime issues determine whether the error actually exists. JSON issues provide the target field structure.
+// Establish a one-to-one mapping first to avoid directly splicing two sets of ordered lists back and forth and destroying the field verification sequence.
   for (const jsonIssue of jsonIssues) {
     const matchingRuntimeIndex = expandedRuntimeIssues.findIndex(
       (runtimeIssue, index) =>
@@ -104,8 +104,8 @@ function projectInitialModelValidationIssues(
     jsonProjection.push(jsonIssue);
   }
 
-  // 参数类错误进入 formatter 后会省略所有其他 issue，因此直接使用 JSON projection
-  // 保持 missing / unexpected / wrong type 的目标遍历顺序。
+// After parameter type errors enter the formatter, all other issues will be omitted, so JSON projection is used directly
+// Keep the target traversal order of missing / unexpected / wrong type.
   if (jsonProjection.some(isParameterFormatterIssue)) {
     return jsonProjection;
   }
@@ -122,8 +122,8 @@ function projectInitialModelValidationIssues(
     runtimeProjection.push(issue);
   }
 
-  // 非标准 runtime schema 可能只返回 success=false 而没有可读 issue；此时沿用
-  // JSON Schema 的完整结果，不能把 provider-visible error 退化成空数组。
+// Non-standard runtime schema may only return success=false but no readable issue; in this case, it will be used
+// The complete result of JSON Schema cannot reduce provider-visible error to an empty array.
   return runtimeProjection.length > 0
     ? orderRuntimeFallbackIssues(runtimeProjection)
     : [...jsonIssues];
@@ -138,8 +138,8 @@ function orderRuntimeFallbackIssues(
 ): ToolInputValidationIssue[] {
   const ordered = [...issues];
 
-  // 本地 parser 在数组子项解析前记录数组 bounds；目标版本在子项之后记录。
-  // 除这一个已确认的版本差异外，保留 runtime parser 的原始 issue 顺序。
+// The local parser records array bounds before the array children are parsed; the target version is recorded after the children.
+// Except for this one confirmed version difference, retain the original issue order of the runtime parser.
   for (let issueIndex = ordered.length - 1; issueIndex >= 0; issueIndex -= 1) {
     const issue = ordered[issueIndex];
     if (!issue || !isArrayBoundIssue(issue)) continue;
@@ -221,7 +221,7 @@ function runtimeIssueMatchesJsonIssue(
   const runtimeCode = normalizeRuntimeIssueCode(runtimeIssue.code);
   if (runtimeCode === jsonIssue.code) return true;
 
-  // 旧 parser 对缺失 enum/literal 使用 invalid_type；目标 issue 使用 invalid_value。
+// Old parser uses invalid_type for missing enum/literal; target issue uses invalid_value.
   return (
     runtimeIssue.code === "invalid_type" &&
     runtimeIssue.received === "undefined" &&

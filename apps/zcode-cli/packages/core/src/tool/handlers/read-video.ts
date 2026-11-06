@@ -1,5 +1,5 @@
-// Read 工具的视频分支：无转码/压缩依赖（CLI 不引 ffmpeg），只读 base64 + 大小校验。
-// wire 侧由 adapter 把 video block 转成 video_url / anthropic video block（见 transform.ts 与两个 AI SDK patch）。
+// Video branch of the Read tool: no transcoding/compression dependencies (CLI does not include ffmpeg), read-only base64 + size check.
+// On the wire side, the adapter converts the video block into video_url / anthropic video block (see transform.ts and two AI SDK patches).
 import {
   CoreErrorType,
   READ_VIDEO_MAX_INPUT_BYTES,
@@ -42,7 +42,7 @@ export async function readVideoFile(
       { signal: context.abortSignal },
     );
     if (read.bytesRead === 0) {
-      // 空 video 会生成空 data URL，随后被 adapter 丢弃，但 Read 已宣告成功。
+// Empty video will generate an empty data URL, which will then be discarded by the adapter, but Read has been declared successful.
       throw createCoreError(CoreErrorType.ToolExecutionFailed, "Cannot read an empty video file.", {
         context: {
           code: "read_video_input_empty",

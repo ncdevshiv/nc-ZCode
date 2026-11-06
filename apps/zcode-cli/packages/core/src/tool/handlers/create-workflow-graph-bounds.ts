@@ -1,16 +1,16 @@
 // ============================================================
-// CreateWorkflow display graph bounding - 工具输出边界的有界投影
+// CreateWorkflow display graph bounding - Bounded projection of tool output boundaries
 // ============================================================
-// 从 create-workflow.ts 拆出：阶段词汇表让
-// handler 文件越过 max-lines 上限，而裁剪本身是一段自洽的纯逻辑——分析器全图进，契约
-// 形状出，无 I/O、无 memo、无端口。与 zcode-protocol-v4/create-workflow-display.ts 从
-// rows.ts 拆出同一先例。
+// Detach from create-workflow.ts: stage vocabulary list
+// The handler file exceeds the max-lines upper limit, and the clipping itself is a piece of self-consistent pure logic - the analyzer enters the entire graph, and the contract
+// Shape out, no I/O, no memo, no ports. with zcode-protocol-v4/create-workflow-display.ts from
+// rows.ts breaks out the same precedent.
 //
-// 这里装的是一张**显示图**而不再是因果图的镜像。第二层是子代理导向：step 层只剩站点表
-// （运行状态与检视器的键，不再画、不再带边），参与者层（每阶段的子代理卡 + 交接边）由
-// 分析器的交接图投影供给、这里只做上限与转发，阶段层仍是控制流图的阶段商、仍由本层归约
-// （折叠与缩点归约在 create-workflow-graph-fold.ts）。边只有 `{from, to, back?}` 一种形状；
-// region / certainty / 边种类留在分析器里，GUI 从不读它们。函数名与载荷字段名沿用历史。
+// What is installed here is a **display diagram** and is no longer a mirror image of the cause and effect diagram. The second layer is subagent-oriented: only the site table is left in the step layer.
+// (Running state and viewer keys, no longer drawn, no longer with edges), the participant layer (subagent card + handover edge at each stage) is composed of
+// The handover graph projection of the analyzer is provided. Here we only do upper limit and forwarding. The stage layer is still the stage quotient of the control flow graph and is still reduced by this layer.
+// (Folding and point reduction are in create-workflow-graph-fold.ts). The edge has only one shape: `{from, to, back?}`;
+// region / certainty / edge types stay in the analyzer, the GUI never reads them. Function name and payload field name inheritance history.
 
 import {
   CREATE_WORKFLOW_GRAPH_MAX_HANDOFF_TYPES,
@@ -39,16 +39,16 @@ import {
   type ControlFlowGraph,
   type HandoffGraph,
   UNPHASED,
-  // 浏览器端回放视图直接复用本函数：走 /projections
-  // 子路径而非根桶，根桶会把 typescript 编译器一起拖进浏览器包。语义与根桶导出完全相同。
+// The browser-side playback view directly reuses this function: go to /projections
+// Subpath instead of the root bucket. The root bucket will drag the typescript compiler into the browser package. The semantics are exactly the same as root bucket export.
 } from "@zcode/dynamic-workflow/projections";
-// 阶段边的折叠与归约（含有环输入上的缩点规则）单独成模块，见该文件的文件头。
+// The folding and reduction of stage edges (including the contraction point rules on the ring input) are separated into modules, see the file header of this file.
 import { foldPhaseEdges, type RawEdge } from "./create-workflow-graph-fold.js";
 
-// display 不经过 tool result budget：图必须在进入工具输出（进而进入实时事件和持久化
-// metadata）前独立限长。集合互相引用，所以裁剪顺序是固定的——先 step（源序，截尾保留
-// 脚本开头），再收敛到它们引用的 lane，最后按存活的 step 过滤边与 sink。引用完整性优先
-// 于保留数量：宁可少画，也不能让 UI 拿到指向不存在节点的 id。
+// display does not go through the tool result budget: the graph must be entered into the tool output (and thus into real-time events and persistence
+// metadata) independent length limit. Collections refer to each other, so the pruning order is fixed - step first (source order, truncation retained
+//The beginning of the script), then converge to the lanes they reference, and finally filter the edges and sinks according to the surviving steps. Referential integrity takes precedence
+// Regarding the number of reservations: it is better to draw less than to let the UI get the id pointing to a non-existent node.
 export function boundCausalityGraph(
   graph: CausalityGraph,
   flow?: ControlFlowGraph,
@@ -149,7 +149,7 @@ export function boundCausalityGraph(
     to: boundGraphText(edge.to, CREATE_WORKFLOW_GRAPH_MAX_ID_CHARS),
     ...(edge.back ? { back: true as const } : {}),
   }));
-  // 边的上界管的是发出去的东西，所以在归约**之后**判。
+// The upper bound of the edge controls what is sent out, so it is evaluated after the reduction**.
   const phaseVocabularyDropped =
     declaredPhases !== undefined &&
     (declaredPhases.length > CREATE_WORKFLOW_GRAPH_MAX_PHASES ||
@@ -158,14 +158,14 @@ export function boundCausalityGraph(
   const emitPhases = declaredPhases !== undefined && !phaseVocabularyDropped;
 
   const boundPhases: CreateWorkflowPhase[] = (declaredPhases ?? []).map((phase) => {
-    // 合成阶段 `unphased` 无 name（UI 本地化）；空名同样按「无名」处理而不是让整个输出
-    // 解析失败，与车道 name 同一姿态。
+// Synthesis phase `unphased` has no name (UI localization); empty names are also processed as "unnamed" instead of outputting the entire
+// Parsing failed, same attitude as lane name.
     const name = phase.name ? boundGraphText(phase.name, CREATE_WORKFLOW_GRAPH_MAX_NAME_CHARS) : undefined;
-    // `alongside`：进入这个阶段时还在跑的其他阶段（strand 未 join）。与边同一条引用完整性
-    // 规则——指向未列出阶段的引用丢掉，自引用丢掉（自己不与自己并行），去重保序，上界同
-    // 阶段表。它**不**经过 foldEdges / reduceOrdering：这是节点事实不是边，控制没有从那里
-    // 转移过来，归约会把它当成一条 runs after 去砍掉真正的边。随词汇表同进同退是自动的
-    // ——boundPhases 整张表只在 emitPhases 为真时进载荷。
+// `alongside`: other stages that are still running when entering this stage (strand is not joined). Same referential integrity as edge
+// Rules - references pointing to unlisted stages are discarded, self-references are discarded (it is not parallel to itself), deduplication is preserved, and the upper bound is the same
+// Stage table. It **not** goes through foldEdges/reduceOrdering: it's the fact that it's nodes not edges, control doesn't go from there
+// Transfer it over, and the reduction will treat it as a runs after to cut off the real edge. Moving forward and backward with the vocabulary is automatic
+// ——boundPhases The entire table is loaded only when emitPhases is true.
     const alongside: string[] = [];
     const alongsideSeen = new Set<string>();
     for (const id of phase.alongside ?? []) {
@@ -186,7 +186,7 @@ export function boundCausalityGraph(
     .map((phase) => boundGraphText(phase.id, CREATE_WORKFLOW_GRAPH_MAX_ID_CHARS));
 
   const boundLanes: CreateWorkflowLane[] = keptLanes.map((lane) => {
-    // 空 name（如 agent("")）会违反契约的 min(1)，按“无名”处理而不是让整个输出解析失败。
+// An empty name (such as agent("")) will violate the contract's min(1) and be treated as "unnamed" instead of failing the entire output parsing.
     const name = lane.name ? boundGraphText(lane.name, CREATE_WORKFLOW_GRAPH_MAX_NAME_CHARS) : undefined;
     const namePattern = boundNamePattern(lane.namePattern);
     return {
@@ -199,7 +199,7 @@ export function boundCausalityGraph(
 
   const boundSteps: CreateWorkflowStep[] = steps.map((step) => {
     const lanes = (step.lanes ?? []).filter((lane) => laneIds.has(lane));
-    // ask 的 label 来自脚本字面量，可能为空；契约要求 min(1)，退回 step id。
+// The label of ask comes from the script literal and may be empty; the contract requires min(1) and returns step id.
     const label = step.label ? boundGraphText(step.label, CREATE_WORKFLOW_GRAPH_MAX_NAME_CHARS) : step.id;
     const labelPattern = boundNamePattern(step.labelPattern);
     return {
@@ -211,16 +211,16 @@ export function boundCausalityGraph(
       column: step.loc.column,
       lane: boundGraphText(step.lane, CREATE_WORKFLOW_GRAPH_MAX_ID_CHARS),
       ...(lanes.length > 1 ? { lanes } : {}),
-      // may-set 拷贝的关联键：这里指向的站点已被拷贝替换，所以它**不**参与上面的引用完整性
-      // 收敛（那条规则管的是边与 sink 指向的节点）。字段可选，漏掉不会被 schema 抓住，只会
-      // 让实时叠加悄悄关联不上实例。
+// may-set copy's associated key: the site pointed to here has been replaced by the copy, so it does not participate in the referential integrity above
+// Convergence (that rule governs the edges and nodes pointed to by the sink). The field is optional. If it is omitted, it will not be caught by the schema.
+// Let the real-time overlay quietly not be associated with the instance.
       ...(step.source === undefined
         ? {}
         : { source: boundGraphText(step.source, CREATE_WORKFLOW_GRAPH_MAX_ID_CHARS) }),
-      // 词汇表整体降级时 `phase` 必须一起消失，指向未列出阶段的 `phase` 同样消失：带着一个
-      // 不在 `phases` 里的阶段 id 的卡片是悬空引用，UI 会去查一个不存在的阶段。分析器保证
-      // 「每个 issue 的阶段都是某个 node 的阶段」，所以正常输入下这一收紧零行为变化；裁剪层
-      // 的姿态照旧是自卫而非信任生产者。
+// When the entire vocabulary is downgraded, `phase` must disappear together. `phase` pointing to an unlisted phase also disappears: with a
+// Cards with phase ids that are not in `phases` are dangling references, and the UI will check for a non-existent phase. Analyzer guarantees
+// "The stage of each issue is the stage of a certain node", so this tightening has zero behavioral changes under normal input; clipping layer
+//'s stance is still one of self-defense rather than trust in the producer.
       ...(emitPhases && step.phase !== undefined && phaseIds.has(step.phase)
         ? { phase: boundGraphText(step.phase, CREATE_WORKFLOW_GRAPH_MAX_ID_CHARS) }
         : {}),
@@ -228,9 +228,9 @@ export function boundCausalityGraph(
     };
   });
 
-  // 卡的阶段与 step 的 `phase` 同一条规则：词汇表降级、或指向未列出的阶段 → 归入 `unphased`
-  // （契约：`participant.phase` ∈ `phases[].id`，或 `phases` 缺席时全部为 `unphased`）。卡 id
-  // 不改——它是不透明键，交接边与运行状态都按它关联；UI 的隐式模块只看 `phase` 字段。
+// The phase of a card has the same rules as the `phase` of step: the vocabulary is downgraded, or points to an unlisted phase → falls under `unphased`
+// (Contract: `participant.phase` ∈ `phases[].id`, or all `unphased` in `phases` absence). card id
+// Do not change - it is an opaque key, and the transition edge and running state are all associated with it; the implicit module of the UI only looks at the `phase` field.
   const boundParticipants: CreateWorkflowParticipant[] = participants.map((participant) =>
     emitPhases && phaseIds.has(participant.phase) ? participant : { ...participant, phase: UNPHASED },
   );
@@ -246,9 +246,9 @@ export function boundCausalityGraph(
   };
 }
 
-// Bug 预防：actor 名 / ask label 来自脚本字符串字面量（外部输入），直接 slice 可能截断
-// UTF-16 surrogate pair；与 result-display 的 MCP 文本限长同一处理——边界落在高位
-// surrogate 后则丢弃半字符，保证载荷可安全序列化。id 是分析生成的 ASCII，slice 恒等通过。
+// Bug prevention: actor name / ask label comes from script string literal (external input), direct slice may be truncated
+// UTF-16 surrogate pair; treated the same as result-display's MCP text length limit - the boundary falls at a high position
+// After surrogate, half characters are discarded to ensure that the payload can be serialized safely. id is ASCII generated by analysis, and slice is passed identically.
 function boundGraphText(value: string, maxChars: number): string {
   const bounded = value.slice(0, maxChars);
   const lastCodeUnit = bounded.charCodeAt(bounded.length - 1);
@@ -256,11 +256,11 @@ function boundGraphText(value: string, maxChars: number): string {
 }
 
 /**
- * name pattern 的限长：两个 affix 同样来自脚本字面量，走同一条 surrogate-safe 截断。
+* The length limit of the name pattern: the two affix are both from script literals and are truncated by the same surrogate-safe method.
  *
- * 截断后可能一个 affix 都不剩（理论上分析器已保证非空，但契约的 min(1) 不该依赖上游的
- * 保证）——那时整个字段缺席，而不是发一个 `{}` 让 `.strict()` 通过却渲染出一个孤零零的
- * 省略号。
+* After truncation, there may be no affix left (theoretically the analyzer is guaranteed to be non-empty, but the min(1) of the contract should not depend on the upstream one)
+* Guaranteed) - then the entire field is absent, rather than sending a `{}` and letting `.strict()` pass and rendering a lone
+* Ellipsis.
  */
 function boundNamePattern(
   pattern: { head?: string; tail?: string } | undefined,

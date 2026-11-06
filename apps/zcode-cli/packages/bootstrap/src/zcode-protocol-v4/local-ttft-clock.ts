@@ -2,7 +2,7 @@ const SAMPLE_MS = 1000;
 const MAX_PAUSE_MS = 5000;
 const MAX_CLOCK_DRIFT_MS = 100;
 
-/** 诊断采样不参与 admission；只有启用中的输入才创建，timer 不阻止 CLI 退出。 */
+/** Diagnostic sampling does not participate in admission; only enabled inputs are created, and the timer does not prevent the CLI from exiting. */
 export class LocalTtftClockWatch {
   private readonly timer: ReturnType<typeof setInterval>;
   constructor(now: () => number, sample: (unreliable: boolean) => void) {

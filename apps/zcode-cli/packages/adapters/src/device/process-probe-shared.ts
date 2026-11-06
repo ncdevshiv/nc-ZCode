@@ -2,13 +2,13 @@ import { execFile as nodeExecFile } from "node:child_process";
 import type { ExecFileOptionsWithStringEncoding } from "node:child_process";
 
 /**
- * 通用进程探针的共享契约与平台无关工具。
- * 平台实现（darwin / linux / win32）各自一个文件，只依赖本文件，不互相依赖。
+* Shared contracts and platform-independent tools for universal process probes.
+* Platform implementation (darwin/linux/win32) has one file each, and only relies on this file and does not depend on each other.
  */
 export interface ProcessProbeSample {
   pid: number;
   rssKb: number;
-  /** 进程启动以来的累计 CPU 时间；Windows 无此数据，字段缺席而不是填 0 */
+/** The accumulated CPU time since the process started; Windows does not have this data, the field is absent instead of filling in 0 */
   cpuTimeMs?: number;
 }
 
@@ -25,7 +25,7 @@ export type ProcessProbeExecFile = (
   options: ExecFileOptionsWithStringEncoding,
 ) => Promise<ProcessProbeCommandResult>;
 
-/** 进程间关系与 CPU 时间；RSS 由各平台单独取得（Linux 要多读一次 `status`）。 */
+/** Inter-process relationship and CPU time; RSS is obtained separately by each platform (Linux needs to read `status` once more). */
 export interface ProcessRelation {
   cpuTimeMs?: number;
   parentPid?: number;
@@ -41,10 +41,10 @@ export const PROCESS_PROBE_SAMPLE_TIMEOUT_MS = 1_000;
 
 const PROCESS_PROBE_MAX_BUFFER_BYTES = 8 * 1_024 * 1_024;
 
-/** 采样失败：调用方一律翻译成「本次无样本」，并累计连续失败次数。 */
+/** Sampling failure: The caller will always translate it as "no sample this time", and the number of consecutive failures will be accumulated. */
 export class ProcessProbeFailure extends Error {}
 
-/** 把进程表按 parentPid 展开成每个根 pid 的进程树；根不存在时不出现在结果里。 */
+/** Expand the process table into a process tree for each root pid according to parentPid; if the root does not exist, it will not appear in the result. */
 export function groupProcessTrees(
   rows: readonly ProcessRow[],
   rootPids: readonly number[],
@@ -63,7 +63,7 @@ export function groupProcessTrees(
   return trees;
 }
 
-/** 每个根 pid 的进程树成员 pid（含根自身），按 DFS 顺序；根不在进程表里则整棵树缺席。 */
+/** The process tree member pids of each root pid (including the root itself), in DFS order; if the root is not in the process table, the entire tree is absent. */
 export function collectProcessTreePids(
   relations: readonly ProcessRelation[],
   rootPids: readonly number[],
@@ -107,7 +107,7 @@ export async function runProbeCommand(
   });
   if (result.error || result.status !== 0) {
     throw new ProcessProbeFailure(
-      `${file} 采样失败: ${result.stderr.trim() || String(result.status)}`,
+      `${file} Sampling failed: ${result.stderr.trim() || String(result.status)}`,
     );
   }
   return result.stdout;

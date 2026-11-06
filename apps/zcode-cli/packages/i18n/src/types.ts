@@ -273,7 +273,7 @@ export interface TuiCopy {
         running: string;
         stopped: string;
       };
-      /** `stopped` 的原因词。 */
+/** Reason word for `stopped`. */
       stopReason: {
         user: string;
         model: string;

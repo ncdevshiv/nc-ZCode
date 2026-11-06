@@ -123,7 +123,7 @@ function observationWatchTargets(options: ObservationOptions): ObservationWatchT
   const targets: ObservationWatchTarget[] = [
     {
       kind: "log",
-      label: "结构化日志",
+      label: "Structured log",
       path: resolve(options.logDir ?? defaultLogDir()),
       jsonlOnly: true,
     },
@@ -132,7 +132,7 @@ function observationWatchTargets(options: ObservationOptions): ObservationWatchT
   if (options.eventPath) {
     targets.push({
       kind: "eventlog",
-      label: "Session 事件 JSONL",
+      label: "Session event JSONL",
       path: resolve(options.eventPath),
       jsonlOnly: true,
     });
@@ -141,7 +141,7 @@ function observationWatchTargets(options: ObservationOptions): ObservationWatchT
   targets.push(
     {
       kind: "sqlite",
-      label: "SQLite Session 数据库",
+      label: "SQLite session database",
       path: dbPath,
     },
     {

@@ -13,8 +13,8 @@ export const createStructuredPatch = async ({
   newContent: string;
   oldContent: string;
 }): Promise<DiffHunk[]> => {
-  // flag 关 = jsdiff（sidecar facade 内部降级路径）；flag 开 = Rust zcode-diff
-  // sidecar（byte-parity：87 个真实 jsdiff fixture）。不可用时 facade 告警并降级。
+// flag off = jsdiff (sidecar facade internal downgrade path); flag on = Rust zcode-diff
+// sidecar (byte-parity: 87 real jsdiff fixtures). When the facade is unavailable, the facade will alert and downgrade.
   const patch = await nativeStructuredPatch(
     filePath,
     filePath,

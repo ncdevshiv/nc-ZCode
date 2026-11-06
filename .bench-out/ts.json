@@ -1,0 +1,95 @@
+{
+  "impl": "ts",
+  "rows": [
+    {
+      "tool": "read",
+      "impl": "ts",
+      "iterations": 200,
+      "meanNs": 1004777,
+      "medianNs": 937400,
+      "p95Ns": 1329000,
+      "check": "content:true"
+    },
+    {
+      "tool": "write",
+      "impl": "ts",
+      "iterations": 100,
+      "meanNs": 1900088,
+      "medianNs": 1858100,
+      "p95Ns": 2465100,
+      "check": ""
+    },
+    {
+      "tool": "glob",
+      "impl": "ts",
+      "iterations": 40,
+      "meanNs": 36922667,
+      "medianNs": 37935800,
+      "p95Ns": 44037100,
+      "check": "100"
+    },
+    {
+      "tool": "grep",
+      "impl": "ts",
+      "iterations": 20,
+      "meanNs": 337421820,
+      "medianNs": 338490100,
+      "p95Ns": 400788200,
+      "check": "40"
+    },
+    {
+      "tool": "edit(read+edit)",
+      "impl": "ts",
+      "iterations": 100,
+      "meanNs": 4281643,
+      "medianNs": 4106800,
+      "p95Ns": 5666400,
+      "check": "ok"
+    },
+    {
+      "tool": "cron.create",
+      "impl": "ts",
+      "iterations": 60,
+      "meanNs": 488383,
+      "medianNs": 438700,
+      "p95Ns": 720900,
+      "check": ""
+    },
+    {
+      "tool": "cron.list",
+      "impl": "ts",
+      "iterations": 200,
+      "meanNs": 267901,
+      "medianNs": 223600,
+      "p95Ns": 385500,
+      "check": ""
+    },
+    {
+      "tool": "cron.update",
+      "impl": "ts",
+      "iterations": 200,
+      "meanNs": 293869,
+      "medianNs": 244800,
+      "p95Ns": 420200,
+      "check": ""
+    },
+    {
+      "tool": "cron.delete",
+      "impl": "ts",
+      "iterations": 100,
+      "meanNs": 123163,
+      "medianNs": 73000,
+      "p95Ns": 123900,
+      "check": ""
+    },
+    {
+      "tool": "js.cold",
+      "impl": "ts",
+      "iterations": 15,
+      "meanNs": 1104127,
+      "medianNs": 1005800,
+      "p95Ns": 3513100,
+      "check": "2"
+    }
+  ]
+}

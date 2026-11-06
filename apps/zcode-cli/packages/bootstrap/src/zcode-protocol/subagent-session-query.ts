@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import { Buffer } from "node:buffer";
 import {
   createSessionId,
@@ -169,9 +170,9 @@ function candidateFromToolPart(
   const metadata = { ...asRecord(part.metadata), ...stateMetadata };
   const agentId =
     stringField(output ?? {}, "agentId") ??
-    // 后台 Agent 的持久化 launch ACK 是纯文本，cold query 未携带
-    // 临时 spawn event 时无法恢复 childSessionId，导致真实 running Agent 被整条跳过。
-    // 标准 ACK 自带 agentId，按该稳定字段恢复，与 runtime 的 session id 规则对齐。
+// The persistence launch ACK of the background Agent is plain text, and the cold query is not carried
+// The childSessionId cannot be restored during a temporary spawn event, causing the real running Agent to be skipped entirely.
+// Standard ACK comes with agentId, which is restored according to this stable field and aligned with the runtime's session id rules.
     agentIdFromLaunchAcknowledgement(completedOutput) ??
     stringField(metadata, "agentId") ??
     relation?.agentId;
@@ -248,8 +249,8 @@ function lastChildOutcome(messages: readonly MessageWithParts[] | undefined): {
   const assistantMessages = messages.filter((message) => message.info.role === "assistant");
   const last = assistantMessages.at(-1);
   if (!last || last.info.role !== "assistant") return {};
-  // stream recovery 作废的半截 assistant 带 error 落盘，但子会话紧接着会从锚点
-  // 重发；它是最后一条只说明恢复仍在进行或进程已退出，都不是「子会话失败」的终态。
+// The invalid half of stream recovery assistant will be dropped with error, but the sub-session will start from the anchor point immediately.
+// Resend; it is the last one and only indicates that the recovery is still in progress or the process has exited, but it is not the final state of "sub-session failure".
   if (last.info.error && last.info.error.name === STREAM_RECOVERY_DISCARDED_ERROR_NAME) {
     return {};
   }
@@ -268,8 +269,8 @@ function lastChildOutcome(messages: readonly MessageWithParts[] | undefined): {
     ...(errorName
       ? { status: CANCELLATION_PATTERN.test(errorName) ? "cancelled" : "failed" }
       : // assistant 发出 tool call 后，该 model step 也会写 completed/finish；
-        // 但 child session 仍在执行 Bash 等工具，不能把“本轮结束”当成“子会话终态”。
-        // 只有不含 tool part 的最终 assistant message 才能提供成功 outcome。
+// But the child session is still executing Bash and other tools, so "end of this round" cannot be regarded as "child session final state".
+// Only the final assistant message without the tool part can provide a successful outcome.
         !hasToolRound && (last.info.time.completed || last.info.finish)
         ? { status: "success" }
         : {}),
@@ -301,11 +302,11 @@ function runningStatus(input: {
   }
   if (input.childProjection?.status === "waiting") return "waiting";
   if (input.childProjection?.status === "running") return "running";
-  // async Agent 的父 tool part 在 launch ACK 后立即标成 completed，
-  // partial parent projection 又可能暂时不带仍运行的 background task。此时仅按
-  // tool part 会把 child 误判为 ended，并在 cold seed 时清空 V4 running 行。
-  // child 还没有终态输出、spawn relation 也没有 stop 时，background input 本身
-  // 是可恢复的 running 事实；真实终态仍由 background/child projection/outcome 优先。
+// The parent tool part of async Agent is marked as completed immediately after launch ACK.
+// partial parent projection may temporarily not include a background task that is still running. At this time just press
+// The tool part will misjudge the child as ended and clear the V4 running line during cold seed.
+// When the child has no final output and the spawn relation has no stop, the background input itself
+// is a resumable running fact; the true final state is still prioritized by background/child projection/outcome.
   if (
     input.candidate.runInBackground &&
     input.background === undefined &&

@@ -1,30 +1,30 @@
 // ============================================================
-// run-launched：发起 run 那一轮的宿主元数据 → 事件
+// run-launched: The host metadata of the run round → event
 // ============================================================
-// 引擎不读这些元数据（锚点、阶段表、并行表、子代理选型），只在建 run 那一世紧跟首条
-// `run-started` 逐字转录一次（engine.ts）。构造独立成模块，engine.ts 与 types.ts 才都留在
-// 400 行的 lint 上限之内——它们是两侧同时增长的文件。
+// The engine does not read these metadata (anchor points, stage tables, parallel tables, subagent selection), and only builds run that life following the first item.
+// `run-started` Transcribe verbatim once (engine.ts). The structure is separated into modules, and engine.ts and types.ts are left in
+// Within the lint limit of 400 lines - they are files growing on both sides.
 
 import type { RunEvent } from "./types.js";
 
 /**
- * 发起 run 那一轮随 `run-launched` 同车的宿主元数据（EngineConfig.launch）：锚点 `inputId`、
- * 脚本声明的阶段表 `phaseNames`、与之按位置对齐的 `phaseAlongside`、本 run 子代理的选型
- * `subagentModel`、脚本来自哪个文件 `scriptPath`。五者引擎都不读——字段语义见 types.ts 里
- * `run-launched` 的注释。
+* The host metadata (EngineConfig.launch) that accompanies `run-launched` when the run is initiated: anchor `inputId`,
+* The phase table `phaseNames` declared by the script, the `phaseAlongside` aligned with it by position, and the selection of this run subagent
+* `subagentModel`, which file `scriptPath` the script comes from. None of the five engines can read it - see the field semantics in types.ts
+* Comments for `run-launched`.
  */
 export interface RunLaunchConfig {
   inputId: string;
   phaseNames?: string[];
   subagentModel?: string;
-  /** 本 run 脚本文件的绝对路径。 */
+/** The absolute path of this run script file. */
   scriptPath?: string;
   phaseAlongside?: number[][];
 }
 
 /**
- * 把 launch 元数据转录成 `run-launched`。未设的键**缺席**而不是落成 undefined 值：读侧
- * （AmendWorkflow 的三态、投影）把「没设」与「设了个空」当两件事。
+* Transcribe launch metadata to `run-launched`. Unset keys are **absent** instead of being completed with an undefined value: read side
+* (Three states and projections of AmendWorkflow) Treat "not set" and "set empty" as two different things.
  */
 export function runLaunchedEvent(
   launch: RunLaunchConfig,

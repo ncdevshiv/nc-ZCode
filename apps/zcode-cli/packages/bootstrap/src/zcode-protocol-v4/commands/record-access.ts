@@ -1,4 +1,4 @@
-// 会话查找共用件（各命令组 handler 复用）。
+//Session search common parts (handler reuse for each command group).
 import type { V4CommandCoreHost, V4SessionRecordView } from "./types.js";
 
 export class V4SessionNotFoundError extends Error {

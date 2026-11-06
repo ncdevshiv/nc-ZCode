@@ -1,12 +1,12 @@
 // ============================================================
-// Saved workflows - 存储层（作用域根目录 + 解析 / 枚举 / 写入）
+// Saved workflows - storage layer (scope root + parse/enumerate/write)
 // ============================================================
 //
-// 全部是**同步** fs。理由不是图省事：确认窗的 `prepareApproval` 契约是同步的（core 的
-// ToolEntry 注释：「it inspects the input the executor already holds」），而以 `saved` 源
-// 发起的 run 必须在弹窗**之前**把脚本读出来——没有脚本就没有因果图，用户就会在一个空窗口上
-// 批准执行。这些文件是本地的、单个的、以 KB 计的，同步读的代价远小于为它另开一条异步审批路径。
-// core 的 handler 侧已有同一形态的先例（bash-git-runtime-safety.ts 的 readFileSync）。
+// All are **synchronous** fs. The reason is not to save trouble: the `prepareApproval` contract of the confirmation window is synchronous (core's
+// ToolEntry annotation: "it inspects the input the executor already holds"), and with the `saved` source
+// The initiated run must read the script **before** the pop-up window - without the script, there will be no cause and effect diagram, and the user will be on an empty window.
+//Approve execution. These files are local, single, and measured in KB, and the cost of synchronous reading is much less than opening a new asynchronous approval path for it.
+// There is a precedent of the same form on the handler side of core (readFileSync of bash-git-runtime-safety.ts).
 
 import {
   mkdirSync,
@@ -33,25 +33,25 @@ import {
 } from "@zcode/contracts";
 import { parseSavedWorkflow, serializeSavedWorkflow } from "./frontmatter.js";
 
-/** 一个查找根：作用域标签 + 绝对目录。 */
+/** A search root: scope label + absolute directory. */
 export interface SavedWorkflowRoot {
   scope: SavedWorkflowScope;
   dir: string;
 }
 
 /**
- * `savedWorkflowRoots` / 派生函数的可选参数。`homeDir` 只为测试注入：生产恒取
- * `os.homedir()`（agent 进程所在机器的家目录），**不**跟任何 `storage.dir` 配置走。
+* `savedWorkflowRoots` / Optional parameters for derived functions. `homeDir` is only injected for testing: production constant access
+* `os.homedir()` (the home directory of the machine where the agent process is located) does not follow any `storage.dir` configuration.
  */
 export interface SavedWorkflowRootsOptions {
   homeDir?: string;
 }
 
 /**
- * 本次会话的查找根，**按优先级排列**：`[project, global]`。
+* The search root for this session, **ordered by priority**: `[project, global]`.
  *
- * 项目档落在会话工作目录的 `.zcode/workflows/`，全局档落在家目录的 `~/.zcode/workflows/`。
- * 所有查找按顺序 first-wins：项目里的那份永远赢过全局那份（同名遮蔽）。
+* The project file is located in `.zcode/workflows/` in the session working directory, and the global file is located in `~/.zcode/workflows/` in the home directory.
+* All searches are first-wins in order: the one in the project always wins the global one (same name masking).
  */
 export function savedWorkflowRoots(
   cwd: string,
@@ -63,18 +63,18 @@ export function savedWorkflowRoots(
   ];
 }
 
-/** 单个作用域的查找根。作用域是已知枚举，`savedWorkflowRoots` 里必然有它。 */
+/** The search root for a single scope. The scope is a known enumeration and must be present in `savedWorkflowRoots`. */
 export function savedWorkflowRoot(
   cwd: string,
   scope: SavedWorkflowScope,
   options?: SavedWorkflowRootsOptions,
 ): SavedWorkflowRoot {
   const root = savedWorkflowRoots(cwd, options).find((candidate) => candidate.scope === scope);
-  // scope 是 SavedWorkflowScope 枚举成员，roots 覆盖全部成员，find 不会落空。
+// scope is a member of the SavedWorkflowScope enumeration, roots covers all members, and find will not fail.
   return root!;
 }
 
-/** 一个解析成功的保存定义。 */
+/** A saved definition that parses successfully. */
 export interface ResolvedSavedWorkflow {
   name: string;
   path: string;
@@ -82,12 +82,12 @@ export interface ResolvedSavedWorkflow {
   meta: SavedWorkflowMeta;
   script: string;
   /**
-   * 文件原文（元数据块 + 正文），**逐字节**。草稿拷贝拿的就是它：拷贝必须与刚读到的字节
-   * 一模一样，重新序列化一遍会让 `args` 的默认值、注释与手写的 YAML 排版在拷贝里漂移，而
-   * 那份拷贝正是模型接下来要 `path` 回传的东西。
+* File original text (metadata block + text), **byte by byte**. That's what the draft copy takes: the copy must match the bytes just read
+* Exactly the same, reserializing it will cause the default values ​​​​of `args`, comments and handwritten YAML formatting to drift in the copy, and
+* That copy is what the model will return as `path` next.
    */
   source: string;
-  /** 正文之前的行数；诊断转成文件行时加它（见 {@link parseSavedWorkflow}）。 */
+/** The number of lines before the text; added when converting diagnostics to file lines (see {@link parseSavedWorkflow}). */
   bodyLineOffset: number;
 }
 
@@ -106,26 +106,26 @@ export interface SavedWorkflowListResult {
   invalid: SavedWorkflowInvalidEntry[];
 }
 
-/** 名字 → 文件名。名字已经过 {@link isValidSavedWorkflowName}，此处不再兜底。 */
+/** name → filename. The name has been passed {@link isValidSavedWorkflowName}, so I won’t go into detail here. */
 export function savedWorkflowFileName(name: string): string {
   return `${name}${SAVED_WORKFLOW_FILE_EXTENSION}`;
 }
 
 /**
- * 名字在给定根下的落点。写侧与读侧共用它——两处各自拼路径正是「保存成功但读不出来」的
- * 经典成因。
+* The point at which a name falls under a given root. The write side and the read side share it - the two separate paths are exactly the "save successfully but cannot be read out"
+* Classic origin.
  */
 export function savedWorkflowPath(root: SavedWorkflowRoot, name: string): string {
   return join(root.dir, savedWorkflowFileName(name));
 }
 
 /**
- * 按名字解析一个保存的 workflow。
+* Parse a saved workflow by name.
  *
- * 名字先过合法性检查再拼路径：这条顺序是路径穿越的防线本身，不是输入卫生的小节——
- * `../../.ssh/id_rsa` 拼进 join 之后就是一个能读的绝对路径了。
+* The name first passes the legality check and then the path is spelled: this sequence is the defense line itself that the path traverses, not the input hygiene section——
+* After `../../.ssh/id_rsa` is spelled into join, it will be an absolute path that can be read.
  *
- * 给了 `scope`：只查那一根（中枢与 `saved.scope` 的定向查找）；不给：两根按序 first-wins。
+* With `scope`: only search for that one (directed search between the center and `saved.scope`); without: two roots first-wins in order.
  */
 export function resolveSavedWorkflow(options: {
   cwd: string;
@@ -153,8 +153,8 @@ export function resolveSavedWorkflow(options: {
     try {
       source = readFileSync(path, "utf8");
     } catch (error) {
-      // 这一根没有它，看下一根。其余读错（权限、是目录）是**这个**文件的问题，说出来而不是
-      // 装作没找到——"not found" 会把用户送去检查一个其实存在的名字。
+// This one doesn't have it, look at the next one. The rest of the misreadings (permissions, directories) are problems with this file. Say it instead.
+// Pretend not to be found - "not found" will send the user to check for a name that actually exists.
       if (isNotFound(error)) continue;
       return { ok: false, reason: "read_error", path, detail: describeError(error) };
     }
@@ -179,13 +179,13 @@ export function resolveSavedWorkflow(options: {
 }
 
 /**
- * 枚举保存定义（深度 1 的平铺扫描，不递归子目录）。
+* Enum save definitions (tiled scans to depth 1, no recursion into subdirectories).
  *
- * 坏文件进 `invalid` 而不是抛错：这些文件是用户手改的，一个错字不该让整份清单消失。
+* Bad files go into `invalid` instead of throwing an error: these files were manually modified by the user, and one typo shouldn't make the entire list disappear.
  *
- * 不给 `scope`：两根按序，同名定义 first-wins，被遮蔽的那份**不**出现在列表里——列表要说的
- * 是"调用这个名字会跑到什么"，而不是"磁盘上有几份"。给了 `scope`：只扫那一根，**不**做遮蔽
- * （中枢的全局组要看到被项目档遮蔽的那一份）。
+* Do not give `scope`: two roots in order, the same name defines first-wins, the obscured one **does not** appear in the list - what the list wants to say
+* is "what will be run when calling this name", not "how many copies are on the disk". Given `scope`: only scan that one, without any masking
+* (The hub's global group needs to see the copy that is obscured by the project file).
  */
 export function listSavedWorkflows(options: {
   cwd: string;
@@ -206,13 +206,13 @@ export function listSavedWorkflows(options: {
     try {
       fileNames = readdirSync(root.dir);
     } catch (error) {
-      // 目录不存在是常态（大多数项目没保存过 workflow），不是错误。
+// It is normal that the directory does not exist (most projects have not saved the workflow), and it is not an error.
       if (isNotFound(error)) continue;
       invalid.push({ path: root.dir, reason: describeError(error) });
       continue;
     }
 
-    // readdir 的顺序随文件系统而定；排序让列表在两台机器上一致。
+// The order of readdir is file system dependent; ordering makes the list consistent on both machines.
     for (const fileName of [...fileNames].sort()) {
       if (!fileName.endsWith(SAVED_WORKFLOW_FILE_EXTENSION)) continue;
       const name = fileName.slice(0, -SAVED_WORKFLOW_FILE_EXTENSION.length);
@@ -222,14 +222,14 @@ export function listSavedWorkflows(options: {
         invalid.push({ path, reason: "file name is not a usable workflow name" });
         continue;
       }
-      // 已被更高优先级的作用域认领：这一份跑不到，也就不列。
+// Already claimed by a higher-priority scope: this one cannot be reached, so it will not be listed.
       if (claimed.has(name)) continue;
 
       let source: string;
       try {
         source = readFileSync(path, "utf8");
       } catch (error) {
-        // 目录项存在却读不出来（子目录、权限）——不是"没有"，是"坏了"。
+// The directory entry exists but cannot be read (subdirectories, permissions) - it's not "no", it's "broken".
         invalid.push({ path, reason: describeError(error) });
         continue;
       }
@@ -256,10 +256,10 @@ export function listSavedWorkflows(options: {
 }
 
 /**
- * 写入一个保存定义，返回落点与「这次是不是覆盖」。
+* Write a save definition, return the drop point and "whether it is overwritten this time".
  *
- * `scope` 决定落到哪一根（缺省 `project`，保持既有语义）。作用域是**写侧的选择**了——模型
- * 在 SaveWorkflow 里必填它。
+* `scope` determines which root it falls on (default `project`, maintaining existing semantics). Scope is a **write-side choice** - model
+* This is required in SaveWorkflow.
  */
 export function saveSavedWorkflow(options: {
   cwd: string;
@@ -279,7 +279,7 @@ export function saveSavedWorkflow(options: {
   return { path, scope: root.scope, overwritten };
 }
 
-/** 目标是否已存在（确认窗要把"覆盖"与"新建"说成两件事）。缺省查项目档。 */
+/** Whether the target already exists (the confirmation window should refer to "overwrite" and "new" as two different things). The project file is checked by default. */
 export function savedWorkflowExists(options: {
   cwd: string;
   name: string;
@@ -294,10 +294,10 @@ export function savedWorkflowExists(options: {
 }
 
 /**
- * 保存到 `scope` 时，另一档是否已有同名定义（遮蔽事实，供确认窗展示）。
+* When saving to `scope`, whether another file already has a definition with the same name (hiding the fact for display in the confirmation window).
  *
- * 保存项目档而全局档已有同名 → `hides_global`（本项目里项目档赢）；保存全局档而项目档已有
- * 同名 → `hidden_by_project`（本项目里它跑不到）。两档都没有 → `undefined`。
+* Save the project file and the global file already has the same name → `hides_global` (the project file in this project wins); Save the global file and the project file already has the same name
+* Same name → `hidden_by_project` (it cannot run in this project). Neither level has → `undefined`.
  */
 export function findSavedWorkflowShadowing(options: {
   cwd: string;
@@ -312,7 +312,7 @@ export function findSavedWorkflowShadowing(options: {
   return options.scope === "project" ? "hides_global" : "hidden_by_project";
 }
 
-/** 把全局档搬回项目档的结果。 */
+/** The result of moving the global file back to the project file. */
 export type SavedWorkflowMoveResult =
   | { ok: true; from: string; to: string }
   | { ok: false; reason: "invalid_name"; detail: string }
@@ -321,15 +321,15 @@ export type SavedWorkflowMoveResult =
   | { ok: false; reason: "read_error" | "write_error"; path: string; detail: string };
 
 /**
- * 把全局根的 `name` 搬到 `cwd` 的项目根（**只有这一向**）。
+* Move the `name` of the global root to the project root of `cwd` (**only this way**).
  *
- * 反向（项目→全局）不是搬文件：项目档大多引用本仓库的路径 / 命令 / 约定，逐字节搬过去就是
- * 一个在别的项目里必然跑坏的全局定义。那一向是模型的概括（「提升为全局」：GUI 在该项目开
- * 新会话发概括提示，模型经 SaveWorkflow 另存全局档）。全局→项目是特化，一份全局定义落到某个项目里照跑，所以仍是搬文件。
+* Reverse (project→global) is not about moving files: most project files refer to the path/command/convention of this warehouse, and they are moved there byte by byte.
+* A global definition that will inevitably break in other projects. That has always been a generalization of the model ("promoted to the big picture": the GUI was
+* A summary prompt is sent to a new session, and the model is saved as a global file through SaveWorkflow). Global→Project is a specialization. If a global definition falls into a certain project, it will still run, so the files still need to be moved.
  *
- * **逐字节搬**（不 parse、不 reserialize）：frontmatter 不存 scope，所以移动就是移文件。
- * `renameSync` 优先，跨设备（EXDEV）回落到读→写→删。目标已存在即拒绝（不覆盖：覆盖是
- * SaveWorkflow 经确认窗才有的动作）。名字先过合法性检查——路径穿越的防线本身。
+* **Move byte by byte** (no parse, no reserialize): frontmatter does not store scope, so moving means moving files.
+* `renameSync` takes precedence, cross-device (EXDEV) falls back to read → write → delete. Reject if the target already exists (not overwrite: Coverage is
+* SaveWorkflow is an action only available through the confirmation window). The name first goes through a legality check - the line of defense itself that the path crosses.
  */
 export function moveSavedWorkflow(options: {
   cwd: string;
@@ -363,8 +363,8 @@ export function moveSavedWorkflow(options: {
     renameSync(fromPath, toPath);
     return { ok: true, from: fromPath, to: toPath };
   } catch (error) {
-    // 跨设备（例如家目录与项目分处不同挂载点）时 rename 报 EXDEV：读→写→删的回落搬运，
-    // 读写各自归错，好让上层把"源读不出来"和"目标写不进去"说成两件事。
+// When cross-device (for example, the home directory and the project branch have different mount points), rename reports EXDEV: read→write→delete fallback transfer,
+// The reading and writing are returned to their respective errors, so that the upper layer can say "the source cannot be read" and "the target cannot be written" as two different things.
     if ((error as NodeJS.ErrnoException | undefined)?.code !== "EXDEV") {
       return { ok: false, reason: "write_error", path: toPath, detail: describeError(error) };
     }
@@ -395,8 +395,8 @@ function fileExists(path: string): boolean {
 
 function isNotFound(error: unknown): boolean {
   const code = (error as NodeJS.ErrnoException | undefined)?.code;
-  // ENOTDIR：路径中间有一段是文件（`.zcode/workflows` 被人建成了文件）。对查找而言与
-  // "目录不存在"是同一件事。
+// ENOTDIR: There is a section in the middle of the path that is a file (`.zcode/workflows` was created into a file). For search purposes the same as
+// "Directory does not exist" is the same thing.
   return code === "ENOENT" || code === "ENOTDIR";
 }
 

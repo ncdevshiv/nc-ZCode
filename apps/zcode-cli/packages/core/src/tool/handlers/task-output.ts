@@ -57,9 +57,9 @@ const taskOutputHandler: ToolHandler = async (input, context) => {
       return taskOutputResult("not_ready", await projectTask(initialTask, context));
     }
     const projectedTask = await projectTask(initialTask, context);
-    // notified 是完成结果已成功交付的 claim；投影前写入会在读取失败或
-    // abort 时吞掉后续 completion notification。异步投影不会被外层取消竞态强制
-    // 停止，因此 await 返回后必须再次检查 signal，再提交 claim。
+// notified is a claim that the completion result has been successfully delivered; writing before projection will occur when the read fails or
+// Swallow subsequent completion notification when abort. Asynchronous projection will not be forced by the outer layer cancellation race condition
+// Stop, so after await returns, the signal must be checked again before submitting the claim.
     throwIfAborted(context.abortSignal);
     markTaskNotified(initialTask, context);
     return taskOutputResult("success", projectedTask);
@@ -182,8 +182,8 @@ function formatTaskOutputModelContent(output: unknown): string {
       blocks.push(`<exit_code>${task.exitCode}</exit_code>`);
     }
     if (task.output.trim()) {
-      // 没有真实完整文件时，task_id 不是可读取路径，不能把它伪装成
-      // “Full output”；此时保留原文，由外层的大结果 artifact 机制继续处理。
+// When there is no real complete file, task_id is not a readable path and cannot be disguised as
+// "Full output"; at this time, the original text is retained and the outer large result artifact mechanism continues to process it.
       const content = (
         task.outputFile ? truncateTaskOutput(task.output, task.outputFile) : task.output
       ).trimEnd();

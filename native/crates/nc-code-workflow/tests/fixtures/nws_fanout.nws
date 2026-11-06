@@ -1,0 +1,39 @@
+workflow "nws-fanout" {
+  args { files: string[] }
+
+  artifact.table("progress", {
+    columns: [{ field: "name", label: "File" }, { field: "note", label: "Note" }]
+  });
+
+  phase "review";
+  let reviewer = agent("reviewer", "You review one file at a time.");
+  let verdicts = await Promise.all([
+    reviewer.ask("Review the first file"),
+    reviewer.ask("Review the second file"),
+    reviewer.ask("Review the third file")
+  ]);
+  report({ name: "review", note: verdicts }, "progress");
+
+  phase "collect";
+  let worker = agent("worker");
+  for (const name of args.files) {
+    let note = await worker.ask("Summarize " + name);
+    report({ name: name, note: note }, "progress");
+  }
+
+  phase "close";
+  let left = agent("left");
+  let right = agent("right");
+  parallel {
+    {
+      let l = await left.ask("left half");
+      report({ name: "left", note: l }, "progress");
+    }
+    {
+      let r = await right.ask("right half");
+      report({ name: "right", note: r }, "progress");
+    }
+  }
+
+  return { verdictCount: verdicts.length, noteCount: args.files.length };
+}

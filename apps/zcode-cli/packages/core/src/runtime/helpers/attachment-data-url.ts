@@ -7,9 +7,9 @@ export function parseDataUrlHeader(dataUrl: string): { mediaType: string } | und
   return mediaType ? { mediaType: mediaType.toLowerCase() } : undefined;
 }
 
-/** base64 正文对应的原始字节数（无需解码）。 */
+/** Base64 The original number of bytes corresponding to the text (no need to decode). */
 export function base64PayloadByteLength(payload: string): number {
-  // base64 末尾的 padding 不代表内容字节；扣除它，避免上限处的合法媒体被多算 1–2 字节。
+// The padding at the end of base64 does not represent content bytes; subtract it to avoid overcounting legal media at the upper limit by 1–2 bytes.
   const paddingBytes = payload.endsWith("==") ? 2 : payload.endsWith("=") ? 1 : 0;
   return Math.floor((payload.length * 3) / 4) - paddingBytes;
 }

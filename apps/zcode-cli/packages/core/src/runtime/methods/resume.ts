@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import { restorePermissionGrantMarker } from "../helpers/permission-grant-resume.js";
 import { executionStateSchema, resolveExecutionState } from "@zcode/shared";
 import { SESSION_ENTRY_EXECUTION_STATE } from "@zcode/contracts";
@@ -123,7 +124,7 @@ export async function resumeFromStore(
   this.workingDirectory = session.directory;
   this.config.taskType = session.taskType;
   if (this.config.memory) {
-    // Memory root 必须使用会话落盘时的 workspace identity，不能沿用进程启动 workspace。
+// Memory root must use the workspace identity when the session is dropped, and cannot use the process to start the workspace.
     this.config.memory.workspaceIdentity = session.workspaceID
       ? String(session.workspaceID)
       : undefined;
@@ -132,8 +133,8 @@ export async function resumeFromStore(
   this.contextBuilder = null;
   this.contextInitialized = false;
   this.lastEmittedLocalDate = undefined;
-  // cold resume 的历史 hydration 会先清空 runtime-local read-state；必须在
-  // Context 初始化前完成，确保随后单次加载的 MEMORY.md 状态与 provider 所见内容一致。
+// The historical hydration of cold resume will first clear the runtime-local read-state; it must be in
+// Completed before Context initialization, ensuring that the state of MEMORY.md subsequently loaded in a single time is consistent with what the provider sees.
   const readFileStateHydration = await hydrateReadFileStateFromSession({
     branchCutAfterMessageId,
     messages,
@@ -168,8 +169,8 @@ export async function resumeFromStore(
     rewindKeptMessageIds,
     rewindTargetMessageId,
   });
-  // compact preserved segment 会把 compact 前消息插回 provider 上下文，
-  // 但它不是 compact 后时间线的 latest anchor，不能用于后续 compact parentID。
+// The compact preserved segment will insert the pre-compact message back into the provider context.
+// But it is not the latest anchor of the timeline after compaction and cannot be used for subsequent compaction parentID.
   const timelineActiveMessages = activeSessionMessages(messages, {
     branchCutAfterMessageId,
     includeCompactPreservedSegment: false,
@@ -200,12 +201,12 @@ export async function resumeFromStore(
     restoredModeEvents.length > 0 ? this.eventReducer.reduce(restoredModeEvents).mode : undefined;
   const resolvedMode = options?.modeOverride ?? restoredMode ?? session.permission?.mode;
   if (resolvedMode !== undefined) {
-    // cold resume 会先把 checkpoint/rewind 等局部事件恢复到新的内存 eventStore。
-    // 这些事件不携带 mode，若仅按“存在任意事件”reduce，会用默认 build 覆盖 headless yolo。
-    // 只有权威 mode 事件能恢复历史值；本次 invocation 的显式/default mode 仍保持最高优先级。
+// cold resume will first restore local events such as checkpoint/rewind to the new memory eventStore.
+// These events do not carry mode. If you just press "any event exists" reduce, the default build will overwrite headless yolo.
+// Only authoritative mode events can restore historical values; the explicit/default mode of this invocation still maintains the highest priority.
     Object.assign(this.config, resolveExecutionState({ mode: resolvedMode }));
   }
-  // 会话自己的新记录优先于项目偏好；旧记录仅兼容读取，不批量回填。
+// The session's own new records take precedence over project preferences; old records are only compatible with reading, not batch backfilling.
   const executionEntries = await this.sessionStore.sessionEntries?.({
     sessionID: this.sessionId,
     type: SESSION_ENTRY_EXECUTION_STATE,
@@ -317,8 +318,8 @@ export async function resumeFromStore(
   return {
     ...hydration,
     directory: session.directory,
-    // 中断 compact 恢复会写回 timeline part；bootstrap 不能继续把恢复前
-    // messages 交给 V4，否则首帧会短暂复活 started/retrying 状态。
+// Interrupting compact recovery will write back the timeline part; bootstrap cannot continue to restore the previous
+// Messages are handed over to V4, otherwise the first frame will briefly revive the started/retrying state.
     persistedMessagesReloadRequired: recoveredCompactTimelineCount > 0,
     readFileStateRestoredCount: readFileStateHydration.restoredCount,
     readFileStateSkippedRangeReadCount: readFileStateHydration.skippedRangeReadCount,
@@ -340,8 +341,8 @@ async function syncPersistedSessionTitleForResume(
   const source = input.session.titleSource ?? "generated";
   if (hasRestoredTitleEvent(input.restoredEvents, title, source)) return;
 
-  // fork child 创建时 title 已写进 sessionStore，但复制历史不会复制父会话的
-  // SessionTitleUpdated 事件。v4 live 投影只消费事件流，缺这条事件就会把列表标题降级成"新任务"。
+// When the fork child is created, the title has been written into the sessionStore, but the copy history will not copy the parent session's
+//SessionTitleUpdated event. The v4 live projection only consumes the event stream. If this event is missing, the list title will be downgraded to "New Task".
   await this.appendEvent(
     this.createEvent(
       SessionEventType.SessionTitleUpdated,

@@ -118,8 +118,8 @@ const workspacePackageParentDirectories = (root) => {
 
   return [
     ...workspacePackageParentDirectoryNames.map((directoryName) => resolve(root, directoryName)),
-    // TUI runtime 闭包会经由 @zcode/contracts 依赖仓库根的 @zcode/shared；
-    // 只扫描 apps/zcode-cli 子 workspace 会把这个合法 workspace 误判为缺失。
+// TUI runtime closure will depend on @zcode/shared of the repository root via @zcode/contracts;
+// Only scanning the apps/zcode-cli sub-workspace will misjudge this legal workspace as missing.
     resolve(repositoryRoot, "packages"),
   ];
 };
@@ -169,8 +169,8 @@ const runtimePackageNames = async ({ root, target, workspacePackageDirectories }
     const packageJson = JSON.parse(
       await readFile(resolve(packageDirectory, "package.json"), "utf8"),
     );
-    // SEA 缓存目录无法解析 pnpm workspace 链接；旧的 @zcode 白名单漏掉 i18n
-    // 后，构建仍成功但 TUI 启动才报错，因此这里必须按 manifest 递归收集依赖。
+// SEA cache directory cannot resolve Bun workspace links; old @zcode whitelist misses i18n
+//After that, the build is still successful but an error is reported when TUI is started, so dependencies must be collected recursively according to the manifest.
     for (const [dependencyName, dependencyRange] of Object.entries(
       packageJson.dependencies ?? {},
     )) {
@@ -286,7 +286,7 @@ const shouldIncludePackageFile = ({
   if (relativePath.endsWith(".map")) return false;
 
   if (workspacePackageDirectories.has(packageName)) {
-    // Workspace runtime packages resolve in dev via pnpm links, so SEA must copy
+    // Workspace runtime packages resolve in dev via Bun links, so SEA must copy
     // their built package surface explicitly instead of relying on node_modules.
     return relativePath === "package.json" || relativePath.startsWith(`dist${sep}`);
   }

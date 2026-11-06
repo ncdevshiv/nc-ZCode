@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import { extname } from "node:path";
 import { formatJson, type PresentationSurface } from "@zcode/core";
 import type { RunContext, GlobalOptions } from "@zcode/shared-types";
@@ -113,8 +114,8 @@ export const runPrompt = async (
   let closePromise: Promise<void> | undefined;
   let browserRuntime: ReturnType<typeof createCliHeadlessBrowserRuntime>;
   let shutdownTelemetry: (() => Promise<void>) | undefined;
-  // 常驻事件订阅的摘除句柄。声明在这里而不是 try 内，是为了让 finally 也能收口——
-  // 任何早退（command-center 路径、抛错）都不能留下一个还在写 stdout 的 sink。
+// Remove handle of resident event subscription. The statement is made here instead of inside try so that finally can also close——
+// Any early exit (command-center path, error throwing) cannot leave a sink that is still writing stdout.
   let detachEvents: (() => void) | undefined;
   const stopObservingEvents = () => {
     detachEvents?.();
@@ -132,10 +133,10 @@ export const runPrompt = async (
     const targetApp = app;
     closePromise ??= (async () => {
       await runCliCleanupWithTimeout(async () => targetApp?.close?.(), cleanupTimeoutMs);
-      // Browser process 由 CLI adapter 持有；App close 悬空或失败也必须继续回收 Chromium。
+// The Browser process is held by the CLI adapter; App close must continue to recycle Chromium even if it is suspended or fails.
       await runCliCleanupWithTimeout(async () => browserRuntime?.close(), cleanupTimeoutMs);
-      // Bug 根因：App.close 只结束 Session 并 flush，共享 OTLP Owner 过去没有进程级终态。
-      // 单次 prompt 是最外层生命周期，必须与 prepare 对称 shutdown。
+// Bug root cause: App.close only ends the Session and flushes it, and the shared OTLP Owner did not have a process-level final state in the past.
+// Single prompt is the outermost life cycle and must be symmetrical with prepare shutdown.
       await runCliCleanupWithTimeout(async () => shutdownTelemetry?.(), cleanupTimeoutMs);
       providerRegistryRuntime?.dispose();
     })();
@@ -212,10 +213,10 @@ export const runPrompt = async (
     app = await createApp({
       browserControlPort: browserRuntime?.browserControlPort,
       env: appEnv,
-      // headless 没有交互审批面，core 因此退到 deny broker，于是 CreateWorkflow 的
-      // alwaysAsk gate 在 -p 下**必然被拒**（"No permission client configured"）。
-      // 这个最小 broker 只按工具名放行 CreateWorkflow，其余工具委托回同一个 deny
-      // broker，语义逐字不变。详见 headless-workflow.ts 的注释。
+// headless has no interactive approval interface, so core retreats to deny broker, so CreateWorkflow
+// alwaysAsk gate must be rejected under -p ("No permission client configured").
+// This minimum broker only releases CreateWorkflow according to the tool name, and the other tools are delegated back to the same deny
+// broker, the semantics remain unchanged verbatim. See the comments of headless-workflow.ts for details.
       permissionBroker: createHeadlessPermissionBroker(),
       providerRegistry: providerRegistryRuntime.runtime.registryService,
       configuredDefaultModelSelection: providerRegistryRuntime.configuredDefaultModelSelection,
@@ -239,8 +240,8 @@ export const runPrompt = async (
       uiLocale: options.locale,
       version,
     });
-    // 异步身份导入期间可能已收到退出信号；既有的 cleanup 尚拿不到这个 App。
-    // 单独释放迟到实例，禁止继续提交，也不重启已结束的进程级清理。
+// The exit signal may have been received during asynchronous identity import; the existing cleanup cannot yet get the app.
+// Release the late instance individually, prohibit further submission, and do not restart the completed process-level cleanup.
     if (abortController.signal.aborted) {
       const lateApp = app;
       app = undefined;
@@ -252,18 +253,18 @@ export const runPrompt = async (
       throw new Error(MEMORY_BENCH_DISABLED_ERROR);
     }
 
-    // 按**可解析性**分流，不按拼写。
+// Divert by **parsability**, not by spelling.
     //
-    // 自定义命令解析出来一律是 `type === "unknown"`，过去因此全部早退进
-    // command-center；那条路径自己 submit 完就 return，于是只挂在下面普通 prompt 路径上
-    // 的三件机制全被跳过——dwf 结算等待、常驻事件订阅的单一写者、`response` 取最后一个
-    // 回合。结果是 `zcode -p "/workflow ..."` 在第一个回合后就退出，把在飞的 run 孤儿化
-    // 成 Interrupted。能解析成真实自定义命令的必须落到普通 prompt 路径，提交**原文**即可：
-    // facade 的 customCommandPromptResolver 会在服务端展开（$ARGUMENTS、skills: 前言、`!`）。
-    // 解析不出来的名字继续留在 command-center，拿它的 "Unknown command" 文案；保留名
-    // （`/compress` 是唯一一个 CLI 解析成 unknown 而 facade 又拒绝展开的）同样留在那边，
-    // 判据与 facade 的 gate 共用一个来源，见 isResolvableCustomCommand。
-    // `/expert`、`/goal` 走不到 submitPrompt，路由逐字不变。
+// Custom commands are always parsed as `type === "unknown"`. In the past, they all exited and entered early because of this.
+// command-center; that path will return after submitting, so it will only hang on the normal prompt path below.
+// All three mechanisms of // are skipped - dwf settlement waiting, single writer of resident event subscription, `response` takes the last one
+// round. The result is that `zcode -p "/workflow ..."` will exit after the first round, orphaning the running run.
+// Become Interrupted. Those that can be parsed into real custom commands must fall into the ordinary prompt path, and just submit the **original text**:
+// The facade's customCommandPromptResolver will be expanded on the server side ($ARGUMENTS, skills: preface, `!`).
+// The name that cannot be parsed remains in command-center, and its "Unknown command" copy is used; the name is reserved
+// (`/compress` is the only one that the CLI resolves to unknown and the facade refuses to expand) also stays there,
+// The criterion shares the same source as the gate of the facade, see isResolvableCustomCommand.
+// `/expert` and `/goal` cannot reach submitPrompt, and the routing remains unchanged.
     if (slashCommand && (await routesToPromptCommandCenter(slashCommand, deps))) {
       return await runPromptCommandCenterCommand(
         ctx,
@@ -277,16 +278,16 @@ export const runPrompt = async (
       );
     }
 
-    // 事件的**单一写者**。常驻订阅跨回合存活，所以完成通知驱动的回合（core 自驱，
-    // `runtime-command-queue.ts:336`）的事件也在内；per-turn `onEvent` 则在 submitPrompt
-    // 的 finally 里就被摘掉（`input-facade.ts:361-372`），看不到那些回合。
+// **Single writer** of the event. Resident subscriptions survive across rounds, so complete notification-driven rounds (core self-driven,
+// `runtime-command-queue.ts:336`) events are also included; per-turn `onEvent` is in submitPrompt
+// The finally was removed (`input-facade.ts:361-372`), and those rounds cannot be seen.
     //
-    // 两者**绝不同时装**：同一条事件被两个 sink 各写一次就是一行重复的 NDJSON。
-    // 这里用「二选一」而不是「双装 + 按 id 去重」，因为前者让恰好一次成为结构性事实，
-    // 不依赖任何 sink 的调用顺序。
+// The two are absolutely different: the same event is written once by two sinks, which is a repeated line of NDJSON.
+// Here we use "choose one of the two" instead of "double installation + remove duplicates by id", because the former makes exactly once a structural fact.
+// Does not depend on any sink calling order.
     //
-    // 挂载点刻意在 command-center 分支**之后**：`/expert`、`/goal` 走不到 submitPrompt，
-    // 过去也从不透出事件行，在这里挂就会给那条路径凭空加出 NDJSON 行。
+// The mount point is deliberately **after** the command-center branch: `/expert` and `/goal` cannot reach submitPrompt.
+// In the past, the event line was never exposed. If you hang it here, the NDJSON line will be added to that path out of thin air.
     const subscribeEvents = readRuntimeEventSubscriber(app.runtime);
     detachEvents = subscribeEvents?.({ onSessionEvent: observer.observe });
     const runtimeFacts = readHeadlessRuntimeFacts(app.runtime);
@@ -302,38 +303,38 @@ export const runPrompt = async (
         : runtimePrompt,
       {
         abortSignal: abortController.signal,
-        // 常驻订阅装上了就绝不再装 per-turn sink（见上面的单一写者注释）。
+// A per-turn sink will never be installed once a resident subscription is installed (see single writer note above).
         ...(detachEvents ? {} : { onEvent: observer.observe }),
       },
     );
-    // 同步紧接着 submitPrompt：这一刻到第一个 await 之间没有任何事件能插队，所以
-    // 「run 在回合内就结算了、通知回合已经在跑」这种情况也不会漏掉它的第一条事件。
+// Synchronization follows submitPrompt: no event can jump in the queue between this moment and the first await, so
+// "The run is resolved within the round, notifying that the round is already running." In this case, its first event will not be missed.
     observer.beginWaitPhase(result.turnId ? String(result.turnId) : undefined);
     traceId = result.traceId ?? traceId;
-    // 在飞的 workflow run 不能被进程退出孤儿化。窄触发（观察到过 dwf 活动）+ 宽排水
-    // （runtime 的两个 busy 事实）——论证见 waitForHeadlessWorkflowSettle 的注释。
+// The workflow run in flight cannot be orphaned by process exit. Narrow trigger (observed dwf activity) + wide drain
+// (Two busy facts of the runtime) - See the comments of waitForHeadlessWorkflowSettle for the argument.
     if (observer.hasWorkflowActivity() && runtimeFacts) {
       await waitForHeadlessWorkflowSettle({
         runtime: runtimeFacts,
         signal: abortController.signal,
       });
     }
-    // bench 的正常等待必须先于 close；close 会取消 Extraction，且有独立的清理时限。
+// The normal waiting of bench must precede close; close will cancel Extraction and have an independent cleanup time limit.
     if (options.memoryBench) {
       await app.runtime.drainMemoryExtractions(null);
       abortController.signal.throwIfAborted();
     }
-    // 结果行之后绝不能再冒出事件行——stream-json 的 result 是流的终止符。
+// The event line must never appear after the result line - stream-json's result is the terminator of the stream.
     stopObservingEvents();
-    // `response` 取**最后**一个回合的文本：工作流结算后的那次总结才是答案。
-    // 未进入等待时数组只有一项，于是 response ≡ result.response，行为逐字节不变。
+// `response` takes the text of the **last** round: the summary after the workflow is settled is the answer.
+// When waiting is not entered, the array has only one item, so response ≡ result.response, and the behavior remains unchanged byte by byte.
     const turnResponses = [result.response, ...observer.waitPhaseTurnResponses()].filter(
       (text) => text.trim().length > 0,
     );
     const response = turnResponses.at(-1) ?? result.response;
-    // 只在真的多于一个回合时才带上数组——单回合运行的 json 输出因此逐字节不变。
-    // 刻意在两处 summary 里各自内联这个条件展开而不是共享一个变量：展开一个联合类型的
-    // 变量会让 TS 把键推成可选（`turnResponses?: string[]`），而 formatJson 只收 JsonValue。
+// Only take the array if there really is more than one round - the json output of a single round run is therefore unchanged byte by byte.
+// Deliberately inline this conditional expansion in two summary instead of sharing a variable: expand a union type
+// Variables will cause TS to push keys as optional (`turnResponses?: string[]`), while formatJson only accepts JsonValue.
     const multiTurn = turnResponses.length > 1;
     const hookTrustDiagnostic = await resolveHeadlessWorkspaceHookTrustDiagnostic({
       bootstrapModule,
@@ -411,8 +412,8 @@ export const runPrompt = async (
     }
 
     if (hookTrustDiagnostic) writeHeadlessWorkspaceHookTrustDiagnostic(ctx, hookTrustDiagnostic);
-    // 每个回合的文本按到达序打印，所以最后一段自然就是结算后的总结。
-    // 单回合时这与 `${result.response}\n` 逐字节相同。
+//The text of each round is printed in order of arrival, so the last paragraph is naturally the summary after settlement.
+// This is byte-for-byte identical to `${result.response}\n` in a single pass.
     ctx.stdout.write(`${turnResponses.join("\n\n")}\n`);
     return 0;
   } catch (error) {
@@ -444,7 +445,7 @@ function inferAttachmentTypeFromPath(path: string): "file" | "image" | "video" |
 
 const customCommandNotFoundPattern = /not found/i;
 
-/** headless 下这条 slash 命令该走 command-center 而不是普通 prompt 路径吗？ */
+/** Headless Should this slash command go to command-center instead of the normal prompt path? */
 async function routesToPromptCommandCenter(
   slashCommand: SlashCommand,
   deps: RunDependencies,
@@ -456,22 +457,22 @@ async function routesToPromptCommandCenter(
 }
 
 async function isResolvableCustomCommand(deps: RunDependencies, name: string): Promise<boolean> {
-  // 保留名先问，再尝试加载——与 facade 那道 gate 的顺序逐字一致
-  // （`bootstrap/src/custom-command-prompt.ts:31`）。判据必须是同一个：facade 对保留名
-  // 直接返回 undefined、不做展开，所以这里若把一个保留名判成"可解析"，它就会以字面文本
-  // `/compress …` 被当成普通 prompt 提交给模型——静默走错路，没有任何报错。
+// Retain the name and ask first, then try to load - the order of the gate on the facade is the same literally.
+// (`bootstrap/src/custom-command-prompt.ts:31`). The criteria must be the same: facade versus reserved name
+// Return undefined directly without expansion, so if a reserved name is judged as "parsable" here, it will be treated as literal text
+// `/compress …` is submitted to the model as a normal prompt - silently going the wrong way without any error.
   //
-  // 探测刻意用「保留名检查 + load」这一对，而不是直接调 resolveZCodeCustomCommandPrompt：
-  // 后者会执行 `!` shell expansion，拿它探测等于把用户的 shell 片段跑两遍。
-  // 这一对是它的无副作用等价物（load 只读文件）。
+// The detection deliberately uses the "reserved name check + load" pair instead of directly calling resolveZCodeCustomCommandPrompt:
+// The latter will execute `!` shell expansion, and using it to detect is equivalent to running the user's shell fragment twice.
+// This pair is its side-effect-free equivalent (load read-only file).
   if (await isReservedSlashCommandName(deps, name)) return false;
   try {
     await loadCustomCommandForPrompt(deps, name);
     return true;
   } catch (error) {
-    // 只有"不存在"算不可解析（与 buildCustomCommandPrompt 同一判据）。读盘失败、
-    // frontmatter 非法之类必须继续冒泡：把它们当成未知命令会用一句 "Unknown command"
-    // 盖掉真正的失败原因。
+// Only "does not exist" is considered unresolvable (same criterion as buildCustomCommandPrompt). Failed to read disk,
+// Illegal frontmatter must continue to bubble: treat them as unknown commands and use the sentence "Unknown command"
+// Cover up the real cause of failure.
     if (error instanceof Error && customCommandNotFoundPattern.test(error.message)) {
       return false;
     }

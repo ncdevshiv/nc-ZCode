@@ -36,8 +36,8 @@ function resolvePathField(
 }
 
 /**
- * 旧版把 workspaceIdentity 当成 cwd，或追加到真实 workspacePath 后落库。
- * 这里只修复两种已知且可证明的污染形态；包含 identity 但前缀不匹配的数据拒绝猜测。
+* The old version treats workspaceIdentity as cwd, or appends it to the real workspacePath.
+* Only two known and provable forms of pollution are fixed here; guessing is rejected for data that contains identity but does not match the prefix.
  */
 export async function repairPersistedRemoteSessionPaths(
   sessionStore: RemoteSessionPathRepairStore,
@@ -131,7 +131,7 @@ export async function repairPersistedRemoteSessionPaths(
       );
     }
 
-    // CAS 未命中说明路径或 identity 已被并发写入；必须基于新事实重新裁决，不能返回旧快照。
+// A CAS miss indicates that the path or identity has been written concurrently; it must be re-adjudicated based on new facts, and the old snapshot cannot be returned.
     const refreshedIdentity = refreshed.workspaceID?.trim();
     if (refreshedIdentity !== workspaceIdentity) {
       throw createCoreError(
@@ -176,8 +176,8 @@ export async function repairPersistedRemoteSessionPaths(
     }
     if (refreshedDirectory !== "repair" && refreshedPath !== "repair") return refreshed;
 
-    // adapter 拒绝 CAS 且持久值仍是同一已知污染形态时，只使用基于最新元数据构造的
-    // 确定性内存修复；下次冷读会重试，不覆盖任何并发 session 事实。
+// When the adapter rejects CAS and the persistent value is still the same known taint form, only use the one constructed based on the latest metadata
+// Deterministic memory repair; cold read will be retried next time without overwriting any concurrent session facts.
     options?.onPersistenceFailure?.(new Error("Remote session path repair CAS did not match"));
     return {
       ...refreshed,
@@ -188,7 +188,7 @@ export async function repairPersistedRemoteSessionPaths(
     if (isCoreError(error) && error.type === CoreErrorType.SessionCorrupted) {
       throw error;
     }
-    // 路径已可确定时，暂时性写盘失败不应继续阻断本次恢复；下次读取仍会重试。
+// When the path can be determined, temporary disk writing failure should not continue to block this recovery; the next read will still be retried.
     options?.onPersistenceFailure?.(error);
     return repairedSession;
   }

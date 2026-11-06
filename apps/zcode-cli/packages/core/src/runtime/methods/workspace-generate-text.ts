@@ -23,7 +23,7 @@ import { auxiliaryModelOptions } from "../../model/auxiliary-model-options.js";
 
 const WORKSPACE_GENERATE_TEXT_TIMEOUT_MS = 60_000;
 const CONNECTIVITY_PROBE_MAX_OUTPUT_TOKENS = 1;
-// 探测请求使用固定最小 prompt，避免多余推理开销；不可改写角色、文本或混入会话历史。
+// Use a fixed minimum prompt for detection requests to avoid redundant reasoning overhead; roles, text, or session history cannot be rewritten or mixed into session history.
 const CONNECTIVITY_PROBE_SYSTEM = "You are ZCode connectivity probe.";
 const CONNECTIVITY_PROBE_USER = "hi";
 const GIT_COMMIT_MESSAGE_QUERY_SOURCE = "git_commit_message";
@@ -55,8 +55,8 @@ export async function testModelConnectivity(
   options?: { abortSignal?: AbortSignal; traceContext?: TraceContext },
 ): Promise<void> {
   const baseModel = createRuntimeModel(this, { selection: input.selection });
-  // 连接探测不需要生成正文；复用辅助生成的 5,000 预算会等待多余推理和输出。
-  // 独立限制为 1 Token，仍使用最低公开档位，不改变其他辅助调用的预算。
+// Connection detection does not require body generation; the 5,000 budget for reuse auxiliary generation will wait for redundant inference and output.
+// Independently limited to 1 Token, still using the lowest public level, and not changing the budget of other auxiliary calls.
   const model = baseModel.bind({
     reasoningLevel: baseModel.optionSpecs.reasoningLevel.values[0]!,
     maxOutputTokens: CONNECTIVITY_PROBE_MAX_OUTPUT_TOKENS,
@@ -98,7 +98,7 @@ export async function testModelConnectivity(
       }
     },
   );
-  if (!finished) throw new Error("模型连通性测试流在 finish 事件前结束");
+  if (!finished) throw new Error("The model connectivity test flow ends before the finish event");
 }
 
 export async function generateWorkspaceText(
@@ -145,7 +145,7 @@ async function generateWorkspaceTextImpl(
   const requestedSelection = input.selection;
   const querySource = input.querySource.trim() || "workspace_generate_text";
   const baseModel = createRuntimeModel(this, { selection: requestedSelection });
-  // 辅助请求需要的是最低公开档位，不是扫描 off/nothink 等名称后强制关闭。
+// The auxiliary request requires the lowest public level, rather than scanning off/nothink and other names and then forcing it to close.
   const model =
     querySource === GIT_COMMIT_MESSAGE_QUERY_SOURCE
       ? baseModel.bind(auxiliaryModelOptions(baseModel))
@@ -181,8 +181,8 @@ async function generateWorkspaceTextImpl(
   const networkEventStartIndex = events.length;
   const abortSignal =
     options?.abortSignal ?? AbortSignal.timeout(WORKSPACE_GENERATE_TEXT_TIMEOUT_MS);
-  // Git Commit 调用方曾传入固定 256，Core 又按 querySource 丢弃，形成虚假接口。
-  // 通用生成入口只处理调用方真实提供的预算；Git 辅助调用不再由上游伪造固定上限。
+// The Git Commit caller once passed in a fixed value of 256, and Core discarded it according to querySource, forming a false interface.
+// The universal generation entry only processes the budget truly provided by the caller; Git auxiliary calls no longer have a fixed upper limit forged by the upstream.
   const requestMaxOutputTokens =
     querySource === GIT_COMMIT_MESSAGE_QUERY_SOURCE ? undefined : input.maxOutputTokens;
 
@@ -273,5 +273,5 @@ async function generateWorkspaceTextImpl(
 function assertWorkspaceModelInput(input: WorkspaceGenerateTextInput): void {
   if (input.messages && input.messages.length > 0) return;
   if (input.prompt?.trim()) return;
-  throw new Error("模型文本生成 prompt 或 messages 不能为空");
+  throw new Error("Model text generation prompt or messages cannot be empty");
 }

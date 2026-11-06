@@ -1,11 +1,11 @@
 // ============================================================
 // ListWorkflowRuns Tool Handler
 // ============================================================
-// 按项目（= 会话的工作目录）枚举 workflow run，含跨会话历史。
+// Enumerate workflow runs by project (= session's working directory), with cross-session history.
 //
-// handler 刻意**很薄**：标签、归属标注、状态合成、时间戳都由 run service 烹熟了交出来
-// （端口的 `DynamicWorkflowRunListItem` 注释解释了为什么原料不过边界）。这里只做三件事：
-// 取端口、把 cwd 钉成本会话的工作目录、把结果投影成契约形状。
+// The handler is deliberately **very thin**: labels, attribution annotations, status synthesis, and timestamps are all cooked and handed over by the run service
+// (The port's `DynamicWorkflowRunListItem` comment explains why the raw material does not pass the boundary). There are only three things to do here:
+// Get the port, pin cwd to the session's working directory, and project the result into a contract shape.
 
 import {
   LIST_WORKFLOW_RUNS_TOOL_NAME,
@@ -26,7 +26,7 @@ import {
 } from "./workflow-run-introspection.js";
 
 const LIST_WORKFLOW_RUNS_TIMEOUT_MS = 10_000;
-/** 照 CreateWorkflow：列表刻意轻（单行 SQL 可答），24k 足够 50 行还留着余量。 */
+/** According to CreateWorkflow: the list is deliberately light (a single line of SQL can be answered), 24k is enough for 50 lines and there is still room left. */
 const LIST_WORKFLOW_RUNS_MODEL_BYTES = 24_000;
 
 const LIST_WORKFLOW_RUNS_DESCRIPTION = [
@@ -46,17 +46,17 @@ const listWorkflowRunsHandler: ToolHandler = async (input, context) => {
   const parsed = ListWorkflowRunsInputSchema.parse(input) as ListWorkflowRunsInput;
 
   const port = context.dynamicWorkflowRunPort;
-  // 「端口缺席」与「端口在场但方法缺席」给同一个业务失败：对模型这是同一件事。可选成员按
-  // typeof 探测（端口契约里 `cancel` 立下的先例）。
+// "Port absent" and "port present but method absent" give the same business failure: it's the same thing for the model. Optional member press
+// typeof detection (precedent set by `cancel` in the port contract).
   if (port === undefined || typeof port.listRuns !== "function") {
     return workflowIntrospectionUnavailableFailure();
   }
 
   const result = await port.listRuns({
-    // cwd 恒取本会话的工作目录：模型无权跨项目扫库，这同时是 `sideEffectScope: "none"` 的前提。
-    // 字面等值匹配、不做路径规范化——写入侧（submit）原样落，读侧原样查，规范化只会造出单侧不匹配。
+// cwd always retrieves the working directory of this session: the model does not have the right to scan libraries across projects, which is also the prerequisite for `sideEffectScope: "none"`.
+// Literal equivalent matching, no path normalization - the writing side (submit) is dropped as is, and the reading side is checked as it is. Normalization will only create a one-sided mismatch.
     cwd: context.workingDirectory,
-    // 界已由输入 schema 钳到 [1, 50]（preprocess），端口因此从不看到一次无界枚举。
+// The bounds are clamped by the input schema to [1, 50] (preprocess), so the port never sees an unbounded enumeration.
     limit: parsed.limit,
     ...(parsed.statuses === undefined ? {} : { statuses: parsed.statuses }),
   });
@@ -71,7 +71,7 @@ const listWorkflowRunsHandler: ToolHandler = async (input, context) => {
       ...(item.resumedFrom === undefined ? {} : { resumedFrom: item.resumedFrom }),
       ...(item.supersededBy === undefined ? {} : { supersededBy: item.supersededBy }),
       ownedByThisSession: item.ownedByThisSession,
-      // 为真时才在场：`false` 会给每一行挂一个噪音字段。
+// Only present if true: `false` will hang a noise field on each line.
       ...(item.possiblyInterrupted ? { possiblyInterrupted: true } : {}),
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
@@ -82,11 +82,11 @@ const listWorkflowRunsHandler: ToolHandler = async (input, context) => {
 };
 
 /**
- * 模型面：一个 XML-ish 容器 + **一 run 一行**。
+* Model side: an XML-ish container + **one run per line**.
  *
- * 为什么不照 TaskOutput 把每个字段拆成独立元素：那是单对象详情的形状，50 行 × 8 个元素会把
- * 一次列表读成几百行，逼近 24k 预算而信息密度不变。属性式单行保留了同一套 XML-ish 标签惯例
- * （模型对它的解析很稳），同时让 50 行仍然是 50 行。
+* Why not split each field into independent elements as in TaskOutput: that's the shape of a single object detail, 50 rows × 8 elements will
+* The list reads hundreds of lines at a time, approaching a 24k budget without changing the information density. Attributed single lines retain the same set of XML-ish tag conventions
+* (which the model parses reliably), while allowing 50 rows to still be 50 rows.
  */
 function formatListWorkflowRunsModelContent(output: unknown): ModelMessageContent {
   const parsed = ListWorkflowRunsOutputSchema.safeParse(output);
@@ -99,7 +99,7 @@ function formatListWorkflowRunsModelContent(output: unknown): ModelMessageConten
   ].join(" ");
 
   if (runs.length === 0) {
-    // 「这个项目没跑过 workflow」必须说成一句话：空容器容易被读成「工具没答上来」。
+// "This project has not run through the workflow" must be said in one sentence: an empty container is easily read as "the tool has not been answered".
     return `<workflow_runs ${header}>\nNo workflow runs recorded for this project.\n</workflow_runs>`;
   }
 
@@ -157,12 +157,12 @@ export const listWorkflowRunsToolEntry: ToolEntry = {
     riskLevel: "low",
     sideEffectScope: "none",
     needsApproval: false,
-    // 输入里没有路径主体（cwd 来自会话上下文），所以模式只按工具名匹配。
+// There is no path body in the input (cwd comes from the session context), so the pattern only matches by tool name.
     patternSources: ["toolName"],
     alwaysAllowPatternSources: ["toolName"],
     denyPriority: "beforeAsk",
-    // 刻意**不**继承 CreateWorkflow 的 alwaysAsk：那道 gate 的理由是「执行整块代码」，
-    // 读状态不属于它。
+// Deliberately **not** inherit CreateWorkflow's alwaysAsk: the reason for that gate is to "execute the entire code",
+// Read status does not belong to it.
   },
   resultBudget: {
     maxInlineBytes: LIST_WORKFLOW_RUNS_MODEL_BYTES,
@@ -170,7 +170,7 @@ export const listWorkflowRunsToolEntry: ToolEntry = {
     strategy: "truncate",
     preview: {
       maxBytes: LIST_WORKFLOW_RUNS_MODEL_BYTES,
-      // head：最近更新的 run 在前，截尾丢的是最旧的那些。
+// head: The most recently updated runs are first, and the oldest ones are truncated.
       direction: "head",
     },
   },

@@ -79,8 +79,8 @@ export function createOfficialCuaPolicy(
     isOfficialToolRequest(name) {
       const normalized = name.trim();
       if (toolNames.has(normalized)) return true;
-      // Parent MCP 尚无启动快照时，只能依赖已认证 server 的 namespace；一旦收到
-      // descriptor，就收窄为精确工具集合，避免第三方同名工具被误判成官方 CUA。
+// When the Parent MCP has not yet started a snapshot, it can only rely on the namespace of the authenticated server; once it receives
+// descriptor, narrow it down to a precise set of tools to avoid third-party tools with the same name being misjudged as official CUA.
       if (officialDescriptorCount > 0 || officialToolPrefixes.size === 0) return false;
       return [...officialToolPrefixes].some(
         (prefix) => normalized.startsWith(prefix) && normalized.length > prefix.length,

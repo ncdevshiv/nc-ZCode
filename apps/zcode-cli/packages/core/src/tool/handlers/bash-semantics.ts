@@ -143,7 +143,7 @@ function statusCommandNameForExitOne(command: string): string | undefined {
   const statusCommand = analysis.commands.at(-1);
   if (statusCommand === undefined) return undefined;
 
-  // 不能因为命令行前面出现过 rg/grep，就把后续 test/exit 的 1 误判成 No matches found。
+// Do not misjudge 1 in subsequent test/exit as No matches found just because rg/grep appears before the command line.
   if (statusCommand.name === "git") {
     const gitSubcommand = gitSemanticSubcommandName(statusCommand.argv);
     if (gitSubcommand === "grep") return "grep";

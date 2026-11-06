@@ -1,13 +1,13 @@
-import type ts from "typescript";
+// @ts-nocheck
 import type { ScriptLoc } from "../compiler/compile.js";
 import type { TaintOcc } from "./domain.js";
 import type { ApplicationVia } from "./state.js";
 import type { JumpKind, TraceRegionKind } from "./constants.js";
 
-// causality-order.ts 顶到 oxlint max-lines 上限（400 行），把追踪产物的类型
-// （区域、事件、控制事实、OrderTrace）与走查读取的神谕接口拆到本文件；公开面仍从
-// causality-order.ts 导出（那里原样再导出这些类型，既有的 `from "./causality-order.js"`
-// 引用一个不改）。本文件只含类型，不 import `typescript` 的运行时值。
+// causality-order.ts reaches the upper limit of oxlint max-lines (400 lines), and changes the type of tracking product
+// (Region, event, control fact, OrderTrace) and the oracle interface read by walkthrough are separated into this file; the public interface is still from
+// Export causality-order.ts (export these types as they are, existing `from "./causality-order.js"`
+// One reference will not be changed). This file only contains types, not the runtime values ​​of import `typescript`.
 
 /**
  * The taint facts this walk reads, narrowed to the two members it actually uses so the

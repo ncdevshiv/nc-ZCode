@@ -142,11 +142,11 @@ export async function forkWorkspaceFromCheckpoint(
 ): Promise<WorkspaceForkResult> {
   const traceContext = options.traceContext ?? getCurrentTraceContext() ?? this.rootTraceContext;
 
-  // message 目标的 fork 语义是"历史包含目标回合，工作区停在 fork 点时刻"。
-  // 恢复目标回合自身 checkpoint 的 beforeContent 会把该回合刚产出的文件回退/删除——
-  // fork 与父会话共用工作区目录，父会话的产物也随之丢失（在最新回复上分叉时最明显）。
-  // message fork 只撤销 fork 点之后的 checkpoint；显式 checkpoint 目标（/fork latest、
-  // targetCheckpointId）仍保留"回到该 checkpoint 修改前"的 rewind 式语义。
+// The fork semantics of the message target are "The history contains the target turn, and the workspace stops at the fork point moment".
+// Restoring the beforeContent of the target round's own checkpoint will roll back/delete the file just produced in that round——
+// fork shares the workspace directory with the parent session, and the parent session's artifacts are lost (most noticeable when forking on the latest reply).
+// message fork only revokes checkpoints after the fork point; explicit checkpoint targets (/fork latest,
+// targetCheckpointId) still retains the rewind-style semantics of "going back to before the checkpoint was modified".
   if (options.targetMessageId && !options.targetCheckpointId) {
     return await forkWorkspaceAtMessage.call(this, {
       abortSignal: options.abortSignal,
@@ -209,8 +209,8 @@ export async function forkWorkspaceFromCheckpoint(
   );
   const artifact = parseWorkspaceCheckpointArtifact(JSON.parse(read.content));
   const parentMessages = await this.sessionStore.messages({ sessionID: this.sessionId });
-  // 编辑重发后 session store 会保留被 rewind 掉的旧分支。
-  // fork 复制历史必须基于 active branch，否则子会话会重新带入旧 prompt 和被取消的 assistant。
+// After editing and resending, the session store will retain the old branch that was rewinded.
+// The fork copy history must be based on the active branch, otherwise the child session will bring back the old prompt and canceled assistant.
   const forkSourceMessages = forkSourceMessagesForSession(parentMessages, parentSession);
   const targetMessageIdResolved = checkpoint.targetMessageId ?? checkpoint.messageId;
   const targetIndex = forkSourceMessages.findIndex(

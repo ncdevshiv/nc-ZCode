@@ -13,43 +13,43 @@ import { normalizeToolNameAlias } from "../../tool/tool-visibility.js";
 const EXPLORE_AGENT_ALLOWED_TOOL_SET = new Set<string>(EXPLORE_AGENT_ALLOWED_TOOLS);
 
 /**
- * workflow child 运行时额外不注册的工具。
+* Additional tools that are not registered at workflow child runtime.
  *
- * 根因：workflow child（`/workflow`、`/expert` 与 script workflow 的 agent 调用）被强制成
- * yolo，而它的交互事件只在 subagent 路径上镜像到父会话（`runtime/methods/subagent.ts` 是
- * `mirrorSubagentToolEvent` 的唯一接入点）。CreateWorkflow 声明了 alwaysAsk，所以一段能编译
- * 的脚本会在 child 里发出一个父界面看不到的确认请求，一路挂到权限超时。直接不注册该工具，
- * child 拿到的是干净的"工具不可用"错误，而不是隐形挂起。
+* Root cause: workflow child (agent call of `/workflow`, `/expert` and script workflow) is forced to
+* yolo, while its interaction events are only mirrored to the parent session on the subagent path (`runtime/methods/subagent.ts` is
+* The only access point for `mirrorSubagentToolEvent`). CreateWorkflow declares alwaysAsk, so a section can be compiled
+* The script will issue a confirmation request in the child that cannot be seen by the parent interface, and hang all the way until the permission times out. Do not register the tool directly.
+* The child gets a clean "tool unavailable" error instead of an invisible hang.
  *
- * 长期解法是把 workflow child 的交互事件也镜像到父会话，随执行引擎落地时一并处理
+* The long-term solution is to mirror the interaction events of the workflow child to the parent session and process them when the execution engine is implemented.
  */
 const WORKFLOW_CHILD_DISALLOWED_TOOLS = [
   CREATE_WORKFLOW_TOOL_NAME,
-  // AmendWorkflow 与 CreateWorkflow 同一道 alwaysAsk 门、同一种嵌套编排，因同一个根因入列。
+// AmendWorkflow and CreateWorkflow have the same alwaysAsk gate, the same nested arrangement, and are enqueued due to the same root cause.
   AMEND_WORKFLOW_TOOL_NAME,
-  // SaveWorkflow 因**同一个**根因入列：它也声明了 alwaysAsk，所以在 child 里同样会发出一个
-  // 父界面看不到的确认请求并挂到超时。ListSavedWorkflows 不在列——那条禁令的理由是无窗可弹，
-  // 只读查询不适用（与两个 run 内省工具同理）。
+// SaveWorkflow is enqueued due to the same root cause: it also declares alwaysAsk, so in the child it will also emit an
+// The confirmation request cannot be seen by the parent interface and will time out. ListSavedWorkflows is not listed - the reason for that ban is that there is no window to pop up,
+// Read-only queries are not applicable (same as the two run introspection tools).
   SAVE_WORKFLOW_TOOL_NAME,
-  // **结构性禁用**——child 内不得再编排。恢复 = 重新执行整块脚本（完结节点 replay、未完结
-  // 重派发），与 CreateWorkflow 新启是同一能力档；纵使免确认后「无窗可弹」的技术问题消失，
-  // 嵌套编排（child 再拉起或复活 run）仍不开放。
+// **Structural Disabled** - No further layout is allowed within the child. Recovery = re-execute the entire script (completed node replay, unfinished
+//Redistribute), which is the same capability file as CreateWorkflow new startup; even if the technical problem of "no window to pop up" disappears after no confirmation is required,
+// Nested arrangement (child is pulled up or resurrected again) is still not open.
   RESUME_WORKFLOW_RUN_TOOL_NAME,
-  // ResolveWorkflowQuestion 与 ResumeWorkflowRun 同属**结构性禁用**，但守的是另一条不变式：
-  // 升级问答的语义是「actor 提问，创建这条工作流的那一方作答」。
-  // 让一个 child 顺手作答，等于把「把判断权交回给能改掉那道门的人」悄悄退化成 actor 之间的
-  // 互相说服——而一个同样被挡在门内的 actor 恰恰是最没有资格拍板的那个。
+// ResolveWorkflowQuestion and ResumeWorkflowRun are both **structurally disabled**, but they adhere to another invariant:
+// The semantics of upgraded Q&A are "the actor asks a question, and the party who created this workflow answers".
+// Let a child answer easily, which is equivalent to "turning the power of judgment to the person who can change the door" quietly degenerated into a conflict between actors.
+// Persuade each other - and an actor who is also blocked is the one least qualified to make a decision.
   //
-  // 与 bootstrap 的 `ACTOR_DISALLOWED_TOOLS` **刻意重复**（CreateWorkflow 已有同样的双列
-  // 先例）：那一份是 driver 侧 persona 工具面的减法；这一份按 taskType 覆盖全部 workflow
-  // child，不依赖 driver 记得写。
+// **Intentional duplication** with bootstrap's `ACTOR_DISALLOWED_TOOLS` (CreateWorkflow already has the same double column
+// Precedent): That one is the subtraction of the persona tool surface on the driver side; this one covers all workflows by taskType
+// child, does not depend on driver, remember to write it.
   RESOLVE_WORKFLOW_QUESTION_TOOL_NAME,
 ] as const;
 
 /**
- * 运行时最终的工具禁用名单：turn 级 `toolDisallowlist` 叠加按 taskType 推导出的结构性禁用。
- * 放在这里而不是各个 child runtime 的构造点，是因为构造点有两个
- * （`workflow-facade.ts` 与 `script-workflow-child-runtime.ts`），两份名单必然漂移。
+* Final tool disallow list at runtime: turn-level `toolDisallowlist` overlays structural disables derived by taskType.
+* is placed here instead of the construction points of each child runtime because there are two construction points
+* (`workflow-facade.ts` and `script-workflow-child-runtime.ts`), the two lists will inevitably drift.
  */
 export function resolveRuntimeDisallowedTools(
   config: AgentRuntimeConfig,
@@ -62,15 +62,15 @@ export function resolveRuntimeDisallowedTools(
 }
 
 /**
- * 动态工作流灰度门在 registerBuiltInTools 上的取值。
- * **缺席即开启**：TUI、headless `-p` 和 workflow_child 都不写这个字段，它们必须保留完整工具面；
- * 只有受信 Host 创建的 protocol session 会显式写 false。fail-closed 的缺省值在协议服务端的
- * appRuntimePreferences，不在这一层。
+* The value of dynamic workflow grayscale gate on registerBuiltInTools.
+* **Enable in absence**: TUI, headless `-p` and workflow_child do not write this field, they must retain the complete tool surface;
+* Only protocol sessions created by trusted hosts will explicitly write false. The default value of fail-closed is on the protocol server side.
+* appRuntimePreferences, not at this level.
  *
- * 之所以和 resolveRuntimeDisallowedTools 一样收在这里而不是写在调用点：注册面有**两个**入口
- * （helpers/runtime-tools.ts 的首次装配、methods/embedded-search-branch.ts 的分支刷新），
- * 两份各写一遍必然漂移。就漂过一次——刷新那份漏掉了这个字段，于是
- * 「缺席即开启」把十个工具原样加回注册表，灰度关闭的会话里模型仍然调到了 ListSavedWorkflows。
+* The reason why it is stored here like resolveRuntimeDisallowedTools instead of written at the call point: there are **two** entrances on the registration page
+* (First assembly of helpers/runtime-tools.ts, branch refresh of methods/embedded-search-branch.ts),
+*Writing two copies each will inevitably drift. I just floated it once - I missed this field when I refreshed it, so
+* "Open in absence" adds the ten tools back to the registry as they are, and the model is still adjusted to ListSavedWorkflows in the grayscale closed session.
  */
 export function resolveRuntimeDynamicWorkflowToolsIncluded(config: AgentRuntimeConfig): boolean {
   return config.dynamicWorkflowEnabled !== false;
@@ -107,13 +107,13 @@ function appendChildControlTool(
     if (allowlist.includes(RESPOND_TO_COORDINATOR_TOOL_NAME)) {
       return allowlist;
     }
-    // Explore 会在 runtime 注册前再次求工具交集，child 控制工具必须在最终结果补回。
+// Explore will seek tool intersection again before runtime registration, and the child control tool must make up for the final result.
     return [...allowlist, RESPOND_TO_COORDINATOR_TOOL_NAME];
   }
 
-  // workflow child 没有 allowlist 收窄（persona 无工具档位，工具面只有减法，见
-  // bootstrap 的 workflow-actor-tools.ts），submit_result / escalate 由 includeSubmitResult /
-  // includeEscalate 两道门注册，不需要在这里补回。
+// workflow child does not have allowlist narrowing (persona has no tool gear, tool surface only has subtraction, see
+// bootstrap workflow-actor-tools.ts), submit_result / escalate by includeSubmitResult /
+// includeEscalate Two gates are registered, no need to make up for it here.
   return allowlist;
 }
 

@@ -3,8 +3,8 @@ import { access, readFile } from "node:fs/promises";
 import { dirname, posix, resolve } from "node:path";
 
 export function placeRuntimePackage({ packageName, packageDirectory, fromAssetPath, placements }) {
-  // 原收集器仅按包名去重，把 contracts 的 Zod 3 和 shared 的 Zod 4 压成同一个包。
-  // 按消费者的 Node 查找顺序复用同一物理包；冲突版本放入消费者自己的 node_modules。
+// The original collector only removes duplication by package name, and compresses Zod 3 of contracts and Zod 4 of shared into the same package.
+// Reuse the same physical package in the consumer's Node search order; conflicting versions are put into the consumer's own node_modules.
   let directory = fromAssetPath;
   while (true) {
     const candidate = posix.join(directory, "node_modules", packageName);
@@ -35,7 +35,7 @@ export const resolveRuntimePackageDirectory = async ({
     const directory = workspacePackageDirectory;
     await assertPackageDirectory(packageName, directory);
     if (!(await exists(resolve(directory, "dist", "index.js")))) {
-      throw new Error(`Missing ${packageName} dist files. Run \`pnpm build\` before \`pnpm sea\`.`);
+      throw new Error(`Missing ${packageName} dist files. Run \`bun run build\` before \`bun run sea\`.`);
     }
     return directory;
   }
@@ -60,7 +60,7 @@ export const resolveRuntimePackageDirectory = async ({
       return packageDirectory;
     }
     throw new Error(
-      `Missing SEA TUI runtime package ${packageName}. Run \`pnpm install\` and try again.`,
+      `Missing SEA TUI runtime package ${packageName}. Run \`bun install\` and try again.`,
       {
         cause: error,
       },

@@ -1,10 +1,10 @@
-//! sidecar 协议类型（镜像 native/crates/zcode-sidecar-proto 的 Frame）。
+//! sidecar protocol type (mirror Frame of native/crates/zcode-sidecar-proto).
 //!
-//! wire 形状（协议版本 1）：
+//! wire shape (protocol version 1):
 //!   request  {v, id, method, params}
 //!   response {v, id, ok, result | error{code,message}}
 //!   event    {v, event, data}
-//! 顺序帧：`event:"ready"`（data = {sidecar, proto}）是进程启动后的第一行。
+//! Sequential frame: `event:"ready"` (data = {sidecar, proto}) is the first line after the process starts.
 
 export const SIDECAR_PROTOCOL_VERSION = 1;
 
@@ -25,7 +25,7 @@ export interface SidecarRequest {
   timeoutMs?: number;
 }
 
-/** 协议层错误：版本不匹配、帧形状非法、进程已退出。属于配置/构建问题，必须冒泡。 */
+/** Protocol layer error: version mismatch, illegal frame shape, process has exited. It's a configuration/build issue and must bubble up. */
 export class SidecarProtocolError extends Error {
   constructor(message: string) {
     super(message);
@@ -33,7 +33,7 @@ export class SidecarProtocolError extends Error {
   }
 }
 
-/** 可用性错误：二进制缺失 / spawn 失败 / 进程崩溃。调用方可降级（diff facade 降级到 jsdiff）。 */
+/** Availability error: missing binary/spawn failed/process crashed. The caller can downgrade (diff facade downgrades to jsdiff). */
 export class SidecarUnavailableError extends Error {
   constructor(message: string) {
     super(message);
@@ -41,7 +41,7 @@ export class SidecarUnavailableError extends Error {
   }
 }
 
-/** handler 返回的错误帧（400/404/500……）。 */
+/** The error frame returned by the handler (400/404/500...). */
 export class SidecarMethodError extends Error {
   readonly code: number;
   constructor(code: number, message: string) {

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 // ============================================================
 // Message History - Maintains conversation context across turns
 // ============================================================
@@ -50,9 +51,9 @@ export interface RuntimeMessageMessageEntry {
   kind?: "message";
   message: ModelInputMessage;
   metadata?: RuntimeMessageMetadata;
-  /** 已提交 assistant 自己的 provider tokens；不会发送到 provider。 */
+/** Assistant's own provider tokens submitted; will not be sent to provider. */
   tokens?: TokenUsageInfo;
-  /** 仅在当前 query 内生效；不得进入 canonical history 或 Session persistence。 */
+/** Only takes effect within the current query; cannot enter canonical history or Session persistence. */
   queryScope?: "output_token_continuation";
 }
 
@@ -107,10 +108,10 @@ export interface MessageHistory {
     isError?: boolean,
   ): void;
 
-  // 借用当前权威 entries，只允许同步只读；跨异步边界时由调用方做数组浅快照。
+// Borrow the current authoritative entries, only synchronous read-only is allowed; when crossing asynchronous boundaries, the caller takes a shallow snapshot of the array.
   borrowReadOnlyRuntimeEntries(): readonly RuntimeMessageEntry[];
 
-  // 创建可写的防御性副本；Runtime 内部普通只读点应使用 borrowReadOnlyRuntimeEntries。
+// Create a writable defensive copy; ordinary read-only points inside the Runtime should use borrowReadOnlyRuntimeEntries.
   toRuntimeEntries(): RuntimeMessageEntry[];
 
   // Replace the active provider-visible history after compact/rewind.
@@ -424,8 +425,8 @@ export function cloneRuntimeMessageEntry(entry: RuntimeMessageEntry): RuntimeMes
 }
 
 /**
- * Compact 之后 preserved assistant 的 provider usage 仍属于被替换的旧前缀。
- * 只对 projection 副本清零，不能改写 SessionStore 中的原始 tokens。
+* After Compact, the provider usage of preserved assistant still belongs to the old prefix that was replaced.
+* Only the projection copy is cleared, the original tokens in the SessionStore cannot be overwritten.
  */
 export function invalidateRuntimeTokenUsage(tokens: TokenUsageInfo): TokenUsageInfo {
   return {
@@ -487,7 +488,7 @@ export function cloneModelInputMessage(message: ModelInputMessage): ModelInputMe
   if (message.cacheControl) next.cacheControl = { ...message.cacheControl };
   if (message.toolCalls) next.toolCalls = message.toolCalls.map((toolCall) => ({ ...toolCall }));
   if (message.toolCallId) next.toolCallId = message.toolCallId;
-  // 空字符串是可恢复调用的 provider 原始名称，不能在 request-local clone 时按 falsy 丢失。
+// The empty string is the original name of the provider that can be restored and cannot be falsy lost during request-local clone.
   if (message.toolName !== undefined) next.toolName = message.toolName;
   if (message.isError !== undefined) next.isError = message.isError;
   if (message.providerId) next.providerId = message.providerId;

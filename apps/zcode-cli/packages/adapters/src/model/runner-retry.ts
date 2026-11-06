@@ -30,7 +30,7 @@ export class TerminalStreamChunkError extends Error {
   constructor(readonly adapterError: AiSdkModelAdapterError) {
     super(adapterError.message);
     this.name = "TerminalStreamChunkError";
-    // 流终止包装器只复制 message，丢失底层网络原因；公开 cause 但不改文案与重试策略。
+// The flow termination wrapper only copies the message and loses the underlying network reason; it exposes the cause but does not change the copy and retry strategy.
     this.cause = adapterError.cause ?? adapterError;
   }
 }
@@ -42,8 +42,8 @@ export function calculateRetryDelay(
 ): number {
   const uncapped = retry.baseDelayMs * retry.backoffFactor ** Math.max(0, attempt - 1);
   const capped = Math.min(uncapped, retry.maxDelayMs);
-  // provider 会返回几十秒到数分钟的 retry-after；
-  // 旧 60s 上限会把合法限流等待退化为本地短退避。
+//The provider will return retry-after from tens of seconds to minutes;
+// The old 60s upper limit will degrade the legal current limit wait to a local short backoff.
   if (isReasonableRetryAfterMs(retryAfterMs, uncapped)) {
     return retryAfterMs;
   }
@@ -87,8 +87,8 @@ export function logRetryDelayDecision(input: {
   responseHeaders: Record<string, string>;
   statusContext: ModelStatusContext;
 }): void {
-  // retry-after 可能在 header 保留、错误归一化或 delay 计算任一层断链；
-  // 这里集中记录安全 header 摘要和最终等待时间，方便复现后直接定位。
+// retry-after may break the link at any level during header retention, error normalization or delay calculation;
+// The security header summary and final waiting time are recorded here to facilitate direct positioning after recurrence.
   input.logger?.warn("Model retry delay decision inspected", {
     ...modelStatusContextToLogContext(input.statusContext, input.attempt),
     canRetry: input.canRetry,
@@ -124,13 +124,13 @@ export function toAdapterError(
     ...modelFailureAttributionFields(unwrapped, failure, additionalContext?.errorPhase),
     ...providerBusinessErrorContext(providerBusinessError),
     providerId: statusContext.providerId,
-    // 错误离开 adapter 后无法再反推出实际协议与传输方式；在归一化边界保留安全事实。
+// After the error leaves the adapter, the actual protocol and transmission method cannot be deduced; safety facts are retained at the normalized boundary.
     providerKind: statusContext.providerKind,
     reason: failure.reason,
     requestId: statusContext.requestId,
     retryable: failure.retryable,
-    // Retry-After 只活在分类结果里，离开 adapter 就丢了；workflow 的配额停止通知
-    // 要靠它算 resetAt，所以随归一化上下文带出去。
+// Retry-After only lives in the classification results and is lost when leaving the adapter; workflow quota stops notification
+// It depends on resetAt, so it is taken out with the normalization context.
     ...(failure.retryAfterMs === undefined ? {} : { retryAfterMs: failure.retryAfterMs }),
     source: modelFailureSource(providerBusinessError ?? error, failure, additionalContext),
     statusCode: failure.statusCode,
@@ -139,8 +139,8 @@ export function toAdapterError(
   };
 
   if (error instanceof AiSdkModelAdapterError) {
-    // 已有 adapter error 的因果归因可能来自更接近失败现场的可靠证据；
-    // 重新包装并用 runner 的粗粒度分类覆盖它，会改变归因和错误 identity。这里只补齐缺失归因和当前请求事实。
+// The causal attribution of existing adapter errors may come from reliable evidence closer to the failure site;
+// Repackaging and overwriting it with the runner's coarse-grained classification will change the attribution and error identity. Only missing attributions and current request facts are filled in here.
     return error.enrichContext({
       ...error.context,
       ...normalizedContext,
@@ -196,8 +196,8 @@ function modelFailureSource(
     return ModelErrorSource.Provider;
   }
 
-  // SSE 已创建并进入 response body 后，即使 provider 没有返回 status/code，
-  // 也已经有明确的上游边界事实；仅按 status/provider error 判断会误把这类未知失败归为 runtime。
+// After SSE has been created and entered the response body, even if the provider does not return status/code,
+// There are also clear upstream boundary facts; judging only by status/provider error will mistakenly classify such unknown failures as runtime.
   if (
     additionalContext?.streamFailurePhase === "response_body" ||
     additionalContext?.errorPhase === "response" ||
@@ -207,8 +207,8 @@ function modelFailureSource(
     return ModelErrorSource.Provider;
   }
 
-  // invalid_request/unknown 同时覆盖请求前的本地配置校验和 provider 响应失败；
-  // 只按 reason 归因会把尚未发出网络请求的错误也记到 provider。缺少上游证据时归 runtime。
+// invalid_request/unknown also overwrites the local configuration checksum before the request. The provider response fails;
+// Attribution only by reason will also record errors that have not yet made a network request to the provider. Fallback to runtime in the absence of upstream evidence.
   if (
     reason === ModelFailureReason.InvalidRequest ||
     reason === ModelFailureReason.ProviderNotConfigured ||

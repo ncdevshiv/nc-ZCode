@@ -185,8 +185,8 @@ function validateRequestProperties(properties: ModelProperties, request: ModelRe
 }
 
 function invalidRequest(message: string, context?: Record<string, unknown>): ModelProtocolError {
-  // capability / option 校验发生在 executor 之前，不会经过 runner 的失败归一化；
-  // 若只保留 code/message，TurnError 和冷恢复都无法知道这是请求发出前的本地校验失败。
+// Capability / option verification occurs before the executor and will not go through the runner's failure normalization;
+// If only code/message is retained, neither TurnError nor cold recovery can know that this is a local verification failure before the request is issued.
   return new ModelProtocolError(ModelErrorCode.InvalidModelRequest, message, {
     ...context,
     reason: ModelFailureReason.InvalidRequest,

@@ -1,0 +1,37 @@
+{
+  "name": "workflow_fanout",
+  "scriptHash": "d72c87730738b4efa0f5429e0bf65bceafcd206db192b7190faf52c9fc0043d3",
+  "siteIds": [
+    "actor#1",
+    "ask#1",
+    "report#1",
+    "actor#2",
+    "ask#2"
+  ],
+  "lowered": "// Canonical parity/benchmark fixture: fan-out — 4 concurrent untyped asks on 4 named\n// actors, joined with Promise.all, then one typed meta ask.\n// Verified against the real front-end (2026-10-30, dist lowerWorkflowScript):\n//   siteIds = [\"actor#1\",\"ask#1\",\"report#1\",\"actor#2\",\"ask#2\"]\n// Site ids are STATIC per source call site: the agent()/ask() inside names.map() are each\n// ONE site executed 4 times (ordinals ask#1@1..@4 on 4 distinct actors); the coordinator\n// ask is ask#2 (typed). Pin these exact ids — the benchmark asserts the same table.\n// Purpose: exercise per-actor FIFO, maxConcurrency gating, untyped → final-text results,\n// typed → submit_result validation, and Promise.all join inside the sandbox.\nconst names = [\"alpha\", \"beta\", \"gamma\", \"delta\"];\nconst workers = names.map((n) => __host.createActor(\"actor#1\", `${n}-worker`, `You are the ${n} worker.`));\nconst findings = await Promise.all(workers.map((w, i) => __host.ask(\"ask#1\", w, `Worker ${names[i]}: reply with exactly one short sentence describing task ${i + 1}.`)));\n__host.report(\"report#1\", { workers: findings.length });\nconst coordinator = __host.createActor(\"actor#2\", \"coordinator\", \"You merge worker findings.\");\nconst merged = await __host.ask(\"ask#2\", coordinator, \"Merge these findings into one sentence and report the count. findings=\\n\" +\n    findings.map((f, i) => `${i}: ${f}`).join(\"\\n\"));\nreturn { merged: merged.merged, count: merged.count };\n",
+  "askSpecs": {
+    "ask#1": {
+      "typed": false
+    },
+    "ask#2": {
+      "typed": true,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "merged": {
+            "type": "string"
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "merged",
+          "count"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "generatedBy": "scripts/bench/gen-workflow-fixtures.mjs"
+}

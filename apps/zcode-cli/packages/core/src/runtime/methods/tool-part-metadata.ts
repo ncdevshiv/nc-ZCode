@@ -34,8 +34,8 @@ export function completedToolPartMetadata(
     schemaVersion: COMPLETED_TOOL_PART_METADATA_SCHEMA_VERSION,
     ...(result.display ? { display: result.display } : {}),
     ...(serialization ? { serialization } : {}),
-    // resume 需要恢复模型当时真实读到的文件快照；只依赖 tool_result 文本
-    // 会把主路径绑死在 provider 展示格式上，所以新 session 结构化持久化 read-state。
+//resume needs to restore the file snapshot that the model actually read at that time; it only relies on tool_result text
+// The main path will be tied to the provider display format, so the new session structured persistence read-state.
     ...(result.readFileStateMetadata ? { readFileState: result.readFileStateMetadata } : {}),
   };
 }

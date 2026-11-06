@@ -1,0 +1,698 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "recentProjects": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "locale": {
+      "type": "string",
+      "enum": [
+        "zh-CN",
+        "en-US"
+      ]
+    },
+    "shortcutBindings": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "localePreference": {
+      "type": "string",
+      "enum": [
+        "system",
+        "zh-CN",
+        "en-US"
+      ]
+    },
+    "terminalInheritSystemProfile": {
+      "type": "boolean"
+    },
+    "terminalFontFamily": {
+      "type": "string",
+      "minLength": 1
+    },
+    "integratedTerminalShell": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "const": "auto"
+            }
+          },
+          "required": [
+            "mode"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "const": "shell"
+            },
+            "dialect": {
+              "type": "string",
+              "enum": [
+                "cmd",
+                "git-bash"
+              ]
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "label": {
+              "type": "string",
+              "minLength": 1
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "mode",
+            "dialect",
+            "id",
+            "label",
+            "path"
+          ]
+        }
+      ]
+    },
+    "httpProxy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "httpProxyNoProxy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "httpProxyCaCertPath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "embeddedBrowserAllowInsecureCertificates": {
+      "type": "boolean"
+    },
+    "embeddedBrowserViewportPreference": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "responsive"
+          ]
+        },
+        "viewport": {
+          "type": "object",
+          "properties": {
+            "width": {
+              "type": "integer",
+              "minimum": 320,
+              "maximum": 3840
+            },
+            "height": {
+              "type": "integer",
+              "minimum": 320,
+              "maximum": 2160
+            }
+          },
+          "required": [
+            "width",
+            "height"
+          ],
+          "additionalProperties": false
+        },
+        "zoom": {
+          "type": "string",
+          "enum": [
+            "50",
+            "75",
+            "100",
+            "125",
+            "150",
+            "200",
+            "fit"
+          ]
+        }
+      },
+      "required": [
+        "mode",
+        "viewport",
+        "zoom"
+      ],
+      "additionalProperties": false
+    },
+    "computerUseComposerEntryHidden": {
+      "type": "boolean"
+    },
+    "taskAutoArchiveEnabled": {
+      "type": "boolean"
+    },
+    "taskAutoArchiveOlderThanDays": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 365
+    },
+    "closeToTrayOnWindows": {
+      "type": "boolean"
+    },
+    "keepAwakeWhileRunning": {
+      "type": "boolean"
+    },
+    "closeToTrayOnWindowsMigrationInitialized": {
+      "type": "boolean"
+    },
+    "desktopZoomLevel": {
+      "type": "integer",
+      "minimum": -3,
+      "maximum": 5
+    },
+    "desktopWindowSize": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 480,
+          "maximum": 9007199254740991
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 640,
+          "maximum": 9007199254740991
+        },
+        "maximized": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "width",
+        "height",
+        "maximized"
+      ]
+    },
+    "desktopChromiumHardwareAccelerationEnabled": {
+      "type": "boolean"
+    },
+    "messageStreamShowReasoning": {
+      "type": "boolean"
+    },
+    "messageStreamShowReasoningMigrationInitialized": {
+      "type": "boolean"
+    },
+    "messageStreamShowTodos": {
+      "type": "boolean"
+    },
+    "toolGroupingExploreEnabled": {
+      "type": "boolean"
+    },
+    "toolGroupingTerminalEnabled": {
+      "type": "boolean"
+    },
+    "toolGroupingChangesEnabled": {
+      "type": "boolean"
+    },
+    "zcodeInteractionBehavior": {
+      "type": "string",
+      "enum": [
+        "queue",
+        "guide"
+      ]
+    },
+    "askUserQuestionAutoResolutionEnabled": {
+      "type": "boolean"
+    },
+    "modelIoFullRetentionEnabled": {
+      "type": "boolean"
+    },
+    "startPlanRecommendationDismissed": {
+      "type": "boolean"
+    },
+    "providerFamilyConnectionSelections": {
+      "type": "object",
+      "properties": {
+        "zai": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "start-plan"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "individual-coding-plan"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "team-coding-plan"
+                },
+                "productId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "organizationId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "projectId": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "kind",
+                "productId",
+                "organizationId",
+                "projectId"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "bigmodel": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "start-plan"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "individual-coding-plan"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "team-coding-plan"
+                },
+                "productId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "organizationId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "projectId": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "kind",
+                "productId",
+                "organizationId",
+                "projectId"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      }
+    },
+    "providerFamilyDomain": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "zai",
+            "bigmodel"
+          ]
+        },
+        {
+          "type": "string",
+          "const": ""
+        }
+      ]
+    },
+    "providerFamilyDomainUpdatedAt": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "providerFamilyDomainMigrated": {
+      "type": "boolean"
+    },
+    "nativeSearchEnhancementsEnabled": {
+      "type": "boolean"
+    },
+    "onboardingOccupation": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "office",
+            "developer",
+            "independent",
+            "infrastructure",
+            "product",
+            "design",
+            "student",
+            "creator",
+            "operations",
+            "marketing",
+            "finance",
+            "accounting",
+            "legal",
+            "other"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "proactiveSuggestionsEnabled": {
+      "type": "boolean"
+    },
+    "memoryEnabled": {
+      "type": "boolean"
+    },
+    "lastWorkspaceSession": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "local"
+              },
+              "workspacePath": {
+                "type": "string",
+                "minLength": 1
+              },
+              "workspacePurpose": {
+                "default": "project",
+                "type": "string",
+                "enum": [
+                  "project",
+                  "conversation"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "workspacePath"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "remote"
+              },
+              "workspacePath": {
+                "type": "string",
+                "minLength": 1
+              },
+              "localWorkspacePath": {
+                "type": "string",
+                "minLength": 1
+              },
+              "workspaceIdentity": {
+                "type": "string",
+                "minLength": 1
+              },
+              "target": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "ssh"
+                      },
+                      "host": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "port": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 65535
+                      },
+                      "username": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "sshConfigAlias": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "privateKeyPath": {
+                        "type": "string"
+                      },
+                      "assetInstallMode": {
+                        "type": "string",
+                        "enum": [
+                          "local-download-upload",
+                          "remote-download"
+                        ]
+                      },
+                      "resourcePackages": {
+                        "type": "object",
+                        "properties": {
+                          "selectedPackageIds": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "passwordCredentialKey": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "privateKeyPassphraseCredentialKey": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "host",
+                      "username"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "wsl"
+                      },
+                      "distro": {
+                        "type": "string"
+                      },
+                      "user": {
+                        "type": "string",
+                        "maxLength": 64
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "const": "docker"
+                      },
+                      "container": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "container"
+                    ]
+                  }
+                ]
+              },
+              "lastOpenedAt": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "lastConnectionStatus": {
+                "type": "string",
+                "enum": [
+                  "connected",
+                  "failed"
+                ]
+              },
+              "lastConnectionError": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "workspacePath",
+              "target",
+              "lastOpenedAt",
+              "lastConnectionStatus"
+            ]
+          }
+        ]
+      }
+    },
+    "lastActiveTabIndex": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "lastActiveTaskByWorkspace": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "dataBaseDir": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pendingPostUpdateReleaseNotes": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "markdown": {
+          "type": "string",
+          "minLength": 1
+        },
+        "releaseDate": {
+          "type": "string",
+          "minLength": 1
+        },
+        "releaseNotesByLocale": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "enum": [
+              "zh-CN",
+              "en-US"
+            ]
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1
+              },
+              "markdown": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "title",
+              "markdown"
+            ]
+          }
+        }
+      },
+      "required": [
+        "version",
+        "title",
+        "markdown"
+      ]
+    },
+    "receivePreviewUpdates": {
+      "type": "boolean"
+    },
+    "autoDownloadAndInstallUpdates": {
+      "type": "boolean"
+    },
+    "skippedElectronUpdateVersions": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "enum": [
+          "stable",
+          "preview"
+        ]
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "settingsSyncFirstRunPromptHandled": {
+      "type": "boolean"
+    },
+    "zcodeEndpointOrigin": {
+      "type": "string"
+    }
+  }
+}

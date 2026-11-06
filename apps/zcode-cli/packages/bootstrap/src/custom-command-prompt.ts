@@ -15,11 +15,11 @@ const PROMPT_CUSTOM_COMMAND_PATTERN = /^\/([^\s]+)(?:\s+([\s\S]*))?$/;
 
 interface ResolveZCodeCustomCommandPromptOptions extends ListZCodeCustomCommandsOptions {
   /**
-   * 本会话不可寻址的自定义命令名（小写）。与 `isReservedZCodeSlashCommandName` 是同一个
-   * 概念的两个来源：那个是全局保留字，这个是调用方按会话下发的门禁，目前唯一使用者是
-   * 动态工作流灰度关闭时的 `workflow`。
-   * 刻意按**命令名**而不是禁用路径表达：`workflow` 来自随 CLI 打包的 zcode-guide 插件，
-   * 其 SKILL/命令文件落在插件缓存目录，调用方拿不到稳定路径。
+* Custom command name (lowercase) not addressable for this session. Is the same as `isReservedZCodeSlashCommandName`
+*Two sources of the concept: that one is a global reserved word, and this one is an access control issued by the caller on a per-session basis. Currently, the only user is
+* `workflow` when dynamic workflow grayscale is turned off.
+* Deliberately press **command name** instead of disabling path expression: `workflow` comes from the zcode-guide plugin packaged with the CLI,
+* Its SKILL/command file falls in the plug-in cache directory, and the caller cannot get the stable path.
    */
   disabledCommandNames?: readonly string[];
   executionPort?: ExecutionPort;
@@ -36,9 +36,9 @@ export async function resolveZCodeCustomCommandPrompt(
   if (!invocation || isReservedZCodeSlashCommandName(invocation.name)) {
     return undefined;
   }
-  // 最小侵入点：这里是 `/name` 变成一条命令查找的唯一入口，也是保留字判定已经落脚的地方。
-  // 放在 load 之前，被门禁挡住的命令连文件都不读；返回 undefined 与「命令不存在」同形，
-  // 上层 input facade 会把原文当普通 prompt 交给模型，不会出现半展开的提示词。
+// Minimum intrusion point: This is the only entry point for `/name` to become a command search, and it is also where the reserved word judgment has settled.
+// If placed before load, the command blocked by the access control will not even read the file; returning undefined is the same as "command does not exist".
+// The upper input facade will hand over the original text to the model as a normal prompt, and no semi-expanded prompt words will appear.
   if (options.disabledCommandNames?.includes(invocation.name)) {
     return undefined;
   }
@@ -49,13 +49,13 @@ export async function resolveZCodeCustomCommandPrompt(
       name: invocation.name,
     });
     if (options.executionPort) {
-      // 调用 slash command 时先执行并替换输出，避免 unsupported error
-      // 在 turn 创建前抛出后让 UI 长时间停在“正在思考”。
+// When calling slash command, execute it first and replace the output to avoid unsupported error
+// Make the UI stay in "thinking" for a long time after throwing before turn is created.
       //
-      // 复用 contracts 的底层 template/format 函数，而非 expandCustomCommandPrompt：
-      // 后者内部 detectUnsupportedDynamicSyntax 会对 `!` 语法直接抛错，而本路径
-      // 恰恰要支持 shell 展开，只能在 expandCustomCommandTemplate 与
-      // formatCustomCommandPrompt 之间插入 expandCustomCommandShellSyntax。
+// Reuse the underlying template/format function of contracts instead of expandCustomCommandPrompt:
+// The latter's internal detectUnsupportedDynamicSyntax will directly throw an error for `!` syntax, and this path
+// To support shell expansion, it can only be used between expandCustomCommandTemplate and
+// Insert expandCustomCommandShellSyntax between formatCustomCommandPrompt.
       const expanded = expandCustomCommandTemplate({
         args: invocation.args,
         command,

@@ -97,8 +97,8 @@ export async function runCompactSummaryModelRequest(
       (state.providerMessageProtocolObserved && !state.providerResponseStarted) ||
       (!state.committedContentBlock && !hasCompactSummaryStopReason(state))
     ) {
-      // AI SDK 会为空 SSE 合成 finish(other)，也会吞掉 message_delta 的真实 stop reason；
-      // 只有观察到 response start，且 block stop / truthy stop reason 至少一个成立时才接受该流。
+// AI SDK will synthesize finish(other) with empty SSE, and will also swallow the real stop reason of message_delta;
+//Accept the stream only when response start is observed and at least one of block stop / truthy stop reason is true.
       throw new Error("Compact summary stream ended without a complete provider response");
     }
   } catch (error) {
@@ -166,8 +166,8 @@ function applyCompactSummaryStreamEvent(
       return;
 
     case "tool_call": {
-      // tool call 只负责 deny 所需的 payload 聚合；raw message-block provider
-      // 是否已提交由 compact_stream_boundary 决定，不能把 SDK 合成的 tool call 当成 commit。
+// tool call is only responsible for denying the required payload aggregation; raw message-block provider
+//Whether it has been submitted is determined by compact_stream_boundary. The tool call synthesized by the SDK cannot be regarded as a commit.
       commitNormalizedContentBlock(state);
       const [toolCall] =
         normalizeModelToolCallsForRuntime([event.toolCall], {
@@ -183,8 +183,8 @@ function applyCompactSummaryStreamEvent(
     }
 
     case "finish":
-      // finish 只描述请求结果，不等价于 content_block_stop；clean EOF
-      // 会正常返回，但 finish 后若 iterator tail error 且没有 block end，仍允许 HTTP fallback。
+// finish only describes the request result, not equivalent to content_block_stop; clean EOF
+// Will return normally, but if iterator tail error occurs after finish and there is no block end, HTTP fallback is still allowed.
       state.finish = {
         finishReason: event.finishReason,
         providerMetadata: event.providerMetadata,
@@ -207,7 +207,7 @@ function applyCompactProviderBoundary(
   }
 
   if (!state.providerMessageProtocolObserved) {
-    // raw provenance 一旦出现便接管 commit 判定；normalized end 不能继续充当提交证明。
+// Once raw provenance appears, it takes over the commit judgment; normalized end cannot continue to serve as a commit proof.
     state.committedContentBlock = false;
   }
   state.providerMessageProtocolObserved = true;
@@ -246,8 +246,8 @@ function applyCompactProviderBoundary(
         event.index === null ||
         !state.providerContentBlockTypes.has(event.index)
       ) {
-        // content_block_stop 必须先有 message_start 和同 index block start；orphan stop
-        // 立即失败；统一 IteratorClose 会释放 provider reader，fallback gate 再按既有 commit 决定能否重放。
+// content_block_stop must first have message_start and the same index block start; orphan stop
+// Fail immediately; the unified IteratorClose will release the provider reader, and the fallback gate will then press the existing commit to determine whether it can be replayed.
         throw new Error("Invalid compact provider content block stop");
       }
       state.committedContentBlock = true;
@@ -271,8 +271,8 @@ async function handleCompactSummaryStreamFailure(
   }
   const normalizedError = error instanceof Error ? error : normalizeStreamError(error);
 
-  // compact summary 的 stream delta 从未进入 session/UI，在 content block
-  // 提交前可以安全丢弃并改走 non-stream；这与普通主请求的可见 streaming 恢复边界不同。
+// stream delta of compact summary never enters session/UI, in content block
+// Can be safely discarded and redirected to non-stream before submission; this is different from the visible streaming recovery boundary of a normal main request.
   input.logger?.warn("Compact summary stream failed; falling back to non-streaming", {
     ...traceContextToLogContext(input.request.traceContext),
     errorMessage: normalizedError.message,
@@ -341,7 +341,7 @@ function isCompactSummarySetupFailure(error: unknown): boolean {
 
   if (streamFailurePhase === "request_setup") {
 
-    // 其他同步 setup 或明确 HTTP 拒绝属于原请求错误，不能用第二种 transport 掩盖。
+// Other synchronous setups or explicit HTTP rejections are original request errors and cannot be covered by the second transport.
     return context?.httpResponseStatus !== 404;
   }
 
@@ -374,8 +374,8 @@ function modelSelection(model: Model) {
 }
 
 function commitNormalizedContentBlock(state: CompactSummaryStreamState): void {
-  // 无 raw message-block provenance 的 provider 继续使用 AI SDK normalized end 推断；
-  // 一旦观察到该 provenance，只有 provider content_block_stop 可以固化 commit。
+// Providers without raw message-block provenance continue to use AI SDK normalized end inference;
+// Once this provenance is observed, only provider content_block_stop can solidify the commit.
   if (!state.providerMessageProtocolObserved) {
     state.committedContentBlock = true;
   }
@@ -408,7 +408,7 @@ function isProviderContentBlockDeltaCompatible(
       return blockType === "thinking" || blockType === "redacted_thinking";
     case "citations_delta":
     default:
-      // citations 及未知/未来 delta 只要求 block 已存在，不参与正文聚合。
+// citations and unknown/future delta only require that the block already exists and do not participate in text aggregation.
       return true;
   }
 }

@@ -46,8 +46,8 @@ export function cloneMessageForFork(
     strictLocalReferences?: boolean;
   },
 ): MessageInfo {
-  // copy by value + provenance：child 用新 local id 排序/渲染/
-  // 续写，forkOrigin 只供溯源与 debug，不参与 child 的 UI placement。
+// copy by value + provenance: child sorted/rendered/ with new local id
+// Continuation, forkOrigin is only for traceability and debugging, and does not participate in the UI placement of the child.
   const forkOrigin = {
     sessionId: String(message.sessionID),
     messageId: String(message.id),
@@ -199,9 +199,9 @@ export function clonePartForFork(
     return (mapped ?? id) as TurnId;
   };
 
-  // part 级内嵌引用 remap（不得原样拷贝父 id）。
-  // anchor 类引用参与 child 落位：可 remap 则换 local id，不可 remap 必须清空并
-  // 降级 originAnchorMessageId（不得把父 id 当 child 本地锚点）。
+// Part-level inline reference remap (the parent id must not be copied as it is).
+//The anchor class reference participates in the placement of the child: if it can be remap, change the local id, if it cannot be remap, it must be cleared and
+// Downgrade originAnchorMessageId (the parent id must not be used as the child's local anchor).
   if (cloned.type === "timeline") {
     if (cloned.anchorMessageId) {
       const mapped = messageIdMap.get(cloned.anchorMessageId);
@@ -224,7 +224,7 @@ export function clonePartForFork(
           `Fork timeline anchorTurnId has no child-local identity: ${cloned.anchorTurnId}`,
         );
       } else {
-        // legacy workspace fork 没有完整 turn identity map，只能显式降级为 provenance。
+// The legacy workspace fork does not have a complete turn identity map and can only be explicitly downgraded to provenance.
         cloned.originAnchorTurnId = cloned.anchorTurnId;
         delete cloned.anchorTurnId;
       }
@@ -245,8 +245,8 @@ export function clonePartForFork(
       cloned.verificationId = verificationId ?? cloned.verificationId;
     }
   }
-  // compaction 内部引用是 provider-context 语义（非 UI 落位）：可 remap 则换，
-  // 否则保留原值（保持既有语义，不引入破坏性变更）。
+// The internal reference of compaction is provider-context semantics (not UI placement): it can be remaped,
+// Otherwise, retain the original value (maintain the existing semantics and do not introduce destructive changes).
   if (cloned.type === "compaction") {
     if (cloned.summaryMessageId) {
       cloned.summaryMessageId = mapMessage(cloned.summaryMessageId, "compaction summaryMessageId");

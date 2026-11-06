@@ -15,8 +15,8 @@ export interface ResolvedRegistrySelection {
 }
 
 /**
- * Registry 是模型选择的正式候选来源。当前 Turn 临时携带的 Provider 属于执行输入，
- * 不进入模型选择列表。
+*The Registry is the official candidate source for model selection. The Provider currently carried temporarily by Turn belongs to the execution input.
+*Does not enter the model selection list.
  */
 export function listRegistryBackedModels(
   registry: ProviderRegistryModelSource,
@@ -37,8 +37,8 @@ export function getRegistryBackedModel(
 }
 
 /**
- * 为连通性等辅助调用补齐最低推理档位。Factory 只接受完整执行选择，
- * 因而必须在创建 Model 之前完成，不能等 Model 创建后再 bind。
+* Complete the lowest inference gear for auxiliary calls such as connectivity. Factory only accepts full execution selections,
+* Therefore, it must be completed before creating the Model. You cannot wait for the Model to be created before binding.
  */
 export function completeAuxiliaryRegistryModelSelection(
   registry: ProviderRegistryModelSource,
@@ -92,10 +92,10 @@ export function parseProviderQualifiedModelSelection(
 }
 
 /**
- * 解析由 Registry 已接管 Provider 的模型选择。
+* Resolve model selections from Providers that have been taken over by the Registry.
  *
- * 返回 undefined 表示进程 Registry 不拥有该 Provider。Registry 已拥有 Provider 时，
- * 缺失 Model 必须直接报错；调用方不能再回退 Turn Overlay 或临时 Provider 快照。
+* Returning undefined means that the process Registry does not own the Provider. When the Registry already has a Provider,
+* Missing Model must report an error directly; the caller can no longer roll back Turn Overlay or temporary Provider snapshot.
  */
 export function resolveRegistryOwnedModelSelection(
   registry: ProviderRegistryModelSource,
@@ -111,11 +111,11 @@ export function resolveRegistryOwnedModelSelection(
     throw createRegistrySelectionProtocolError(validation);
   }
   const resolved = resolveRegistryModelSelection(registry, selection);
-  if (!resolved) throw new Error("Registry Selection 校验与索引结果不一致");
+  if (!resolved) throw new Error("Registry Selection verification and index results are inconsistent");
   return resolved;
 }
 
-/** Registry 选择校验失败到稳定 Model 协议错误的唯一映射。 */
+/** Registry selects a unique mapping of validation failures to stable Model protocol errors. */
 export function createRegistrySelectionProtocolError(
   validation: Exclude<ReturnType<ProviderRegistryModelSource["validateSelection"]>, { ok: true }>,
 ): ModelProtocolError {
@@ -123,12 +123,12 @@ export function createRegistrySelectionProtocolError(
     case "provider-not-found":
       return new ModelProtocolError(
         ModelErrorCode.ProviderNotFound,
-        `Provider Registry 中不存在 Provider: ${validation.providerId}`,
+        `Provider: ${validation.providerId} does not exist in Provider Registry`,
       );
     case "model-not-found":
       return new ModelProtocolError(
         ModelErrorCode.ModelNotFound,
-        `Provider Registry 中不存在 Model: ${validation.providerId}/${validation.modelId}`,
+        `Model does not exist in Provider Registry: ${validation.providerId}/${validation.modelId}`,
       );
     case "reasoning-level-missing":
       return new ModelProtocolError(

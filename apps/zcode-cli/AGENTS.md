@@ -1,8 +1,8 @@
-# Agent 指令
+#Agent directive
 
 这里是 TypeScript Node.js Coding Agent CLI，支持主流模型和操作系统。通用工作规则遵循[根 AGENTS.md](../../AGENTS.md)；本文件补充 CLI 规则。Node.js 和包管理器版本以仓库根目录的 [mise.toml](../../mise.toml) 与 [package.json](../../package.json) 为准。
 
-## 工作规范（最重要）
+## Work specifications (most important)
 
 - 新增或修改行为前，先编写或更新对应 spec，明确产品规则、状态所有者、接口和验收场景，再实现代码。优先复用现有文档；缺少时按需创建文档及目录，不假定存在固定版本的设计目录。
 - 其次是测试 case 很关键，能证明结果是否符合预期
@@ -14,19 +14,19 @@
 - 修改数据库结构前，应与模块维护者确认方案，明确 migration、兼容性和回滚策略。
 - 键盘操作优先，核心逻辑都可以走键盘操作。鼠标操作是增益能力
 
-## 工具规范
+## Tool specification
 
 - 与操作系统交互之前，需要考虑同时支持 windows、mac、linux
 - 保持默认的发布路径为标准 Node.js CLI 打包方式。
 - 项目自有的环境变量统一使用 `ZCODE_` 前缀命名，但不要随便新增环境变量；新增前必须先在对应功能的 spec 中定义用途、优先级、错误行为和测试覆盖，能用配置文件、CLI 参数或 session 配置表达的能力，优先不要做成环境变量。
 
-## 开源内容与敏感信息
+## Open source content and sensitive information
 
 - 项目许可与归属声明见仓库根目录的 [LICENSE](../../LICENSE)、[NOTICE.md](../../NOTICE.md) 和 [THIRD-PARTY-NOTICES.md](../../THIRD-PARTY-NOTICES.md)。引入第三方代码、文档、提示词或素材前，应确认来源、许可证和使用权限，按适用许可保留版权、署名及修改说明；不得为开源清理而删除仍适用的归属声明。
 - 文档、示例、测试数据、日志和提交信息不得包含真实凭据、用户隐私、内部服务地址、个人工作目录或未获授权公开的内容；示例使用虚构数据和占位值。
 - 发布前应核对实际交付范围；包含 Git 历史时，也应检查历史内容。当前文件中的删除或替换不代表历史记录已清理。
 
-## 跨平台兼容原则
+## Cross-platform compatibility principle
 
 - 所有功能默认需要同时面向 Windows、macOS、Linux 设计；不要只按当前开发机的系统行为实现。
 - 路径处理优先使用 Node.js 标准库 `path`、`url`、`fs` 等跨平台 API，不手写路径分隔符、绝对路径前缀、换行符或临时目录位置。
@@ -37,7 +37,7 @@
 - 涉及用户目录、缓存目录、配置目录、临时目录和项目目录时，应通过明确的跨平台解析逻辑获得，不硬编码 Unix 风格目录结构。
 - 新增与系统交互相关的能力时，应补充或更新覆盖跨平台差异的测试；无法在当前系统验证的行为，要在实现和说明中明确剩余风险。
 
-## 模块边界与接口契约
+## Module boundaries and interface contracts
 
 - 模块之间的交互必须通过显式、有限、稳定的接口完成。
 - 每个模块都应当可以被单独理解、测试和替换，并对外提供严格的类型声明、接口定义或 schema 声明。
@@ -46,7 +46,7 @@
 - 当数据会跨越进程、存储、网络、插件、工具调用或 LLM 边界时，应优先使用可运行时校验的 schema 描述，而不仅是 TypeScript 类型。
 - 新增模块间交互时，应先补齐接口契约，再实现具体逻辑。
 
-## 外部 I/O 边界收敛
+## External I/O boundary convergence
 
 - 所有外部副作用必须可被统一观察、审批、取消、重试、排队、审计和测试。业务逻辑只表达意图，不直接触碰外部世界。
 - 所有外部 I/O 都必须收敛到明确的基础设施层或 adapter 中，包括网络请求、文件系统读写、子进程调用、环境变量读取、终端输入输出、缓存、数据库、系统剪贴板和外部服务访问。
@@ -57,7 +57,7 @@
 - 子进程执行应通过统一执行入口完成，便于集中管理 sandbox、权限审批、环境变量、超时、取消、输出截断、流式输出和退出码归一化。
 - 当 I/O 操作需要异步化、排队、重试、降级或审计时，应在 I/O 边界层处理，不应把这些机制散落到业务逻辑中。
 
-## 工具与副作用契约
+## Tools and Side Effects Contract
 
 - 每个 tool 都应声明明确的 `inputSchema`、`outputSchema`、是否只读、是否破坏性、是否并发安全、最大输出大小、超时、取消语义和权限需求。
 - tool 的副作用范围应显式声明，例如 `none`、`workspace`、`git`、`network`、`system`。权限系统、sandbox 和审批流程应读取这些声明，不依赖调用点临时猜测。
@@ -65,23 +65,23 @@
 - 大体积 tool 结果不应直接回灌模型上下文；应落盘或进入 artifact/storage，只返回摘要、预览和可追踪引用。
 - MCP、plugin、subagent 等外部扩展必须通过 capability 声明、schema 校验、命名空间隔离和权限收口接入，不应直接获得内部模块实现能力。
 
-## 会话、配置与可观测性
+## Sessions, Configuration and Observability
 
 - Coding agent CLI 应把 session、message、tool call、permission、checkpoint、队列和 pending 状态视为一等状态对象，支持恢复、分叉、回滚和并发 session。
 - TUI 只负责输入采集、布局渲染和临时交互态，例如光标、输入框、滚动位置和当前弹窗选择；session、mode、model、tool、todo、permission、checkpoint 等业务状态不得保存在 TUI 层，必须由 server/bootstrap/core/session 存储并通过显式接口或 session event 下发。
-- TUI 中的折叠/展开指示符统一使用 `+`/`-`（折叠为 `+`，展开为 `-`），不要使用 `v` 和 `>`。
+- TUI 中的折叠/展开指示符统一使用 `+`/`-`(Collapsed to`+`, expanded to`-`), do not use`v`and`>`。
 - 与用户交互相关的确认、选择、输入、进度、错误恢复等能力，应面向 TUI 和 ZCode Protocol V4 客户端设计为稳定的交互请求/响应接口或 session event；不同客户端只是呈现和传输适配层，不应把交互流程写死在单一前端中。
-- 所有任务执行都必须携带可传播的 `traceId`。`traceId` 默认对应一次顶层 session 的完整任务链，session 内创建的子 session、subagent、重试任务、后台队列任务和异步 I/O 都应归属到同一个 `traceId`。
-- `traceId` 位于 `sessionId` 之上；`sessionId`、`turnId`、`messageId`、`toolCallId`、`spanId`、`parentSpanId` 等应作为 `traceId` 下的结构化子标识，用于还原完整调用链。
+- 所有任务执行都必须携带可传播的 `traceId`。`traceId`By default, it corresponds to the complete task chain of a top-level session. Sub-session, subagent, retry tasks, background queue tasks and asynchronous I/O created within the session should all belong to the same task chain.`traceId`。
+- `traceId`lie in`sessionId`above; above;`sessionId`、`turnId`、`messageId`、`toolCallId`、`spanId`、`parentSpanId`should be treated as`traceId` 下的结构化子标识，用于还原完整调用链。
 - 所有模块、service、adapter、tool runtime、provider client、I/O adapter 和权限判断逻辑都应接收并继续传递统一的执行上下文，不得在中途丢弃、覆盖或临时生成无关联的 `traceId`。
 - 任何异步任务、工具调用、外部 I/O、跨模块调用或子 session，如果无法关联到 `traceId`，都视为不可观测行为，应避免引入。
 - provider、model、MCP、存储、网络代理和证书都应通过 adapter 接入；session-core 不应写死具体供应商、传输协议或部署环境。
 - 配置需要有明确层级和优先级，例如 system、user、project、session、CLI 参数和环境变量；安全相关配置应能追踪来源。
-- 拥抱 `.agents Protocol` 和 `AGENTS.md` 的规范；后续设计尤其是配置发现、配置读取、优先级解析等相关能力时，默认需要兼容 `.agents Protocol`。
+- 拥抱 `.agents Protocol`and`AGENTS.md`specifications; subsequent designs, especially configuration discovery, configuration reading, priority resolution and other related capabilities, need to be compatible by default`.agents Protocol`。
 - 从第一版开始保留调试和观测入口，覆盖模型请求、context 组成、token/cost、tool call、I/O、权限判断、重试、队列积压和队列丢弃。
 - 日志、trace 和调试输出应避免泄露密钥、token、隐私数据和完整用户内容；需要高敏信息时必须显式进入受控 debug 路径。
 
-## 错误处理优先
+## Error handling takes precedence
 
 - 错误是一等设计对象。新增功能时需要优先考虑失败路径、错误归属、传播方式和最终用户提示。
 - 默认让错误向上冒泡，直到到达真正有能力处理它的层。不要在低层模块随意吞掉错误、仅打印日志后继续执行，或提前把错误转换成普通字符串。
@@ -92,7 +92,7 @@
 - 不依赖错误文本做流程判断；需要区分错误类型时，使用稳定的错误类型、错误码或结构化字段。
 - 测试应覆盖关键失败路径，尤其是配置缺失、权限不足、网络失败、文件系统异常、用户输入非法和外部命令失败等 CLI 常见错误。
 
-## 提交规范
+## Submission specifications
 
 - 每个功能级别的变更创建一个独立提交。
 - 不要将无关的功能、重构、依赖更新和格式调整混在同一个提交中。
@@ -100,8 +100,8 @@
 - 当一个功能的变更涉及多个文件时，将这些文件一起提交。
 - 如果一项任务需要多个功能级别的变更，按照应审查的顺序拆分为多个独立提交。
 
-## 验证
+## verify
 
-- 在完成代码变更之前，从仓库根目录运行 `pnpm typecheck` 和 `pnpm lint`；涉及 CLI 代码时，还应运行 `pnpm --dir apps/zcode-cli typecheck` 和 `pnpm --dir apps/zcode-cli lint`。
+- 在完成代码变更之前，从仓库根目录运行 `bun run typecheck`and`bun run lint`;When CLI code is involved, you should also run`bun --cwd=apps/zcode-cli typecheck`and`bun --cwd=apps/zcode-cli lint`。
 - 测试入口以目标包当前的 `package.json` 和实际测试文件为准，不假定存在统一的测试命令；行为变更应执行对应测试，交互变更应覆盖 E2E 场景。
 - 如实记录执行过的命令、结果和未验证范围；缺少测试入口、已有失败或环境限制不得写成通过。

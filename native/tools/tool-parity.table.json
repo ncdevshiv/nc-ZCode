@@ -1,0 +1,277 @@
+{
+  "note": "TS built-in tool surface ↔ The item-by-item status of the Rust host registry. Verified by native/tools/check-tool-parity.mjs: status=ported must appear in the Rust registry; status=boundary must be given to evidence (spec path); adding a name on any side will cause the gate to fail and must be registered here.",
+  "sources": {
+    "ts": "apps/zcode-cli/packages/core/src/tool/handlers/index.ts (builtInTools)",
+    "rust": "native/crates/nc-code-host/src/tools/mod.rs (with_defaults) + native/crates/nc-code-host/src/lib.rs (with_async_tool)"
+  },
+  "tools": [
+    {
+      "name": "Read",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/tool_matrix_e2e.rs::edit_requires_a_real_read_then_writes_the_file"
+    },
+    {
+      "name": "Write",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/tool_loop_e2e.rs::tool_loop_executes_real_tools_and_feeds_results_back"
+    },
+    {
+      "name": "Edit",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/tool_matrix_e2e.rs::edit_requires_a_real_read_then_writes_the_file"
+    },
+    {
+      "name": "Bash",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/background_bash_e2e.rs::a_backgrounded_command_projects_its_work_id_and_streams_its_output_back"
+    },
+    {
+      "name": "Glob",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/tool_matrix_e2e.rs::glob_lists_real_paths"
+    },
+    {
+      "name": "Grep",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/tool_matrix_e2e.rs::grep_finds_the_needle_in_real_files"
+    },
+    {
+      "name": "WebFetch",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/tool_matrix_e2e.rs::webfetch_refuses_loopback_without_touching_the_network"
+    },
+    {
+      "name": "TodoRead",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/tool_matrix_e2e.rs::todo_write_then_read_round_trips_through_the_session_store"
+    },
+    {
+      "name": "TodoWrite",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/tool_matrix_e2e.rs::todo_write_then_read_round_trips_through_the_session_store"
+    },
+    {
+      "name": "EnterPlanMode",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/plan_mode_e2e.rs::plan_mode_blocks_writes_until_the_user_approves_the_plan"
+    },
+    {
+      "name": "ExitPlanMode",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/plan_mode_e2e.rs::plan_mode_blocks_writes_until_the_user_approves_the_plan"
+    },
+    {
+      "name": "AskUserQuestion",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/ask_user_question_e2e.rs::ask_user_question_waits_for_the_answer_and_returns_it_to_the_model"
+    },
+    {
+      "name": "TaskOutput",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/background_task_tools_e2e.rs::the_model_starts_reads_and_stops_a_background_command"
+    },
+    {
+      "name": "TaskStop",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/background_task_tools_e2e.rs::the_model_starts_reads_and_stops_a_background_command"
+    },
+    {
+      "name": "Task",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/background_subagent_e2e.rs::a_background_agent_finishes_on_its_own_and_task_output_reads_its_result"
+    },
+    {
+      "name": "Skill",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/tool_matrix_e2e.rs::skill_loads_a_real_skill_file"
+    },
+    {
+      "name": "ListModels",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/tool_matrix_e2e.rs::list_models_reflects_the_real_provider_config"
+    },
+    {
+      "name": "Agent",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/background_subagent_e2e.rs::a_background_agent_finishes_on_its_own_and_task_output_reads_its_result"
+    },
+    {
+      "name": "WebSearch",
+      "status": "ported",
+      "ts": true,
+      "testExempt": "A successful call to WebSearch must be truly connected to the Internet (nc net.search multi-engine fan-out), and cannot be reproduced on CI and offline machines; the behavior is nailed by the mapping/deduplication/SSRF single test of src/tools/web_search.rs. For real networking evidence, see the non-comparison area of specs/tool-benchmark.md (2026-10-30 8 results on this machine, about 34 s, #[ignore] use case live_search_returns_real_http_results)."
+    },
+    {
+      "name": "ReadSessionContext",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/read_session_context_e2e.rs::a_second_session_reads_the_first_sessions_context_through_a_model_tool_call"
+    },
+    {
+      "name": "js",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/tool_matrix_e2e.rs::js_evaluates_real_javascript_when_node_exists"
+    },
+    {
+      "name": "CronCreate",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-services-agent/tests/cron_tools_e2e.rs::cron_tools_drive_the_real_automation_service_through_model_tool_calls"
+    },
+    {
+      "name": "CronList",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-services-agent/tests/cron_tools_e2e.rs::cron_tools_drive_the_real_automation_service_through_model_tool_calls"
+    },
+    {
+      "name": "CronUpdate",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-services-agent/tests/cron_tools_e2e.rs::cron_tools_drive_the_real_automation_service_through_model_tool_calls"
+    },
+    {
+      "name": "CronDelete",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-services-agent/tests/cron_tools_e2e.rs::cron_tools_drive_the_real_automation_service_through_model_tool_calls"
+    },
+    {
+      "name": "OffPeakCreate",
+      "status": "boundary",
+      "ts": true,
+      "evidence": "specs/disabled-features.md §2 line 1 (off-peak is the product disabled face, createTask returns offpeak_feature_disabled; no engine dependency)"
+    },
+    {
+      "name": "OffPeakList",
+      "status": "boundary",
+      "ts": true,
+      "evidence": "specs/disabled-features.md §2 line 1 (off-peak is the product disabled side, list is always empty; no engine dependency)"
+    },
+    {
+      "name": "SendMessage",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/background_subagent_e2e.rs::a_background_agent_finishes_on_its_own_and_task_output_reads_its_result"
+    },
+    {
+      "name": "RespondToCoordinator",
+      "status": "boundary",
+      "ts": true,
+      "evidence": "specs/disabled-features.md §4.5 (respond_to_coordinator is the product disable surface: this host has no coordinator subsystem and no engine dependency)"
+    },
+    {
+      "name": "submit_result",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/workflow_actor_e2e.rs::a_submitted_payload_is_accepted_and_the_ask_settles"
+    },
+    {
+      "name": "escalate",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/workflow_actor_e2e.rs::escalate_parks_the_turn_until_the_main_agent_answers"
+    },
+    {
+      "name": "CreateWorkflow",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/workflow_tools_e2e.rs::create_workflow_starts_the_linear_fixture_and_get_workflow_run_reports_the_result"
+    },
+    {
+      "name": "AmendWorkflow",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/workflow_tools_e2e.rs::amend_supersedes_a_running_predecessor_and_the_successor_completes"
+    },
+    {
+      "name": "SaveWorkflow",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/workflow_tools_e2e.rs::save_workflow_writes_the_definition_and_list_shows_it"
+    },
+    {
+      "name": "EvalWorkflowSnippet",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/workflow_tools_e2e.rs::eval_workflow_snippet_reads_the_workspace_and_returns_its_value"
+    },
+    {
+      "name": "ListWorkflowRuns",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/workflow_tools_e2e.rs::list_workflow_runs_reports_the_created_run_and_the_status_filter"
+    },
+    {
+      "name": "GetWorkflowRun",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/workflow_tools_e2e.rs::create_workflow_starts_the_linear_fixture_and_get_workflow_run_reports_the_result"
+    },
+    {
+      "name": "ResumeWorkflowRun",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/workflow_tools_e2e.rs::resume_restarts_a_stopped_run_under_the_same_id"
+    },
+    {
+      "name": "ResolveWorkflowQuestion",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/workflow_tools_e2e.rs::resolve_workflow_question_unparks_the_escalated_actor"
+    },
+    {
+      "name": "ListSavedWorkflows",
+      "status": "ported",
+      "ts": true,
+      "test": "native/crates/nc-code-host/tests/workflow_tools_e2e.rs::list_saved_workflows_starts_empty_and_lists_a_saved_definition"
+    },
+    {
+      "name": "ReadImage",
+      "status": "ported",
+      "ts": false,
+      "note": "Unique to Rust (TS images are read in the attachment/preview chain)",
+      "test": "native/crates/nc-code-host/tests/tool_matrix_e2e.rs::read_image_returns_a_real_image_payload"
+    },
+    {
+      "name": "Browser",
+      "status": "ported",
+      "ts": false,
+      "note": "Native browser-use tool; unit contract/validation tests in module + real-turn e2e (fail-closed/validation without port)",
+      "test": "native/crates/nc-code-host/tests/all_tools_comprehensive_e2e.rs::browser_fails_closed_without_port_through_real_turn"
+    },
+    {
+      "name": "Computer",
+      "status": "ported",
+      "ts": false,
+      "note": "Native computer-use tool; unit contract/validation tests in module + real-turn e2e (fail-closed/validation without port). Platform-backed execution requires host port injection.",
+      "test": "native/crates/nc-code-host/tests/all_tools_comprehensive_e2e.rs::computer_fails_closed_without_port_through_real_turn"
+    },
+    {
+      "name": "ApplyPatch",
+      "status": "ported",
+      "ts": false,
+      "note": "Rust native patch tool; TS applyPatchToolEntry is not in builtInTools (commented out). Registered in nc-code-host ToolRegistry with unit tests and real-turn/e2e execution tests.",
+      "test": "native/crates/nc-code-host/tests/tool_matrix_e2e.rs::apply_patch_adds_and_updates_real_files"
+    }
+  ]
+}

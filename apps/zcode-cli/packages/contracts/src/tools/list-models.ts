@@ -1,13 +1,13 @@
 // ============================================================
-// ListModels Tool - 列出本宿主已配置的模型
+// ListModels Tool - List the configured models of this host
 // ============================================================
 //
-// 只读、无副作用的发现面，服务于一件事：主代理要给一次 workflow run 挑子代理模型
-// （`CreateWorkflow` / `AmendWorkflow` 的 `subagent_model`）。它不是选模开关——本工具改不了
-// 会话自己的模型，主代理恒留在用户选的那一个上。
+// A read-only, side-effect-free discovery surface that serves one thing: the main agent needs to select a sub-agent model for a workflow run
+// (`subagent_model` of `CreateWorkflow` / `AmendWorkflow`). It is not a mode selector switch - this tool cannot change it
+// Session's own model, the main agent always stays on the one selected by the user.
 //
-// 与解析器是**两条互补的路**：先按用户说的名字直接传，解不出来时工具会连同候选一起退回；
-// 本工具是主动那一条（"我们有哪些模型可用？"）。两条路读的是同一份活目录
+// There are **two complementary ways** with the parser: first pass the name directly according to the user's name. If it cannot be solved, the tool will return it together with the candidate;
+// This tool is the active one ("What models do we have available?"). Both paths read the same living directory
 // （{@link import("../interfaces/model-catalog.port.js").ModelCatalogPort}）。
 
 import { z } from "zod";
@@ -17,29 +17,29 @@ export const LIST_MODELS_TOOL_NAME = "ListModels";
 
 export const ListModelsInputSchema = z
   .object({})
-  // 与 ListSavedWorkflows 同一条约束：没有任何入参。过滤、分页、模糊查询都不给——目录是
-  // 一张几十行的表，多一个旋钮就多一处让模型以为"没列全"的地方。
+// The same constraint as ListSavedWorkflows: no input parameters. Filtering, paging, and fuzzy queries are not provided - the directory is
+// In a table with dozens of rows, one more knob means one more place that makes the model think "not all columns are listed".
   .strict();
 
 export type ListModelsInput = z.infer<typeof ListModelsInputSchema>;
 
 export const ListModelsInputJsonSchema = toToolJsonSchema(ListModelsInputSchema);
 
-/** 目录里的一行。`id` 是可以**逐字**填进 `subagent_model` 的规范形。 */
+/** A line in the directory. `id` is the canonical form that can be filled **verbatim** into `subagent_model`. */
 export const ListModelsEntrySchema = z
   .object({
-    /** 规范形 `providerId/modelId`（不含推理档位；要档位就自己接 `$level`）。 */
+/** Canonical form `providerId/modelId` (excluding inference level; if you want the level, just connect `$level` yourself). */
     id: z.string(),
     providerId: z.string(),
     modelId: z.string(),
-    /** provider 的人类可读名；注册表没给就缺席。 */
+/** The human-readable name of the provider; absent if not given by the registry. */
     providerLabel: z.string().optional(),
-    /** 合法的 `$level` 取值。没有档位的模型是空数组——读侧据此知道"接 `$` 是错的"。 */
+/** Legal `$level` value. A model without a gear is an empty array - the reader knows that "it's wrong to follow `$`". */
     reasoningLevels: z.array(z.string()),
-    /** 不接 `$level` 时会用上的档位；`reasoningLevels` 为空时缺席。 */
+/** The level that will be used when `$level` is not connected; absent when `reasoningLevels` is empty. */
     defaultReasoningLevel: z.string().optional(),
     contextWindow: z.number().optional(),
-    /** 不可选用的理由；可选用即缺席（而不是空字符串）。 */
+/** The reason why it is not optional; optional means it is absent (not an empty string). */
     disabledReason: z.string().optional(),
   })
   .strict();
@@ -49,8 +49,8 @@ export type ListModelsEntry = z.infer<typeof ListModelsEntrySchema>;
 export const ListModelsOutputSchema = z
   .object({
     /**
-     * 会话此刻用的模型（规范形）。**只是坐标，不是推荐**：子代理省略 `subagent_model` 时跑的
-     * 就是它，所以"把子代理设成这一个"等于什么都不做。目录里一条都对不上时缺席。
+* The model used at the moment of the session (canonical form). **Just coordinates, not recommendations**: Run when the subagent omits `subagent_model`
+* That's it, so "set the subagent to this one" does nothing. Absent when none of the items in the catalog match.
      */
     current: z.string().optional(),
     models: z.array(ListModelsEntrySchema),

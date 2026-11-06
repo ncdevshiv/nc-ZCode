@@ -1,7 +1,7 @@
 /**
- * display 文本的字节限长助手。从 result-display.ts 拆出：观察类工作流 display 的构造
- * （workflow-observation-display.ts）与既有 payload 构造共用同一道截断语义，而两个文件
- * 互相 import 会成环，助手必须住在双方都能依赖的第三处。
+* Display text byte limit helper. Detached from result-display.ts: Observe the construction of workflow display
+* (workflow-observation-display.ts) shares the same truncation semantics with the existing payload structure, and the two files
+* Mutual import will form a loop, and the assistant must live in a third place that both parties can rely on.
  */
 
 const DISPLAY_TRUNCATION_SUFFIX = "\n...[truncated]";

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 // ============================================================
 // Read Tool Handler
 // ============================================================
@@ -110,13 +111,13 @@ function formatReadImageOutput(output: ReadImageOutput): ModelMessageContent {
       sizeBytes: output.originalSize,
     },
   };
-  // 尺寸提示拼进 tool result 会让 provider-visible content 随是否缩放而改变；
-  // 图片结果只保留媒体 block，dimensions 继续留在结构化 output 供 UI 和调试使用。
+// Spelling the size prompt into the tool result will cause the provider-visible content to change depending on whether it is zoomed or not;
+// The image result only retains the media block, and dimensions remain in the structured output for UI and debugging use.
   return [imageBlock];
 }
 
-// 与图片同构：tool result 只保留媒体 block；OpenAI 系 provider 由
-// tool-result-media-projection 拆成后置 user part（AI SDK tool result 无 video part 变体）。
+// Isomorphic to the picture: tool result only retains the media block; the OpenAI system provider consists of
+// tool-result-media-projection is split into post-user part (AI SDK tool result has no video part variant).
 function formatReadVideoOutput(output: ReadVideoOutput): ModelMessageContent {
   const videoBlock = {
     type: "video" as const,
@@ -259,8 +260,8 @@ function parseReadInput(input: unknown): ReadInput {
     throw parsed.error;
   }
 
-  // Read 输入预检失败应以 <tool_use_error> 文本进入 provider；
-  // 直接透出 ZodError JSON 会让 binary/device preflight 与 capture 偏离。
+// Read input preflight failures should be entered into the provider with <tool_use_error> text;
+// Exposing ZodError JSON directly will cause binary/device preflight to deviate from capture.
   throw createCoreError(
     CoreErrorType.ToolExecutionFailed,
     `<tool_use_error>${toolUseErrorMessage}</tool_use_error>`,
@@ -284,8 +285,8 @@ function validateReadInput(input: unknown): ToolInputValidationResult {
     return { result: true };
   }
 
-  // PDF pages 的语义约束只存在于 runtime schema 时，JSON Schema 会接受任意
-  // string，导致错误调用穿过 Hook 和权限后才在 handler 抛出裸 ZodError。
+// When the semantic constraints of PDF pages only exist in the runtime schema, JSON Schema will accept any
+// string, causing the error call to go through the Hook and permissions before throwing a bare ZodError in the handler.
   const failure = getReadPdfPagesValidationFailure(candidate.file_path, candidate.pages);
   return failure ? { result: false, ...failure } : { result: true };
 }
@@ -337,7 +338,7 @@ function isCachedReadFresh(entry: ReadFileStateEntry, stat: FileSystemStatResult
 
   const mtimeMs = stat.revision?.mtimeMs ?? stat.mtimeMs;
   if (entry.mtimeMs !== undefined && mtimeMs !== undefined) {
-    // 和写前 freshness 校验保持同一套策略，mtime 只比较整数毫秒。
+// Keep the same strategy as the freshness check before writing, mtime only compares integer milliseconds.
     return (
       normalizeReadFileStateMtimeMs(entry.mtimeMs) === normalizeReadFileStateMtimeMs(mtimeMs) &&
       entry.sizeBytes === stat.sizeBytes
@@ -368,8 +369,8 @@ function updateReadFileState(
     content: input.output.content,
     offset: input.offset,
     limit: input.limit,
-    // offset/limit 是 range view，不等价于 partial view。
-    // partial view 只表示模型看到的内容被工具截断，Write/Edit 必须拒绝这种不完整视图。
+// offset/limit is range view, not equivalent to partial view.
+// partial view only means that the content seen by the model has been truncated by the tool, and Write/Edit must reject this incomplete view.
     isPartialView: input.output.truncatedByTokenCap === true,
     readAt: new Date(),
     sourceTool: "Read",

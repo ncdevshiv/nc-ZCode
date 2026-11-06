@@ -1,15 +1,15 @@
 /**
- * image sidecar 语义 parity e2e：真实 zcode-image 二进制 vs jimp。
+* image sidecar semantic parity e2e: real zcode-image binary vs jimp.
  *
- * parity 级别是**语义级**（README 差异表：jimp 与 Rust image 编码器字节不同），
- * 因此这里断言的是「可观察的产品语义」而不是字节相等：
- *   1. 尺寸决策一致：不超过上限时两侧都不缩放；超过时输出尺寸一致；
- *   2. 原始尺寸读取一致（info vs Jimp.read）；
- *   3. 输出是**可解码的同格式图像**，且像素非空白（真实视觉输入，不是垃圾字节）；
- *   4. png/jpeg/webp 三种输出格式的 mime 决策一致。
- * 这四条是 model-vision 路径真正依赖的性质。
+* parity level is **semantic level** (README diff table: jimp differs from Rust image encoder bytes),
+* Therefore what is asserted here is "observable product semantics" rather than byte equality:
+* 1. Consistent size decision-making: when the upper limit is not exceeded, neither side is scaled; when the upper limit is exceeded, the output size is consistent;
+* 2. The original size reading is consistent (info vs Jimp.read);
+* 3. The output is a **decodable image of the same format**, and the pixels are not blank (real visual input, not garbage bytes);
+* 4. The mime decisions of the three output formats of png/jpeg/webp are consistent.
+* These four are the properties that the model-vision path really depends on.
  *
- * 运行：cd apps/zcode-cli/packages/sidecar && node --import tsx --test test/image_parity.test.ts
+* Run: cd apps/zcode-cli/packages/sidecar && node --import tsx --test test/image_parity.test.ts
  */
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
@@ -24,12 +24,12 @@ after(async () => {
   await shutdownSidecars();
 });
 
-/** jimp 1.6 的像素值是 0xRRGGBBAA 整数（无 intToRGBA 辅助）。 */
+/** The pixel value of jimp 1.6 is the 0xRRGGBBAA integer (no intToRGBA helper). */
 function rgba(r: number, g: number, b: number, a = 0xff): number {
   return ((r << 24) | (g << 16) | (b << 8) | a) >>> 0;
 }
 
-/** 构造一张确定性渐变 PNG（RGB 变化，便于检测输出非空白/错位）。 */
+/** Construct a deterministic gradient PNG (RGB changes to facilitate detection of non-blank/dislocated output). */
 async function makePng(width: number, height: number): Promise<Buffer> {
   const image = new Jimp({ width, height, color: 0x000000ff });
   for (let y = 0; y < height; y += 1) {
@@ -58,20 +58,20 @@ test("info matches jimp dimensions and mime", async () => {
 test("resize dimension decisions match jimp semantics", async () => {
   const wide = await makePng(200, 100);
 
-  // 不超过上限：两侧都不缩放
+//Do not exceed the upper limit: do not scale on both sides
   const noResize = await tryNativeResizeToFit(wide, "image/png", 400);
   assert.equal(noResize, null, "under-limit images must pass through unchanged");
 
-  // 超过上限：sidecar 缩放，输出尺寸按比例装入上限内
+// Exceeding the upper limit: sidecar scaling, the output size is proportionally loaded into the upper limit
   const resized = await tryNativeResizeToFit(wide, "image/png", 80);
   assert.ok(resized, "over-limit images must be resized by the sidecar");
   assert.equal(resized.mime, "image/png");
   assert.ok(resized.width <= 80 && resized.height <= 80, "output must fit the limit");
-  // 200x100 装入 80 → 80x40
+// 200x100 loads 80 → 80x40
   assert.equal(resized.width, 80);
   assert.equal(resized.height, 40);
 
-  // 解码回 jimp 验证是真实图像
+// Decode back to jimp to verify it is a real image
   const decoded = await Jimp.read(resized.data);
   assert.equal(decoded.bitmap.width, 80);
   assert.equal(decoded.bitmap.height, 40);
@@ -88,7 +88,7 @@ test("output is a decodable non-blank image (real vision input)", async () => {
   const decoded = await Jimp.read(output.data);
   assert.equal(decoded.bitmap.width, 60);
   assert.equal(decoded.bitmap.height, 60);
-  // 至少两种不同颜色 = 非空白
+// At least two different colors = non-blank
   const first = decoded.getPixelColor(0, 0);
   const last = decoded.getPixelColor(59, 59);
   assert.notEqual(first, last, "resized gradient must preserve color variation");
@@ -103,8 +103,8 @@ test("jpeg/webp output formats encode and report correct mime", async () => {
 
   const webp = await nativeTransformImage(source, [], "webp");
   assert.equal(webp.mime, "image/webp");
-  // jimp 1.6 不解 webp，改按 RIFF/WEBP 容器头验证字节（与 sidecar 的 webp
-  // 编码器无关，只证明输出是真正的 webp 文件而不是乱码）。
+// jimp 1.6 does not understand webp, instead verify the bytes according to the RIFF/WEBP container header (compared with sidecar's webp
+// The encoder has nothing to do, it only proves that the output is a real webp file and not garbled).
   assert.equal(webp.data.subarray(0, 4).toString("ascii"), "RIFF");
   assert.equal(webp.data.subarray(8, 12).toString("ascii"), "WEBP");
   assert.equal(webp.width, 80, "empty ops = re-encode only, no resize");

@@ -170,7 +170,7 @@ function parseHookStdout(stdout: string, event: HookEventName): HookJSONOutput |
   try {
     parsed = JSON.parse(trimmed);
   } catch {
-    // 非 JSON stdout 是诊断文本，不能因为 hook 打印日志而让当前动作失败。
+// Non-JSON stdout is diagnostic text, and the current action cannot fail because the hook prints the log.
     return undefined;
   }
 

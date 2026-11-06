@@ -27,7 +27,7 @@ async function loadBytecode(metadata, targetModule, targetRequire) {
   const runtime = configureBytecodeRuntime();
   if (JSON.stringify(runtime) !== JSON.stringify(metadata.runtime)) {
     throw new Error(
-      "字节码运行时不匹配，请用当前 Electron 重新运行 pnpm build:desktop-agent:bytecode",
+      "字节码运行时不匹配，请用当前 Electron 重新运行 bun run build:desktop-agent:bytecode",
     );
   }
   const directory = dirname(targetModule.filename);

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Debug analyzer keeps the offline trace analysis pipeline in one cohesive module. */
 import { basename } from "node:path";
 import type {
   CacheReport,
@@ -197,7 +198,7 @@ function sessionIdsForProject(db: DbObservation | undefined, projectId: string):
 }
 
 function projectLabel(directory: string): string {
-  return basename(directory) || directory || "未命名项目";
+  return basename(directory) || directory || "Unnamed project";
 }
 
 function ensureTraceSummary(
@@ -372,7 +373,7 @@ function timelineFromLog(log: LogRecord): TimelineItem {
     spanId: log.spanId,
     parentSpanId: log.parentSpanId,
     toolCallId: log.toolCallId,
-    summary: log.message ?? log.event ?? "结构化日志条目",
+    summary: log.message ?? log.event ?? "Structured log entries",
     payload: log.context ?? log.error,
   };
 }
@@ -401,7 +402,7 @@ function timelineFromDbMessage(message: DbMessageRecord): TimelineItem {
     at: message.createdAt,
     source: "sqlite",
     kind: "message",
-    label: `${formatRole(message.role)}消息`,
+    label: `${formatRole(message.role)}message`,
     sessionId: message.sessionId,
     summary: summarizeDbMessage(message),
     payload: message.data,
@@ -414,7 +415,7 @@ function timelineFromDbPart(part: DbPartRecord): TimelineItem {
     at: part.createdAt,
     source: "sqlite",
     kind: `part:${part.type ?? "unknown"}`,
-    label: `${part.type ?? "未知"} 片段`,
+    label: `${part.type ?? "Unknown"} fragment`,
     sessionId: part.sessionId,
     summary: summarizeDbPart(part),
     payload: part.data,
@@ -443,7 +444,7 @@ function buildTraceSpans(
       lane: "model",
       startType: "model_request",
       endTypes: ["model_complete", "model_error"],
-      label: (event) => modelName(event.payload) ?? "模型请求",
+      label: (event) => modelName(event.payload) ?? "model request",
       match: matchModelEvents,
     }),
     ...spansFromEventPairs(traceEvents, {
@@ -451,7 +452,7 @@ function buildTraceSpans(
       startType: "tool_call_started",
       endTypes: ["tool_call_result", "tool_call_error"],
       label: (event) =>
-        eventToolName(event.payload) ?? eventToolCallId(event.payload) ?? "工具调用",
+        eventToolName(event.payload) ?? eventToolCallId(event.payload) ?? "Tool call",
       match: matchToolEvents,
     }),
     ...spansFromEventPairs(traceEvents, {
@@ -459,7 +460,7 @@ function buildTraceSpans(
       startType: "permission_requested",
       endTypes: ["permission_resolved", "permission_denied"],
       label: (event) =>
-        eventToolName(event.payload) ?? eventToolCallId(event.payload) ?? "权限请求",
+        eventToolName(event.payload) ?? eventToolCallId(event.payload) ?? "permission request",
       match: matchPermissionEvents,
     }),
     ...spansFromEventPairs(traceEvents, {
@@ -621,7 +622,7 @@ function spanFromLog(log: LogRecord): TraceSpan | undefined {
     parentSpanId: log.parentSpanId,
     toolCallId: log.toolCallId,
     lane,
-    label: log.event ?? log.message ?? "结构化日志",
+    label: log.event ?? log.message ?? "Structured log",
     source: "log",
     startAt: subtractMs(endAt, log.durationMs),
     endAt,
@@ -689,7 +690,7 @@ function buildContextSnapshots(
         sections,
         systemPrompt,
         observationLevel: systemPrompt ? "full" : sections.length > 0 ? "metadata" : "inferred",
-        warnings: systemPrompt ? [] : ["当前数据源里的 model_request 没有完整 system prompt。"],
+        warnings: systemPrompt ? [] : ["The model_request in the current data source does not have a complete system prompt."],
       }),
     );
   }
@@ -710,7 +711,7 @@ function buildContextSnapshots(
         observationLevel: hasFullContent ? "full" : "metadata",
         warnings: hasFullContent
           ? []
-          : ["结构化日志只包含 section 元数据，没有完整 section 文本。"],
+          : ["Structured logs only contain section metadata, without full section text."],
       }),
     );
   }
@@ -803,7 +804,7 @@ function contextUsageSnapshotsFromDb(
       categories: [
         {
           id: `sqlite-input:${part.id}`,
-          name: "模型输入（SQLite 聚合）",
+          name: "Model input (SQLite aggregation)",
           source: "other",
           chars: 0,
           tokens: inputTokens,
@@ -817,8 +818,8 @@ function contextUsageSnapshotsFromDb(
       skills: [],
       messageBreakdown: [],
       warnings: [
-        "SQLite step-finish 只保存聚合 input token，无法拆分系统提示、技能、工具和消息。",
-        "要看真实上下文分块，需要用 dev 运行形态重新运行被测 CLI。",
+        "SQLite step-finish only saves the aggregate input token and cannot split system prompts, skills, tools and messages.",
+        "To see the actual context chunking, you need to re-run the CLI under test using the dev run mode.",
       ],
     });
   }
@@ -830,7 +831,7 @@ function usageCategoryFromRecord(
   category: Record<string, unknown>,
   index: number,
 ): ContextUsageCategory {
-  const name = stringValue(category.name) ?? `分类 ${index + 1}`;
+  const name = stringValue(category.name) ?? `Category ${index + 1}`;
   return {
     id: stringValue(category.id) ?? slug(`${index}-${name}`),
     name,
@@ -910,7 +911,7 @@ function deriveSectionsFromSystemPrompt(systemPrompt: string): ContextSectionVie
     return [
       makeSection({
         id: "system-prompt",
-        name: "系统提示",
+        name: "System prompt",
         source: "system_prompt",
         content: systemPrompt,
         observable: "full",
@@ -926,7 +927,7 @@ function deriveSectionsFromSystemPrompt(systemPrompt: string): ContextSectionVie
       sections.push(
         makeSection({
           id: "preamble",
-          name: "系统提示",
+          name: "System prompt",
           source: "system_prompt",
           content: preamble,
           observable: "full",
@@ -938,7 +939,7 @@ function deriveSectionsFromSystemPrompt(systemPrompt: string): ContextSectionVie
   for (const [index, match] of matches.entries()) {
     const start = match.index ?? 0;
     const end = matches[index + 1]?.index ?? systemPrompt.length;
-    const name = match[2]?.trim() ?? "段落";
+    const name = match[2]?.trim() ?? "paragraph";
     const content = systemPrompt.slice(start, end).trim();
     sections.push(
       makeSection({
@@ -1082,10 +1083,10 @@ function cacheSegmentsFromMessages(
       chars: content.length,
       preview: preview(content),
       reason: hasPrefixStats
-        ? "根据 runtime 的 cachedMessages 前缀统计推断。"
+        ? "Statistical inference based on cachedMessages prefix of runtime."
         : cacheReadTokens > 0
-          ? "Provider 返回了缓存 token，但没有逐文本归因。"
-          : "这条消息没有缓存归因信息。",
+          ? "Provider returned cache token but no per-text attribution."
+          : "This message does not have attribution information cached.",
     };
   });
 }
@@ -1097,13 +1098,13 @@ function cacheLimitations(
 ): string[] {
   const limitations: string[] = [];
   if (messages.length === 0) {
-    limitations.push("当前观测源没有 provider 可见的 messages。");
+    limitations.push("The current observation source has no messages visible to the provider.");
   }
   if (!cacheStats) {
-    limitations.push("缺少 turn_complete.cacheStats，无法判断逐文本命中状态。");
+    limitations.push("Turn_complete.cacheStats is missing and text-by-text hit status cannot be determined.");
   }
   if (cacheReadTokens > 0) {
-    limitations.push("Provider 的缓存 token 不会标出具体命中文本。");
+    limitations.push("The Provider's cache token does not mark the specific hit text.");
   }
   return limitations;
 }
@@ -1138,8 +1139,8 @@ function cacheReportsFromDb(
       segments: [],
       limitations:
         read > 0 || write > 0
-          ? ["SQLite 里有聚合缓存 token，但没有逐文本 cache report。"]
-          : ["SQLite 里有 token usage，未观察到 cache read/write。"],
+          ? ["There are aggregate cache tokens in SQLite, but there is no text-by-text cache report."]
+          : ["There is token usage in SQLite, but cache read/write is not observed."],
     });
   }
 
@@ -1162,9 +1163,9 @@ function buildDeveloperRequests(
 
   if (!hasFullSnapshot) {
     requests.push({
-      title: "在 model request 前产出 context_snapshot",
+      title: "Produce context_snapshot before model request",
       eventName: "context_snapshot",
-      reason: "当前数据源只能看到上下文元数据，或完全看不到 system prompt 文本。",
+      reason: "Only contextual metadata is visible for the current data source, or no system prompt text is visible at all.",
       schema: [
         "traceId/sessionId/turnId/modelRequestId",
         "sections[].name/source/chars/tokens/contentHash/preview/artifactRef",
@@ -1175,9 +1176,9 @@ function buildDeveloperRequests(
 
   if (!hasExactCache) {
     requests.push({
-      title: "产出逐文本 prompt cache report",
+      title: "Output text-by-text prompt cache report",
       eventName: "prompt_cache_report",
-      reason: "Provider usage 只有缓存 token，没有说明哪些文本片段命中缓存。",
+      reason: "Provider usage only caches tokens and does not indicate which text fragments hit the cache.",
       schema: [
         "traceId/sessionId/turnId/modelRequestId",
         "usage.input/output/total/cacheRead/cacheWrite",
@@ -1188,9 +1189,9 @@ function buildDeveloperRequests(
 
   if (observation.events.records.length === 0) {
     requests.push({
-      title: "增加开发期 Session event JSONL sink",
+      title: "Add development period Session event JSONL sink",
       eventName: "session_event_jsonl_sink",
-      reason: "结构化日志更像诊断索引；Session events 才是还原 trace 的事实来源。",
+      reason: "Structured logs are more like diagnostic indexes; Session events are the source of truth for restoring traces.",
       schema: [
         "append-only JSONL through SessionEventSink",
         "same envelope fields as existing structured log sinks",
@@ -1239,13 +1240,13 @@ function summarizeEvent(event: EventRecord): string {
   const payload = event.payload;
   switch (event.type) {
     case "model_request": {
-      const title = `模型请求 ${modelName(payload) ?? ""}`.trim();
+      const title = `Model request ${modelName(payload) ?? ""}`.trim();
       const messages = summarizeProviderMessages(payload);
       return messages ? `${title}\n${messages}` : title;
     }
     case "model_complete": {
       const usage = extractUsage(payload);
-      const title = `模型完成，${usage.totalTokens || usage.inputTokens + usage.outputTokens} Token`;
+      const title = `Model completed, ${usage.totalTokens || usage.inputTokens + usage.outputTokens} Token`;
       const content = textFromPayload(payload);
       return content ? `${title}\n${content}` : title;
     }
@@ -1254,13 +1255,13 @@ function summarizeEvent(event: EventRecord): string {
     case "tool_call_result":
     case "tool_call_error":
       return [
-        `${stringValue(payload?.toolName) ?? "工具"} ${stringValue(payload?.toolCallId) ?? ""}`.trim(),
+        `${stringValue(payload?.toolName) ?? "tool"} ${stringValue(payload?.toolCallId) ?? ""}`.trim(),
         textFromPayload(payload),
       ]
         .filter(Boolean)
         .join("\n");
     case "turn_complete":
-      return `轮次完成：${stringValue(payload?.resultType) ?? "success"}`;
+      return `Round completed: ${stringValue(payload?.resultType) ?? "success"}`;
     case "user_message":
     case "assistant_message":
       return textFromPayload(payload) ?? String(payload?.content ?? event.type);
@@ -1271,7 +1272,7 @@ function summarizeEvent(event: EventRecord): string {
 
 function summarizeDbMessage(message: DbMessageRecord): string {
   const text = stringValue(message.data.text) ?? stringValue(message.data.content);
-  const title = `${formatRole(message.role)}消息 ${message.id}`;
+  const title = `${formatRole(message.role)}Message ${message.id}`;
   return text ? `${title}: ${text}` : title;
 }
 
@@ -1356,7 +1357,7 @@ function formatRole(role?: string): string {
 
 function summarizeDbPart(part: DbPartRecord): string {
   const text = stringValue(part.data.text) ?? stringValue(part.data.output);
-  return text ? `${part.type ?? "片段"}: ${text}` : `${part.type ?? "片段"} ${part.id}`;
+  return text ? `${part.type ?? "fragment"}: ${text}` : `${part.type ?? "fragment"} ${part.id}`;
 }
 
 function eventToolCallId(payload?: Record<string, unknown>): string | undefined {
@@ -1372,7 +1373,7 @@ function subagentLabel(event: EventRecord): string {
     stringValue(event.payload?.name) ??
     stringValue(event.payload?.subagentId) ??
     stringValue(event.payload?.subagentSessionId) ??
-    "子 Agent"
+    "Sub-Agent"
   );
 }
 
@@ -1430,8 +1431,8 @@ function tokenConfidenceValue(value: unknown): TokenConfidence | undefined {
 
 function categorizeSection(nameOrSource: string): ContextSectionSource {
   const normalized = nameOrSource.toLowerCase();
-  if (normalized.includes("skill") || normalized.includes("技能")) return "skills";
-  if (normalized.includes("tool") || normalized.includes("工具")) return "tools";
+  if (normalized.includes("skill") || normalized.includes("Skill")) return "skills";
+  if (normalized.includes("tool") || normalized.includes("tool")) return "tools";
   if (
     normalized.includes("identity") ||
     normalized.includes("system") ||

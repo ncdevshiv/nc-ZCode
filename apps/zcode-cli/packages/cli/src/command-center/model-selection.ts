@@ -1,6 +1,6 @@
 import type { CommandCenterApp, CommandCenterDeps } from "./types.js";
 
-/** 会话切换已经成功；偏好写入失败只追加提示，不能把成功的切换报告成失败。 */
+/** The session switch has been successful; if the preference writing fails, only a prompt will be appended, and the successful switch cannot be reported as a failure. */
 export async function rememberCurrentModelSelection(
   app: CommandCenterApp,
   deps: CommandCenterDeps,

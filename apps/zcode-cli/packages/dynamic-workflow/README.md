@@ -69,7 +69,7 @@ src/
   index.ts            public exports
 scripts/
   generate-libs.mjs   embeds the TS stdlib closure into src/compiler/libs.generated.ts
-  generate-mermaid.mjs renders every graph fixture to charts/<name>.md (`pnpm charts`)
+  generate-mermaid.mjs renders every graph fixture to charts/<name>.md (`bun run charts`)
 charts/               generated mermaid pages (one per graph fixture) — gitignored
 tests/
   workflows/          fixture workflow scripts for the compiler suite (see below)
@@ -101,7 +101,7 @@ Every `tests/graphs/*.ts` file must typecheck clean; the suite serializes its si
 graph and snapshots it under `tests/graphs/expected/<name>.txt` (via vitest's async
 `toMatchFileSnapshot`), plus the derived actor-graph projection as
 `<name>.actor.txt`. A representative subset also snapshots the mermaid renderings as
-`<name>.site.mmd` / `<name>.actor.mmd`. Regenerate with `pnpm test -- -u`, then
+`<name>.site.mmd` / `<name>.actor.mmd`. Regenerate with `bun test -- -u`, then
 review the diffs by hand — the snapshots are the human-readable contract for the
 analyzer. These fixtures are excluded from oxlint like `tests/workflows/`.
 
@@ -111,12 +111,12 @@ All commands from this directory (or with `--filter @zcode/dynamic-workflow` fro
 either workspace root):
 
 ```sh
-pnpm test         # vitest run tests
-pnpm test -- -w   # watch mode while developing
-pnpm typecheck    # tsc --noEmit
-pnpm build        # tsc -> dist/ (declaration + maps)
-pnpm charts       # build + render graph fixtures to charts/*.md (mermaid)
-pnpm lint         # oxlint src tests
+bun test         # vitest run tests
+bun test -- -w   # watch mode while developing
+bun run typecheck    # tsc --noEmit
+bun run build        # tsc -> dist/ (declaration + maps)
+bun run charts       # build + render graph fixtures to charts/*.md (mermaid)
+bun run lint         # oxlint src tests
 ```
 
 There is no dev server and no process to run: the package is a pure function

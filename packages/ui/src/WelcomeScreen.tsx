@@ -81,6 +81,7 @@ function LoginPanel({ active, onComplete }: LoginPanelProps) {
     pendingProvider,
     refreshProviders,
   } = useOAuth();
+  // OAuth disabled - force API key mode
   const user = useZCodeStore((s) => s.user);
   const oauthError = useZCodeStore((s) => s.oauthError);
   const setOAuthError = useZCodeStore((s) => s.setOAuthError);
@@ -89,7 +90,7 @@ function LoginPanel({ active, onComplete }: LoginPanelProps) {
   const loginEntryRequest = useZCodeStore((s) => s.loginEntryRequest);
   const clearLoginEntryRequest = useZCodeStore((s) => s.clearLoginEntryRequest);
   const markLoginEntryAttemptStatus = useZCodeStore((s) => s.markLoginEntryAttemptStatus);
-  const [loginMode, setLoginMode] = useState<"providers" | "apiKey">("providers");
+  const [loginMode, setLoginMode] = useState<"providers" | "apiKey">("apiKey");
   const wasActiveRef = useRef(active);
   const consumedLoginRequestRef = useRef<number | null>(null);
   const observedOAuthSuccessSeqRef = useRef(oauthSuccessSeq);

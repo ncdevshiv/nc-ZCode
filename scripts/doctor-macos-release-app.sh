@@ -16,7 +16,7 @@ if [ "${APP_PATH:-}" = "--help" ] || [ "${APP_PATH:-}" = "-h" ]; then
   cat <<'USAGE'
 Usage:
   bash scripts/doctor-macos-release-app.sh /Applications/ZCode.app
-  ZCODE_MACOS_RELEASE_APP_PATH=/Applications/ZCode.app pnpm run doctor:macos-release
+  ZCODE_MACOS_RELEASE_APP_PATH=/Applications/ZCode.app bun run doctor:macos-release
 
 Always validates the installed macOS release app with:
   codesign --verify --deep --strict <app>

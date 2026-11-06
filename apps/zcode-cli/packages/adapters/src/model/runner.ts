@@ -121,8 +121,8 @@ export class AiSdkModelAdapter {
     }
     this.statusSink = {
       async publish(event) {
-        // 多个 sink 必须独立执行：任一 sink 失败不得连带影响其他 sink，
-        // 也不能阻塞原有调用链。
+// Multiple sinks must be executed independently: the failure of any sink must not affect other sinks.
+// Nor can it block the original call chain.
         const results = await Promise.allSettled([
           Promise.resolve().then(() => current.publish(event)),
           Promise.resolve().then(() => sink.publish(event)),
@@ -164,9 +164,9 @@ export class AiSdkModelAdapter {
       const requestAuthRequired =
         options.providerConfig.access.type === "zhipu-account" &&
         options.providerConfig.access.mode === "off-peak";
-      // 调用级 runtime header Port 只服务绑定完整 Account Access 的账号型 Model；
-      // 普通 API-key Model 若也消费该 Port，会把静态鉴权误送到 Host 刷新并在请求前失败。
-      // Off-Peak Model 始终使用创建时注入的执行作用域 Source，不依赖账号服务。
+// The call-level runtime header Port only serves the account type model bound to complete Account Access;
+// If the ordinary API-key Model also consumes this Port, the static authentication will be mistakenly sent to the Host for refresh and fail before the request.
+// Off-Peak Model always uses the execution scope Source injected when it is created, and does not rely on account services.
       const refreshRuntimeHeadersBeforeAttempt = requestAuthRequired
         ? async (input: ModelRequestAuthSourceInput) => {
             const requestAuth = await requestAuthDependency?.source?.resolve(input);
@@ -200,8 +200,8 @@ export class AiSdkModelAdapter {
                 ...invocationContext.modelCall,
                 reasoning: {
                   ...invocationContext.modelCall?.reasoning,
-                  // 过去按 none/off 等档位名称猜测 enabled/disabled，导致 Telemetry
-                  // 把 Provider 方言当成统一语义。这里只记录请求实际选择的公开档位。
+// In the past, the gear names such as none/off were used to guess enabled/disabled, resulting in Telemetry
+// Treat the Provider dialect as unified semantics. Only the public file actually selected by the request is recorded here.
                   ...(selectedReasoningLevel ? { requestedLevel: selectedReasoningLevel } : {}),
                 },
               },
@@ -361,9 +361,9 @@ function projectRequestHistory(
 ): AiSdkModelTextRequest {
   if (resolved.providerKind !== "anthropic") return request;
 
-  // 结构归一化过去位于每次物理请求都会经过的 serializer，签名修复重试
-  // 因而会再次删除上一轮刚补出的 assistant 占位并合并 user。逻辑请求入口只投影一次，
-  // 后续 attempt 只能复用或从这份 request-local history 派生。
+// Structural normalization used to be located in the serializer that every physical request went through, signature repair and retry
+// Therefore, the assistant placeholder just added in the previous round will be deleted again and the user will be merged. The logical request entry is only projected once.
+// Subsequent attempts can only reuse or derive from this request-local history.
   const messages = normalizeReasoningHistory(request.messages, {
     providerId: resolved.providerId,
     modelId: resolved.modelId,

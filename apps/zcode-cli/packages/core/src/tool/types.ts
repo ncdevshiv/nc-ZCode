@@ -78,17 +78,17 @@ export interface ToolMetadata {
   needsApproval: boolean;
   providerVisible?: boolean;
   /**
-   * 声明该工具是“成功即终止 turn”的终态工具：一旦返回成功结果，executor 就在该结果上挂
-   * turnControl 终止当前 turn。这是工具的内在能力声明（像 concurrentSafe/destructive），
-   * 由 executor 读取，而不是在调用点按工具名猜测。submit_result 用它实现 actor 的终态提交。
+* Declare that the tool is a final tool that "terminates on success": once a successful result is returned, the executor hangs on the result
+* turnControl terminates the current turn. This is a declaration of the tool's intrinsic capabilities (like concurrentSafe/destructive),
+* Read by the executor instead of guessing the tool name when calling it. submit_result Use it to implement the actor's final state submission.
    */
   stopTurnOnSuccess?: boolean;
-  /** MCP discovery 的可信展示来源；只参与 UI 投影，不参与权限判定。 */
+/** Trusted display source of MCP discovery; only participates in UI projection and does not participate in permission determination. */
   mcpPresentation?: {
     serverName: string;
     toolName: string;
     description?: string;
-    /** 来自声明 zcode_official 鉴权的 MCP server；仅用于信任其结果里的结构化标识。 */
+/** From an MCP server that declares zcode_official authentication; only used to trust structured identifiers in its results. */
     official?: boolean;
   };
 }
@@ -100,7 +100,7 @@ export interface ToolMetadata {
 export type ToolRuntimeScope = "main" | "subagent";
 
 export interface BackgroundTaskControlStopOptions {
-  /** 谁在停：TaskStop 填 "model"，终态通知据此措辞。 */
+/** Who is stopping: Fill in "model" for TaskStop, and the final status notification will be worded accordingly. */
   initiator?: "user" | "model";
   strict: true;
   traceContext?: TraceContext;
@@ -128,12 +128,12 @@ export interface BackgroundTaskControlPort {
 export interface ToolExecutionContext {
   toolCallId: string;
   /**
-   * 当前 Tool 的实时观测写入器。Handler 只能通过窄接口写事实，不能接触原始 OTel Span。
+* Real-time observation writer for the current Tool. The Handler can only write facts through the narrow interface and cannot touch the original OTel Span.
    */
   telemetry?: ToolExecutionSpanWriter;
-  /** 当前工具调用是否属于 automation 派发轮；写工具 handler 用它做最终权限校验。 */
+/** Whether the current tool call belongs to the automation dispatch round; write the tool handler to use it for final permission verification. */
   automationTurn?: boolean;
-  /** 当前工具调用是否属于闲时任务派发轮；OffPeakCreate handler 用它做最终拒绝。 */
+/** Whether the current tool call belongs to the idle task dispatch round; the OffPeakCreate handler uses it for final rejection. */
   offPeakTurn?: boolean;
   traceContext?: TraceContext;
   traceId: TraceId;
@@ -143,23 +143,23 @@ export interface ToolExecutionContext {
   backgroundTaskControlPort?: BackgroundTaskControlPort;
   emitEvent?: (event: SessionEvent) => Promise<void>;
   executionPort?: ExecutionPort;
-  /** browser-use 控制端口；node_repl 的 agent.browsers.* 经此执行。缺省则 browser 不可用。 */
+/** browser-use control port; node_repl's agent.browsers.* is executed here. By default, browser is disabled. */
   browserControlPort?: BrowserControlPort;
-  /** 官方 browser-use plugin docs 资产目录；只在 browser-use 启用时用于 agent.browsers.documentation()。 */
+/** Official browser-use plugin docs asset directory; only used in agent.browsers.documentation() when browser-use is enabled. */
   browserDocumentationRoot?: string;
   fileSystemPort?: FileSystemPort;
   httpClientPort?: HttpClientPort;
   imageProcessorPort?: ImageProcessorPort;
   pdfDocumentPort?: PdfDocumentPort;
   model?: Model;
-  /** Core Server 对前台 child 的 Selection override。 */
+/** Core Server’s Selection override of the foreground child. */
   subagentModelOverride?: SubagentRunOptions["modelOverride"];
   skillPort?: SkillPort;
   subagentPort?: SubagentPort;
   coordinatorResponsePort?: CoordinatorResponsePort;
-  /** 工作流 actor 提交终态结果并等待引擎裁决的端口；仅在 workflow actor 会话注入。 */
+/** The port where the workflow actor submits the final results and waits for the engine's decision; only injected in the actor workflow session. */
   workflowSubmitPort?: WorkflowSubmitPort;
-  /** 工作流 actor 升级阻塞问题并等待主代理作答的端口；仅在 workflow actor 会话注入。 */
+/** Port where workflow actor escalation blocks questions and waits for a reply from the master agent; only injected in workflow actor sessions. */
   workflowEscalatePort?: WorkflowEscalatePort;
   artifactStore?: ToolArtifactStorePort;
   automationPort?: AutomationPort;
@@ -167,16 +167,16 @@ export interface ToolExecutionContext {
   sessionStore?: SessionStorePort;
   sessionModePort?: SessionModePort;
   workflowPort?: WorkflowPort;
-  /** workflow run 提交端口；缺席则 CreateWorkflow 回占位诊断而不启动。 */
+/** workflow run submission port; if absent, CreateWorkflow will return to placeholder diagnosis without starting. */
   dynamicWorkflowRunPort?: DynamicWorkflowRunPort;
-  /** dwf snippet 同步执行端口；缺席则 EvalWorkflowSnippet 报能力缺席的业务失败。 */
+/** dwf snippet synchronization execution port; if it is absent, EvalWorkflowSnippet will report business failure if the capability is absent. */
   dynamicWorkflowSnippetPort?: DynamicWorkflowSnippetPort;
-  /** 模型目录端口；缺席则 ListModels 报能力缺席，CreateWorkflow 的 subagent_model 被拒。 */
+/** Model directory port; if it is absent, ListModels will report that the capability is absent, and the subagent_model of CreateWorkflow will be rejected. */
   modelCatalogPort?: ModelCatalogPort;
   runtimeTaskRegistry?: RuntimeTaskRegistry;
   readFileState?: ReadFileStateMap;
   recordReadFileStateMetadata?: (metadata: PersistedReadFileStateMetadata) => void;
-  /** 记录 Skill resolved metadata；仅用于 telemetry，不改变模型可见结果。 */
+/** Record Skill resolved metadata; only used for telemetry, does not change the visible results of the model. */
   recordSkillTelemetryMetadata?: (metadata: SkillTelemetryMetadata) => void;
   bashShellSelection?: ExecutionShellSelection;
   embeddedSearch?: ToolEmbeddedSearchContext;
@@ -219,7 +219,7 @@ export type ReadFileStateMap = Map<string, ReadFileStateEntry>;
 // Tool Handler
 // -----------------------------------------------
 
-// tool handler 用该返回值表达可预期业务失败；成功 output 不使用此保留形状。
+// The tool handler uses this return value to express expected business failure; the successful output does not use this reserved shape.
 export interface ToolHandlerFailure {
   result: false;
   errorCode: number;
@@ -233,23 +233,23 @@ export interface ToolInputValidationContext {
 export type ToolInputValidationResult = { result: true } | ToolHandlerFailure;
 
 /**
- * {@link ToolEntry.resolveInput} 的上下文。窄到只有解析真正需要的东西——工作目录是「项目内
- * 的东西住在哪」的唯一入口，再多给就会把一个归一化钩子变成第二个执行入口。
+* The context of {@link ToolEntry.resolveInput}. Narrow enough to only parse what is really needed - the working directory is "in the project
+* "Where does the thing live?" The only entrance. If you add more, it will turn a normalized hook into a second execution entrance.
  */
 export interface ToolInputResolutionContext {
   workingDirectory?: string;
   runtimeTaskRegistry?: RuntimeTaskRegistry;
   /**
-   * workflow run 端口与本会话 id：AmendWorkflow 用它们把 `run_id` 解析成「前驱是不是本会话的、
-   * 还在不在跑」的事实块。仍然只读——
-   * 归一化钩子不因此变成第二个执行入口。
+* workflow run port and session id: AmendWorkflow uses them to parse `run_id` into "whether the predecessor belongs to this session,
+* Is it still running?" fact block. Still read only -
+* The normalization hook does not become the second execution entry.
    */
   dynamicWorkflowRunPort?: DynamicWorkflowRunPort;
   /**
-   * 模型目录端口：CreateWorkflow / AmendWorkflow 用它把 `subagent_model` 解析成规范形，解不出来
-   * 在确认窗**之前**就作为业务失败退回。
-   * 同步、只读，与 `dynamicWorkflowRunPort` 同一条理由待在这里。缺席时给了字段即被拒——
-   * 不静默放行一个宿主解不了的字符串。
+* Model directory port: CreateWorkflow / AmendWorkflow Use it to parse `subagent_model` into a canonical form, but it cannot be solved
+* It will be returned as a business failure before the confirmation window**.
+* Synchronous, read-only, and here for the same reason as `dynamicWorkflowRunPort`. If the field is given in absence, it will be rejected——
+* Do not silently pass a string that the host cannot understand.
    */
   modelCatalogPort?: ModelCatalogPort;
   sessionId?: string;
@@ -286,13 +286,13 @@ export interface ToolEntry extends ToolContractDeclaration {
   resultArtifactContentType?: string;
   metadata: ToolMetadata;
   /**
-   * 只由宿主验证后的可信来源写入；不能从模型可见的 MCP 名称或 descriptor 推导。
+* Only written by trusted sources verified by the host; cannot be derived from MCP names or descriptors visible to the model.
    */
   permissionCapabilityGroup?: PermissionCapabilityGroup;
   executionMode?: ToolExecutionMode;
   providerNative?: ProviderNativeToolSpec;
   handler: ToolHandler;
-  /** 当前 turn 模型能力对 provider descriptor 与 executor schema 的同源投影。 */
+/** The homologous projection of the current turn model capability to the provider descriptor and executor schema. */
   resolveModelContract?: (context: ToolExecutionModelContext) => {
     description?: string;
     inputSchema?: JsonSchema;
@@ -302,18 +302,18 @@ export interface ToolEntry extends ToolContractDeclaration {
     context: ToolInputValidationContext,
   ) => ToolInputValidationResult;
   /**
-   * 把模型发出的入参**归一化成将要发生的执行事实**。executor 在 `validateInput` 之后、
-   * PreToolUse hook 之前调用，返回值直接替换 `executionInput`。
+* Normalize the input parameters ** sent by the model into the execution facts that will occur **. executor after `validateInput`,
+* Called before PreToolUse hook, the return value directly replaces `executionInput`.
    *
-   * 位置就是全部的意义。此后 hook、项目权限规则、权限事件载荷、`prepareApproval`、handler
-   * 读到的都是同一份归一化输入，于是三件事一次到位：
-   *   1. 策略不被绕开——一条扫描脚本的 PreToolUse hook 在 saved run 上也能看到真正的脚本；
-   *   2. 跨版本可见——入参通道对每个客户端版本都是无 schema 的透传，而 display 通道不是；
-   *   3. 确认与执行同字节——只解析一次，那份字节一路带到 handler，不存在批准 A 跑 B。
+* Location is what it's all about. Afterwards hook, project permission rules, permission event payload, `prepareApproval`, handler
+* Everything read is the same normalized input, so three things are done at once:
+* 1. The strategy is not bypassed - a PreToolUse hook that scans the script can also see the real script on the saved run;
+* 2. Visible across versions - the input channel is schema-free transparent transmission for each client version, but the display channel is not;
+* 3. Confirmation and execution are the same bytes - only parsed once, that byte is brought all the way to the handler, there is no approval for A to run B.
    *
-   * 因此返回值必须仍然满足 `inputSchema` / `runtimeInputSchema`（hook 改写后 executor 会
-   * 再校验一次）。解析失败回 {@link ToolHandlerFailure}，executor 在 hook 之前收口——那是
-   * 业务失败，不是基础设施故障，不该先打断用户一次确认。
+* Therefore the return value must still satisfy `inputSchema` / `runtimeInputSchema` (after the hook is rewritten, the executor will
+* Check again). If parsing fails, {@link ToolHandlerFailure} will be returned, and the executor will close before the hook - that is
+* Business failure is not an infrastructure failure, and the user should not be interrupted to confirm first.
    */
   resolveInput?: (
     input: unknown,
@@ -408,7 +408,7 @@ export interface ToolExecutionResult {
   modelContent?: ModelMessageContent;
   readFileStateMetadata?: PersistedReadFileStateMetadata;
   serialization?: ToolResultSerialization;
-  /** Executor 汇总后的内部性能事实；不进入模型可见 Tool Output。 */
+/** Executor’s summarized internal performance facts; visible Tool Output without entering the model. */
   performance?: ToolExecutionTelemetry;
   error?: {
     code?: string;
@@ -438,10 +438,10 @@ export interface ToolResultSerialization {
   modelContent?: ModelMessageContent;
   originalBytes: number;
   /**
-   * 实际进入模型请求的字节。对受保护 CUA 结构化帧，序列化文本里 image 块
-   * 只渲染为短占位符，但真实 base64 栅格原样发送——因此这里 = 序列化文本
-   * 字节 + 真实媒体载荷，成本/用量观测（setOutputBytes、turn-tool-usage、
-   * usage-observability）不得少计图片。该 aggregate 是唯一公开计量状态。
+* The actual bytes requested into the model. For protected CUA structured frames, serialize text within the image block
+* Only rendered as a short placeholder, but the real base64 raster is sent as-is - so here = serialized text
+* Bytes + real media payload, cost/usage observations (setOutputBytes, turn-tool-usage,
+* usage-observability) images may not be undercounted. The aggregate is the only public metering state.
    */
   returnedBytes: number;
   truncated: boolean;

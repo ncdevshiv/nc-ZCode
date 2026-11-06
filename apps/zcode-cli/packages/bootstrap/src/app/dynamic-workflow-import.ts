@@ -1,5 +1,5 @@
 // ============================================================
-// amend-resume 的导入构建：读前驱 journal → ImportedRunCache
+// Import construction of amend-resume: read predecessor journal → ImportedRunCache
 // ============================================================
 //
 // 本模块是 amend-resume 唯一的**读前驱**处，三个调用点共用它：
@@ -74,8 +74,8 @@ type AmendPreflightResult =
 /**
  * amend 的**预检**：前驱存在 ∧ 每个已完结 ask 都有消息边界。**不看状态**——这两条都是前驱
  * journal 的性质，停止不会改变它们，所以在停止之前就能判定；预检过了再停，被拒的 amend 才
- * 不会留下一个被白白停掉的 run。在飞 run 的已完结 ask 早已连边界一起落库，所以对在飞前驱
- * 的预检与对已结算前驱的一样决定性。
+* Will not leave a run that was stopped in vain. The completed ask of the run on the fly has already been dropped into the library together with the boundary, so for the predecessor of the fly
+*'s preflight is as conclusive as that for settled precursors.
  */
 export function preflightAmendImport(
   journal: Pick<ImportedCacheJournalReader, "getRun" | "listNodes">,
@@ -90,9 +90,9 @@ export function preflightAmendImport(
 }
 
 /**
- * 门 3 的谓词，预检与构建共用：无 marker 只有两种成因——marker 列引入之前写下的 journal，与 driver
- * 侧记账失败——两者都意味着「这个 run 的边界记账不可信」，所以严格到全表而不是只看会被导入
- * 的那些。未完结的 ask 没有边界是**正常**的（它们从不进导入前缀），所以只看 completed 行。
+* The predicate of gate 3 is shared between preflight and build: no marker. There are only two causes - the journal written before the marker column is introduced, and the driver
+* Side accounting failed - both mean "the boundary accounting of this run is not trustworthy", so strict to the whole table instead of just looking at it will be imported
+* of those. It's **normal** for unfinished asks to have no boundaries (they never import prefixes), so only the completed lines are looked at.
  */
 function completedAsksHaveBoundaries(nodes: readonly NodeRecord[]): boolean {
   for (const node of nodes) {
@@ -103,34 +103,34 @@ function completedAsksHaveBoundaries(nodes: readonly NodeRecord[]): boolean {
 }
 
 /**
- * 构建导入缓存要的三样依赖。字段名与 `DynamicWorkflowRunServiceDeps` 逐字对齐（本接口是它的
- * 结构子集），所以 run service 的两个调用点直接把 `deps` 原样递进来——多一层改名映射，就多一处
- * 会漂移的接线，而漂移的症状是「转录面明明接上了却不做诚实性检查」这类静默降级。
+* Three dependencies required to build the import cache. Field names are aligned verbatim with `DynamicWorkflowRunServiceDeps` (this interface is its
+* Structure subset), so the two call points of run service directly pass in `deps` as it is - one more layer of rename mapping, just one more place
+* Wiring that will drift, and the symptom of drift is silent degradation such as "the transcription interface is clearly connected but no integrity check is performed."
  */
 interface AmendImportDeps {
   journal: ImportedCacheJournalReader;
   /**
-   * 会话转录读面。在场时多做一道**源诚实性检查**（见 {@link honorsBoundary}）；缺席时
-   * 候选照收——driver 侧的种子兑现仍会大声失败，那是 corruption 级的兜底。
+* Conversation transcript reading. Do an extra **source honesty check** when present (see {@link honorsBoundary}); when absent
+* Candidate harvesting - seed cashing on the driver side will still fail loudly, which is a corruption-level trap.
    */
   actorTranscriptStore?: ActorTranscriptStore;
   logger?: Logger;
 }
 
 /**
- * 读前驱 journal，构建 {@link ImportedRunCache}。**纯确定**：同一份 journal 状态恒给出同一张表。
+* Read the predecessor journal and build {@link ImportedRunCache}. **Purely certain**: The same journal status always gives the same table.
  *
- * 三道门按序（先门后建：门不过时一行都不必读）：
- *   1. 前驱不存在 → `run_not_found`；
- *   2. 前驱非终态 → `not_amendable`；
- *   3. 前驱有 completed 但无 `messageBoundary` 的 ask → `missing_boundaries`。
+* The three gates are in order (door first, built later: if the gate is not outdated, there is no need to read a line):
+* 1. The precursor does not exist → `run_not_found`;
+* 2. Precursor non-final state → `not_amendable`;
+* 3. The predecessor has completed but no `messageBoundary` ask → `missing_boundaries`.
  *
- * 门 3 之所以**严格到全表**（而不是只检查真正会被导入的那些）：无 marker 只有两种成因——
- * marker 列引入之前写下的 journal，与 driver 侧记账失败——两者都意味着「这个 run 的边界记账不可信」，
- * 而不是「这一条恰好没记上」。逐条放行等于让一个记账半坏的前驱产出一张看似完整的表，
- * 分歧时截断到一个错误的位置（模型看见的上文与 journal 记的边界悄悄错位）。dwf 未发布，
- * 无 marker 的 journal 只存在于开发机（整体拒绝，不做合成播种回退）。
- * 未完结的 ask 没有边界是**正常**的（它们从不进导入前缀），所以门只看 completed 行。
+* The reason why gate 3 is **strict to the entire table** (instead of only checking those that will actually be imported): There are only two reasons for no marker——
+* The marker column introduces the journal written before, and the driver side accounting fails - both mean "the boundary accounting of this run is not trustworthy",
+* Rather than "This item happened to be missing." Releasing items one by one is equivalent to asking a semi-bad accounting pioneer to produce a seemingly complete table.
+* Truncated to a wrong position when diverging (the boundary between the text seen by the model and the journal note is quietly misaligned). dwf is not published,
+* Journals without markers only exist on development machines (rejected overall, no synthetic seeding fallback).
+* It is **normal** for unfinished asks to have no boundaries (they never import prefixes), so the gate only looks at completed lines.
  */
 export async function buildImportedCache(
   deps: AmendImportDeps,
@@ -140,9 +140,9 @@ export async function buildImportedCache(
 
   const run = journal.getRun(predecessorRunId);
   if (run === undefined) return { ok: false, reason: "run_not_found" };
-  // 可修订集 = 任意终态，**刻意不复用** plain resume 的 isResumableRecord：那个谓词是
-  // byte-identical resume 的门（stopped），而修订恰恰对它排除的两类
-  // 最有用——脚本真失败（修 bug 保缓存）与 completed（温启动扩展分析）。两个集合各说各的。
+// Revisable set = any final state, **intentionally not reusable** plain resume's isResumableRecord: that predicate is
+// The gate of byte-identical resume (stopped), and the revision excludes exactly the two categories
+// The most useful - script true failure (bug fix, save cache) and completed (warm startup extended analysis). Each of the two collections has its own story.
   if (!TERMINAL_RUN_STATUSES.has(run.status)) return { ok: false, reason: "not_amendable" };
 
   const nodes = journal.listNodes(predecessorRunId);
@@ -170,12 +170,12 @@ export async function buildImportedCache(
 }
 
 /**
- * 前驱里的**可作候选**的 actor 行：名字非空 ∧ 该名在本 run 内唯一。
+* Candidate actor row in the precursor: the name is not empty ∧ The name is unique within this run.
  *
- * 匿名不收（名字是缓存身份键，没有名字就没有可比对的坐标）；重名**两个都不收**——
- * 引擎的 `DuplicateActorName` 是后加的运行期不变式，早于它写下的 journal 里可以真的存在
- * 重名行，而「按名取候选」在那种前驱上是掷骰子。挑一个不如都不挑：代价是这两个 actor 全新
- * 重跑，而错挑的代价是把另一个 actor 的会话前缀当成本 actor 的上文。
+* Anonymous will not be accepted (the name is the cached identity key, without a name there will be no comparable coordinates); duplicate names **Both will not be accepted**——
+* The engine's `DuplicateActorName` is a run-time invariant added later, which may actually exist in the journal written earlier than it is written.
+* Duplicate names work, and "candidate by name" is a roll of the dice on that kind of precursor. It’s better to choose neither: the price is that both actors are brand new
+* Rerun, and the cost of picking the wrong one is to treat another actor's session prefix as the previous actor's.
  */
 function namedUniqueActors(records: ActorRecord[], logger?: Logger): ActorRecord[] {
   const byName = new Map<string, ActorRecord[]>();
@@ -203,11 +203,11 @@ function namedUniqueActors(records: ActorRecord[], logger?: Logger): ActorRecord
 }
 
 /**
- * 一个候选 actor 的可导入前缀 + 转录源。任一环节缺料即回 `undefined`（该 actor 全新重跑）。
+* An importable prefix + transcription source for a candidate actor. If there is a lack of material in any link, it will return `undefined` (the actor will be re-run).
  *
- * **降级而不失败**是这里的总基调（与门的「整体拒绝」相反）：缺前缀、缺 persona、链上无会话、
- * 源会话被清理，全都只是「这个 actor 没有缓存」——journal 里没有缓存行就是没有，不撒谎。
- * 唯一会整体拒绝的是边界记账不可信，因为那会让**已收下的**候选截断到错误位置。
+* **Downgrade without failure** is the general tone here (as opposed to the "whole rejection" of the door): missing prefix, missing persona, no session on the chain,
+* The source session is cleared and it's all just "this actor is not cached" - no cache line in the journal means there isn't one, no lie.
+* The only thing that would be rejected outright is that boundary accounting is not trustworthy, because that would truncate accepted candidates to the wrong location.
  */
 async function buildActorCandidate(input: {
   actor: ActorRecord;
@@ -220,8 +220,8 @@ async function buildActorCandidate(input: {
   const { actor, journal, logger, nodes, predecessorRunId, transcripts } = input;
   const name = actor.name!;
 
-  // persona 是引擎在 createActor 时同步落的冻结身份，所以正常必在场；缺席只可能是被外力
-  // 改写过的行。运行期比对没有比对物就无从谈起 persona 一致性——弃候选而不是拿 `{}` 顶。
+// persona is a frozen identity that the engine synchronously drops when creatingActor, so it must be present normally; absence can only be caused by external force
+// Rewritten lines. Without a comparison object, it is impossible to talk about persona consistency during runtime comparison - discard the candidate instead of taking `{}` as the top one.
   if (actor.persona === undefined) return undefined;
 
   const entries = completedAskPrefix(nodes, actor);
@@ -233,8 +233,8 @@ async function buildActorCandidate(input: {
     startRunId: predecessorRunId,
   });
   if (source === undefined) {
-    // 链上没有任何祖先持有该 actor 的会话（从未建过，或会话已被清理）。全保真转录是本特性的
-    // 裁决，没有转录就没有可接续的上文——降级为全新 actor。
+// There is no ancestor in the chain that holds a session for this actor (it was never created, or the session has been cleaned up). Full fidelity transcription is a feature of this
+// Verdict, without transcription there is no continuation - downgraded to a completely new actor.
     logger?.info?.("Dynamic workflow amend: no transcript source for actor, import dropped", {
       actorName: name,
       event: "dynamic_workflow.amend.transcript_source_missing",
@@ -271,12 +271,12 @@ async function buildActorCandidate(input: {
 }
 
 /**
- * 该 actor 的**最长全 completed ask 前缀**（按 actorSeq 0..k 连续）。
+* The **longest fully completed ask prefix** for this actor (continuous by actorSeq 0..k).
  *
- * 前缀在第一个非 completed 处停死，三种停法同一处理：失败、崩溃中（running）、序号空洞。
- * 失败的 ask 对新 run **无约束力**（模型有随机性，修订常常就是为了越过一次失败），所以它自己
- * 不导入；但跳过它去导入其后的条目会走私上下文——被跳过那一轮的问答仍在源会话转录里，
- * 而缓存却声称它没发生过。停在第一个非 completed 处是唯一自洽的读法。
+* The prefix stops at the first non-completed position, and the three stopping methods are handled in the same way: failure, crash (running), and empty sequence number.
+* A failed ask is **non-binding** to the new run (the model is random, and revisions are often just to overcome a failure), so it itself
+* Does not import; but skipping it to import subsequent entries smuggles context - the Q&A for the skipped round is still in the source conversation transcript,
+* And the cache claims it didn't happen. Stopping at the first non-completed word is the only self-consistent way of reading it.
  */
 function completedAskPrefix(nodes: NodeRecord[], actor: ActorRecord): ImportedAskEntry[] {
   const bySeq = new Map<number, NodeRecord>();
@@ -291,7 +291,7 @@ function completedAskPrefix(nodes: NodeRecord[], actor: ActorRecord): ImportedAs
   for (let seq = 0; ; seq++) {
     const node = bySeq.get(seq);
     if (node === undefined || node.status !== "completed") break;
-    // 边界必在场：门 3 已对整个前驱把关，所以这里不是乐观读而是不变式的兑现。
+// The boundary must be present: Gate 3 has checked the entire precursor, so this is not an optimistic reading but a fulfillment of the invariant.
     const entry: ImportedAskEntry = {
       inputHash: node.inputHash,
       result: node.result,
@@ -304,17 +304,17 @@ function completedAskPrefix(nodes: NodeRecord[], actor: ActorRecord): ImportedAs
 }
 
 /**
- * 沿 `resumed_from` 链回溯**最近一个**持有该名 actor 会话的祖先 run。
+* Follow the `resumed_from` chain back to the **most recent** ancestor run that held the named actor session.
  *
- * 为什么需要走链：run B 里某 actor 全程命中缓存 ⇒ B 从未给它建过会话（惰性创建），于是
- * B→C 的修订要接续该 actor 时，转录只存在于 A。count 边界跨前缀复制不变，所以在链上任何
- * 持会话祖先处，B 抄来的边界值都直接可用——这正是链式修订成立的根基。
+* Why it is necessary to move the chain: An actor in run B hits the cache ⇒ B has never created a session for it (lazy creation), so
+* When a revision of B→C is to succeed the actor, the transcription only exists in A. count boundaries are copied across prefixes unchanged, so any
+* At the session ancestor, the boundary values ​​copied by B are directly available - this is the basis for chain revision.
  *
- * `resolvedModel` 与会话取自**同一行**：pin 的意义是「接续这段转录时别换模型」，取自别的行
- * 就是在为一段不属于它的转录做承诺。
+* `resolvedModel` is taken from the same line as the session: pin means "don't change the model when continuing this transcription" and is taken from another line
+* is committing to a transcription that does not belong to it.
  *
- * 环防御（seen）是纯防御：supersede 只能指向已终结的更早 run，构造不出环。但这个 while 若真
- * 遇到损坏数据就是死循环，而防御的代价是一个 Set。
+* Ring defense (seen) is pure defense: supersede can only point to an earlier run that has ended, and cannot construct a ring. But if this while is true
+* Encountering damaged data is an infinite loop, and the cost of defense is a Set.
  */
 function resolveTranscriptSource(input: {
   actorName: string;
@@ -328,8 +328,8 @@ function resolveTranscriptSource(input: {
   while (runId !== undefined && !seen.has(runId)) {
     seen.add(runId);
     const matches = journal.listActors(runId).filter((actor) => actor.name === actorName);
-    // 0 = 这一代根本没有这个 actor（链对该名字断了）；>1 = 重名，按名取会话是掷骰子。
-    // 两种都停在这里而不是继续上溯：上一代的会话不是**这段**转录的源。
+// 0 = This actor does not exist in this generation (the chain is broken for this name); >1 = Duplicate name, session by name is a roll of the dice.
+// Either way, stop here instead of going up: the session from the previous generation is not the source of this transcription.
     if (matches.length !== 1) return undefined;
     const actor = matches[0]!;
     if (actor.sessionId !== undefined) {
@@ -344,14 +344,14 @@ function resolveTranscriptSource(input: {
 }
 
 /**
- * 源会话是否真兑现得了边界（消息数 ≥ 边界）。
+* Whether the source session actually meets the boundary (number of messages ≥ boundary).
  *
- * 这道检查把 driver 的**大声失败**语义与构建期的**降级**语义接在一起：driver 的
- * `seedActorTranscript` 对短会话抛 `DriverError`（corruption 级，见那边的性质 3）；构建期缺少转录时则降级为全新重跑。两者都对，但作用域不同——**可预见的**缺料（会话被清理 / 被截断）
- * 应当在构建期就把候选弃掉，driver 那一侧的失败因此退化成真正不该发生时的兜底。
+* This check connects the driver's **fail loud** semantics with the build-time **downgrade** semantics: driver's
+* `seedActorTranscript` throws `DriverError` (corruption level, see property 3 there) for short sessions; downgrades to a fresh rerun when transcription is missing during build. Both are correct, but the scope is different - **foreseeable** starvation (session cleared/truncated)
+* Candidates should be discarded during the build phase, so failure on the driver side degenerates into a fallback when it really shouldn't happen.
  *
- * 读失败（会话不存在等）同样按「兑现不了」处理：构建器不为会话存储的错误分类负责，而任何
- * 读不到的源都不是可用的源。
+* Read failures (session does not exist, etc.) are also treated as "cannot be honored": the builder is not responsible for the wrong classification of the session storage, and any
+* Sources that cannot be read are not available sources.
  */
 async function honorsBoundary(
   transcripts: ActorTranscriptStore,
@@ -367,15 +367,15 @@ async function honorsBoundary(
 }
 
 /**
- * world 节点的内容表：`inputHash` → 按 journal 插入序排好的记录队列（第 n 次出现对第 n 条）。
+* Content table of world node: `inputHash` → Record queue arranged in journal insertion order (nth occurrence versus nth item).
  *
- * 键直接用**前驱记录的 inputHash**，不重算：引擎对 `{op,args}` 的哈希口径（engine.ts 的
- * worldRead）就是写进这一列的那个值，重算一遍等于在这里复制一份哈希契约，而它一旦漂移，
- * 表面上是「缓存莫名不命中」。
+* The key directly uses the inputHash** recorded by the **precursor without recalculation: the engine hash caliber of `{op,args}` (engine.ts
+* worldRead) is the value written into this column. Recalculating it is equivalent to copying a hash contract here, and once it drifts,
+* On the surface it is "an inexplicable cache miss".
  *
- * 只收 completed：失败的世界读取重新执行（失败对新 run 无约束力），running 的更不必说。
- * world-run 与 world-read 同表——导入 world-run 是**安全特性**而不是优化：修订续跑绝不静默
- * 重放一次已 journal 的效应（部署脚本跑两次）。
+* Only completed: failed world reading is re-executed (failure has no binding effect on new runs), not to mention running ones.
+* world-run and world-read have the same table - importing world-run is a **safety feature** rather than an optimization: revised continuation will never be silent
+* Replay journaled effects once (deployment script runs twice).
  */
 function buildWorldQueues(nodes: NodeRecord[]): ReadonlyMap<string, ImportedWorldEntry[]> {
   const world = new Map<string, ImportedWorldEntry[]>();
@@ -395,24 +395,24 @@ function buildWorldQueues(nodes: NodeRecord[]): ReadonlyMap<string, ImportedWorl
 }
 
 /**
- * resume 侧的入口：重建修订 run 的导入缓存。**任何失败都只降级、不拒绝 resume**。
+* Entry on the resume side: Rebuild the import cache of the revision run. **Any failure will only downgrade, and resume will not be refused**.
  *
- * 与提交侧共用同一个 {@link buildImportedCache}——这不是复用的顺手，而是正确性前提：修订 run 的
- * journal 只对「已到达的执行前缀」自含，未消费的导入靠这次重建补回，两侧算出不同的表就意味着
- * 「重建」变成了「另建一张」。
+* Share the same {@link buildImportedCache} with the submission side - this is not a convenience for reuse, but a prerequisite for correctness: revise the run
+* The journal only contains the "arrived execution prefix". Unconsumed imports are compensated by this reconstruction. Different tables are calculated on both sides. This means
+* "Rebuild" became "Create another one".
  *
- * 三条理由让「重建失败」与「提交时构建失败」判然不同：
- *   - 修订 run 已经存在了。拒绝 resume 等于把一个可续跑的 run 变成永久卡死的 run；
- *   - 已消费的命中在本 run 的 journal 里是**真行**，replay 不需要这张表——run 的自含性不依赖它；
- *   - 未消费的导入退化成 live 重执行，结果正确，只是花掉本可省下的 token。
+* Three reasons make "rebuild failed" and "build failed on commit" completely different:
+* - Revision run already exists. Rejecting resume is equivalent to turning a resumable run into a permanently stuck run;
+* - Consumed hits are **true rows** in this run's journal, replay does not need this table - the run's self-containment does not depend on it;
+* - Unconsumed imports degenerate into live re-executions, the results are correct, and only the tokens that could have been saved are spent.
  *
- * 所以这里连门的三个理由都不区分：对 resume 而言 `run_not_found`（前驱被清理）与
- * `missing_boundaries` 是同一件事——「这次没有缓存可用」。前驱 journal 因此是修订 run 的**存续
- * 依赖，但只是加速结构**：丢了变贵，不变错。记一条 info 便于事后解释账单。
+* So there is no distinction between the three reasons here: for resume `run_not_found` (the predecessor is cleared) and
+* `missing_boundaries` is the same thing - "no cache available this time". The predecessor journal is therefore the continuation of the revision run
+* Depends on, but only accelerates the structure**: it becomes more expensive if lost, but does not cause errors. Make a note of info so you can explain the bill later.
  */
 export async function rebuildImportedCacheForResume(
   deps: AmendImportDeps,
-  /** 被 resume 的修订 run 与它的 `resumed_from`（调用方已确认后者在场）。 */
+/** The resumed revision run with its `resumed_from` (the caller has acknowledged the presence of the latter). */
   run: { runId: string; predecessorRunId: string },
 ): Promise<ImportedRunCache | undefined> {
   const { predecessorRunId, runId } = run;

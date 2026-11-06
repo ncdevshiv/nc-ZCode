@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -91,13 +92,13 @@ import {
 } from "./timeout.js";
 
 const DEFAULT_MCP_TIMEOUT_MS = 30_000;
-// 存活探测只允许占用很短的时间：它挂在设置页刷新的同步路径上，超时即判死并触发重连。
+// The survival detection is only allowed to occupy a short time: it hangs on the synchronization path of the settings page refresh, and when it times out, it will be declared dead and trigger reconnection.
 const MCP_PING_TIMEOUT_MS = 5_000;
 const MAX_MCP_VERSION_PROBE_TIMEOUT_MS = 5_000;
 const MCP_STDIO_STDERR_LOG_MAX_CHARS = 4_000;
 /**
- * span → request id 的暂存条数上限。正常情况下每条都会在同一次 tool call 结束时被取走，
- * 留下的只有无人认领的（如连接期请求），几十条足够，纯为防止长会话下无界增长。
+* span → The upper limit of the number of temporary storage items for request id. Under normal circumstances, each item will be taken away at the end of the same tool call.
+* Only unclaimed ones (such as connection period requests) are left. A few dozen are enough, purely to prevent unbounded growth under long sessions.
  */
 const MAX_TRACKED_SERVER_REQUEST_IDS = 64;
 
@@ -111,16 +112,16 @@ export interface CreateMcpAdapterOptions {
   mcpOAuth?: McpOAuthRuntimeOptions;
   network?: NetworkEgressEnvPolicy;
   /**
-   * 官方 Server MCP 鉴权依赖。trustedOrigins 缺失时仍 fail closed；authHeadersPort
-   * 可缺省，此时各请求匿名降级并交给服务端做权威判定。
+*Official Server MCP authentication dependency. Fail closed when trustedOrigins is missing; authHeadersPort
+* Can be defaulted. At this time, each request will be downgraded anonymously and handed over to the server for authoritative judgment.
    */
   officialMcpAuth?: {
     authHeadersPort?: OfficialMcpAuthHeadersPort;
     trustedOrigins: OfficialMcpTrustedOriginRegistry;
     /**
-     * 当前 ZCode API origin。stdio 形态没有 `url` 可供校验，targetOrigin 只能由宿主给出
-     * ——插件因此无法把身份头导向别的 origin。
-     * 与 trustedOrigins 的 `resolveZCodeApiOrigin` 必须同源，否则两侧判定会分叉。
+* Current ZCode API origin. The stdio form does not have `url` for verification, and the targetOrigin can only be given by the host.
+* - Plugins therefore cannot direct identity headers to other origins.
+* The `resolveZCodeApiOrigin` of trustedOrigins must have the same origin, otherwise the judgments on both sides will diverge.
      */
     resolveZCodeApiOrigin?: () => string;
     workspaceIdentity?: string;
@@ -133,12 +134,12 @@ type McpTransport = StdioClientTransport | StreamableHTTPClientTransport | SSECl
 type AuthorizationCodeOAuthConfig = Extract<McpOAuthConfig, { type: "authorization_code" }>;
 
 /**
- * stdio 官方 MCP 的身份头载荷，随每条出站协议消息的 `_meta` 下发。
+* The identity header load of stdio's official MCP is delivered with `_meta` of each outbound protocol message.
  *
- * 失败也下发（`ok: false` + 枚举 reason）；stdio 插件拿不到头时不会去打官方端点。HTTP 路径则
- * 由 adapter 发起无身份的 tools/call，让 ZCode server 返回权威结构化错误。把 reason 交给 stdio
- * 插件才能让它把"未登录"与"无 Coding Plan
- * 套餐"如实呈现给用户，而不是静默降级成一句莫名其妙的失败。
+* Issued even if it fails (`ok: false` + enumeration reason); the stdio plug-in will not hit the official endpoint when it cannot get the end. HTTP path rule
+* The adapter initiates an unidentified tools/call, allowing the ZCode server to return an authoritative structured error. Give reason to stdio
+* The plug-in can make it change "Not logged in" and "No Coding Plan"
+* "Package" is presented to users truthfully, instead of silently downgrading to an inexplicable failure.
  */
 type OfficialMcpAuthMetaPayload =
   | { ok: true; headers: Record<string, string> }
@@ -199,20 +200,20 @@ class NodeMcpAdapter implements McpPort {
   private readonly connectionGenerations = new Map<string, number>();
   private credentialStore?: SharedZCodeCredentialStore;
   /**
-   * 官方鉴权失败分类的暂存槽。不能从 error 对象读——SDK 的 version
-   * negotiation 会把 OfficialMcpAuthError 重新包装成普通 Error，instanceof 失效；
-   * 也不允许按错误文本反解。因此在抛出点写入，failConnection 取用后立即清除。
+* Temporary storage slot for official authentication failure classification. Cannot read from error object - version of SDK
+* negotiation will repackage OfficialMcpAuthError into a normal Error, and instanceof will be invalid;
+* Reverse interpretation based on incorrect text is also not allowed. Therefore, it is written at the throw point and cleared immediately after failConnection is retrieved.
    */
   private readonly lastOfficialAuthKind = new Map<string, OfficialMcpAuthFailureKind>();
   /**
-   * span → 服务端 request id。只有官方 MCP 会写入（唯一能看到响应头的地方是 auth fetch
-   * wrapper），供 in-band 失败（HTTP 200 + `isError`）把 id 带回 tool result。
+* span → server request id. Only the official MCP will write (the only place you can see the response header is the auth fetch
+* wrapper), for in-band failure (HTTP 200 + `isError`) to bring the id back to the tool result.
    *
-   * 用 span 而不是 traceId 作键：traceId 覆盖整个顶层 session，同一 session 的多次调用
-   * 共用它，关联会串号；span 是一次 tool call 的粒度。
+* Use span instead of traceId as key: traceId covers the entire top-level session, multiple calls of the same session
+* If you share it, the association will be serialized; span is the granularity of a tool call.
    *
-   * 有界并即取即删：拿不到匹配的 span（如 initialize / tools/list，它们没有 `_meta`）
-   * 就让条目自然被挤出，绝不"取最近一次"兜底——那会把上一次调用的 id 贴到这一次的失败上。
+* Bounded and on-the-fly: can't get matching spans (like initialize/tools/list, they don't have `_meta`)
+* Let the entries be squeezed out naturally, and never "take the latest" - that will paste the id of the last call to this failure.
    */
   private readonly serverRequestIdBySpan = new Map<string, string>();
   private readonly connectionDiagnosticByServer = new Map<
@@ -266,9 +267,9 @@ class NodeMcpAdapter implements McpPort {
           record.status.authorization &&
           isDeepStrictEqual(record.config, config)
         ) {
-          // 相同配置的全量收敛可能与 OAuth callback 等待重叠；重新 connect
-          // 会关闭原 session，使浏览器中已打开的授权 URL、PKCE/state 和 callback 一并失效。
-          // 连接生命周期可以共享，但 Session 的 15 秒等待预算和 AbortSignal 不能继承设置页的 5 分钟预算。
+// Full convergence of the same configuration may overlap with OAuth callback wait; reconnect
+// The original session will be closed, invalidating the authorization URL, PKCE/state and callback that have been opened in the browser.
+// The connection life cycle can be shared, but the 15-second waiting budget of the Session and the 5-minute budget of the AbortSignal cannot be inherited from the settings page.
           return this.waitForSharedConnection(name, record, options);
         }
         return this.connectServer(name, config, options);
@@ -362,10 +363,10 @@ class NodeMcpAdapter implements McpPort {
       options.signal?.removeEventListener("abort", abortExternal);
     });
     record.connecting = connecting;
-    // 过去 `oauthAuthorizationTimeoutMs`（session 的 15 秒）被当成 OAuth 事务寿命，
-    // 15 秒后连同 callback listener 一起关掉，真人根本来不及在浏览器里完成授权（现场证据：
-    // 一次成功授权耗时约 74 秒）。现在它只作为**本 caller 的等待预算**：到点返回当时的
-    // snapshot（含授权 URL），后台连接与 300 秒授权事务继续存活。
+// In the past `oauthAuthorizationTimeoutMs` (15 seconds of session) was regarded as the OAuth transaction lifetime,
+// After 15 seconds, it will be closed together with the callback listener. The real person will not have time to complete the authorization in the browser (onsite evidence:
+//A successful authorization takes about 74 seconds). Now it is only used as **this caller's waiting budget**: to return the current
+// snapshot (including authorization URL), background connection and 300 seconds authorization transaction continue to survive.
     return await this.waitForSharedConnection(name, record, options);
   }
 
@@ -390,9 +391,9 @@ class NodeMcpAdapter implements McpPort {
     );
   }
 
-  // HTTP/SSE MCP 服务被停掉时不会派发 onclose（没有常驻流可断），record 会长期停在
-  // connected；设置页刷新读到的就是这份"无声死亡"的旧快照，看起来像刷新按钮没生效。
-  // ping 是 MCP 基础协议方法，用它把 transport 存活性显式化。
+// When the HTTP/SSE MCP service is stopped, onclose will not be dispatched (there is no resident stream to interrupt), and the record will stop for a long time.
+// connected; what is read when the settings page is refreshed is this old snapshot of "silent death". It looks like the refresh button does not take effect.
+// Ping is the MCP basic protocol method, which is used to make transport survivability explicit.
   async pingServer(name: string, options: { timeoutMs?: number } = {}): Promise<boolean> {
     const record = this.records.get(name);
     if (!record?.client || record.status.status !== "connected") {
@@ -407,7 +408,7 @@ class NodeMcpAdapter implements McpPort {
       await record.client.ping({ timeout: timeoutMs });
       return true;
     } catch (error) {
-      // server 回了 JSON-RPC 错误（例如未实现 ping）说明连接本身是活的，不能据此拆连接。
+// The server returns a JSON-RPC error (for example, ping is not implemented), indicating that the connection itself is alive and cannot be disconnected based on this.
       if (isPeerAnsweredError(error)) {
         return true;
       }
@@ -446,16 +447,16 @@ class NodeMcpAdapter implements McpPort {
     const timeoutMessage = `MCP tool ${request.serverName}/${request.toolName} timed out after ${timeoutMs}ms`;
     const pending = initialRecord?.connecting;
     if (pending) {
-      // connecting 是 adapter 持有的共享连接/OAuth 恢复任务。过去这里裸 await，
-      // tool caller 的 timeout/abort 完全失效；但直接 abort 底层任务又会关闭其他 caller 共用的
-      // callback listener。这里只限制当前 waiter，共享任务继续由 record 生命周期持有。
+// connecting is the shared connection/OAuth recovery task held by the adapter. Past here naked await,
+// The timeout/abort of the tool caller is completely invalid; but directly aborting the underlying task will close the shared tasks of other callers.
+// callback listener. This only limits the current waiter, and the shared task continues to be held by the record life cycle.
       await waitWithinMcpDeadline(pending, deadline, timeoutMessage, options.signal);
     }
 
-    // stdio MCP 子进程死亡后（如 node_repl 被异步错误击穿），此前没有任何恢复路径：
-    // 连接只在 session 创建时建立一次，session resume 也不重建，该会话的工具从此永远失败。
-    // 这里在调用前对已断连的 record 重连一次；server 进程内状态（如 REPL 变量）不可恢复，
-    // 但工具本身恢复可用。
+// After the stdio MCP child process dies (such as node_repl being hit by an asynchronous error), there is no recovery path before:
+// The connection is only established once when the session is created, and the session resume will not rebuild it. The tool for this session will never fail from now on.
+// Here, the disconnected record is reconnected before calling; the state in the server process (such as REPL variables) cannot be restored.
+// But the tool itself is available again.
     const disconnected = this.records.get(request.serverName);
     if (disconnected && disconnected.status.status === "disconnected") {
       await waitWithinMcpDeadline(
@@ -479,9 +480,9 @@ class NodeMcpAdapter implements McpPort {
         options.signal,
       );
     } catch (error) {
-      // 连接建立后 token 过期、被撤销或 scope 不足时，
-      // 过去这些认证错误原样冒泡，用户看到裸错误且永远不会自愈——OAuth 自愈只存在于
-      // startup connect 路径。现在运行期与建连期共用同一套 Phase 2 → Phase 1 编排。
+// When the token expires, is revoked or the scope is insufficient after the connection is established,
+// In the past these authentication errors bubbled up as is, users saw naked errors and never self-healed - OAuth self-healing only existed
+// startup connect path. Now the running period and the establishment period share the same Phase 2 → Phase 1 arrangement.
       const trigger = classifyInteractiveAuthorizationTrigger(error);
       if (trigger && record.config.type !== "stdio") {
         return await this.recoverToolCallAuthorization({
@@ -494,8 +495,8 @@ class NodeMcpAdapter implements McpPort {
           ...(options.signal ? { signal: options.signal } : {}),
         });
       }
-      // 防 onclose 尚未派发的竞态：SDK 在 transport 已断时抛裸 "Not connected"。
-      // 只对这一种确定的断连错误重连重试一次，其余错误原样冒泡。
+// Prevent the onclose race condition that has not yet been dispatched: the SDK throws "Not connected" when the transport is disconnected.
+//Only retry this certain disconnection error once, and other errors will bubble up as they are.
       if (!(error instanceof Error) || error.message !== "Not connected") throw error;
       try {
         await waitWithinMcpDeadline(
@@ -524,7 +525,7 @@ class NodeMcpAdapter implements McpPort {
     }
   }
 
-  /** 连接期诊断按 server 保存；tool call request id 继续按 span 隔离。 */
+/** The connection period diagnosis is saved by server; the tool call request id continues to be isolated by span. */
   private rememberServerResponse(
     serverName: string,
     response: OfficialMcpServerResponseInfo,
@@ -544,7 +545,7 @@ class NodeMcpAdapter implements McpPort {
     }
     if (!response.spanId) return;
     if (!response.serverRequestId) return;
-    // 401 重试会对同一 span 产生两条响应，后写覆盖——留下的是最终那次，正是要报的那个。
+// 401 retry will generate two responses for the same span, and the latter will be overwritten - the last one left is the one to be reported.
     this.serverRequestIdBySpan.set(response.spanId, response.serverRequestId);
     while (this.serverRequestIdBySpan.size > MAX_TRACKED_SERVER_REQUEST_IDS) {
       const oldest = this.serverRequestIdBySpan.keys().next();
@@ -553,7 +554,7 @@ class NodeMcpAdapter implements McpPort {
     }
   }
 
-  /** 取出并清除该 span 的 request id。取不到返回 undefined，不做任何兜底猜测。 */
+/** Get and clear the request id of the span. If it cannot be retrieved, undefined will be returned, and no guessing will be made. */
   private takeServerRequestId(spanId: string | undefined): string | undefined {
     if (!spanId) return undefined;
     const requestId = this.serverRequestIdBySpan.get(spanId);
@@ -562,9 +563,9 @@ class NodeMcpAdapter implements McpPort {
   }
 
   /**
-   * 解析 stdio 官方 MCP 本次出站协议消息的身份头。
-   * 返回 undefined 表示"不是官方 stdio server"——此时 `_meta` 里绝不能出现该键，否则等于把
-   * 身份头广播给任意第三方插件。
+* Parse the identity header of stdio's official MCP outbound protocol message this time.
+* Returning undefined means "not an official stdio server" - at this time, the key must not appear in `_meta`, otherwise it will be equal to
+* Broadcast the identity header to any third-party plugin.
    */
   private async resolveOfficialStdioAuthMeta(
     serverName: string,
@@ -585,10 +586,10 @@ class NodeMcpAdapter implements McpPort {
       module: "adapters.mcp",
     };
     const fail = (reason: OfficialMcpAuthFailureReason): OfficialMcpAuthMetaPayload => {
-      // 刻意不写 lastOfficialAuthKind：那个 map 只被 failConnection 读取，用来给**连接失败**
-      // 打分类标签。stdio 的身份头缺失不会让连接失败，写进去会一直留着，等到该 server 之后
-      // 因为别的原因（子进程死掉等）真正断连时被当成断连原因记进日志，属误导。
-      // 本路径的可观测性由下面这条自己的 event + 下发给插件的 reason 承担。
+// Deliberately not write lastOfficialAuthKind: that map is only read by failConnection and is used to report **connection failure**
+// Label the category. The missing identity header of stdio will not cause the connection to fail. It will be kept until the server is used.
+// When the connection is actually disconnected due to other reasons (such as the death of the child process, etc.), it is recorded in the log as the reason for the disconnection, which is misleading.
+// The observability of this path is borne by the following own event + the reason sent to the plug-in.
       this.logger?.warn("Official MCP stdio auth headers unavailable", {
         ...logBase,
         reason,
@@ -597,20 +598,20 @@ class NodeMcpAdapter implements McpPort {
       return { ok: false, reason };
     };
 
-    // standalone CLI 没有 host auth port。不静默省略该键：插件区分不了"宿主不支持"与
-    // "宿主支持但我没登录"，只有显式 reason 才能给出正确的用户提示。
+// The standalone CLI does not have a host auth port. Do not omit this key silently: the plug-in cannot distinguish between "host not supported" and
+// "The host supports it but I'm not logged in", only explicit reason can give the correct user prompt.
     if (!authHeadersPort || !trustedOrigins || !resolveZCodeApiOrigin) {
       return fail("official_auth_unavailable");
     }
 
-    // stdio 没有 url，origin 由宿主给出而非插件声明。isTrusted 在此退化为恒真断言，但仍要调用：
-    // 它同时校验 https、拒绝带 username/password 的 URL，并让 dev loopback 开关继续生效。
+// stdio does not have a url, and the origin is given by the host rather than declared by the plug-in. isTrusted here degenerates into a true assertion, but still needs to be called:
+// It also verifies https, rejects URLs with username/password, and leaves the dev loopback switch in effect.
     //
-    // 这两步原来裸调用。origin 解析依赖 settings / 运行时环境，isTrusted 是
-    // 注入的实现，两者都可能抛。异常裸冒泡会绕过整个失败分类：插件收不到 `{ok:false, reason}`，
-    // 而 reason 是跨 adapter / host / UI 的契约（决定提示文案与是否重试）。因此统一映射为
-    // official_auth_unavailable——宿主侧解析不出可信 origin，对插件而言就是"官方鉴权不可用"。
-    // 错误文本只进日志，绝不参与流程判断。
+// These two steps were originally called naked. Origin resolution depends on settings/runtime environment, isTrusted is
+// Injection implementation, both may throw. Exception naked bubbling will bypass the entire failure classification: the plugin does not receive `{ok:false, reason}`,
+// And reason is a contract across adapter / host / UI (deciding the prompt copy and whether to retry). Therefore, the unified mapping is
+// official_auth_unavailable - The host side cannot parse the trusted origin, which means "official authentication is not available" for the plug-in.
+// The error text will only be entered into the log and will never be involved in process judgment.
     let targetOrigin: string;
     let trust: Awaited<ReturnType<OfficialMcpTrustedOriginRegistry["isTrusted"]>>;
     try {
@@ -651,7 +652,7 @@ class NodeMcpAdapter implements McpPort {
     });
     if (!resolved.ok) return fail(resolved.reason);
 
-    // 只记 header 名与套餐维度，绝不记 header 值——日志留存周期不受控。
+//Only remember the header name and package dimensions, never the header value - the log retention period is not controlled.
     this.logger?.debug("Official MCP stdio auth headers attached", {
       ...logBase,
       identityHeaderNames: Object.keys(resolved.headers)
@@ -671,8 +672,8 @@ class NodeMcpAdapter implements McpPort {
     timeoutMs: number,
     signal: AbortSignal | undefined,
   ): Promise<McpToolCallResult> {
-    // 工具调用此前完全无日志：超时时既看不到预算是多少，也无法区分"服务端慢"与
-    // "客户端预算太小"。这里记录预算与耗时，但只记参数的 key（值可能是用户输入）。
+// There is no log at all before the tool is called: when it times out, we can neither see what the budget is, nor can we distinguish between "server slow" and "server slow"
+// "Client budget is too small". The budget and time consumption are recorded here, but only the key of the parameter is recorded (the value may be user input).
     const logBase = {
       event: "mcp.tool.call",
       mcpServerName: request.serverName,
@@ -706,21 +707,21 @@ class NodeMcpAdapter implements McpPort {
 
       const durationMs = Date.now() - startedAt;
       const isError = typeof result.isError === "boolean" ? result.isError : false;
-      // 官方 MCP 的 in-band 失败（配额耗尽、无套餐）是 HTTP 200 + isError，wrapper 那条
-      // 非 2xx warn 覆盖不到；request id 也只有 wrapper 能看到，所以在这里按 span 取回。
+// Official MCP in-band failure (quota exhausted, no package) is HTTP 200 + isError, wrapper
+// Non-2xx warn cannot be covered; the request id can only be seen by the wrapper, so press span here to retrieve it.
       const serverRequestId = this.takeServerRequestId(request.trace?.spanId);
       const outcome = {
         ...logBase,
         contentBlocks: Array.isArray(result.content) ? result.content.length : 0,
         durationMs,
         hasStructuredContent: result.structuredContent !== undefined,
-        // 业务级失败（isError）与传输级失败不同，必须能分开统计。
+// Business-level failures (isError) are different from transmission-level failures and must be counted separately.
         isError,
         ...(serverRequestId ? { serverRequestId } : {}),
       };
       if (isError) {
-        // 之前 in-band 失败只有这条 debug，而生产 logger 最低级别是 Info——等于配额耗尽
-        // 这类失败在生产日志里完全不可见。
+// Previously, there was only this debug when in-band failed, and the lowest level of the production logger was Info - equal to the quota being exhausted.
+// Such failures are completely invisible in production logs.
         this.logger?.warn("MCP tool returned an error", { ...outcome, status: "failed" });
       } else {
         this.logger?.debug("MCP tool call completed", { ...outcome, status: "completed" });
@@ -733,7 +734,7 @@ class NodeMcpAdapter implements McpPort {
           : [{ type: "text", text: "" }],
         structuredContent: result.structuredContent,
         isError: typeof result.isError === "boolean" ? result.isError : undefined,
-        // 只在失败时附加：成功路径上它是纯噪声。服务端已给的键一律不覆盖。
+// Append only on failure: on the success path it's pure noise. Keys already given by the server will not be overwritten.
         _meta:
           isError && serverRequestId
             ? { ...meta, [ZCODE_MCP_SERVER_REQUEST_ID_META_KEY]: serverRequestId }
@@ -742,12 +743,12 @@ class NodeMcpAdapter implements McpPort {
     } catch (error) {
       const durationMs = Date.now() - startedAt;
       const message = error instanceof Error ? error.message : String(error);
-      // 判定是否为超时：SDK 超时会抛 MCP error code -32001 (RequestTimeout)，
-      // 底层 fetch abort 抛 AbortError。两者都要能一眼认出，否则只能看到裸 message。
+// Determine whether it has timed out: SDK will throw MCP error code -32001 (RequestTimeout) when it times out.
+// The underlying fetch abort throws AbortError. Both must be identifiable at a glance, otherwise you will only see the naked message.
       const timedOut =
         /timed?\s*out|timeout/i.test(message) ||
         (error instanceof Error && error.name === "AbortError");
-      // 传输级失败也带上：4xx/5xx 时 SDK 抛出的 message 里没有 request id。
+//Transmission level failure also includes: there is no request id in the message thrown by the SDK in 4xx/5xx.
       const serverRequestId = this.takeServerRequestId(request.trace?.spanId);
       this.logger?.warn("MCP tool call failed", {
         ...logBase,
@@ -758,7 +759,7 @@ class NodeMcpAdapter implements McpPort {
         errorName: error instanceof Error ? error.name : "unknown",
         status: "failed",
         timedOut,
-        // 耗时贴着预算 ⇒ 是我们掐断的；远小于预算 ⇒ 是对端或网络断的。
+// Time-consuming and close to the budget ⇒ It was cut off by us; far less than the budget ⇒ It was cut off by the peer or the network.
         ...(timedOut ? { budgetExhausted: durationMs >= timeoutMs * 0.9 } : {}),
       });
       throw error;
@@ -776,9 +777,9 @@ class NodeMcpAdapter implements McpPort {
   }
 
   /**
-   * 运行期认证恢复：Phase 2 交互授权 → Phase 1 重连 → 原 tool call 最多安全重试一次。
+* Runtime authentication recovery: Phase 2 interactive authorization → Phase 1 reconnect → the original tool call can be safely retried once at most.
    *
-   * 与建连期共用 `runInteractiveOAuthAuthorization`，因此单飞、fencing、caller 预算语义完全一致。
+* It shares `runInteractiveOAuthAuthorization` with Jianlian, so the semantics of solo flight, fencing, and caller budget are exactly the same.
    */
   private async recoverToolCallAuthorization(input: {
     deadline: McpDeadline;
@@ -831,8 +832,8 @@ class NodeMcpAdapter implements McpPort {
   }
 
   /**
-   * 创建或复用运行期 OAuth 恢复。完整的 Phase 2 → Phase 1 由 adapter-owned record 持有；
-   * tool caller 只能等待，不能用自己的 AbortSignal 终止共享事务。
+* Create or reuse runtime OAuth recovery. Complete Phase 2 → Phase 1 is held by adapter-owned record;
+* The tool caller can only wait and cannot terminate shared transactions with its own AbortSignal.
    */
   private ensureToolCallAuthorizationRecovery(input: {
     config: Extract<McpServerConfig, { type: "http" | "sse" }>;
@@ -858,7 +859,7 @@ class NodeMcpAdapter implements McpPort {
       status: this.createStatus(input.config, "connecting", {
         toolCount: input.record.tools.length,
       }),
-      // 运行期工具已经向 core 广告；恢复期间保留 descriptor，避免设置页/借用端口误判工具消失。
+// The runtime tool has been advertised to the core; the descriptor is retained during recovery to avoid misjudgment of the settings page/borrowed port tool from disappearing.
       tools: input.record.tools,
     };
     this.records.set(input.name, recoveryRecord);
@@ -888,8 +889,8 @@ class NodeMcpAdapter implements McpPort {
   }): Promise<McpServerStatus> {
     const startedAt = Date.now();
     try {
-      // 原 transport 的握手与 token 已失效，必须由共享 owner 统一退休；不能调用 connectServer，
-      // 否则 closeRecord 会 abort recoveryRecord 自己的 controller，形成自取消。
+// The handshake and token of the original transport have expired and must be retired by the shared owner; connectServer cannot be called.
+// Otherwise, closeRecord will abort recoveryRecord's own controller, forming self-cancellation.
       await this.closeClientAndTransport(input.name, input.previousClient, input.previousTransport);
       const outcome = await this.runInteractiveOAuthAuthorization({
         config: input.config,
@@ -924,8 +925,8 @@ class NodeMcpAdapter implements McpPort {
         startedAt,
       });
     } catch (error) {
-      // 防御边界：共享 recovery promise 必须是 total operation。任何未来新增的编排异常也只能
-      // 收敛为 failed record，不能留下 rejected connecting promise 污染后续 snapshot。
+// Defense boundary: Shared recovery promise must be total operation. Any new orchestration exceptions added in the future will only
+// It converges to failed record, and rejected connecting promise cannot be left to contaminate subsequent snapshots.
       return await this.failConnection({
         config: input.config,
         error,
@@ -1076,14 +1077,14 @@ class NodeMcpAdapter implements McpPort {
           name,
           tool,
           config.timeoutMs,
-          // 只有 http 形态置位。这个标记的用途是**信任结果里的结构化标识**
-          // （额度耗尽 / 无套餐），因此判据必须是"结果由谁产出"：
-          //   - http：结果来自 ZCode 后端。fetch wrapper 对每次请求校验 origin；登录态只在
-          //     tools/call 解析，缺失时由同一可信后端返回结构化 coding_plan_required；
-          //   - stdio：结果由插件进程自己产出，可以任意伪造 `{"error_code":"quota_exceeded"}`，
-          //     从而在用户输入框上方弹出"额度用完 / 请开通 Coding Plan"的误导提示。
-          // 原判据是 `type !== "sse"`，把 stdio 一起放了进来，等于这道门槛在 stdio 上为零。
-          // 注意这不是在挡凭证外泄（那由 origin 校验负责），而是在挡**结果伪造**。
+// Only http mode is set. The purpose of this tag is **structured identification in trust results**
+// (Quota exhausted / No package), so the criterion must be "who produced the result":
+// - http: Results come from the ZCode backend. The fetch wrapper verifies the origin for each request; the login state is only in
+// tools/call parsing, if missing, structured coding_plan_required will be returned by the same trusted backend;
+// - stdio: The result is generated by the plug-in process itself and can be forged arbitrarily `{"error_code":"quota_exceeded"}`,
+// As a result, a misleading prompt of "Quota exhausted/Please activate Coding Plan" pops up above the user input box.
+// The original criterion is `type !== "sse"`, and stdio is put in together, which means that the threshold is zero on stdio.
+// Note that this is not to prevent the leakage of credentials (that is responsible for origin verification), but to prevent **result forgery**.
           config.type === "http" && config.auth?.type === ZCODE_OFFICIAL_MCP_AUTH_TYPE,
         ),
       );
@@ -1113,9 +1114,9 @@ class NodeMcpAdapter implements McpPort {
               pid: mcpTransportPid,
             })
           : undefined;
-      // stdio MCP 子进程死亡（如 node_repl 被 REPL cell 的异步错误击穿）不能完全
-      // 静默——不记日志、状态停留在 connected，后续调用只会抛裸的 "Not connected"。
-      // 挂 onclose 把意外断连显式化；主动关闭路径会先清掉 onclose（见 closeClientAndTransport）。
+// The death of the stdio MCP child process (such as node_repl being penetrated by the asynchronous error of the REPL cell) cannot be completely
+// Silent - no logging, the status stays at connected, and subsequent calls will only throw "Not connected".
+// Hang up onclose to make the unexpected disconnection explicit; actively closing the path will clear onclose first (see closeClientAndTransport).
       client.onclose = () => {
         if (!this.isCurrentConnection(name, generation)) return;
         const current = this.records.get(name);
@@ -1151,10 +1152,10 @@ class NodeMcpAdapter implements McpPort {
           });
         }
       };
-      // 此前连接日志只记录 transport，auto 协商后无法判断实际走 modern 还是 legacy。
-      // 同时记录配置策略和 SDK 握手结果，避免把 `auto` 误当成最终协议版本。
-      // 连接池上下文和 stdio transport PID 过去未进入同一事件，无法关联 session、
-      // workspace、协议版本和真实子进程；stdio PID 只代表最终会话 transport，不代表 probe child。
+// Previously, the connection log only recorded transport. After auto negotiation, it was impossible to determine whether it was modern or legacy.
+// Record the configuration policy and SDK handshake results at the same time to avoid mistaking `auto` for the final protocol version.
+// The connection pool context and stdio transport PID have not entered the same event in the past and cannot be associated with session,
+// workspace, protocol version and real child process; stdio PID only represents the final session transport, not the probe child.
       this.logger?.info("MCP server connected", {
         ...this.connectionContext,
         connectDurationMs,
@@ -1175,9 +1176,9 @@ class NodeMcpAdapter implements McpPort {
       });
       return status;
     } catch (error) {
-      // 过去这里等的是旧 provider 自己开的 listener，且用 session 的 15 秒预算做
-      // 硬关闭——15 秒是 caller 的等待预算，不是授权事务的寿命。现在按错误类型判定是否需要
-      // 交互授权，并把授权交给 Phase 2 独立事务（独立锁、fresh DCR、300 秒事务 TTL）。
+// In the past, what was waiting here was the listener opened by the old provider itself, and used the session's 15-second budget.
+// Hard shutdown - 15 seconds is the caller's wait budget, not the lifetime of the authorized transaction. Now determine whether it is necessary according to the error type
+// Interactive authorization and hand over authorization to Phase 2 independent transactions (independent locks, fresh DCR, 300 seconds transaction TTL).
       const trigger = oauthAuthorizationAttempted
         ? undefined
         : classifyInteractiveAuthorizationTrigger(error);
@@ -1186,7 +1187,7 @@ class NodeMcpAdapter implements McpPort {
           ? resolveAuthorizationCodeOAuthConfig(config)
           : undefined;
       if (trigger && authorizationCodeOAuthConfig && config.type !== "stdio") {
-        // negotiation 失败时 SDK 已关闭 transport，不可复用；Phase 2 也不需要 transport。
+// When negotiation fails, the SDK has closed the transport and cannot be reused; Phase 2 does not require transport.
         await this.closeClientAndTransport(name, client, transport);
         const outcome = await this.runInteractiveOAuthAuthorization({
           config,
@@ -1203,8 +1204,8 @@ class NodeMcpAdapter implements McpPort {
             oauthAuthorizationAttempted: true,
           });
         }
-        // client/transport 已在进入 Phase 2 前关闭，这里不再传入；failureKind 沿用
-        // 诊断分类，让设置页把"授权没完成"与网络/进程类失败区分开。
+// client/transport has been closed before entering Phase 2, no longer passed here; failureKind will be used
+// Diagnostic classification, let the settings page distinguish "Authorization not completed" from network/process failures.
         return this.failConnection({
           config,
           connectDurationMs,
@@ -1222,13 +1223,13 @@ class NodeMcpAdapter implements McpPort {
           startedAt,
         });
       }
-      // `protocol_negotiation_failed` 枚举与 UI 文案在 shared/i18n 里早已存在，但 adapter
-      // 侧一直没有产出方——auto/pin 模式下 SDK 的 server/discover probe 硬失败（典型：飞书项目
-      // MCP 对未知方法回 HTTP 200 + id:null 的非标 JSON-RPC error，body 过不了
-      // JSONRPCMessageSchema）会一路落到默认 failureKind "network_unreachable"，设置页因此
-      // 显示误导性的"网络不可达"。这里按结构化错误类型（SdkErrorCode / isInstance）识别 SDK
-      // 协商失败并产出正确分类，不依赖错误文本；withTimeout 不包装错误（timeout.ts 只透传
-      // reject），cause 链仅作防御性兜底。
+// `protocol_negotiation_failed` enumeration and UI copy already exist in shared/i18n, but the adapter
+// There has been no output side - the SDK's server/discover probe hard failed in auto/pin mode (typical: Feishu project
+// MCP returns HTTP 200 + id:null non-standard JSON-RPC error for unknown methods, the body cannot pass
+// JSONRPCMessageSchema) will fall all the way to the default failureKind "network_unreachable", so the settings page
+// Display misleading "Network Unreachable". Here SDKs are identified by structured error type (SdkErrorCode/isInstance)
+// Negotiation fails and outputs correct classification without relying on error text; withTimeout does not package errors (timeout.ts only transparently transmits
+//reject), the cause chain is only used as a defensive cover.
       const negotiationFailureKind = isProtocolNegotiationFailure(error)
         ? ("protocol_negotiation_failed" as const)
         : undefined;
@@ -1249,10 +1250,10 @@ class NodeMcpAdapter implements McpPort {
   }
 
   /**
-   * Phase 2：交互授权。
+* Phase 2: Interactive authorization.
    *
-   * 授权事务的寿命是 300 秒，与 caller 的等待预算（session 15 秒）无关；caller 侧的收口发生在
-   * `connectServer` / `waitForSharedConnection`，本方法不感知 caller 预算。
+* The lifespan of an authorized transaction is 300 seconds, regardless of the caller's waiting budget (session 15 seconds); the closure on the caller side occurs in
+* `connectServer` / `waitForSharedConnection`, this method is not aware of the caller budget.
    */
   private async runInteractiveOAuthAuthorization(input: {
     config: Extract<McpServerConfig, { type: "http" | "sse" }>;
@@ -1271,10 +1272,10 @@ class NodeMcpAdapter implements McpPort {
       );
       const credentialStore = oauthOptions?.credentialStore ?? createSharedZCodeCredentialStore();
       const keyPrefix = createCredentialKeyPrefix(input.name, input.serverUrl, input.oauthConfig);
-      // 403 step-up 的最终 scope 必须是 config ∪ token.scope ∪ challenge
-      // 的并集。只带 challenge scope 重新授权时，授权服务器可能按新请求收回先前授予的 scope，
-      // 下一个请求换个 challenge 又 403，形成重授权乒乓。token response 的 scope 允许缺失
-      // （RFC 6749 §3.3），所以配置里声明过的 scope 必须显式并入，不能只看 token 回显。
+// The final scope of the 403 step-up must be config ∪ token.scope ∪ challenge
+// Union of . When re-authorizing with only challenge scope, the authorization server may revoke the previously granted scope according to the new request.
+// Change the challenge to 403 for the next request, forming a re-authorization ping-pong. The scope of token response is allowed to be missing
+// (RFC 6749 §3.3), so the scope declared in the configuration must be explicitly incorporated, and you cannot just look at the token echo.
       let requestedScope: string | undefined = input.oauthConfig.scope;
       if (input.trigger.requiredScope) {
         const currentPair = await loadCredentialPair(credentialStore, keyPrefix);
@@ -1289,8 +1290,8 @@ class NodeMcpAdapter implements McpPort {
         config: input.oauthConfig,
         credentialStore,
         fetchFn: createMcpTransportFetch({ env: this.env, network: this.network }),
-        // 403 step-up：requiredScope 是当前 token scope 的严格超集时 refresh 无法扩权
-        // （RFC 6749 §6），必须强制重新授权，否则新 scope 会被静默丢弃并再次 403。
+// 403 step-up: When requiredScope is a strict superset of the current token scope, refresh cannot expand the rights.
+// (RFC 6749 §6), reauthorization must be forced, otherwise the new scope will be silently discarded and 403ed again.
         ...(input.trigger.reason === "insufficient_scope" ? { forceReauthorization: true } : {}),
         keyPrefix,
         logger: this.logger,
@@ -1310,9 +1311,9 @@ class NodeMcpAdapter implements McpPort {
         transactionTtlMs: MCP_OAUTH_AUTHORIZATION_TRANSACTION_TTL_MS,
       });
     } catch (error) {
-      // 本方法的返回类型已经把编排失败建模为 outcome。过去 credential load、
-      // authz lease 或 follower callback 的异常会裸 reject，绕过 failConnection，留下
-      // status=connecting + rejected record.connecting，并让 connectConfiguredServers 整批失败。
+// The return type of this method already models orchestration failure as outcome. past credential load,
+// Exceptions in authz lease or follower callback will be rejected naked, bypassing failConnection, leaving
+// status=connecting + rejected record.connecting, and let the entire batch of connectConfiguredServers fail.
       this.logger?.warn("MCP OAuth authorization orchestration failed", {
         error: error instanceof Error ? error.message : String(error),
         errorName: error instanceof Error ? error.name : "unknown",
@@ -1351,9 +1352,9 @@ class NodeMcpAdapter implements McpPort {
       transport,
     } = input;
     const message = error instanceof Error ? error.message : String(error);
-    // 官方 MCP 鉴权失败的稳定分类必须落进日志：failConnection 原先只记
-    // error.message，而多数分类并不出现在 message 文本里（只有 auth-port 那条带上了），
-    // 导致 official_mcp_origin_untrusted / official_auth_rejected 等在生产日志里 grep 不到。
+// The stable classification of official MCP authentication failure must be entered into the log: failConnection was originally only recorded
+// error.message, and most categories do not appear in the message text (only the auth-port one is included),
+// As a result, official_mcp_origin_untrusted / official_auth_rejected etc. cannot be grep in the production log.
     const officialAuthKind =
       (error instanceof OfficialMcpAuthError ? error.kind : undefined) ??
       this.lastOfficialAuthKind.get(name);
@@ -1449,8 +1450,8 @@ class NodeMcpAdapter implements McpPort {
       const officialAuthFetch = this.createOfficialAuthFetch(config, serverName, generation);
       return {
         transport: new StreamableHTTPClientTransport(new URL(config.url), {
-          // 官方鉴权路径下 authProvider 必为 undefined：不落 OAuth 凭据、
-          // 不起 localhost 回调 server、401/403 不转授权流程。
+// The authProvider under the official authentication path must be undefined: OAuth credentials are not included.
+// Cannot afford localhost callback server, 401/403 does not transfer the authorization process.
           authProvider: this.createOAuthClientProvider(serverName, config),
           fetch: officialAuthFetch ?? fetch,
           requestInit: config.headers ? { headers: config.headers } : undefined,
@@ -1468,10 +1469,10 @@ class NodeMcpAdapter implements McpPort {
   }
 
   /**
-   * 官方鉴权 MCP 的动态 fetch。返回 undefined 表示走普通 MCP 路径。
+* Dynamic fetch of official authentication MCP. Returning undefined means taking the normal MCP path.
    *
-   * trusted origin 依赖缺失时直接 fail closed。auth port 可以缺失：wrapper 仍校验 origin，
-   * 各请求匿名降级并由服务端做权威判定。
+* Trusted origin directly fails closed when dependencies are missing. The auth port can be missing: the wrapper still verifies origin.
+* Each request is downgraded anonymously and authoritatively determined by the server.
    */
   private createOfficialAuthFetch(
     config: McpServerConfig,
@@ -1514,23 +1515,23 @@ class NodeMcpAdapter implements McpPort {
   }
 
   /**
-   * 运行期 auth provider。
+* Runtime auth provider.
    *
-   * 过去这里对任何没有 Authorization header 的 HTTP/SSE MCP
-   * 都创建一个完整 OAuth session——而 session 在返回前就 `listen(0)` 起了一个 callback server，
-   * 即使凭据完全有效、根本不需要授权。同时完整 `OAuthClientProvider` 会让 401 走 SDK 的
-   * `auth()`，绕过我们的 refresh 单飞锁。
+* This used to be useful for any HTTP/SSE MCP without an Authorization header
+* Create a complete OAuth session - and the session `listen(0)` sets up a callback server before returning,
+* Even if the credentials are completely valid and no authorization is required at all. At the same time, complete `OAuthClientProvider` will make 401 go to the SDK
+* `auth()`, bypassing our refresh solo lock.
    *
-   * 现在 authorization_code 一律使用纯 AuthProvider：被动连接零 listener、零 discovery、零 DCR，
-   * 交互授权只在 Phase 2 事务里发生。
+* Now authorization_code always uses pure AuthProvider: passive connection zero listener, zero discovery, zero DCR,
+* Interactive authorization only occurs in Phase 2 transactions.
    */
   private createOAuthClientProvider(
     serverName: string,
     config: McpServerConfig,
   ): AuthProvider | OAuthClientProvider | undefined {
     if (config.type === "stdio") return undefined;
-    // 官方鉴权与 OAuth 互斥：官方 MCP 的失败只能由 ZCode 登录/套餐解决，
-    // 交出任何 authProvider 都会让 401 误转成 MCP 授权流程。
+//Official authentication and OAuth are mutually exclusive: the failure of official MCP can only be solved by ZCode login/package.
+// Handing over any authProvider will cause 401 to be mistakenly converted to MCP authorization flow.
     if (isOfficialAuthConfig(config)) return undefined;
     const authorizationCodeOAuthConfig = resolveAuthorizationCodeOAuthConfig(config);
     if (authorizationCodeOAuthConfig) {
@@ -1599,8 +1600,8 @@ class NodeMcpAdapter implements McpPort {
     return () => {
       const text = stderrBuffer.read();
       if (!text) return undefined;
-      // 生产日志里单独的 Connection closed 无法定位 stdio MCP 子进程退出原因。
-      // 只在失败事件附带尾部 stderr，并先脱敏，避免把凭据或高频输出写入生产日志。
+// The separate Connection closed in the production log cannot locate the reason why the stdio MCP child process exited.
+// Only append the tail stderr to the failure event, and desensitize it first to avoid writing credentials or high-frequency output to the production log.
       return sanitizeMcpStdioStderr(text).slice(-MCP_STDIO_STDERR_LOG_MAX_CHARS);
     };
   }
@@ -1620,10 +1621,10 @@ class NodeMcpAdapter implements McpPort {
   ): Promise<void> {
     const startedAt = Date.now();
     const mcpTransportPid = getStdioTransportPid(transport);
-    // 主动关闭前先摘掉 connection_lost 监听，避免正常回收被误报为意外断连。
+// Remove the connection_lost listener before actively closing to avoid normal recycling being mistakenly reported as accidental disconnection.
     if (client) client.onclose = undefined;
-    // MCP SDK close 只保证直接 stdio 子进程退出，npx/npm wrapper 拉起的 MCP server
-    // 或 chrome-devtools-mcp watchdog 可能残留；这里先按进程树显式回收，再走 SDK close 清理协议状态。
+// MCP SDK close only ensures that the stdio child process exits directly, and the MCP server pulled up by npx/npm wrapper
+// Or chrome-devtools-mcp watchdog may remain; here, first explicitly recycle according to the process tree, and then use SDK close to clean up the protocol status.
     await this.terminateStdioProcessTree(name, transport);
 
     try {
@@ -1746,9 +1747,9 @@ class NodeMcpAdapter implements McpPort {
 }
 
 function mcpRequestMeta(request: McpCallToolRequest): Record<string, unknown> {
-  // nodeRepl.requestMeta 暴露。ZCode 所有 MCP server 都可忽略这些扩展键；node_repl browser
-  // bridge 则以它们作为回到当前 BrowserControlPort session 的唯一关联依据。runtime_scope
-  // 不能从 child session id 猜测，必须由实际执行工具的 runtime 显式透传。
+// nodeRepl.requestMeta exposed. All ZCode MCP servers can ignore these extended keys; node_repl browser
+// bridge uses them as the only association basis to return to the current BrowserControlPort session. runtime_scope
+// It cannot be guessed from the child session id, it must be explicitly passed through by the runtime of the actual execution tool.
   const requestContext = {
     ...(request.trace ? { trace_id: request.trace.traceId } : {}),
     ...(request.trace?.spanId ? { span_id: request.trace.spanId } : {}),
@@ -1772,19 +1773,19 @@ function mcpRequestMeta(request: McpCallToolRequest): Record<string, unknown> {
 
 function resolveVersionNegotiationMode(config: McpServerConfig): VersionNegotiationMode {
   if (config.protocolVersion === "2026-07-28") return { pin: "2026-07-28" };
-  // deprecated SSE transport 本身只承载 legacy era；显式 modern pin 仍应失败而不能静默降级。
+// The deprecated SSE transport itself only carries legacy era; explicit modern pins should still fail and not be downgraded silently.
   if (config.type === "sse") return "legacy";
   if (config.protocolVersion === "legacy") return "legacy";
   return "auto";
 }
 
 /**
- * SDK 版本协商（auto/pin 的 server/discover probe）失败的稳定识别。
+* Stable identification of SDK version negotiation (auto/pin's server/discover probe) failure.
  *
- * 结构化判定，禁止匹配错误文本：
- * - `SdkError(SdkErrorCode.EraNegotiationFailed)`：probe 硬失败（含非标 legacy server 的
- *   malformed 200 响应，经 transport 层 Zod 校验失败 + normalizeReply 落入 network-error 分支）；
- * - `UnsupportedProtocolVersionError`：recognized modern error，pin 版本不被 server 接受。
+* Structured judgment, prohibiting matching of wrong text:
+* - `SdkError(SdkErrorCode.EraNegotiationFailed)`: probe hard failure (including non-standard legacy server)
+* malformed 200 response, the transport layer Zod verification fails + normalizeReply falls into the network-error branch);
+* - `UnsupportedProtocolVersionError`: recognized modern error, pin version is not accepted by the server.
  */
 function isProtocolNegotiationFailure(error: unknown): boolean {
   if (SdkError.isInstance(error) && error.code === SdkErrorCode.EraNegotiationFailed) {
@@ -1810,8 +1811,8 @@ function resolveVersionNegotiation(
   const mode = resolveVersionNegotiationMode(config);
   if (mode === "legacy") return { mode };
 
-  // pin 没有 legacy fallback，probe 就是唯一 initialize 路径；沿用 auto 的 5 秒
-  // 保护上限会无视 server 的长连接预算，把冷启动正常但超过 5 秒的 node_repl 静默移出工具池。
+// There is no legacy fallback for pin, probe is the only initialize path; use the 5 seconds of auto
+// The upper limit of protection will ignore the server's long connection budget and silently remove node_repl from the tool pool if the cold start is normal but exceeds 5 seconds.
   const probeTimeoutMs =
     typeof mode === "object"
       ? Math.max(1, Math.floor(timeoutMs))
@@ -1820,8 +1821,8 @@ function resolveVersionNegotiation(
   return {
     mode,
     probe: {
-      // 原因：SDK 的 stdio auto/pin 会先启动 disposable sibling；若沿用 SDK 60s 默认值，
-      // ZCode 的总连接超时可能先结束并让 probe 残留，也不给 legacy initialize 留预算。
+// Reason: SDK's stdio auto/pin will start disposable sibling first; if the SDK default value of 60s is used,
+// ZCode's total connection timeout may end first and leave the probe remaining, without leaving any budget for legacy initialize.
       timeoutMs: probeTimeoutMs,
     },
   };
@@ -1841,29 +1842,29 @@ function resolveAuthorizationCodeOAuthConfig(
   config: McpServerConfig,
 ): AuthorizationCodeOAuthConfig | undefined {
   if (config.type === "stdio") return undefined;
-  // 官方鉴权与 MCP OAuth 互斥。必须位于所有既有分支之前：
-  // 官方 MCP 既不写 oauth 字段、又禁止静态 authorization 头，若不在此短路就会落进
-  // 下面的 authorization_code 兜底，导致 401 时弹出 MCP 授权 UI —— 而官方鉴权失败
-  // 只能由 ZCode 自身的登录/套餐解决，不可能由目标 MCP 的 OAuth 授权解决。
+//Official authentication and MCP OAuth are mutually exclusive. Must precede all existing branches:
+// The official MCP neither writes the oauth field nor prohibits static authorization headers. If you don't short-circuit here, you will fall into
+// The authorization_code below is a cover-up, causing the MCP authorization UI to pop up when 401 occurs - and the official authentication fails
+// This can only be solved by ZCode's own login/package, and cannot be solved by the target MCP's OAuth authorization.
   if (isOfficialAuthConfig(config)) return undefined;
   if (config.oauth?.type === "authorization_code") return config.oauth;
   if (config.oauth?.type === "client_credentials") return undefined;
   if (hasAuthorizationHeader(config.headers)) return undefined;
 
-  // 新建 HTTP/SSE MCP 常只保存 URL；OAuth 支持应由服务端
-  // WWW-Authenticate / discovery 触发，不能要求配置里预先写 oauth 字段。
+// New HTTP/SSE MCP usually only saves the URL; OAuth support should be provided by the server
+// WWW-Authenticate / discovery trigger, the oauth field cannot be required to be pre-written in the configuration.
   return {
     type: "authorization_code",
   };
 }
 
 /**
- * auth.type/provider 精确命中且 provenance 存在时为真；provenance 缺失说明不是 Plugin loader
- * 产出的配置。
+* True when auth.type/provider is accurately hit and provenance exists; missing provenance indicates that it is not a Plugin loader
+* Output configuration.
  *
- * 覆盖 http 与 stdio 两种形态——两者的凭证投递通道不同，但"是否官方鉴权"
- * 的判定同源。调用方若只关心某一形态，需自行再判 `config.type`（如 createOfficialAuthFetch
- * 只处理 http、_meta 注入只处理 stdio）。
+* Covers both http and stdio forms - the certificate delivery channels of the two are different, but "whether it is officially authenticated"
+* is determined to have the same origin. If the caller only cares about a certain form, it needs to determine `config.type` by itself (such as createOfficialAuthFetch
+* Only handles http, _meta injection only handles stdio).
  */
 function isOfficialAuthConfig(config: McpServerConfig): boolean {
   return (
@@ -1941,9 +1942,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-// server 回了 JSON-RPC 错误响应（数字 code）说明请求走通了、连接是活的；
-// SDK 本地错误（SdkError，字符串 code：REQUEST_TIMEOUT / CONNECTION_CLOSED / NOT_CONNECTED
-// / SEND_FAILED）才代表 transport 已断。code 类型判断兜底 instanceof 在多份 SDK 实例下失效的情况。
+// The server responded with a JSON-RPC error response (numeric code) indicating that the request went through and the connection is alive;
+// SDK local error (SdkError, string code: REQUEST_TIMEOUT / CONNECTION_CLOSED / NOT_CONNECTED
+// / SEND_FAILED) means that the transport has been disconnected. Code type judgment covers the situation when instanceof fails in multiple SDK instances.
 function isPeerAnsweredError(error: unknown): boolean {
   if (error instanceof ProtocolError) return true;
   return isRecord(error) && typeof error.code === "number";

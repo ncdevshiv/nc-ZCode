@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const PERMISSION_FULL_ACCESS_ENTRY = "runtime/permission_full_access";
 
-/** 持久化 receipt 是授权重试事实源；损坏时拒绝重试，不能按当前队列重新扩大授权范围。 */
+/** The persistent receipt is the source of fact for authorization retry; it refuses to retry when it is damaged, and the authorization scope cannot be re-expanded according to the current queue. */
 export const permissionFullAccessReceiptSchema = z
   .object({
     interactionId: z.string().min(1),

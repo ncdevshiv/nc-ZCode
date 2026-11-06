@@ -183,19 +183,19 @@ const amendWorkflowHandler: ToolHandler = async (input, context) => {
         const phaseAlongside = createWorkflowPhaseAlongside(causalityGraph);
         return { phaseNames, ...(phaseAlongside === undefined ? {} : { phaseAlongside }) };
       })(),
-      // 三态已在 resolveInput 归一成「一个数或没有」；`null` 到这里只可能来自绕过归一化的
-      // 调用方（端口不收它），同样读作缺席。
+// The three states have been normalized to "a number or none" in resolveInput; `null` here can only come from bypassing the normalization
+// Caller (the port does not accept it), also read as absent.
       ...(typeof parsed.max_concurrency === "number"
         ? { maxConcurrency: parsed.max_concurrency }
         : {}),
-      // 同上：三态已在 resolveInput 归一成「一个规范形或没有」，`null` 在这里只可能来自绕过
-      // 归一化的调用方，与缺席同义（端口不收它）。
+// Same as above: the three states have been reduced to "a canonical form or none" in resolveInput, `null` can only come from bypassing here
+// Normalized caller, synonymous with absent (the port does not accept it).
       ...(() => {
         const subagentModel = parseWorkflowSubagentModel(parsed.subagent_model ?? undefined);
         return subagentModel === undefined ? {} : { subagentModel };
       })(),
-      // 这一次修订的脚本文件。缺席即草稿写不
-      // 下去，模型面随之退回旧文案。
+// This revised script file. Absence means the draft cannot be written
+// Go down and the model will return to the old copy.
       ...(scriptPath === undefined ? {} : { scriptPath }),
       trace: resolveTraceContext(context),
     },
@@ -207,7 +207,7 @@ const amendWorkflowHandler: ToolHandler = async (input, context) => {
     amended.supersededRunId === undefined
       ? `Run ${parsed.run_id} had already settled; its finished work is imported as cache.`
       : `Run ${amended.supersededRunId} was still running: it has been stopped and superseded, and everything it finished before the stop is imported as cache. It will not send a notification of its own.`;
-  // 沿用脚本时点明「脚本没变」：模型据此知道这次改的只是设定，而不是去翻自己没写过的新脚本。
+// When inheriting the script, indicate "the script has not changed": the model knows from this that it is only the settings that have been changed this time, rather than going through a new script that it has not written.
   const started =
     parsed.predecessor?.script_inherited === true
       ? `The script of run ${parsed.run_id} started unchanged in the background as run ${amended.runId}.`
@@ -215,8 +215,8 @@ const amendWorkflowHandler: ToolHandler = async (input, context) => {
   return {
     diagnostics,
     ok,
-    // 文案照 CreateWorkflow 的 backgrounded 引导：给出 id、说明仍在跑、结果以通知形式回来、
-    // 显式劝阻默认轮询。
+//Copywriting photo CreateWorkflow's backgrounded guide: Give the id, explain that it is still running, and the results will be returned in the form of notifications.
+// Explicitly discourage default polling.
     response: `${superseded} ${started} It is still running — you will be notified with the final output when it completes. Do not wait for it or poll it with TaskOutput; continue with other work unless the user asked you to wait.${describeWorkflowConcurrencyLimit(parsed.max_concurrency ?? undefined, port.concurrencyCeiling?.())}${describeWorkflowSubagentModel(parsed.subagent_model ?? undefined)}${location === undefined ? "" : workflowAmendedScriptSentence(location)}`,
     status: "backgrounded",
     backgroundTaskId: amended.runId,
@@ -225,14 +225,14 @@ const amendWorkflowHandler: ToolHandler = async (input, context) => {
 };
 
 /**
- * 确认窗预览：与 CreateWorkflow 同一段代码（编不过即放行给 handler 回诊断）。display 的 kind
- * 仍是 `create_workflow`——图、草稿笔与诊断卡在 UI 侧只有一份实现；「这是修订」由工具名与入参
- * 的 `run_id` / `predecessor` 说出来。
+* Confirmation window preview: the same code as CreateWorkflow (if it cannot be edited, it will be released to the handler for diagnosis). display kind
+* Still `create_workflow` - there is only one implementation of diagrams, scratch pens and diagnostic cards on the UI side; "This is a revision" is determined by the tool name and input parameters
+* The `run_id` / `predecessor` is spoken.
  */
 function prepareAmendWorkflowApproval(input: unknown): ToolApprovalGate {
   const parsed = AmendWorkflowInputSchema.safeParse(input);
-  // 归一化之后 `script` 必在场；缺席即有人绕过了生命周期，放行给 handler：它回结构化失败，窗开了
-  // 也无物可批。
+// After normalization, `script` must be present; if it is absent, someone has bypassed the life cycle and released it to the handler: it will return structural failure and the window is opened.
+//There is nothing to criticize either.
   if (!parsed.success || parsed.data.script === undefined) return { gate: "proceed" };
   const analysis = analyzeScript(parsed.data.script);
   if (!analysis.ok) return { gate: "proceed" };
@@ -256,7 +256,7 @@ export const amendWorkflowToolEntry: ToolEntry = {
     needsApproval: true,
   },
   handler: amendWorkflowHandler,
-  // 修订脚本至多给一个，只对模型入参成立（归一化后 `script` 与 `path` 同时在场是合法执行态）。
+// At most one revised script is given, and it is only true for model input parameters (after normalization, if `script` and `path` are present at the same time, it is a legal execution state).
   validateInput: (input) => validateAmendWorkflowSource(input),
   resolveInput: resolveAmendWorkflowInput,
   prepareApproval: prepareAmendWorkflowApproval,
@@ -274,8 +274,8 @@ export const amendWorkflowToolEntry: ToolEntry = {
     patternSources: ["toolName"],
     alwaysAllowPatternSources: ["toolName"],
     denyPriority: "beforeAsk",
-    // 与 CreateWorkflow 同一道门（alwaysAsk）；本会话自己的 run 由权限服务的 owner 规则在
-    // always-ask 分支里放行。
+// The same door as CreateWorkflow (alwaysAsk); this session's own run is served by the owner rule of the permission.
+// always-ask is released in the branch.
     alwaysAsk: true,
     askOptions: { allowAlways: "session" },
   },

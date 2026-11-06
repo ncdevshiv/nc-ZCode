@@ -261,10 +261,10 @@ function printHelp() {
   console.log(`查询 TypeScript export 的所有引用位置（symbol 级），用于大型重构时安全删代码。
 
 用法:
-  pnpm dep:refs <file>:<exportName>           查 export 的所有引用
-  pnpm dep:refs --list-exports <file>         列出文件的所有 export
-  pnpm dep:refs <file>:<exportName> --json    JSON 输出
-  pnpm dep:refs --scope <glob> <file>:<sym>   缩小扫描范围加速
+  bun run dep:refs <file>:<exportName>           查 export 的所有引用
+  bun run dep:refs --list-exports <file>         列出文件的所有 export
+  bun run dep:refs <file>:<exportName> --json    JSON 输出
+  bun run dep:refs --scope <glob> <file>:<sym>   缩小扫描范围加速
 
 选项:
   --list-exports          切换到 list-exports 模式
@@ -273,18 +273,18 @@ function printHelp() {
   -h, --help              查看帮助
 
 示例:
-  pnpm dep:refs packages/services/src/oauth/oauthService.ts:createOAuthService
-  pnpm dep:refs --list-exports packages/services/src/oauth/oauthService.ts
+  bun run dep:refs packages/services/src/oauth/oauthService.ts:createOAuthService
+  bun run dep:refs --list-exports packages/services/src/oauth/oauthService.ts
 
 推荐用法:
-  1. 先跑 pnpm knip 拿到 unused exports 列表（瞬秒）
-  2. 对存疑的 export 用 pnpm dep:refs file:name 看具体引用者
+  1. 先跑 bun run knip 拿到 unused exports 列表（瞬秒）
+  2. 对存疑的 export 用 bun run dep:refs file:name 看具体引用者
   3. 决定能删 / 要先改调用方
 
 说明:
   - 仅静态分析，不检测 dynamic import() 和字符串路径引用
   - 首次启动约 10-30 秒（加载全 workspace）；用 --scope 可显著加速
-  - JSON 管道用 pnpm -s dep:refs ... --json | jq .（pnpm 默认会在 stdout 多打 2 行 banner）
+  - JSON 管道用 bun run -s dep:refs ... --json | jq .（bun run 默认会在 stdout 多打 2 行 banner）
 `);
 }
 
@@ -335,7 +335,7 @@ function parseArgs(argv) {
 
   if (options.target === null) {
     throw new Error(
-      "缺少目标参数。用法: pnpm dep:refs <file>:<exportName> 或 pnpm dep:refs --list-exports <file>",
+      "缺少目标参数。用法: bun run dep:refs <file>:<exportName> 或 bun run dep:refs --list-exports <file>",
     );
   }
 

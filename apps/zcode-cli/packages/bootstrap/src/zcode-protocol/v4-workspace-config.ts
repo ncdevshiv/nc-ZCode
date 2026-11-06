@@ -1,5 +1,5 @@
-// v4 workspace-config 只承载 workspace presentation；模型候选与首选项由目标 Host
-// ModelSelectionView 提供，不能再从 live Session settings 反向建立第二份模型目录。
+// v4 workspace-config only hosts workspace presentation; model candidates and preferences are determined by the target Host
+// Provided by ModelSelectionView, the second model directory cannot be created reversely from live Session settings.
 import { getZCodeAgentModeSelectOptions, normalizeAvailableZCodeMode } from "@zcode/shared";
 import type { ZCodeSessionSettingsState, ZCodeSlashCommand } from "@zcode/shared";
 import type { WorkspaceConfigState } from "@zcode/shared/zcode-protocol-v4";
@@ -7,7 +7,7 @@ import { mapSessionSettings } from "./mapper.js";
 import { listProtocolSlashCommands } from "./slash-commands.js";
 import type { ZCodeProtocolAgentServerContext } from "./server-types.js";
 
-/** Session settings 只投影非模型的 workspace mode 与 slash commands。 */
+/** Session settings only project non-model workspace mode and slash commands. */
 function toV4WorkspaceConfigState(
   settings: ZCodeSessionSettingsState,
   slashCommands: readonly ZCodeSlashCommand[],
@@ -33,11 +33,11 @@ function toV4WorkspaceConfigState(
 }
 
 /**
- * 订阅时种子：只走 live session 快路径（mapSessionSettings 直接读在册 app）。
- * 刻意不建 temporary app——host 启动预热抢先读取 workspace presentation 会在无 active session 时
- * 创建临时 app 并被 MCP close 拖住协议通道（见 desktop warmUpZCodeAgent 的注释）。
- * 无在册会话时返回 null（空目录种子）；模型选择目录由 Host 自己的进程 Registry View
- * 提供，这条会话协议只在出现 live session 后发布任务级配置。
+* Seed when subscribing: only take the live session fast path (mapSessionSettings is read directly into the app).
+* Deliberately do not build a temporary app - the host starts preheating and reads the workspace presentation first when there is no active session.
+* Create a temporary app and hold the protocol channel by MCP close (see comments for desktop warmUpZCodeAgent).
+* Returns null (empty directory seed) when there is no registered session; the model selection directory is determined by the Host's own process Registry View
+* Provided, this session protocol only releases task-level configuration after a live session occurs.
  */
 export async function buildLiveWorkspaceConfigStateV4(
   context: ZCodeProtocolAgentServerContext,
@@ -49,7 +49,7 @@ export async function buildLiveWorkspaceConfigStateV4(
   if (!record) return null;
   const settings = await mapSessionSettings(record.app);
   const slashCommands = await listProtocolSlashCommands({
-    // 灰度门是 Host 判定的 workspace 级事实，目录装配读进程缓存。
+//The gray gate is the workspace level fact determined by the Host, and the directory is equipped with a read process cache.
     dynamicWorkflowEnabled: context.appRuntimePreferences.dynamicWorkflowEnabled,
     env: context.deps.env,
     logger: context.logger,

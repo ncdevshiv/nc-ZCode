@@ -47,8 +47,8 @@ export async function appendBrowserTurnScreenshot(
 ): Promise<void> {
   const turnState = consumeBrowserTurnState(runtime.sessionId, state.turnId);
   if (!turnState?.candidate) return;
-  // 显式 emitImage 只代表工具执行过程已产出图片，不能替代轮次结束时 active tab 的
-  // 最终状态截图；据此整轮跳过会让“打开页面并截图”这类真实 Browser 使用没有轮尾图。
+// Explicit emitImage only represents that the image has been generated during tool execution and cannot replace the active tab at the end of the round.
+// Final state screenshot; skipping the whole round will result in "open the page and screenshot" real Browser usage without the end of the round.
   const port = runtime.browserControlPort;
   if (!port) return;
 
@@ -95,9 +95,9 @@ export async function appendBrowserTurnScreenshot(
         MAX_NODE_REPL_DISPLAY_IMAGE_BASE64_BYTES &&
       runtime.imageProcessorPort
     ) {
-      // 复杂页面的原始 PNG 经常超过 Node REPL 的 200 KiB 展示预算；直接
-      // 交给 display 构造器后被静默丢弃，表现为第一轮能显示、后续复杂页面轮次没有截图。
-      // 这里复用统一图片处理端压缩，不放宽持久化预算，也不把图片回灌模型上下文。
+// Raw PNGs for complex pages often exceed the Node REPL's 200 KiB display budget; directly
+// After being handed over to the display constructor, it is silently discarded, which means it can be displayed in the first round, but no screenshots are taken in subsequent rounds of complex pages.
+// Here, the unified image processing side compression is reused without relaxing the persistence budget or reinjecting the image into the model context.
       const prepared = await runtime.imageProcessorPort.prepareForModel(
         {
           data: Buffer.from(displayImage.base64, "base64"),
@@ -198,7 +198,7 @@ export async function appendBrowserTurnScreenshot(
       turnId: String(state.turnId),
     });
   } catch (error) {
-    // 自动截图是展示增强，失败不能覆盖已经成功完成的模型轮次。
+// Automatic screenshots are display enhancements. Failure cannot overwrite successfully completed model rounds.
     runtime.logger?.warn("Browser turn screenshot failed", {
       error: error instanceof Error ? error.message : String(error),
       event: "browser.turn_screenshot.failed",

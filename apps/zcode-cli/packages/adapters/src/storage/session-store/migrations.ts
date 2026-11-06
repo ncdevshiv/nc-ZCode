@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import { PROVIDER_MODEL_SELECTION_MIGRATION_SQL } from "./migrations/0020-provider-model-selection.js";
 
 interface SqliteMigration {
@@ -595,15 +596,15 @@ export const SQLITE_MIGRATIONS: readonly SqliteMigration[] = [
   {
     appVersion: "0.15.2",
     id: "0015_message_part_sequence_backfill_and_guard",
-    // 背景：0014 backfill 之后仍持续出现 NULL sequence
-    // （本机观测 message 1,690 / part 5,933 行，跨 331 sessions），主要嫌疑是旧版本二进制
-    // 并存写同一 DB（其 INSERT 不含 sequence 列）。本迁移做两件事：
-    // 1. 增量 backfill：只补 NULL 行，序号从各 scope 现有 max(sequence)+1 起、按
-    //    time_created/rowid 排——与读路径 fallback（sequence is null 排在非空之后）完全
-    //    一致，backfill 前后 hydrate 顺序不变。不能复用 0014 的 row_number-1 写法：
-    //    它按全量行编号，混排数据下会与既有 sequence 撞号并把 NULL 行重排到前面。
-    // 2. AFTER INSERT 触发器兜底：旧二进制再写入 NULL sequence 时自动补当前 scope 队尾，
-    //    从源头阻止新的 NULL 产生；新代码路径 sequence 恒非空，触发器不生效。
+// Background: NULL sequence continues to appear after 0014 backfill
+// (Local observation message 1,690 / part 5,933 lines, spanning 331 sessions), the main suspect is an old version of the binary
+//Write to the same DB concurrently (its INSERT does not contain the sequence column). This migration does two things:
+// 1. Incremental backfill: only NULL rows are added, the sequence number starts from the existing max(sequence)+1 of each scope, press
+// time_created/rowid row - exactly the same as the read path fallback (sequence is null after non-null)
+// Consistent, the order of hydrate before and after backfill remains unchanged. The row_number-1 writing method of 0014 cannot be reused:
+// It is numbered according to the full amount of rows. When the data is mixed, it will collide with the existing sequence and rearrange NULL rows to the front.
+// 2. AFTER INSERT trigger: when the old binary is written into the NULL sequence, the end of the current scope queue is automatically added.
+// Prevent new NULLs from being generated from the source; the new code path sequence is always non-empty and the trigger does not take effect.
     sql: `
       with session_max as (
         select session_id, coalesce(max(sequence), -1) as max_sequence
@@ -683,10 +684,10 @@ export const SQLITE_MIGRATIONS: readonly SqliteMigration[] = [
   {
     appVersion: "0.15.2",
     id: "0016_session_input_ledger",
-    // session_input 账本：输入的 durable 生命周期
-    // admitted -> promoted / cancelled / discarded。队列/唤醒的存在性若只在
-    // 进程内存（事件日志也是内存的），崩溃即静默丢；账本让「queue 消失但不进
-    // history」不可能静默发生，并为输入类 command 提供 durable 幂等。
+// session_input ledger: input durable life cycle
+// admitted -> promoted / canceled / discarded. Queue/Wake Existence If only in
+// Process memory (the event log is also in memory), it will be lost silently if it crashes; the ledger will make "queue disappear but not enter"
+// history" cannot occur silently and provides durable idempotence for the input class command.
     sql: `
       create table if not exists session_input (
         id text primary key,
@@ -712,8 +713,8 @@ export const SQLITE_MIGRATIONS: readonly SqliteMigration[] = [
   {
     appVersion: "0.15.2",
     id: "0017_session_input_start_now_delivery",
-    // 所有 input command 都在执行前落 durable admission，startNow 也需要独立
-    // delivery，不能伪装成 queue。SQLite 不能原地修改 CHECK，必须重建表并保全账本。
+// All input commands are placed in durable admission before execution, and startNow also needs to be independent
+// delivery cannot be disguised as queue. SQLite cannot modify CHECK in place, the table must be rebuilt and the ledger must be preserved.
     sql: `
       alter table session_input rename to session_input_before_start_now;
 
@@ -754,9 +755,9 @@ export const SQLITE_MIGRATIONS: readonly SqliteMigration[] = [
   {
     appVersion: "0.15.2",
     id: "0018_session_input_failed_status",
-    // fork bundle 提交后 child runtime 仍可能同步启动失败。该输入已经被 parent
-    // accepted fact 接受，不能伪装成 cancelled/discarded；新增 durable failed 终态，并通过
-    // 重建 CHECK 保证旧库升级后也能写入，重启不会再次消费或改写它。
+// After the fork bundle is submitted, the child runtime may still fail to start synchronously. The input has been parented
+// accepted fact is accepted and cannot be disguised as canceled/discarded; add durable failed final state and pass
+// Rebuild CHECK to ensure that the old library can be written after it is upgraded, and restarting will not consume or rewrite it again.
     sql: `
       alter table session_input rename to session_input_before_failed_status;
 
@@ -797,36 +798,36 @@ export const SQLITE_MIGRATIONS: readonly SqliteMigration[] = [
   {
     appVersion: "0.16.5",
     id: "0019_dwf_journal",
-    // dynamic-workflow 执行引擎的 durable journal。
-    // legacy 的 workflow_* 表只是模板不是家：dwf_* 自成一套，与既有 workflow 机制彼此独立。
+//Durable journal for dynamic-workflow execution engine.
+// The legacy workflow_* table is just a template, not a home: dwf_* is self-contained and independent of the existing workflow mechanism.
     //
-    // 本条是 beta 前把开发期 0019–0030 十二条迁移**压成的单一基线**：四张表一次建齐、形状即
-    // 0030 之后的终态。中间态（三次为放宽 CHECK 的整表重建、0028 的删列改名）只存在于
-    // 内部预览库里，收敛办法是删掉四张 dwf_* 表并清掉 schema_migration 里的 dwf 记账行，
-    // 下次启动由本条重建。beta 之后本条
-    // 不可再改：runner 按 checksum 记账，历史迁移只能追加。
+// This article is a single baseline** compiled from the twelve migrations in the development period 0019-0030 before beta: four tables are built at once, and the shape is
+// Final state after 0030. The intermediate state (three times of rebuilding the entire table to relax CHECK, deleting columns and renaming 0028) only exists in
+// In the internal preview library, the convergence method is to delete the four dwf_* tables and clear the dwf accounting rows in schema_migration.
+// The next startup will be rebuilt by this article. This article after beta
+// Can no longer be changed: runner records according to checksum, historical migration can only be appended.
     //
-    // 只为占住 0019 这个槽位，让
-    // staging 后续迁移从 0020 起编号，功能分支合回时 ledger 不会撞号。四张表在功能落地前闲置无害。
+// Just to occupy the slot 0019, let
+// Staging subsequent migrations will be numbered from 0020, and the ledger will not conflict with the number when the function branch is merged. The four tables are harmless until the function is implemented.
     //
-    // 几条刻意为之的设计：
-    // 1) parent_session_id / session_id 是纯 text，不加 FOREIGN KEY——子代理会话跑在内存
-    //    event store 上、没有 session 行，而 runner 开着 pragma foreign_keys = on，真加 FK
-    //    会把合法的 journal 记录挡在门外。dwf_* 之外的任何表都不被引用，也不引用它们。
-    // 2) dwf_run 没有节点上限 / token 预算列：run 级
-    //    token 用量只作观察面，即 spent_tokens。
-    // 3) dwf_node 的 unique(run_id, actor_id, actor_seq) 不可实现：putNode 是准入→结算→统计
-    //    回填的 upsert，actor 坐标分散在三个可空列上；每子代理的 actor_seq 唯一性由引擎守。
-    //    report / artifact 行有行无节点：一次写入、status 恒为 completed、actor 三列全空。
-    // 4) 可空列一律「NULL 即缺席」：result_json / name / tool_call_id / args_json /
-    //    resumed_from / resolved_model / message_boundary / artifact_id / input_json 都解码成
-    //    缺席的键（args_json 解成 `{}`），不存哑值。
-    // 5) 索引即查询形状（列序反了就只能全表扫）：
-    //    - dwf_run_cwd_idx：按 cwd 枚举历史 run，「cwd 等值 + time_updated 倒序 + limit」。
-    //    - dwf_node_artifact_idx：本 run 的产物行与按 id 取带标签的 report 行。
-    //    - dwf_event_artifact_idx：看板取数按 journal sequence 分页，取数源是 dwf_event 而不是
-    //      dwf_node；表达式索引（SQLite ≥ 3.9）让它不必扫整条 journal。第三列 sequence 不是
-    //      装饰——没有它规划器宁可走 unique(run_id, sequence) 的自动索引再逐行筛产物。
+// Several deliberate designs:
+// 1) parent_session_id / session_id is pure text, without FOREIGN KEY - the sub-agent session runs in memory
+// There is no session line in the event store, and the runner has pragma foreign_keys = on, so FK is added.
+// Will keep legitimate journal records out. No tables other than dwf_* are referenced, nor are they referenced.
+// 2) dwf_run has no node upper limit/token budget column: run level
+//Token usage is only for observation, that is, spent_tokens.
+// 3) unique(run_id, actor_id, actor_seq) of dwf_node cannot be implemented: putNode is admission → settlement → statistics
+// Backfilled upsert, actor coordinates are spread over three nullable columns; actor_seq uniqueness per subagent is maintained by the engine.
+// report / artifact has rows but no nodes: one write, status is always completed, and actor columns are all empty.
+// 4) Nullable columns are always "NULL means absent": result_json / name / tool_call_id / args_json /
+// resumed_from / resolved_model / message_boundary / artifact_id / input_json are all decoded into
+// Absent keys (args_json resolves to `{}`), no dummy values ​​are stored.
+// 5) The index is the query shape (if the column order is reversed, the entire table can only be scanned):
+// - dwf_run_cwd_idx: Enumerate historical run by cwd, "cwd equivalent + time_updated reverse order + limit".
+// - dwf_node_artifact_idx: The product row of this run and the report row with label obtained by id.
+// - dwf_event_artifact_idx: Kanban data is paged according to journal sequence, and the data source is dwf_event instead of
+// dwf_node; expression index (SQLite ≥ 3.9) so that it does not have to scan the entire journal. The third column sequence is not
+// Decoration - without it the planner would rather use the automatic indexing of unique(run_id, sequence) and then filter the products row by row.
     sql: `
       create table if not exists dwf_run (
         id text primary key,

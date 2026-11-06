@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import {
   CoreErrorType,
   READ_SESSION_CONTEXT_DEFAULT_MAX_TOKENS,
@@ -31,7 +32,7 @@ import type { ToolEntry, ToolExecutionContext, ToolHandler } from "../types.js";
 import { auxiliaryModelOptions } from "../../model/auxiliary-model-options.js";
 
 const MAX_READ_SESSION_CONTEXT_MODEL_BYTES = 80_000;
-// 关联对话读取会扫描持久化历史，并可能等待 lite 模型抽取大对话上下文；固定 5 分钟避免大历史误超时。
+//Associated conversation reading will scan the persistence history and may wait for the lite model to extract the large conversation context; fixed at 5 minutes to avoid false timeout of large history.
 const DEFAULT_TIMEOUT_MS = 300_000;
 const NO_RELEVANT_CONTEXT = "NO_RELEVANT_CONTEXT";
 

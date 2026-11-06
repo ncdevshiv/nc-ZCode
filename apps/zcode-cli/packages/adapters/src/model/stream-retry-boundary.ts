@@ -2,7 +2,7 @@ import type { ModelStreamEvent } from "@zcode/contracts";
 
 // Note: these events are buffered, not yielded, until a committed stream boundary appears.
 // If a network reset happens first, the partial tool-input attempt can be discarded.
-// 非空 reasoning_delta 是用户感知的首个输出 token，不能等待正文或工具边界才释放。
+// Non-empty reasoning_delta is the first output token perceived by the user and cannot wait for the text or tool boundary to be released.
 const RETRY_SAFE_PRELUDE_STREAM_EVENT_TYPES = new Set<ModelStreamEvent["type"]>([
   "start",
   "text_start",
@@ -15,8 +15,8 @@ const RETRY_SAFE_PRELUDE_STREAM_EVENT_TYPES = new Set<ModelStreamEvent["type"]>(
 ]);
 
 export function isRetrySafePreludeStreamEvent(event: ModelStreamEvent): boolean {
-  // SDK 把纯签名转成空 reasoning_delta；将其视为已输出会停止 adapter retry，
-  // 而 core 无文本、无完整工具调用时也无法恢复。空 delta 随前奏暂存，成功时保留签名原序释放。
+// SDK converts pure signature to empty reasoning_delta; treating it as output will stop adapter retry,
+// And core cannot be restored when there is no text or complete tool call. The empty delta is temporarily stored with the prelude, and will be released in the original order with the signature retained on success.
   if (event.type === "reasoning_delta" || event.type === "text_delta") {
     return event.text.length === 0;
   }

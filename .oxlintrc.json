@@ -7,24 +7,24 @@
   },
   "overrides": [
     {
-      // scripts/architecture/** 的门禁代码是手写 .mjs，没有类型检查兜底。
-      // 这里只开 no-undef（全仓开会把存量 warning 淹掉），目的就是让
-      // 「引用了不存在的函数」在 lint 阶段就炸，而不是等到门禁运行时 ReferenceError。
+// The access control code of scripts/architecture/** is handwritten .mjs, without type checking.
+// Only no-undef is enabled here (full position opening will flood the stock warning), the purpose is to make
+// "Referencing a non-existent function" will explode in the lint stage, instead of waiting until the access control is run and a ReferenceError will occur.
       "files": ["scripts/architecture/**/*.mjs"],
-      // 这些 .mjs 跑在 Node 里：process / console / URL 是合法全局，不声明的话
-      // no-undef 会把它们全报成未定义，规则就变成了噪声而不是信号。
+// These .mjs run in Node: process / console / URL are legal globals, if not declared
+// no-undef will report them all as undefined, and the rules will become noise instead of signal.
       "env": { "node": true },
       "rules": { "no-undef": "error" }
     },
     {
-      // 测试文件天然会堆叠大量场景与断言，继续复用生产代码的行数上限会造成误报，
-      // 因此只对 test/spec 文件关闭 max-lines，避免放宽业务代码约束。
+// Test files naturally stack a large number of scenarios and assertions, and continuing to reuse the upper limit of lines of production code will cause false positives.
+// Therefore, max-lines is only turned off for the test/spec file to avoid relaxing business code constraints.
       "files": [
         "**/*.test.ts",
         "**/*.test.tsx",
         "**/*.spec.ts",
         "**/*.spec.tsx",
-        // 架构门禁的测试同样是 .mjs，不豁免的话 400 行上限会逼着人删断言。
+// The test for architecture access control is also .mjs. If it is not exempted, the 400-line limit will force people to delete assertions.
         "**/*.test.mjs",
         "**/*.spec.mjs"
       ],

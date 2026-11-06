@@ -1,5 +1,5 @@
 // ============================================================
-// GetWorkflowRun Tool - 单 workflow run 的自适应详情（进度摘要 / 产物 / 失败）
+// GetWorkflowRun Tool - Adaptation details for a single workflow run (Progress Summary/Product/Failure)
 // ============================================================
 
 import { z } from "zod";
@@ -12,16 +12,16 @@ import {
 } from "./get-workflow-run-roster.js";
 import { WorkflowRunSummarySchema } from "./list-workflow-runs.js";
 
-// 情势截面（阶段 / 子代理 / 健康）的 schema 住在 get-workflow-run-roster.ts，此处原样再导出
-// 以保持 `@zcode/contracts` 的导入路径不变。
+//The schema of the situation section (stage/subagent/health) lives in get-workflow-run-roster.ts, and is exported here as it is.
+// To keep the import path of `@zcode/contracts` unchanged.
 export * from "./get-workflow-run-roster.js";
 
 export const GET_WORKFLOW_RUN_TOOL_NAME = "GetWorkflowRun";
 
 export const GetWorkflowRunInputSchema = z
   .object({
-    // snake_case 随 TaskOutput 的 `task_id`：在模型眼里这两个键是同一族的 run/task 标识，
-    // 命名风格分叉只会让它在两个工具之间猜。
+// snake_case follows TaskOutput's `task_id`: in the eyes of the model, these two keys are run/task identifiers of the same family.
+// Forking the naming style will just make it guess between the two tools.
     run_id: z
       .string()
       .min(1)
@@ -34,8 +34,8 @@ export type GetWorkflowRunInput = z.infer<typeof GetWorkflowRunInputSchema>;
 export const GetWorkflowRunInputJsonSchema = toToolJsonSchema(GetWorkflowRunInputSchema);
 
 /**
- * run 的进度与用量（观察面，没有任何上限）。`nodesObserved` 是**已落库节点的行数**（三态之和），
- * 绝不冒充「总步数」：动态工作流没有静态总数，而 `queued` 只存在于事件相位、不落库。
+* The progress and usage of run (observation surface, without any upper limit). `nodesObserved` is the number of rows of dropped nodes (sum of three states),
+* Never pretend to be "total number of steps": there is no static total number in dynamic workflow, and `queued` only exists in the event phase and does not fall into the library.
  */
 export const GetWorkflowRunUsageSchema = z
   .object({
@@ -47,7 +47,7 @@ export const GetWorkflowRunUsageSchema = z
   })
   .strict();
 
-/** 一个 actor 站点实例。`persona` 刻意不出：整段 system prompt 是天然无界的字段。 */
+/** An actor site instance. `persona` is not intentional: the entire system prompt is a natural unbounded field. */
 export const GetWorkflowRunActorSchema = z
   .object({
     siteId: z.string(),
@@ -57,9 +57,9 @@ export const GetWorkflowRunActorSchema = z
   .strict();
 
 /**
- * 一条 `log()` 叙事。`at` 是这条事件落 journal 的时刻（`dwf_event.time_created`），模型面据它
- * 渲染「多久以前」；没有这一列的老 journal 上缺席，那样的行就不带年龄前缀——**绝不**用读时的
- * `Date.now()` 兜底，那会把一周前的整段叙事标成「刚刚」。
+* A `log()` narrative. `at` is the time when this event was written into the journal (`dwf_event.time_created`), and the model is based on it
+* Render "how long ago"; it is absent from old journals that do not have this column, and such rows do not have the age prefix - **never** use the read-time
+* `Date.now()`, to be honest, that would mark the entire narrative from a week ago as "just now".
  */
 export const GetWorkflowRunLogEntrySchema = z
   .object({
@@ -70,64 +70,64 @@ export const GetWorkflowRunLogEntrySchema = z
   .strict();
 
 /**
- * 一个此刻停驻、等主代理作答的升级问题。
+* An escalation question that is parked at this moment, waiting for an answer from the main agent.
  *
- * 这是升级通知丢弃后的**查询兜底**，也是模型侧唯一的发现面：`ResolveWorkflowQuestion` 只认
- * `qid`，而通知有两条已知的丢弃路径（stale branch generation / shutdown）。`askedAt` 让模型
- * 看得出「这个问题已经等了多久」——没有超时会替它兜底。
+* This is the **query bottom line** after the upgrade notification is discarded, and it is also the only discovery surface on the model side: `ResolveWorkflowQuestion` only recognizes
+* `qid`, while notifications have two known drop paths (stale branch generation/shutdown). `askedAt` lets the model
+* You can tell "how long this problem has been waiting for" - no timeout will take care of it.
  */
 export const GetWorkflowRunPendingQuestionSchema = z
   .object({
     qid: z.string(),
-    /** 提问的 actor，`site@ordinal` 形态。 */
+/** Questioning actor, `site@ordinal` form. */
     actor: z.string(),
-    /** 该 actor 的人类可读名；匿名 actor 缺席（读侧自己决定怎么渲染「无名」）。 */
+/** The human-readable name of the actor; anonymous actors are absent (the reader decides how to render "unnamed"). */
     actorName: z.string().optional(),
     question: z.string(),
     context: z.string().optional(),
-    /** 提问时刻（epoch ms，与 createdAt / updatedAt 同一把尺）。 */
+/** Question time (epoch ms, the same as createdAt / updatedAt). */
     askedAt: z.number(),
   })
   .strict();
 
 /**
- * 一件**用户面产物**：脚本经 `artifact.*` 发布给用户看的
- * 产出，此刻已经作为卡片摆在用户面前。
+* A **user interface product**: the script is published to the user via `artifact.*`
+* The output is now placed in front of the user as a card.
  *
- * ⚠ 术语：与本工具输出上的 `result`（脚本顶层返回值，引擎内部也叫 artifact）是**两件不同的
- * 东西**。模型侧的用法也不同：`result` 是要转述的内容，产物是要按
- * 标题**引用**的东西。
+* ⚠ Terminology: **two different things from the `result` (the top-level return value of the script, also called artifact inside the engine) on the output of this tool
+* thing**. The usage on the model side is also different: `result` is the content to be reported, and the product is to be pressed
+* The title **quotes** something.
  *
- * 刻意**不带 `uri`**：模型读不了 tool-artifact store。字段取**最新版**的值（`version` 是版本
- * 号，历史版本的元数据在 UI 侧板上）。
+* Deliberately **without `uri`**: the model cannot read the tool-artifact store. The field takes the value of **latest version** (`version` is the version
+*, historical version metadata is on the UI side panel).
  */
 export const GetWorkflowRunArtifactSchema = z
   .object({
     id: z.string(),
     kind: z.enum(["file", "markdown", "chart", "table", "metrics", "board"]),
-    /** 卡片标题；脚本没给时缺席（facade 的默认标题就是 id）。 */
+/** Card title; absent when the script is not given (the default title of the facade is id). */
     title: z.string().optional(),
-    /** 最新版号。 */
+/** The latest version number. */
     version: z.number(),
-    /** 内容产物的 MIME；预置看板缺席。 */
+/** MIME of content product; preset billboard is absent. */
     contentType: z.string().optional(),
-    /** 内容产物最新版的字节数；预置看板缺席。 */
+/** The number of bytes of the latest version of the content product; the preset billboard is absent. */
     bytes: z.number().optional(),
-    /** 内容产物的工作区出处（字节已拷进 store，这只是「它原本在哪」）。 */
+/** The workspace origin of the content product (the bytes have been copied into the store, this is just "where it was"). */
     sourcePath: z.string().optional(),
-    /** 预置看板收到的标签 `report` 条数；内容产物恒 0。 */
+/** The number of tags `report` received by the preset billboard; the content product is always 0. */
     itemCount: z.number(),
-    /** run 的交付物（至多一件），排在清单最前。 */
+/** Run's deliverable (at most one), ranked first in the list. */
     primary: z.literal(true).optional(),
   })
   .strict();
 
-/** 结构化失败。`code` 是稳定判别键——模型必须能分辨「进程死了」与「脚本真失败」。 */
+/** Structuring failed. `code` is a stable discriminant key - the model must be able to distinguish between "the process is dead" and "the script really failed". */
 export const GetWorkflowRunErrorSchema = z
   .object({
     code: z.string(),
     message: z.string(),
-    /** 只在 `code === "ProviderStop"` 时在场。 */
+/** Only present when `code === "ProviderStop"``. */
     providerStop: z
       .object({
         kind: z.enum([
@@ -154,82 +154,82 @@ export const GetWorkflowRunErrorSchema = z
   })
   .strict();
 
-/** `summary` 的字符上界。一句话的预算：超出它的不是摘要，是又一份报告。 */
+/** The character upper bound of `summary`. A one-sentence budget: anything beyond it is not an abstract, but another report. */
 export const GET_WORKFLOW_RUN_SUMMARY_MAX_CHARS = 400;
 
 export const GetWorkflowRunOutputSchema = WorkflowRunSummarySchema.extend({
   /**
-   * 情势的一句话：状态 + 已跑/已结束多久 + 阶段位置 + 步数与在飞细分 + 待答问题 + 最后进展。
-   * 由 handler 从下面这些结构化字段**确定性**拼出（没有模型参与），所以同一份快照永远拼出
-   * 同一句话；上界 {@link GET_WORKFLOW_RUN_SUMMARY_MAX_CHARS}，超出时整句整句地丢尾巴。
+* A word about the situation: status + how long it has been run/finished + stage position + number of steps and on-the-fly breakdown + questions to be answered + final progress.
+* Deterministically spelled out by the handler from the following structured fields (no model involvement), so the same snapshot is always spelled out
+* The same sentence; the upper bound {@link GET_WORKFLOW_RUN_SUMMARY_MAX_CHARS}, when exceeded, the entire sentence will be discarded.
    */
   summary: z.string().max(GET_WORKFLOW_RUN_SUMMARY_MAX_CHARS),
   /**
-   * 这次快照被读出来的时刻（epoch ms）。模型面上每一个「多久以前」都是对它算的——
-   * 一次输出一把尺，两个年龄才可比。`formatModelContent` 只收一个参数（core 的 ToolEntry
-   * 契约），所以读时钟只能发生在 handler 里、并把结果随输出带过来；格式器因此是
-   * `(output) => text` 的纯函数，可以逐字钉住。
+* The time when this snapshot is read out (epoch ms). Every "how long ago" on the model surface is calculated for it——
+* Output a ruler at a time, and two ages can be compared. `formatModelContent` only accepts one parameter (core's ToolEntry
+* contract), so the read clock can only occur in the handler, and the result is brought with the output; the formatter is therefore
+* Pure function for `(output) => text`, which can be pinned verbatim.
    */
   generatedAt: z.number(),
   usage: GetWorkflowRunUsageSchema,
   /**
-   * 本 run 自己的并发上界（同时在飞的子代理数），**只在低于当前天花板时在场**：跑在天花板上的
-   * run 没有可说的（与 pendingQuestions 的「无则缺席」同规）。AmendWorkflow 省略 `max_concurrency`
-   * 时沿用的就是这个值——模型据此知道一次修订会继承什么。
+* This run's own concurrency upper bound (the number of subagents flying at the same time), **only present when it is lower than the current ceiling**: running on the ceiling
+* run has nothing to say (same as "nothing means absence" in pendingQuestions). AmendWorkflow omits `max_concurrency`
+* This is the value that is inherited when * - this is how the model knows what a revision will inherit.
    */
   maxConcurrency: z.number().int().positive().optional(),
   /**
-   * 本 run 的子代理跑在哪个模型上，规范形 `providerId/modelId[$reasoningLevel]`，**只在设过时
-   * 在场**：跟着会话模型跑的 run 没有可说的（与 `maxConcurrency` 的「无则缺席」同规）。
-   * AmendWorkflow 省略 `subagent_model` 时沿用的就是这个值。
+* On which model the sub-agent of this run runs, the standard form is `providerId/modelId[$reasoningLevel]`, ** only when setting
+*Presence**: There is nothing to say about the run that follows the session model (same as the "no or absent" of `maxConcurrency`).
+* AmendWorkflow inherits this value when `subagent_model` is omitted.
    */
   subagentModel: z.string().optional(),
   /**
-   * 本 run 的脚本文件，**已经写成模型面该看到的样子**（在会话工作目录之下就是工作区相对路径，
-   * 否则绝对路径）。**只在这个 run 记下过文件
-   * 时在场**（与 `subagentModel` 的「无则缺席」同规）：草稿写不下去的项目、本特性之前发起的
-   * run 都没有可说的。在场时它就是下一次 `AmendWorkflow` 该传的 `path`。
+* The script file of this run has been written as it should be seen on the model surface** (under the session working directory is the relative path of the workspace,
+* Otherwise absolute path). **Only recorded files in this run
+* Always present** (same as "subagentModel"'s "absent"): projects that cannot be written in draft, projects initiated before this feature
+* There is nothing to say about run. When present, it is the `path` that should be passed to `AmendWorkflow` next time.
    */
   scriptPath: z.string().optional(),
   actors: z.array(GetWorkflowRunActorSchema),
-  /** `log()` 事件的尾巴，按时序（sequence 升序）。无 log 事件即空数组。 */
+/** `log()` The tail of events, in chronological order (sequence ascending order). If there are no log events, the array will be empty. */
   logTail: z.array(GetWorkflowRunLogEntrySchema),
   /**
-   * 阶段表：声明序的已声明阶段，后面接上「进过但没声明」的那些。**脚本没声明阶段、也一个
-   * 都没进过时整字段缺席**——那样的 run 没有阶段这回事，空数组读起来像「阶段表是空的」。
+* Phase table: The declared phases in the declaration sequence, followed by those that have been "entered but not declared". **The script does not have a declaration phase, and there is only one
+* The integer field is absent even if it has not been entered** - there is no such thing as a stage in such a run, and an empty array reads like "the stage table is empty".
    */
   phases: z.array(GetWorkflowRunPhaseSchema).max(GET_WORKFLOW_RUN_ROSTER_LIMITS.maxPhases).optional(),
   /**
-   * 子代理花名册，按铸造顺序。**恒在场**，一个 actor 都没有的 run 是空数组：与 `phases`
-   * 不同，「这个 run 有几个子代理」永远是个有答案的问题，而 0 就是那个答案。
+* Sub-agent roster, in casting order. **Constantly present**, run without an actor is an empty array: same as `phases`
+* Different, "How many subagents does this run have?" is always a question with an answer, and 0 is that answer.
    *
-   * 与并列的 `actors` 刻意不合并：那是一张恒定的身份表，这里每一项都是读时快照。
+* Deliberately not merged with parallel `actors`: it is a constant identity table, where each item is a read-time snapshot.
    */
   subagents: z.array(GetWorkflowRunSubagentSchema).max(GET_WORKFLOW_RUN_ROSTER_LIMITS.maxSubagents),
-  /** 花名册被这条界裁过。无则缺席（同 `truncated` 家族：不打 `false`）。 */
+/** The roster has been crossed by this boundary. If not, it is absent (same as `truncated` family: do not hit `false`). */
   subagentsTruncated: z.literal(true).optional(),
-  /** run 整体还在不在动。恒在场。 */
+/** run Is the whole thing still moving? Always present. */
   health: GetWorkflowRunHealthSchema,
   /**
-   * 脚本的顶层返回值，**已序列化成文本**（string 原样、其余 pretty JSON）。只有 completed 的
-   * run 才在场；`undefined` 产物即整字段缺席。
+* The top-level return value of the script, **serialized to text** (string as is, rest pretty JSON). Only completed
+* Run is only present; `undefined` means that the integer field is absent.
    *
-   * 之所以收 string 而不是原值：面向模型的序列化在 core 有唯一实现
-   * （`serializeWorkflowArtifact`，完成通知与 TaskOutput 共用它）。放行原值等于允许「同一个
-   * run 的产物在通知里和在本工具里长得不一样」。
+* The reason for collecting string instead of original value: model-oriented serialization has the only implementation in core
+* (`serializeWorkflowArtifact`, completion notification shares it with TaskOutput). Releasing the original value is equivalent to allowing "the same
+* run products look different in notifications than in this tool."
    */
   result: z.string().optional(),
-  /** errored 恒在场；stopped 只对 provider / interrupted 在场。code 原样透出，不折叠。 */
+/** errored is always present; stopped is only present for provider / interrupted. The code is exposed as it is, not folded. */
   error: GetWorkflowRunErrorSchema.optional(),
   /**
-   * 此刻还欠答案的升级问题，按提问顺序。**零条时整字段缺席**（与端口投影同规，不发空数组）：
-   * 读侧据此让整块 pending 区消失，而不是渲染一个空节。
+* Escalation questions for which answers are not yet available at this time, in the order in which they are asked. **The integer field is absent for zero entries** (same as port projection, no empty array is sent):
+* Based on this, the reading side makes the entire pending area disappear instead of rendering an empty section.
    */
   pendingQuestions: z.array(GetWorkflowRunPendingQuestionSchema).optional(),
   /**
-   * 本 run 已发布的用户面产物，按首次发布顺序，**任意状态都附**（一个还在跑的 run 也可能
-   * 已经交付了第一张图）。**零件时整字段缺席**，与 pendingQuestions 同规。有界 32
-   * （= `ARTIFACT_CAPS.maxArtifactsPerRun`，一个 run 最多能有的 id 数）。
+* User interface products that have been released by this run, in the order of first release, **are attached to any status** (a run that is still running may also
+*First image has been delivered). **The part time field is absent**, the same as pendingQuestions. Bounded 32
+* (= `ARTIFACT_CAPS.maxArtifactsPerRun`, the maximum number of ids a run can have).
    */
   artifacts: z.array(GetWorkflowRunArtifactSchema).optional(),
 }).strict();

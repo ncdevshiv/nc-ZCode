@@ -3,8 +3,8 @@ import { OFFICIAL_CUA_PERMISSION_RULE_TOOL_NAME, type ZCodePermissionOption } fr
 
 const PROJECT_RULE_INPUT_KEYS = ["command", "url", "file_path", "path", "pattern"] as const;
 
-// 普通交互 permission 的用户拒绝需要明确告知模型工具未执行，
-// 并等待用户后续指示；该 reason 同时作为 provider-visible tool_result.content。
+// User rejection of normal interaction permission needs to explicitly inform the model tool that it has not been executed.
+// And wait for subsequent instructions from the user; the reason also serves as provider-visible tool_result.content.
 export const PERMISSION_DENIED_BY_USER_CONTENT =
   "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.";
 
@@ -16,9 +16,9 @@ export function buildPermissionDeniedContent(feedback?: string): string {
 }
 
 /**
- * 会话授权选项的标识、内部种类与显示名称。
- * optionId 上 v4 wire 原样传递（broker 靠它精确命中）；kind 是 CLI 内部值，v4 投影把它映到
- * 闭集里的 `allowAlways`；name 是 GUI 本地化的匹配键（PermissionDialog 的全局 name 映射表）。
+* Identification, internal type and display name of the session authorization option.
+* The v4 wire on optionId is passed as it is (the broker relies on it to accurately hit); kind is the CLI internal value, and v4 projection maps it to
+* `allowAlways` in the closed set; name is the GUI localization matching key (PermissionDialog's global name mapping table).
  */
 const SESSION_ALLOW_PERMISSION_OPTION_ID = "allowSession";
 export const SESSION_ALLOW_PERMISSION_OPTION_KIND = "allow_session";
@@ -32,7 +32,7 @@ interface PermissionOptionSource {
 }
 
 /**
- * v3 与 v4 共用的纯权限选项投影。放在协议目录之外，避免 v4 权威投影反向依赖旧协议。
+* Pure permission option projection common to v3 and v4. Place outside the protocol directory to avoid v4 authoritative projections from relying on old protocols.
  */
 export function buildProtocolPermissionOptions(
   source: PermissionOptionSource,
@@ -53,10 +53,10 @@ export function buildProtocolPermissionOptions(
         reason: "Approved once",
       },
     },
-    // 工具可以声明 no-always-allow：每次调用都是不同代码时，持久规则不是"记住这次决定"，
-    // 而是把这道确认永久关掉。session-always-allow 则换成会话作用域的免确认：response 里
-    // **没有** permissionUpdates——wire 上 zcodePermissionUpdateSchema 是 strict，会话语义由
-    // broker 在应答侧合成为 sessionPermissionUpdates（纯内存，绝不落项目规则）。
+// Tools can declare no-always-allow: when each call is different code, the persistence rule is not "remember this decision",
+// Instead, turn off this confirmation permanently. session-always-allow is replaced by confirmation-free session scope: response
+// **None** permissionUpdates -- zcodePermissionUpdateSchema on wire is strict, session semantics are determined by
+// The broker is synthesized into sessionPermissionUpdates on the response side (pure memory, never project rules).
     ...(source.optionsPolicy === "no-always-allow"
       ? []
       : source.optionsPolicy === "session-always-allow"
@@ -102,16 +102,16 @@ export function buildProtocolPermissionOptions(
 }
 
 /**
- * 会话授权按工具整体授予（无 ruleContent）：脚本每次都不同，授权的是「这个工具」而不是某段脚本。
+* Session authorization is granted by the tool as a whole (without ruleContent): the script is different every time, and "this tool" is authorized rather than a certain script.
  */
 export function buildSessionPermissionUpdates(toolName: string): PermissionUpdate[] {
   return [{ behavior: "allow", rules: [{ toolName }], type: "addRules" }];
 }
 
 /**
- * legacy v3（session-mapper、broker 的 v3 反向 RPC）认不出会话语义：旧桌面回传的是 option
- * response 原文，投放会话选项只会得到一个名不副实的「一次允许」。所以两种策略在 legacy 上
- * 都只表现为「裁掉 always allow」。
+* legacy v3 (session-mapper, broker's v3 reverse RPC) does not recognize session semantics: the old desktop returns option
+* response Original text, posting the session option will only get a misnamed "one-time permission". So the two strategies are on legacy
+* It only shows as "crop always allow".
  */
 export function toLegacyPermissionOptionsPolicy(policy: unknown): "no-always-allow" | undefined {
   switch (policy) {

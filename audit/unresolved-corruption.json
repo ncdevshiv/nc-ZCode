@@ -1,0 +1,9 @@
+{
+  "files": [
+    {
+      "path": "native/crates/zcode-host/src/tools/automation_tools.rs",
+      "status": "REQUIRES_MANUAL_REVIEW",
+      "reason": "ToolContext and ToolContract field mismatches (automation, session_id, model_ref, tool_call_id, subagent, ask_user, plan_mode, plan, background, sessions, workflow, max_model_bytes, preview_direction)."
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "toolContextMissing": [
+    "automation",
+    "session_id",
+    "model_ref",
+    "tool_call_id",
+    "subagent",
+    "ask_user",
+    "plan_mode",
+    "plan",
+    "background",
+    "sessions",
+    "workflow"
+  ],
+  "toolContractMissing": [
+    "max_model_bytes",
+    "preview_direction"
+  ],
+  "constructionSites": 28,
+  "richConsumers": [
+    "node_repl",
+    "workflow/authoring",
+    "workflow/runs",
+    "background_tools",
+    "plan",
+    "read_session_context",
+    "send_message",
+    "web_search",
+    "mcp_tools",
+    "automation_tools"
+  ],
+  "minimalConsumers": [
+    "bash",
+    "fs_tools",
+    "list_models",
+    "read_image",
+    "search_tools",
+    "skill",
+    "todo",
+    "webfetch"
+  ]
+}

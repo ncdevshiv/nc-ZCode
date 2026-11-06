@@ -6,7 +6,7 @@ import {
 } from "@zcode/contracts";
 import type { AgentRuntimeInternal } from "../internal.js";
 
-/** 授权 receipt 在恢复时仅提供辅助标记；格式损坏不能阻断历史及执行状态恢复。 */
+/** Authorization receipt only provides auxiliary tags during recovery; format damage cannot block history and execution status recovery. */
 export async function restorePermissionGrantMarker(
   runtime: AgentRuntimeInternal,
   traceContext: TraceContext,

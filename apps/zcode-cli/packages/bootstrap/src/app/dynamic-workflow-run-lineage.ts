@@ -1,21 +1,21 @@
 // ============================================================
-// Dynamic Workflow Run 的 lineage 读面（观察面的一小片）
+// Lineage reading surface of Dynamic Workflow Run (a small piece of the observation surface)
 // ============================================================
-// 修订链两端的指针：`resumedFrom` 指向前驱，
-// `supersededBy` 指向把自己停掉的后继。快照、列表、详情三个截面都要带这两个键，规则只写一遍。
-// 从 dynamic-workflow-run-observation.ts 拆出是因为那份文件已顶到 oxlint 的 400 行上限。
+// Pointers at both ends of the revision chain: `resumedFrom` points to the predecessor,
+// `supersededBy` points to the successor that stopped itself. The three sections of snapshot, list, and details must carry these two keys, and the rules only need to be written once.
+// Detached from dynamic-workflow-run-observation.ts because that file has reached the 400-line limit of oxlint.
 
 import type { RunStatus } from "@zcode/dynamic-workflow";
 
-/** 只看得到 lineage 所需两键的终态视图：注册表条目的 `terminal` 与 journal 行都满足它。 */
+/** Only see the final view of the two keys required for lineage: the `terminal` and journal lines of the registry entry satisfy it. */
 interface SupersedableSettlement {
   status: RunStatus;
   supersededBy?: string;
 }
 
 /**
- * 后继指针：内存终态优先，其次 journal 行；只对 stopped(superseded) 有意义——其余状态上即便
- * 载荷带着这个键（不应发生），也读作缺席，免得一条 completed 的 run 被画成「已被替代」。
+* Success pointer: memory final state first, followed by journal line; only meaningful for stopped(superseded) - even in other states
+* Payloads with this key (should not happen) are also read as absent, lest a completed run be drawn as "replaced".
  */
 export function supersededByOf(
   entry: { terminal?: SupersedableSettlement } | undefined,
@@ -27,7 +27,7 @@ export function supersededByOf(
   return record?.status === "stopped" ? record.supersededBy : undefined;
 }
 
-/** 两个指针在场才出现（缺席读作「没有这一端」，而 `undefined` 值会让每一行都带噪音键）。 */
+/** Appears only if two pointers are present (absent is read as "none of this end", while an `undefined` value will cause each line to have a noise key). */
 export function lineageFields(
   resumedFrom: string | undefined,
   supersededBy: string | undefined,

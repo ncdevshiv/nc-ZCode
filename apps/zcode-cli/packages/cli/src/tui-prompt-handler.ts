@@ -8,8 +8,8 @@ import { createCommandCenter, parseSlashCommand } from "./command-center.js";
 import type { CommandCenterApp } from "./command-center.js";
 import { resolveDisplayLocale } from "./locale.js";
 import { createCliHeadlessBrowserRuntime } from "./headless-browser.js";
-// 复用防御式 runtime 读取：subscribeEvents 不在 app 的静态类型面上，
-// 两处各写一份「怎么把它读出来」就会在方法改名时只修好一处。
+// Reuse defensive runtime reading: subscribeEvents is not on the static type of the app.
+//Writing "how to read it" in two places will fix only one place when the method is renamed.
 import { readRuntimeEventSubscriber } from "./runtime-event-subscriber.js";
 import { createTuiSessionEventRelay } from "./tui-session-event-relay.js";
 import { attachTuiAppQueries, readTuiSessionMetadata } from "./tui-prompt-handler-queries.js";
@@ -62,7 +62,7 @@ export function createTuiSubmitPrompt(
 ): TuiPromptHandler {
   let app: Awaited<ReturnType<NonNullable<RunDependencies["createZCodeApp"]>>> | undefined;
   let activeUiLocale = uiLocale;
-  // 进程级句柄（telemetry / Provider Registry / endpoint 路由）跨 App 替换复用，见 runtime 文件。
+// Process-level handles (telemetry / Provider Registry / endpoint routing) are replaced and reused across Apps, see the runtime file.
   const processRuntime = createTuiProcessRuntimeState();
   let closeHandlerPromise: Promise<void> | undefined;
   const closePromises = new WeakMap<object, Promise<void>>();
@@ -97,7 +97,7 @@ export function createTuiSubmitPrompt(
     if (!closePromise) {
       closePromise = (async () => {
         await runCliCleanupWithTimeout(async () => targetApp.close?.(), cleanupTimeoutMs);
-        // App/session 关闭悬空或失败时仍需释放 CLI 自己启动的 Chromium。
+// App/session still needs to be released when the CLI starts Chromium itself when it is left hanging or fails.
         await runCliCleanupWithTimeout(
           async () => browserRuntimes.get(closeKey)?.close(),
           cleanupTimeoutMs,
@@ -108,8 +108,8 @@ export function createTuiSubmitPrompt(
     await closePromise;
   };
 
-  // ── 跨回合常驻的会话事件订阅──
-  // per-turn 的 onEvent 在回合结束即死，收不到出回合事件（dwf 进度、后台通知驱动的回合）。
+//── Session event subscription that persists across rounds──
+// The per-turn onEvent dies at the end of the round and cannot receive out-of-turn events (dwf progress, background notification-driven rounds).
   const sessionEventRelay = createTuiSessionEventRelay({
     currentRuntime: () => (app as { runtime?: unknown } | undefined)?.runtime,
     readSubscriber: readRuntimeEventSubscriber,
@@ -124,8 +124,8 @@ export function createTuiSubmitPrompt(
     if (previousApp && previousApp !== nextApp) {
       await closeApp(previousApp);
     }
-    // 常驻订阅要跟着换 app 重挂：这里是 /new、/resume、/fork 共同的唯一收口，
-    // 漏挂的后果是换 session 后 TUI 再也收不到出回合事件（dwf 进度、通知驱动回合）。
+// Permanent subscriptions need to be reinstalled when changing apps: this is the only common closure for /new, /resume, and /fork.
+//The consequence of missing a call is that after changing the session, the TUI can no longer receive turn-out events (dwf progress, notification-driven turns).
     sessionEventRelay.reattach();
     modeState.current = readTuiMode(app, currentCliMode(modeState));
     return app as unknown as CommandCenterApp;
@@ -177,7 +177,7 @@ export function createTuiSubmitPrompt(
       throw error;
     }
     if (browserRuntime) browserRuntimes.set(createdApp as object, browserRuntime);
-    // 初始化在等待旧身份导入时 TUI 可能已关闭；迟到 App 不能重新成为当前会话。
+// Initialization The TUI may have been closed while waiting for the old identity to be imported; late-coming Apps cannot re-become the current session.
     if (closeHandlerPromise) {
       await closeApp(createdApp);
       throw new Error("TUI prompt handler is closed");
@@ -354,7 +354,7 @@ export function createTuiSubmitPrompt(
 
   submitPrompt.subscribeSessionEvents = (sink: (event: SessionEvent) => void) => {
     const unsubscribe = sessionEventRelay.addSink(sink);
-    // app 还没建好时首次实挂会落空；建好后再挂一次（reattach 幂等，不会重复扇出）。
+// The first attempt to connect the app before it is built will fail; hang it again after it is built (reattach is idempotent and will not fan out repeatedly).
     void getApp().then(
       () => sessionEventRelay.reattach(),
       () => undefined,
@@ -362,8 +362,8 @@ export function createTuiSubmitPrompt(
     return unsubscribe;
   };
 
-  // 主会话 id：给 TUI 做会话闸门用（actor/子会话事件保留子 sessionId 投进同一个 sink 集）。
-  // 每次现读而不是缓存：replaceApp 换 app 就换会话，缓存下来的 id 会把整条转写判成外来。
+// Main session id: Used as a session gate for TUI (actor/sub-session events retain the sub-sessionId and put it into the same sink set).
+// Read now instead of cache every time: replaceApp Change the app and change the session. The cached id will judge the entire transcript as foreign.
   submitPrompt.getMainSessionId = () => {
     const runtime = (app as { runtime?: { getSessionId?: () => string } } | undefined)?.runtime;
     const sessionId = runtime?.getSessionId?.();
@@ -373,8 +373,8 @@ export function createTuiSubmitPrompt(
   submitPrompt.close = async () => {
     closeHandlerPromise ??= (async () => {
       await closeApp();
-      // Bug 根因：TUI 的 Session 切换和进程退出共用了 App close，不能在 /new 等路径
-      // 提前关闭共享 Owner；只有整个 Prompt Handler 终态才做对称 shutdown。
+// Root cause of the bug: TUI's Session switching and process exit share App close, which cannot be used in /new and other paths.
+// Close the shared Owner in advance; only the final state of the entire Prompt Handler will be shutdown symmetrically.
       await runCliCleanupWithTimeout(
         async () => processRuntime.shutdownTelemetry?.(),
         cleanupTimeoutMs,

@@ -8,9 +8,9 @@ if (!requestedCommand) {
   process.exit(1);
 }
 
-// Windows 上 pnpm 是 .cmd 文件；其他平台直接使用 pnpm 可执行入口。
-const command =
-  process.platform === "win32" && requestedCommand === "pnpm" ? "pnpm.cmd" : requestedCommand;
+// Bun ships a native executable on every platform, so the command name is used
+// as-is; the Windows shell branch below still covers `.cmd` shims (npm, etc.).
+const command = requestedCommand;
 const child = spawn(command, args, {
   cwd: process.cwd(),
   env: withPinnedNodePath(process.env, process.execPath),

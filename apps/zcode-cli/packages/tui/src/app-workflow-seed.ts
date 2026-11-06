@@ -1,11 +1,11 @@
-// 冷启动 / 恢复会话时的镜像回放、补种与 interrupted notice。
+// Cold start/image playback, reseeding and interrupted notice when resuming the session.
 //
-// 三条纪律：
-//   1. 运行态**只**从回放来：`replayWorkflowRuns` 交出的是 journal 按 sequence 顺序铸出的、与 live
-//      同一种进度信封，逐条喂给共享 reducer——有序的真实事件重放不会让相位回退（禁令针对的是
-//      「用摘要合成乱序事件」，那条禁令仍然成立：摘要只补展示名）。
-//   2. 补种只搬展示名：label / updatedAt；不造 status、不猜 resumable（那是状态位，reducer 搬运）。
-//   3. 没有第二时钟：只在挂载与 app 更换时各查一次，不轮询、不 setInterval。
+//Three disciplines:
+// 1. The running state **only** comes from the playback: `replayWorkflowRuns` is handed over to the journal that is cast in sequence order and live
+// Same kind of progress envelope, fed to the shared reducer one by one - ordered real event replay will not make the phase fall back (the ban is for
+// "Use abstracts to synthesize out-of-order events", the prohibition still holds: abstracts only supplement display names).
+// 2. Reseeding only moves the display name: label / updatedAt; no status, no guessing resumable (that is the status bit, moved by the reducer).
+// 3. No second clock: only checked once when mounting and app replacement, no polling, no setInterval.
 import React from "react";
 import type { TuiCopy } from "@zcode/i18n";
 import type { WorkflowRunProgressEnvelope } from "@zcode/shared/zcode-protocol-v4";
@@ -13,7 +13,7 @@ import type { Message } from "./app-model.js";
 import type { TuiListWorkflowRuns, TuiReplayWorkflowRuns, TuiWorkflowRunSummary } from "./types.js";
 import type { TuiWorkflowRunSeed } from "./app-workflow-mirror.js";
 
-/** 摘要 → 补种条目。只搬服务端给的展示事实，缺省一律保持缺省（不造 label）。 */
+/** Summary → Reseeding entry. Only the display facts provided by the server will be moved, and the default will remain the default (no label). */
 function workflowRunSeedFromSummary(summary: TuiWorkflowRunSummary): TuiWorkflowRunSeed {
   return {
     runId: summary.runId,
@@ -22,7 +22,7 @@ function workflowRunSeedFromSummary(summary: TuiWorkflowRunSummary): TuiWorkflow
   };
 }
 
-/** 一条 notice 文本。label 缺省时退回 runId——列表少一个标签是退化，不是错误。 */
+/** A notice text. label returns runId by default - one less label in the list is a degeneration, not an error. */
 function workflowInterruptedNoticeText(seed: TuiWorkflowRunSeed, copy: TuiCopy): string {
   return copy.transcript.workflow.interruptedNotice({
     label: seed.label ?? seed.runId,
@@ -31,9 +31,9 @@ function workflowInterruptedNoticeText(seed: TuiWorkflowRunSeed, copy: TuiCopy):
 }
 
 /**
- * 把 resumable run 的提示行追加进转写。无 run 时零输出（spec 的 Excludes）。
+* Add the resumable run prompt line to the transliteration. Zero output without run (spec's Excludes).
  *
- * 用 system 行而不是伪造 user 行：这不是用户说的话。
+* Use system lines instead of fake user lines: this is not what the user said.
  */
 function appendWorkflowInterruptedNotices(
   messages: Message[],
@@ -51,10 +51,10 @@ function appendWorkflowInterruptedNotices(
 }
 
 /**
- * 启动 / `/resume` 后要提示的 run：服务端说 `resumable` 的那些。
+* Run prompts after starting / `/resume`: those that the server says `resumable`.
  *
- * **刻意不排序**：`updatedAt` 是纯展示字段，端口注释明确禁止读侧拿它重排——排序是存储层的职责
- * （最近更新在前），读侧再排一次就会与服务端的 tie-break 漂移。
+* **Deliberately not sorted**: `updatedAt` is a purely display field, and the port annotation explicitly prohibits readers from reordering it - sorting is the responsibility of the storage layer
+* (most recently updated first), if the read side is queued again, it will drift with the tie-break on the server side.
  */
 function interruptedWorkflowNotices(
   summaries: readonly TuiWorkflowRunSummary[],
@@ -63,19 +63,19 @@ function interruptedWorkflowNotices(
 }
 
 /**
- * 挂载时先回放、再补种一次。
+* When mounting, play back first and then reseed.
  *
- * 顺序有讲究：回放先落，卡片一出现就是真实步数；补种随后只给名字。两次查询都失败也不该让
- * TUI 起不来——实时事件仍会把在飞 run 画出来。
+* The order is important: replay comes first, and the real number of steps will be given as soon as the card appears; after reseeding, only the name will be given. Even if the query fails twice, it should not be allowed.
+* TUI won't get up - Live events will still draw the run on the fly.
  *
- * 回调经 ref 间接调用、依赖里只放两个查询函数的身份：入参对象每次渲染都是新的，直接依赖
- * 会让本 effect 每渲染重跑一次查询（那就是第二个时钟）。
+* The callback is called indirectly via ref, and only the identities of the two query functions are placed in the dependency: the input parameter object is new every time it is rendered, and it is a direct dependency.
+* will cause this effect to rerun the query every time it is rendered (that is, the second clock).
  */
 export function useWorkflowRunSeeding(input: {
   copy: TuiCopy;
   listWorkflowRuns?: TuiListWorkflowRuns;
   replayWorkflowRuns?: TuiReplayWorkflowRuns;
-  /** 镜像里已有的 run（本进程已收到过事件的）——回放把它们排除在外。 */
+/** Existing runs in the image (this process has received events) - playback excludes them. */
   knownRunIds: () => ReadonlySet<string>;
   replay: (envelopes: readonly WorkflowRunProgressEnvelope[]) => void;
   seed: (seeds: readonly TuiWorkflowRunSeed[]) => void;
@@ -97,7 +97,7 @@ export function useWorkflowRunSeeding(input: {
           if (cancelled) return;
           if (envelopes.length > 0) latest.current.replay(envelopes);
         } catch {
-          // 回放失败不该让 TUI 起不来。
+// Playback failure should not prevent TUI from getting up.
         }
       }
       if (!listWorkflowRuns) return;
@@ -109,7 +109,7 @@ export function useWorkflowRunSeeding(input: {
       }
       if (cancelled || summaries.length === 0) return;
       latest.current.seed(summaries.map(workflowRunSeedFromSummary));
-      // 顺序即服务端顺序（最近更新在前）——端口注释禁止读侧重排。
+// The order is server-side order (most recently updated first) - the port annotation prohibits read side-ordering.
       const resumable = interruptedWorkflowNotices(summaries);
       if (resumable.length === 0) return;
       latest.current.setMessages((current) =>

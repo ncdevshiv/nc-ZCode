@@ -1,9 +1,9 @@
-// fork/edit/retry 命令组：forkAssistant / editUserQuery / retryTurn。
-// 共同点：都以 {rowId, entityId} 定位历史实体，经 host 的 v4 投影翻译面换成 transcript messageId
-// （翻译是 v4 原生决策，翻译不到直接 reject，绝不静默兜底 latestCheckpoint——会错点）。
-// - editUserQuery = 换文本的 retryTurn：rewind 截断该 turn → 原生 prompt turn 重发新文本。
-// - retryTurn = rewind 截断 + 重发原 user prompt（原文必须在 rewind 前解析，截断后拿不到）。
-// - forkAssistant = stable resolver + conversation-only copy；running parent 与 workspace 不动。
+// fork/edit/retry command group: forkAssistant / editUserQuery / retryTurn.
+// Common points: {rowId, entityId} is used to locate historical entities, and is replaced by transcript messageId through the v4 projection translation surface of the host.
+// (Translation is v4 native decision-making. If it cannot be translated, it will be rejected directly, and it will never silently reveal the latestCheckpoint - it will be wrong).
+// - editUserQuery = retryTurn for changing text: rewind truncates the turn → native prompt turn resends new text.
+// - retryTurn = rewind truncation + resend the original user prompt (the original text must be parsed before rewind, and cannot be obtained after truncation).
+// - forkAssistant = stable resolver + conversation-only copy; running parent and workspace do not move.
 import type {
   CommandEnvelope,
   CommandPayloadMap,
@@ -33,23 +33,23 @@ const CONVERSATION_COMMAND_LOG_MODULE = "bootstrap.zcode_protocol_v4.commands";
 const EDIT_USER_QUERY_COMPLETED_EVENT = "conversation.command.edit_user_query.completed";
 const FORK_ASSISTANT_COMPLETED_EVENT = "conversation.command.fork_assistant.completed";
 
-/** row target → messageId 翻译失败（非 assistant 行 / 迟到实体 / 会话无投影）。 */
+/** row target → messageId translation failed (non-assistant row/late entity/session no projection). */
 export class V4RowTranslationError extends Error {
   readonly reasonCode = "fault.command.executionFailed";
 
   constructor(command: string, targetRowId: number) {
-    super(`${command} targetRowId ${targetRowId} 无法解析到 transcript messageId`);
+    super(`${command} targetRowId ${targetRowId} cannot be parsed to transcript messageId`);
     this.name = "V4RowTranslationError";
   }
 }
 
-/** fork 目标不是所属轮最后一段 assistantText → 明确拒绝。 */
+/** The fork target is not the last paragraph of the corresponding round assistantText → explicitly rejected. */
 export class V4ForkTargetNotLatestSegmentError extends Error {
   readonly reasonCode = "fault.command.executionFailed";
 
   constructor(targetRowId: number) {
     super(
-      `forkAssistant targetRowId ${targetRowId} 不是所属轮的最后一段 assistant（fork 只挂轮尾段）`,
+      `forkAssistant targetRowId ${targetRowId} is not the last segment of the wheel it belongs to assistant (fork only hangs the last segment of the wheel)`,
     );
     this.name = "V4ForkTargetNotLatestSegmentError";
   }
@@ -60,41 +60,41 @@ class V4ForkTargetGuardError extends Error {
     readonly reasonCode: string,
     targetRowId: number,
   ) {
-    super(`forkAssistant targetRowId ${targetRowId} 被稳定目标解析器拒绝: ${reasonCode}`);
+    super(`forkAssistant targetRowId ${targetRowId} rejected by stable target resolver: ${reasonCode}`);
     this.name = "V4ForkTargetGuardError";
   }
 }
 
-/** latestQueryEditOnly：旧 row / 非 realUser row / 无投影均直接拒绝，不 stop 当前 turn。 */
+/** latestQueryEditOnly: Old rows / non-realUser rows / no projections are directly rejected without stopping the current turn. */
 class V4EditTargetNotLatestError extends Error {
   readonly reasonCode = "guard.latestQueryEditOnly";
 
   constructor(targetRowId: number) {
-    super(`editUserQuery targetRowId ${targetRowId} 不是最后一轮 real user query`);
+    super(`editUserQuery targetRowId ${targetRowId} is not the last round of real user query`);
     this.name = "V4EditTargetNotLatestError";
   }
 }
 
-/** latestAssistantRetryOnly：历史 assistant 回复 retry 会回退 active branch，必须拒绝。 */
+/** latestAssistantRetryOnly: historical assistant reply retry will roll back the active branch and must be rejected. */
 class V4RetryTargetNotLatestError extends Error {
   readonly reasonCode = "guard.latestAssistantRetryOnly";
 
   constructor(targetRowId: number) {
-    super(`retryTurn targetRowId ${targetRowId} 不是最后一轮 assistant 回复`);
+    super(`retryTurn targetRowId ${targetRowId} is not the last round of assistant replies`);
     this.name = "V4RetryTargetNotLatestError";
   }
 }
 
 /**
- * rewind 截断（直驱 core）：edit/retry 不再伪造 `/rewind` slash turn，而是
- * 直接提交 same-session active branch cut。workspaceMode=rewind 会在文件写入全部
- * 成功后，于同一 commit gate 调用这个 primitive。
+* rewind truncation (direct drive core): edit/retry no longer fakes `/rewind` slash turn, but
+* Submit same-session active branch cut directly. workspaceMode=rewind will write all
+* After success, call this primitive in the same commit gate.
  *
- * 组合 rewind 过去在 file transaction callback 中调用 app.submitPrompt，
- * 它会把 `/rewind` 再排入 runtime command queue；当前 edit 命令等待回调，
- * 嵌套 rewind 又等待当前命令释放队列，最终 UI 永久停在编辑态。
- * 完成后 legacy 广播 session_rewound（过渡钩子，旧侧栏消费者感知；v4 投影走
- * RewindTriggered 事件自收口，不依赖本广播）。
+* Combined rewind used to call app.submitPrompt in file transaction callback,
+* It will queue `/rewind` into the runtime command queue; the current edit command is waiting for callback,
+* Nested rewind waits for the current command to release the queue, and finally the UI permanently stops in the editing state.
+* After completion, legacy broadcast session_rewound (transition hook, old sidebar consumer perception; v4 projection goes
+* The RewindTriggered event closes itself and does not rely on this broadcast).
  */
 async function submitConversationRewind(
   host: V4CommandCoreHost,
@@ -113,9 +113,9 @@ async function submitConversationRewind(
 }
 
 /**
- * editUserQuery：target 是 user 实体，用其 canonical transcript messageId 作 rewind
- * 锚点 → 整段截断 → 原生 prompt turn 重发 newText。
- * 附件命令面：attachments（AttachmentRef → TurnAttachment）随重发提交。
+* editUserQuery: target is the user entity, use its canonical transcript messageId for rewind
+* Anchor point → truncate the entire paragraph → native prompt turn and resend newText.
+* Attachment command surface: attachments (AttachmentRef → TurnAttachment) is submitted with resend.
  */
 async function editUserQuery(
   host: V4CommandCoreHost,
@@ -133,12 +133,12 @@ async function editUserQuery(
   }
   const editTarget = resolution.editTarget;
   const attachmentRefs = payload.attachments ?? stableAttachmentRefs(editTarget);
-  // attachments 缺省与 [] 语义不同；必须基于 effective refs 校验，
-  // 才能同时允许 attachment-only edit，并在正文和附件都被清空时于 rewind 前拒绝。
+// The default semantics of attachments are different from []; they must be verified based on effective refs.
+// Only attachment-only edit can be allowed at the same time, and rejected before rewind when both the text and attachments are cleared.
   if (!hasPromptInput(payload.newText, attachmentRefs)) {
     throw new V4InputAdmissionRejectedError("proto.invalidPayload", "input must not be empty");
   }
-  // 附件映射在 rewind 前完成：引用失效要在截断历史之前暴露，避免半程失败。
+// Attachment mapping is completed before rewind: reference failure should be exposed before truncation of history to avoid half-way failure.
   const attachments = await mapAttachmentRefsToTurnAttachments(record.app, attachmentRefs);
   if (record.activeAbortController) {
     await preemptActiveTurnAndWait(host, record, {
@@ -158,7 +158,7 @@ async function editUserQuery(
       traceContext: record.traceContext,
     };
     const preview = await record.app.runtime.previewWorkspaceFileRewind(fileOptions);
-    // shell/ignored 变更无法证明完整回滚。组合模式 fail closed，并把最新 preview 原样返回 UI。
+// shell/ignored changes cannot prove a full rollback. The combined mode fails closed and returns the latest preview to the UI unchanged.
     if (!preview.canApply || preview.ignoredFiles.length > 0 || preview.safeFiles.length === 0) {
       const reasonCode =
         preview.unsafeFiles.length > 0
@@ -215,8 +215,8 @@ async function editUserQuery(
     attachmentRefs,
     attachments,
   );
-  // 生产 renderer 不落日志，过去只能从通用 rewind + send 猜测发生过编辑，
-  // 无法与 retry 稳定区分。命令副作用完成后由 Agent server 写低频 info 审计索引。
+// The production renderer does not leave logs. In the past, we could only guess that editing occurred from the general rewind + send.
+// Cannot be distinguished from retry stably. After the command side effects are completed, the Agent server writes the low-frequency info audit index.
   host.logger?.info?.("v4 editUserQuery completed", {
     ...traceContextToLogContext(record.traceContext),
     attachmentCount: attachmentRefs?.length ?? 0,
@@ -239,9 +239,9 @@ async function editUserQuery(
 }
 
 /**
- * retryTurn：assistant target → messageId → rewind 截断 + 重发
- * canonical user intent。intent 在 projection resolver 阶段、rewind **之前**完成解析，
- * 截断后不再回读可见文本或 transcript parent 猜测原输入。
+* retryTurn: assistant target → messageId → rewind truncate + resend
+*canonical user intent. The intent is resolved in the projection resolver phase and before rewind.
+* After truncation, visible text is no longer read back or transcript parent guesses the original input.
  */
 async function retryTurn(
   host: V4CommandCoreHost,
@@ -273,9 +273,9 @@ async function retryTurn(
 }
 
 /**
- * forkAssistant：唯一 stable resolver 固定 logical-turn/message boundary，再走
- * conversation-only fork。此路径不读取 activeAbortController、不 stop parent，也不进入
- * legacy forkSession（后者含 ensureNoActiveTurn + workspace rewind）。
+* forkAssistant: the only stable resolver to fix the logical-turn/message boundary, and then go
+* conversation-only fork. This path does not read activeAbortController, stop parent, or enter
+* legacy forkSession (the latter contains ensureNoActiveTurn + workspace rewind).
  */
 async function forkAssistant(
   host: V4CommandCoreHost,
@@ -307,8 +307,8 @@ async function forkAssistant(
     sourceCommandId: envelope.commandId,
     revisionAtDecision: envelope.baseRevision ?? 0,
   });
-  // fork 完成事实过去只在 session event/debug 中，生产默认 JSONL 无法直接检索。
-  // child 已创建并完成宿主注册后再写 info，避免把被拒绝或失败的请求误记为成功。
+// The fork completion fact used to be only in session event/debug and could not be retrieved directly from the production default JSONL.
+// Write info after the child has been created and completed host registration to avoid mistakenly recording rejected or failed requests as successful.
   host.logger?.info?.("v4 forkAssistant completed", {
     ...traceContextToLogContext(record.traceContext),
     childSessionId: forkedSessionId,

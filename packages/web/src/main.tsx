@@ -5,6 +5,7 @@ import {
   Root,
   ZCodeIntlProvider,
   generateMobileDeviceFingerprint,
+  getBrowserUseLifecycleController,
   playTaskNotificationSound,
   setStreamClientId,
   type Theme,
@@ -28,7 +29,18 @@ import {
   isConversationSharePath,
   resolveConversationShareCodeFromPath,
 } from "./share/conversationShareRoute.js";
-import type { IPlatformService, RemoteTarget, ServerRemoteInfo } from "@zcode/shared";
+import type {
+  BrowserGuestAttachRejectReason,
+  BrowserRecordingOptions,
+  ChromeBrowserDataImportResult,
+  DockerContainerInfo,
+  IPlatformService,
+  RemoteTarget,
+  SaveFileResult,
+  ServerRemoteInfo,
+  SSHConfigAliasOption,
+  WSLDistro,
+} from "@zcode/shared";
 import { WEB_DEFAULT_THEME, resolveWebInitialTheme } from "./webThemeSeed.js";
 
 function resolveWebThemePreference(defaultTheme: Theme = WEB_DEFAULT_THEME): Theme {
@@ -88,30 +100,13 @@ interface WebBootstrapResult {
 }
 
 function isWebOAuthCallback(params: URLSearchParams): boolean {
-  return (
-    ["/cn/share/callback", "/share/callback"].includes(window.location.pathname) &&
-    params.has("state") &&
-    (params.has("code") || params.has("error"))
-  );
+  // OAuth disabled
+  return false;
 }
 
 function renderWebAuthCallbackPage(): void {
-  document.title = "ZCode - Sign In";
-  const callbackState = parseOAuthState(
-    new URLSearchParams(window.location.search).get("state") ?? "",
-  );
-  const safeRetryTarget = resolveSafeAppReturnTo(callbackState?.app_return_to);
-  root.render(
-    <WebCallbackPage
-      authService={webAuthService}
-      onSuccess={({ appReturnTo }) => {
-        window.location.replace(appReturnTo ?? "/");
-      }}
-      onRetry={() => {
-        window.location.replace(safeRetryTarget ?? "/");
-      }}
-    />,
-  );
+  // OAuth disabled
+  window.location.replace("/");
 }
 
 async function renderConversationSharePage(): Promise<void> {
@@ -167,18 +162,14 @@ async function renderConversationSharePage(): Promise<void> {
       shareCode={shareCode}
       client={client}
       getAccessToken={() => getMockToken() ?? webAuthService.getZCodeJwtToken()}
-      onLogin={(provider) => {
+      onLogin={() => {
+        // OAuth disabled
         if (mockMode) {
           window.sessionStorage.setItem("zcode:share:mock-auth", "owner");
           window.location.reload();
           return;
         }
-        webAuthService.startLogin({
-          provider,
-          appReturnTo: window.location.href,
-          redirectUri: WEB_ZAI_OAUTH_CONFIG.shareRedirectUri,
-          devReturnTo: resolveWebAuthDevReturnTo(WEB_ZAI_OAUTH_CONFIG),
-        });
+        window.location.replace("/");
       }}
       onLogout={onLogout}
       locale={routeLocale}
@@ -351,6 +342,746 @@ function createWebPlatform(): IPlatformService {
   };
 }
 
+type TauriInvoke = (command: string, args?: Record<string, unknown>) => Promise<unknown>;
+interface TauriDragDropEventPayload {
+  type?: string;
+  paths?: string[];
+  position?: { x: number; y: number };
+}
+interface TauriWebviewHandle {
+  onDragDropEvent?: (
+    handler: (event: { payload?: TauriDragDropEventPayload }) => void,
+  ) => Promise<() => void>;
+}
+interface TauriGlobal {
+  core?: { invoke?: TauriInvoke };
+  webview?: { getCurrentWebview?: () => TauriWebviewHandle };
+}
+type LoadMcpFromUserDirectoryResult = Awaited<
+  ReturnType<NonNullable<IPlatformService["loadMcpFromUserDirectory"]>>
+>;
+type MigrateLegacyCommonMcpResult = Awaited<
+  ReturnType<NonNullable<IPlatformService["migrateLegacyCommonMcp"]>>
+>;
+type CreateTempTextAttachmentResult = Awaited<
+  ReturnType<NonNullable<IPlatformService["createTempTextAttachment"]>>
+>;
+function tauriInvoke(): TauriInvoke | null {
+  const tauri = (globalThis as { __TAURI__?: TauriGlobal }).__TAURI__;
+  return tauri?.core?.invoke ?? null;
+}
+
+function tauriWebview(): TauriWebviewHandle | null {
+  const tauri = (globalThis as { __TAURI__?: TauriGlobal }).__TAURI__;
+  return tauri?.webview?.getCurrentWebview?.() ?? null;
+}
+
+// Desktop identity: the Rust shell persists `deviceMid` in
+// `{appConfigDir}/telemetry-state.json` (shared with the CLI/telemetry). The
+// value is primed before the first render so the synchronous `getDeviceId()`
+// contract can return it; the web fingerprint stays as the explicit fallback.
+let tauriDeviceId: string | null = null;
+let tauriDeviceIdPending: Promise<string> | null = null;
+let browserUseLifecycleBridgeInstalled = false;
+
+function primeTauriDeviceId(): Promise<string> {
+  if (tauriDeviceIdPending) return tauriDeviceIdPending;
+  const invoke = tauriInvoke();
+  tauriDeviceIdPending = (invoke
+    ? (invoke("get_device_id") as Promise<string>)
+    : Promise.resolve(generateMobileDeviceFingerprint())
+  )
+    .then((value) => {
+      const normalized = typeof value === "string" ? value.trim() : "";
+      tauriDeviceId = normalized.length > 0 ? normalized : generateMobileDeviceFingerprint();
+      return tauriDeviceId;
+    })
+    .catch(() => {
+      tauriDeviceId = generateMobileDeviceFingerprint();
+      return tauriDeviceId;
+    });
+  return tauriDeviceIdPending;
+}
+
+/**
+ * Tauri platform adapter: the web build is also the Tauri desktop renderer, so
+ * only the native-capability subset is overridden. Everything else keeps the
+ * explicit web fallback (unsupported, never a fake success).
+ */
+function createTauriPlatform(): IPlatformService {
+  const invoke = tauriInvoke();
+  if (!invoke) return createWebPlatform();
+  const base = createWebPlatform();
+  const oauthStates = new Set<string>();
+  const deepLinkListeners = new Set<(url: URL) => void>();
+  const normalizeDeepLinkPath = (pathname: string): string => {
+    const withoutTrailingSlash = pathname.replace(/\/+$/, "");
+    const normalized = withoutTrailingSlash === "" ? "/" : withoutTrailingSlash;
+    return `/${normalized.replace(/^\/+/, "")}`;
+  };
+  const isOAuthCallback = (url: URL): boolean => {
+    if (url.protocol !== "zcode:") return false;
+    const path = normalizeDeepLinkPath(url.pathname);
+    if (url.hostname === "oauth") return path === "/callback";
+    if (url.hostname) return false;
+    const [, host, ...rest] = path.split("/");
+    return host === "oauth" && `/${rest.join("/")}` === "/callback";
+  };
+  const isPaymentCallback = (url: URL): boolean => {
+    if (url.protocol !== "zcode:") return false;
+    const path = normalizeDeepLinkPath(url.pathname);
+    if (url.hostname === "payment") return path === "/callback";
+    if (url.hostname) return false;
+    const [, host, ...rest] = path.split("/");
+    return host === "payment" && `/${rest.join("/")}` === "/callback";
+  };
+  const isShareImport = (url: URL): boolean =>
+    url.protocol === "zcode:" &&
+    url.hostname === "share" &&
+    normalizeDeepLinkPath(url.pathname) === "/import";
+  const shareImportCode = (url: URL): string | null => {
+    if (!isShareImport(url)) return null;
+    const code = url.searchParams.get("code")?.trim();
+    return code && /^[A-Za-z0-9._~-]{1,512}$/u.test(code) ? code : null;
+  };
+  const dispatchDeepLink = (raw: string): void => {
+    try {
+      const url = new URL(raw);
+      for (const listener of deepLinkListeners) listener(url);
+    } catch {
+      // A malformed deep link must not break the app.
+    }
+  };
+  const listenDeepLink = (callback: (url: URL) => void): (() => void) => {
+    deepLinkListeners.add(callback);
+    const event = (globalThis as {
+      __TAURI__?: {
+        event?: {
+          listen?: (
+            name: string,
+            handler: (event: { payload: string }) => void,
+          ) => Promise<() => void>;
+        };
+      };
+    }).__TAURI__?.event;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    if (event?.listen) {
+      void event
+        .listen("zcode:deep-link", (payload) => {
+          if (!disposed) dispatchDeepLink(payload.payload);
+        })
+        .then((dispose) => {
+          if (disposed) dispose();
+          else unlisten = dispose;
+        });
+    }
+    return () => {
+      disposed = true;
+      deepLinkListeners.delete(callback);
+      unlisten?.();
+    };
+  };
+  const listenDesktopCommand = (
+    command: string,
+    callback: () => void,
+  ): (() => void) => {
+    const event = (globalThis as {
+      __TAURI__?: {
+        event?: {
+          listen?: (
+            name: string,
+            handler: (event: { payload: string }) => void,
+          ) => Promise<() => void>;
+        };
+      };
+    }).__TAURI__?.event;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    if (event?.listen) {
+      void event
+        .listen("zcode:desktop-command", (payload) => {
+          if (!disposed && payload.payload === command) callback();
+        })
+        .then((dispose) => {
+          if (disposed) dispose();
+          else unlisten = dispose;
+        });
+    }
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  };
+  const listenTauriEvent = <T,>(
+    name: string,
+    handler: (payload: T) => void,
+  ): (() => void) => {
+    const event = (globalThis as {
+      __TAURI__?: {
+        event?: {
+          listen?: (
+            name: string,
+            handler: (event: { payload: T }) => void,
+          ) => Promise<() => void>;
+        };
+      };
+    }).__TAURI__?.event;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    if (event?.listen) {
+      void event
+        .listen(name, (payload) => {
+          if (!disposed) handler(payload.payload);
+        })
+        .then((dispose) => {
+          if (disposed) dispose();
+          else unlisten = dispose;
+        });
+    }
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  };
+  // Renderer-owned browser-use tab lifecycle: the Rust host emits a request
+  // event; the controller answers through `browser_use_lifecycle_result`.
+  if (!browserUseLifecycleBridgeInstalled) {
+    browserUseLifecycleBridgeInstalled = true;
+    listenTauriEvent<{
+      requestId?: unknown;
+      command?: {
+        method?: unknown;
+        tabId?: unknown;
+        keep?: unknown;
+        deliverable?: unknown;
+        name?: unknown;
+        recordingId?: unknown;
+        outputPath?: unknown;
+        options?: unknown;
+      };
+    }>("zcode:browser-use-lifecycle-request", (payload) => {
+      const requestId = typeof payload?.requestId === "string" ? payload.requestId : "";
+      if (!requestId) return;
+      const method = typeof payload?.command?.method === "string" ? payload.command.method : "";
+      const tabId = typeof payload?.command?.tabId === "string" ? payload.command.tabId : "";
+      const rawKeep = payload?.command?.keep;
+      let keep: Array<{ tabId: string; status: "handoff" | "deliverable" }> | null = null;
+      if (Array.isArray(rawKeep)) {
+        const parsed: Array<{ tabId: string; status: "handoff" | "deliverable" }> =
+          rawKeep.flatMap((item) => {
+            if (!item || typeof item !== "object") return [];
+            const record = item as { tabId?: unknown; status?: unknown };
+            const status = record.status;
+            if (typeof record.tabId !== "string" || !record.tabId) return [];
+            if (status !== "handoff" && status !== "deliverable") return [];
+            return [{ tabId: record.tabId, status }];
+          });
+        if (parsed.length === rawKeep.length) keep = parsed;
+      }
+      const outcomeResult = (outcome: {
+        ok: boolean;
+        tab?: unknown;
+        recording?: unknown;
+        code?: string;
+        message?: string;
+      }): Record<string, unknown> =>
+        outcome.ok
+          ? {
+              ok: true,
+              ...(outcome.tab ? { tab: outcome.tab } : {}),
+              ...(outcome.recording ? { recording: outcome.recording } : {}),
+            }
+          : { ok: false, error: { code: outcome.code, message: outcome.message } };
+      void (async () => {
+        let result: Record<string, unknown>;
+        const controller = getBrowserUseLifecycleController();
+        if (!controller) {
+          // Welcome/login screen: no workspace shell has registered a
+          // controller yet, so the truthful answer is "no browser tabs".
+          result =
+            method === "listUserTabs"
+              ? {
+                  ok: true,
+                  userTabs: [],
+                  meta: {
+                    browserUse: true,
+                    backendType: "iab",
+                    browserId: "iab:renderer",
+                    browserGeneration: 1,
+                    openTabIds: [],
+                  },
+                }
+              : {
+                  ok: false,
+                  error: {
+                    code: "backend_unavailable",
+                    message: "no active browser workspace",
+                  },
+                };
+        } else if (method === "listUserTabs") {
+          const tabs = controller.listUserTabs();
+          result = {
+            ok: true,
+            userTabs: tabs.map((tab) => ({
+              id: tab.tabId,
+              url: tab.url,
+              title: tab.title,
+            })),
+            meta: {
+              browserUse: true,
+              backendType: "iab",
+              browserId: "iab:renderer",
+              browserGeneration: 1,
+              openTabIds: tabs.map((tab) => tab.tabId),
+            },
+          };
+        } else if (method === "activateTab") {
+          result =
+            tabId && controller.activateTab(tabId)
+              ? {
+                  ok: true,
+                  meta: {
+                    browserUse: true,
+                    backendType: "iab",
+                    browserId: "iab:renderer",
+                    browserGeneration: 1,
+                    openTabIds: [tabId],
+                    tabId,
+                  },
+                }
+              : {
+                  ok: false,
+                  error: { code: "ref_not_found", message: "browser tab not found" },
+                };
+        } else if (method === "close") {
+          const closed = tabId ? await controller.close(tabId) : false;
+          result = closed
+            ? { ok: true }
+            : { ok: false, error: { code: "ref_not_found", message: "browser tab not found" } };
+        } else if (method === "newTab") {
+          result = outcomeResult(controller.newTab());
+        } else if (method === "finalize") {
+          const deliverable = payload?.command?.deliverable;
+          result = outcomeResult(
+            controller.finalize({
+              ...(tabId ? { tabId } : {}),
+              ...(typeof deliverable === "boolean" ? { deliverable } : {}),
+            }),
+          );
+        } else if (method === "nameSession") {
+          const name = typeof payload?.command?.name === "string" ? payload.command.name : "";
+          result = name
+            ? outcomeResult(controller.nameSession(name))
+            : {
+                ok: false,
+                error: { code: "invalid_input", message: "nameSession requires `name`" },
+              };
+        } else if (method === "closeSession") {
+          result = outcomeResult(controller.closeSession());
+        } else if (method === "recordingStart") {
+          const rawOptions = payload?.command?.options;
+          const options =
+            rawOptions && typeof rawOptions === "object"
+              ? (rawOptions as BrowserRecordingOptions)
+              : {};
+          result = outcomeResult(
+            controller.recordingStart({
+              ...options,
+              ...(tabId ? { tabId } : {}),
+            }),
+          );
+        } else if (method === "recordingStatus" || method === "recordingCancel") {
+          const recordingId =
+            typeof payload?.command?.recordingId === "string"
+              ? payload.command.recordingId
+              : "";
+          if (!recordingId) {
+            result = {
+              ok: false,
+              error: {
+                code: "invalid_input",
+                message: `${method} requires \`recordingId\``,
+              },
+            };
+          } else if (method === "recordingStatus") {
+            const outputPath =
+              typeof payload?.command?.outputPath === "string"
+                ? payload.command.outputPath
+                : undefined;
+            result = outcomeResult(
+              controller.recordingStatus(recordingId, {
+                ...(tabId ? { tabId } : {}),
+                ...(outputPath ? { outputPath } : {}),
+              }),
+            );
+          } else {
+            result = outcomeResult(
+              controller.recordingCancel(recordingId, tabId ? { tabId } : {}),
+            );
+          }
+        } else if (method === "claimTab") {
+          result = tabId
+            ? outcomeResult(controller.claimTab(tabId))
+            : {
+                ok: false,
+                error: { code: "invalid_input", message: "claimTab requires `tabId`" },
+              };
+        } else if (method === "finalizeTabs") {
+          result =
+            keep === null
+              ? {
+                  ok: false,
+                  error: {
+                    code: "invalid_input",
+                    message: "finalizeTabs requires `keep: [{tabId, status}]`",
+                  },
+                }
+              : outcomeResult(controller.finalizeTabs(keep));
+        } else if (method === "markDeliverable" || method === "markHandoff") {
+          const outcome = tabId
+            ? method === "markDeliverable"
+              ? controller.markDeliverable(tabId)
+              : controller.markHandoff(tabId)
+            : null;
+          result = outcome
+            ? outcomeResult(outcome)
+            : {
+                ok: false,
+                error: { code: "invalid_input", message: `${method} requires \`tabId\`` },
+              };
+        } else {
+          result = {
+            ok: false,
+            error: {
+              code: "capability_unsupported",
+              message: `lifecycle method ${method || "(missing)"} is not supported`,
+            },
+          };
+        }
+        try {
+          await invoke("browser_use_lifecycle_result", { requestId, result });
+        } catch (error) {
+          console.warn("[browser-use] lifecycle response failed", error);
+        }
+      })();
+    });
+  }
+  return {
+    ...base,
+    canSelectFilePath: true,
+    selectDirectory: () => invoke("select_directory") as Promise<string | null>,
+    selectFile: () => invoke("select_file") as Promise<string | null>,
+    selectFiles: () => invoke("select_files") as Promise<string[]>,
+    saveFile: async (payload) => {
+      const request = payload.data
+        ? {
+            suggestedName: payload.suggestedName,
+            data: Array.from(new Uint8Array(payload.data)),
+          }
+        : {
+            suggestedName: payload.suggestedName,
+            sourceUrl: payload.sourceUrl,
+          };
+      return invoke("save_file", { payload: request }) as Promise<SaveFileResult>;
+    },
+    browserViewSetOccluded: (payload: {
+      key?: string;
+      tabId?: string;
+      occluded: boolean;
+    }) =>
+      invoke("browser_view_set_occluded", {
+        key: payload.key ?? payload.tabId ?? "",
+        occluded: payload.occluded,
+      }),
+    browserViewCdp: async (payload: {
+      key: string;
+      method: string;
+      params?: Record<string, unknown>;
+    }) => {
+      const raw = await invoke("browser_view_cdp", {
+        key: payload.key,
+        method: payload.method,
+        params: JSON.stringify(payload.params ?? {}),
+      });
+      return typeof raw === "string" ? JSON.parse(raw) : raw;
+    },
+    saveBrowserRecording: (payload: {
+      workspacePath: string;
+      relativePath: string;
+      data: ArrayBuffer;
+    }) =>
+      invoke("save_browser_recording", {
+        workspacePath: payload.workspacePath,
+        relativePath: payload.relativePath,
+        data: Array.from(new Uint8Array(payload.data)),
+      }) as Promise<string>,
+    printPageToPdf: async () => {
+      const result = (await invoke("print_page_to_pdf")) as {
+        success?: boolean;
+        data?: number[];
+        error?: string;
+      };
+      if (result.success && Array.isArray(result.data)) {
+        return { success: true, data: new Uint8Array(result.data).buffer };
+      }
+      return { success: false, error: result.error ?? "print_failed" };
+    },
+    registerOAuthState: (payload) => {
+      oauthStates.add(payload.state);
+    },
+    onOAuthCallback: (callback) =>
+      listenDeepLink((url) => {
+        if (!isOAuthCallback(url)) return;
+        const state = url.searchParams.get("state");
+        if (!state || !oauthStates.has(state)) return;
+        if (url.searchParams.has("code") || url.searchParams.has("authCode")) {
+          oauthStates.delete(state);
+        }
+        callback(url.toString());
+      }),
+    onPaymentCallback: (callback) =>
+      listenDeepLink((url) => {
+        if (isPaymentCallback(url)) callback(url.toString());
+      }),
+    onShareImport: (callback) =>
+      listenDeepLink((url) => {
+        const shareCode = shareImportCode(url);
+        if (shareCode) callback({ shareCode });
+      }),
+    notifyRendererReady: () => {
+      void invoke("deep_link_current").then((raw) => {
+        if (typeof raw === "string") dispatchDeepLink(raw);
+      });
+    },
+    onNewTask: (handler) => listenDesktopCommand("newTask", handler),
+    onOpenWorkspace: (handler) => listenDesktopCommand("openWorkspace", handler),
+    onFocusTab: (handler) =>
+      listenTauriEvent<string>("zcode:focus-tab", (path) => {
+        if (typeof path === "string" && path.trim().length > 0) handler(path);
+      }),
+    onNewTab: (handler) => listenTauriEvent<unknown>("zcode:new-tab", () => handler()),
+    onTaskNotificationClick: (handler) =>
+      listenTauriEvent<string>("zcode:task-notification-click", (taskId) => {
+        if (typeof taskId === "string" && taskId.trim().length > 0) handler(taskId);
+      }),
+    syncWindowTabs: (paths) => {
+      void invoke("sync_window_tabs", { paths });
+    },
+    syncWindowUnreadCount: (count) => {
+      void invoke("sync_window_unread_count", { count });
+    },
+    syncActiveTaskSession: (sessionId) => {
+      void invoke("sync_active_task_session", { sessionId });
+    },
+    syncAppSettings: (patch) => {
+      void invoke("sync_app_settings", { patch });
+    },
+    openExternal: (url) => {
+      void invoke("open_external_url", { url });
+    },
+    // The web implementation resolves the same config but uses `window.open`,
+    // which opens an embedded webview in Tauri; route it through the Rust
+    // opener so feedback/community land in the system browser.
+    openFeedback: async () => {
+      const feedbackUrl = await resolveFeedbackUrl();
+      if (feedbackUrl) await invoke("open_external_url", { url: feedbackUrl });
+    },
+    openCommunity: async () => {
+      const locale = document.documentElement.lang === "en-US" ? "en-US" : "zh-CN";
+      const communityUrl = await resolveWebCommunityUrl(locale);
+      if (communityUrl) await invoke("open_external_url", { url: communityUrl });
+    },
+    getDeviceId: () => tauriDeviceId ?? generateMobileDeviceFingerprint(),
+    onFileDropPaths: (handler) => {
+      const webview = tauriWebview();
+      if (!webview?.onDragDropEvent) return () => {};
+      let disposed = false;
+      let unlisten: (() => void) | undefined;
+      void webview
+        .onDragDropEvent((event) => {
+          const payload = event?.payload;
+          if (!payload || payload.type !== "drop") return;
+          const paths = (payload.paths ?? []).filter(
+            (path): path is string => typeof path === "string" && path.trim().length > 0,
+          );
+          if (paths.length === 0) return;
+          const position =
+            payload.position &&
+            typeof payload.position.x === "number" &&
+            typeof payload.position.y === "number"
+              ? { x: payload.position.x, y: payload.position.y }
+              : undefined;
+          handler({ paths, position });
+        })
+        .then((dispose) => {
+          if (disposed) dispose();
+          else unlisten = dispose;
+        })
+        .catch(() => {
+          // The subscription is optional; DOM File drops keep working without it.
+        });
+      return () => {
+        disposed = true;
+        unlisten?.();
+      };
+    },
+    openExternalFile: async (path) => {
+      try {
+        await invoke("open_path", { path });
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: String(error) };
+      }
+    },
+    openInFileManager: async (path) => {
+      try {
+        await invoke("open_path", { path });
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: String(error) };
+      }
+    },
+    // The Rust shell discovers local remote targets, but hosting the remote
+    // session still lives in the TypeScript host; fail explicitly instead of
+    // pretending a connection was established.
+    connectRemote: () =>
+      Promise.resolve({
+        success: false,
+        error:
+          "Remote session hosting is not available in the Tauri shell yet; the Rust remote host is not ported.",
+      }),
+    isDockerAvailable: () => invoke("is_docker_available") as Promise<boolean>,
+    listWSLDistros: () => invoke("list_wsl_distros") as Promise<WSLDistro[]>,
+    listDockerContainers: () =>
+      invoke("list_docker_containers") as Promise<DockerContainerInfo[]>,
+    listSSHConfigAliases: () =>
+      invoke("list_ssh_config_aliases") as Promise<SSHConfigAliasOption[]>,
+    browserViewAttachGuest: async (payload) => {
+      const result = (await invoke("browser_view_attach_guest", {
+        key: payload.key,
+        webContentsId: payload.webContentsId,
+      })) as {
+        ok?: boolean;
+        guestGeneration?: number;
+        reason?: string;
+        recoveryRequested?: boolean;
+      };
+      if (result?.ok) {
+        return { ok: true, guestGeneration: result.guestGeneration ?? 1 };
+      }
+      return {
+        ok: false,
+        reason: (result?.reason as BrowserGuestAttachRejectReason | undefined) ?? "not-webview",
+        recoveryRequested: Boolean(result?.recoveryRequested),
+      };
+    },
+    browserViewDetachGuest: (payload) =>
+      invoke("browser_view_detach_guest", {
+        key: payload.key,
+        webContentsId: payload.webContentsId,
+      }) as Promise<boolean>,
+    browserViewCloseTab: async (payload) => {
+      await invoke("browser_view_close", { key: payload.tabId });
+    },
+    importChromeBrowserData: (options) =>
+      invoke("import_chrome_browser_data", {
+        options: options ?? {},
+      }) as Promise<ChromeBrowserDataImportResult>,
+    exportLogs: () =>
+      invoke("export_logs") as Promise<{
+        success: boolean;
+        path?: string;
+        error?: string;
+      }>,
+    captureWindowScreenshot: () =>
+      invoke("capture_window_screenshot") as Promise<{
+        dataBase64: string;
+        filename: string;
+        contentType: string;
+        size: number;
+      } | null>,
+    getInstalledEditors: () =>
+      invoke("get_installed_editors") as Promise<
+        Array<{ id: string; name: string; iconDataUrl: string }>
+      >,
+    openInEditor: (editorId, path, options) =>
+      invoke("open_in_editor", {
+        editorId,
+        path,
+        options: options ?? {},
+      }) as Promise<{ success: boolean; error?: string }>,
+    loadMcpFromUserDirectory: (payload) =>
+      invoke("load_mcp_from_user_directory", {
+        request: payload ?? {},
+      }) as Promise<LoadMcpFromUserDirectoryResult>,
+    saveMcpToUserDirectory: (payload) =>
+      invoke("save_mcp_to_user_directory", { payload }) as Promise<{
+        success: boolean;
+        error?: string;
+      }>,
+    migrateLegacyCommonMcp: (payload) =>
+      invoke("migrate_legacy_common_mcp", {
+        request: payload ?? {},
+      }) as Promise<MigrateLegacyCommonMcpResult>,
+    createTempTextAttachment: (payload) =>
+      invoke("create_temp_text_attachment", {
+        request: payload,
+      }) as Promise<CreateTempTextAttachmentResult>,
+    showTaskNotification: (payload) => {
+      void invoke("show_task_notification", {
+        taskId: payload.taskId,
+        title: payload.title,
+        body: payload.body,
+      });
+    },
+    // Renderer telemetry is exported through the Rust OTLP/HTTP sink; when no
+    // OTLP endpoint is configured the shell drops the events.
+    reportTelemetryEvent: (payload) =>
+      invoke("report_telemetry_event", { payload }) as Promise<void>,
+    reportArmsCustomEvent: (payload) =>
+      invoke("report_arms_custom_event", { payload }) as Promise<void>,
+    reportRendererActionTraceBatch: (batch) => {
+      void invoke("report_renderer_action_trace_batch", { batch });
+    },
+    reportRendererHeapSample: (sample) => {
+      void invoke("report_renderer_heap_sample", { sample });
+    },
+    reportLocalTtftBatch: (batch) => {
+      void invoke("report_local_ttft_batch", { batch });
+    },
+    executeDesktopCommand: (command) => invoke("desktop_command", { command }),
+    getDesktopZoomLevel: () =>
+      invoke("get_desktop_zoom_level") as Promise<{ zoomLevel: number }>,
+    onDesktopZoomLevelChanged: (handler) =>
+      listenTauriEvent<{ zoomLevel: number }>("zcode:desktop-zoom-changed", handler),
+    getDesktopWindowChromeState: async () => {
+      const state = (await invoke("get_desktop_window_chrome_state")) as {
+        isMaximized?: boolean;
+      };
+      return {
+        isMaximized: Boolean(state?.isMaximized),
+        supportsNativeRoundedCorners: false,
+      };
+    },
+    onUpdateStateChanged: (handler) =>
+      listenTauriEvent<unknown>("zcode:update-state-changed", handler as (payload: unknown) => void),
+    onUpdateCheckResult: (handler) =>
+      listenTauriEvent<unknown>("zcode:update-check-result", handler as (payload: unknown) => void),
+    onUpdateReady: (handler) =>
+      listenTauriEvent<unknown>("zcode:update-ready", handler as (payload: unknown) => void),
+    getUpdateState: () => invoke("get_update_state") as Promise<any>,
+    checkForUpdates: () => invoke("check_for_updates") as Promise<any>,
+    downloadUpdate: () => invoke("download_update") as Promise<void>,
+    cancelUpdateDownload: () => invoke("cancel_update_download") as Promise<void>,
+    quitAndInstallUpdate: () => invoke("quit_and_install_update") as Promise<void>,
+    skipUpdateVersion: (version: string) => invoke("skip_update_version", { version }),
+    acknowledgePostUpdateReleaseNotes: () => invoke("acknowledge_post_update_release_notes") as Promise<void>,
+    onPostUpdateReleaseNotes: (handler) =>
+      listenTauriEvent<unknown>("zcode:post-update-release-notes", handler as (payload: unknown) => void),
+  } as IPlatformService;
+}
+
 function resolveDefaultWsOrigin(): string {
   return `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}`;
 }
@@ -445,8 +1176,10 @@ async function bootstrapWebApp() {
     const services = await connectViaWebSocket(bootstrap.wsUrl, {
       onClose: () => {},
     });
-    const platform = createWebPlatform();
-    document.title = "ZCode - Web + Server";
+    const isTauri = tauriInvoke() !== null;
+    const platform = isTauri ? createTauriPlatform() : createWebPlatform();
+    if (isTauri) setStreamClientId(await primeTauriDeviceId());
+    document.title = isTauri ? "ZCode" : "ZCode - Web + Server";
 
     root.render(
       <AppErrorBoundary>

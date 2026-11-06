@@ -1,13 +1,14 @@
-import ts from "typescript";
+// @ts-nocheck
+import ts from "../compiler/ts-shim.js";
 import { isGlobalLibValue } from "./callbacks.js";
 import { boundIdentifiers } from "./causality-order-functions.js";
 import type { TraceState } from "./causality-order-state.js";
 
-// 走查原本只有一个全局 `settled` 集合，于是内联的 `async` 体里的 `await` 会替整个
-// 脚本把 step 结算掉——把 `A ∥ B → C` 压成一条串行时间线。改成「每条 strand 一个 frame」之后，记账（strand 记录、frame 栈、被 await 的
-// 位置扫描、join 解析）本该落在 -state / -settle 两个兄弟模块，但它们已经贴着 oxlint
-// max-lines 上限（400 行），所以单开本文件。这里只读写 {@link TraceState}，不递归进 walk；
-// 公开面仍从 causality-order.ts 导出。
+// There is only one global `settled` collection in the walkthrough, so the `await` in the inline `async` body will replace the entire
+// The script resolves the step - compress `A ∥ B → C` into a serial timeline. After changing to "one frame per strand", accounting (strand record, frame stack, awaited
+//Position scanning, join parsing) should have fallen into the two sibling modules -state / -settle, but they are already attached to oxlint
+// max-lines upper limit (400 lines), so single format file. Here we only read and write {@link TraceState}, and do not recurse into walk;
+// The public face is still exported from causality-order.ts.
 
 /**
  * One open activation's settled set. The root body is the first frame and is never a

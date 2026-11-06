@@ -1,0 +1,36 @@
+{
+  "P0": [
+    "Fix queue admission race",
+    "Fix cargo fmt",
+    "Fix tool-parity parser",
+    "Fix architecture YAML"
+  ],
+  "P1": [
+    "Port remaining v4 methods",
+    "Complete subagent features",
+    "Complete browser tooling",
+    "Implement usage aggregation or boundary",
+    "Complete resume accounting",
+    "Complete tool display variants",
+    "Complete bash interpreter overrides",
+    "Complete attachment inlining"
+  ],
+  "P2": [
+    "Wire Rust into desktop startup",
+    "Transfer DB/session ownership",
+    "Transfer provider/tool execution",
+    "Transfer event routing and workers",
+    "Verify shutdown/recovery"
+  ],
+  "P3": [
+    "CUA product decision",
+    "Remote infrastructure policy decision",
+    "Plugin marketplace policy decision"
+  ],
+  "P4": [
+    "Format all Rust code",
+    "Update stale docs",
+    "Add semantic tests",
+    "Archive working tree"
+  ]
+}

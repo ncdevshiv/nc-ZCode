@@ -1,28 +1,28 @@
-// TUI 常驻会话事件中继。
+// TUI resident session event relay.
 //
-// 单独成模块是为了让「换 app 时重挂」这条性质可被直接单测：若埋在 tui-prompt-handler
-// 的闭包里，只能靠一整套 app 工厂假件才能验，而漏挂的后果很安静——换 session 后 TUI 再也
-// 收不到出回合事件（dwf 进度、通知驱动回合），界面看起来完全正常。
+// The purpose of forming a separate module is to allow the property of "rehang when changing apps" to be directly tested: if buried in tui-prompt-handler
+// In the closure, it can only be verified by relying on a complete set of app factory fakes, and the consequences of the leak are very quiet - after changing the session, the TUI will no longer work.
+// Unable to receive turn-out events (dwf progress, notification-driven turns), the interface looks completely normal.
 import type { SessionEvent } from "@zcode/contracts";
 
-/** 从 runtime 上读出订阅函数；读不到就返回 undefined（能力不在静态类型面上）。 */
+/** Read the subscription function from the runtime; if it cannot be read, it will return undefined (the ability is not on the static type). */
 type SessionEventSubscriberReader = (
   runtime: unknown,
 ) => ((sink: { onSessionEvent: (event: SessionEvent) => void }) => () => void) | undefined;
 
 interface TuiSessionEventRelay {
-  /** 注册一个 sink；返回退订。首个 sink 会触发实挂。 */
+/** Register a sink; return to unsubscribe. The first sink will trigger the real transaction. */
   addSink: (sink: (event: SessionEvent) => void) => () => void;
-  /** 换 app 后重挂：先断旧的，再挂到当前 runtime 上。无 sink 时不挂。 */
+/** Re-hook after changing app: disconnect the old one first, and then re-hook it to the current runtime. No hang when there is no sink. */
   reattach: () => void;
-  /** 拆掉当前订阅（不清空 sink 注册表）。 */
+/** Tear down the current subscription (without clearing the sink registry). */
   detach: () => void;
-  /** 当前是否挂着（测试与诊断用）。 */
+/** Whether it is currently hanging (for testing and diagnosis). */
   isAttached: () => boolean;
 }
 
 export function createTuiSessionEventRelay(input: {
-  /** 每次重挂时读当前 app 的 runtime——闭包读取而不是传值，才能跟上 replaceApp。 */
+/** Read the runtime of the current app every time it is resuspended - the closure reads instead of passing the value to keep up with replaceApp. */
   currentRuntime: () => unknown;
   readSubscriber: SessionEventSubscriberReader;
 }): TuiSessionEventRelay {
@@ -40,8 +40,8 @@ export function createTuiSessionEventRelay(input: {
     const subscribe = input.readSubscriber(input.currentRuntime());
     detachCurrent = subscribe?.({
       onSessionEvent: (event) => {
-        // 直接遍历 Set：JS 的 Set 迭代对「遍历中删除」是安全的（已删未访问的条目会被跳过），
-        // 所以 sink 在回调里退订不会破坏本次扇出，也不该再收到这一条。
+// Directly traverse the Set: JS's Set iteration is safe for "deletion during traversal" (deleted and unvisited items will be skipped),
+// Therefore, sink's unsubscription in the callback will not destroy this fanout, and it should not receive this message again.
         for (const sink of sinks) sink(event);
       },
     });

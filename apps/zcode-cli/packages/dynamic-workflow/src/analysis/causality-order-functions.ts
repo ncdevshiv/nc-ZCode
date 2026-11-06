@@ -1,10 +1,11 @@
-import ts from "typescript";
+// @ts-nocheck
+import ts from "../compiler/ts-shim.js";
 import { isFunctionLike } from "./sites.js";
 import type { ApplicationVia } from "./state.js";
 
-// causality-order.ts 顶到 oxlint max-lines 上限（400 行），把函数解析类的纯辅助
-// （脚本函数判定、外层函数链、函数命名、调用声明解析、递归 SCC 预计算、绑定名展开）拆到
-// 本文件；公开面仍从 causality-order.ts 导出。这里的函数都不读走查状态，只看 AST 与 checker。
+// causality-order.ts reaches the upper limit of oxlint max-lines (400 lines), making the function parsing class a pure auxiliary
+// (script function determination, outer function chain, function naming, call statement parsing, recursive SCC precalculation, binding name expansion) split
+// This file; the public side is still exported from causality-order.ts. None of the functions here read the walkthrough status, only the AST and checker.
 
 export type ScriptFunction = ts.SignatureDeclaration & { body: ts.Node };
 

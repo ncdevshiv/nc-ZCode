@@ -74,8 +74,8 @@ export const workspaceHookReasonCodeSchema = z.enum([
   "workspace_hooks_snapshot_mismatch",
   "workspace_hooks_review_superseded",
   "workspace_hooks_config_write_failed",
-  // 读取失败与写入失败必须可区分：config_write_failed 曾被 mutation 在
-  // readFile/JSON.parse 失败时抛出，误导用户重试「写入」。
+// Read failures and write failures must be distinguishable: config_write_failed was mutated in
+// Thrown when readFile/JSON.parse fails, misleading the user to retry "writing".
   "workspace_hooks_config_unreadable",
   "workspace_hooks_config_rebuild_failed",
   "workspace_hooks_revoked",

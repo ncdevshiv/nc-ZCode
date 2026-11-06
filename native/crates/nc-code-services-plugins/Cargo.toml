@@ -1,0 +1,27 @@
+[package]
+name = "nc-code-services-plugins"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Plugin channels: plugins (retired parity), plugin-management (real engine), off-peak-task (local state machine)"
+
+[dependencies]
+async-trait = "0.1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde.workspace = true
+serde_json.workspace = true
+sha2 = "0.10"
+tokio.workspace = true
+url = "2"
+uuid = { version = "1", features = ["v4"] }
+zip = { version = "7", default-features = false, features = ["deflate"] }
+nc-code-channels = { path = "../nc-code-channels" }
+nc-code-rpc = { path = "../nc-code-rpc" }
+nc-code-service-core = { path = "../nc-code-service-core" }
+
+# Test-only: the `getSkillReferenceCatalog` integration test drives the real `skills`
+# channel (skill discovery owner) instead of a stand-in. No production edge is added.
+[dev-dependencies]
+nc-code-services-extensions = { path = "../nc-code-services-extensions" }

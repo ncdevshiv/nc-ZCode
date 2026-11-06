@@ -14,7 +14,7 @@ import { getTargetPlatform } from "./target-platform.mjs";
 const desktopRoot = resolve(import.meta.dirname, "..");
 const target = getTargetPlatform();
 const bundledToolsRoot = join(desktopRoot, "bundled-tools", target.key);
-const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const bunCommand = process.platform === "win32" ? "bun.exe" : "bun";
 const nativeSearchReleasePlan = resolveNativeSearchReleasePlan({
   platform: target.os,
   arch: target.arch,
@@ -123,7 +123,7 @@ for (const asset of missingAssets) {
   console.log(
     `[ensure-local-runtime-assets] preparing ${asset.label} because local runtime asset is missing or incomplete`,
   );
-  runCommand(pnpmCommand, [asset.script], {
+  runCommand(bunCommand, ["run", asset.script], {
     cwd: desktopRoot,
     env: process.env,
   });

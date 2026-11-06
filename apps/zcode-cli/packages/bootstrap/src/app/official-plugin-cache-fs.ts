@@ -109,7 +109,7 @@ export function writeTextFileAtomicallyWithRetry(
     try {
       rmSync(temporaryPath, { force: true });
     } catch {
-      // 清理临时文件失败不能覆盖真正的写入错误；下次启动会使用新的唯一临时文件。
+// Failure to clean up the temporary file cannot overwrite the real write error; a new unique temporary file will be used at the next startup.
     }
     throw error;
   }
@@ -124,12 +124,12 @@ function setRetryAttempts(error: unknown, attempts: number): void {
       writable: true,
     });
   } catch {
-    // 某些第三方错误对象可能被冻结；此时日志退回 attempts=1，不改变原始异常。
+// Some third-party error objects may be frozen; in this case, the log returns attempts=1 and the original exception is not changed.
   }
 }
 
 function sleepSync(delayMs: number): void {
-  // 官方插件发现链路当前是同步 API。Windows 杀毒/索引器可能短暂占用缓存，
-  // 用总预算受限的短等待吸收瞬时 EPERM，避免为热修扩大成整条启动链路异步化。
+// The official plug-in discovery link is currently a synchronous API. Windows Antivirus/Indexer may temporarily occupy the cache,
+// Absorb transient EPERMs with short waits that are limited by the total budget to avoid asynchronous expansion of the entire startup link for hot repairs.
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
 }

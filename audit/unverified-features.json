@@ -1,0 +1,9 @@
+{
+  "items": [
+    "Semantic correctness of all 325 service members",
+    "Production behavioral parity under real traffic",
+    "Load and performance characteristics",
+    "Session recovery parity",
+    "Queue concurrency under all timing conditions"
+  ]
+}

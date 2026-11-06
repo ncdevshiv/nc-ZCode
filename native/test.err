@@ -1,0 +1,136 @@
+warning: unused import: `crate::compiler`
+  --> crates\nc-code-workflow\src\compile\kernel.rs:32:5
+   |
+32 | use crate::compiler;
+   |     ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `nc-code-workflow` (lib) generated 1 warning (run `cargo fix --lib -p nc-code-workflow` to apply 1 suggestion)
+warning: field `config` is never read
+  --> crates\nc-code-node-repl\src\session.rs:22:5
+   |
+21 | pub struct Session {
+   |            ------- field in this struct
+22 |     config: SessionConfig,
+   |     ^^^^^^
+   |
+   = note: `Session` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `nc-code-node-repl` (lib) generated 1 warning
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-config\src\cua_permission.rs:8:41
+  |
+8 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-config\src\cua_pip_session.rs:8:41
+  |
+8 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+
+warning: `nc-code-services-config` (lib) generated 2 warnings (run `cargo fix --lib -p nc-code-services-config` to apply 2 suggestions)
+   Compiling nc-code-services-agent v3.14.0 (G:\ZCode-main\native\crates\nc-code-services-agent)
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-commands\src\lib.rs:8:41
+  |
+8 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `nc-code-services-commands` (lib) generated 1 warning (run `cargo fix --lib -p nc-code-services-commands` to apply 1 suggestion)
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-hooks\src\lib.rs:8:41
+  |
+8 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-subagents\src\lib.rs:8:41
+  |
+8 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-feedback\src\lib.rs:8:41
+  |
+8 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `nc-code-services-hooks` (lib) generated 1 warning (run `cargo fix --lib -p nc-code-services-hooks` to apply 1 suggestion)
+warning: `nc-code-services-subagents` (lib) generated 1 warning (run `cargo fix --lib -p nc-code-services-subagents` to apply 1 suggestion)
+warning: `nc-code-services-feedback` (lib) generated 1 warning (run `cargo fix --lib -p nc-code-services-feedback` to apply 1 suggestion)
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-conversation-share\src\lib.rs:8:41
+  |
+8 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-memory\src\lib.rs:8:41
+  |
+8 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-settings-sync\src\lib.rs:8:41
+  |
+8 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-window-controller\src\lib.rs:8:41
+  |
+8 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `nc-code-services-conversation-share` (lib) generated 1 warning (run `cargo fix --lib -p nc-code-services-conversation-share` to apply 1 suggestion)
+warning: `nc-code-services-memory` (lib) generated 1 warning (run `cargo fix --lib -p nc-code-services-memory` to apply 1 suggestion)
+warning: `nc-code-services-settings-sync` (lib) generated 1 warning (run `cargo fix --lib -p nc-code-services-settings-sync` to apply 1 suggestion)
+warning: `nc-code-services-window-controller` (lib) generated 1 warning (run `cargo fix --lib -p nc-code-services-window-controller` to apply 1 suggestion)
+   Compiling nc-code-services-broadcast v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-broadcast)
+warning: linker stdout: LINK : warning LNK4098: defaultlib 'LIBCMT' conflicts with use of other libs; use /NODEFAULTLIB:library
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `nc-code-services-plugins` (test "plugin_management") generated 1 warning
+   Compiling nc-code-services-plugins v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-plugins)
+warning: `nc-code-workflow` (lib test) generated 1 warning (1 duplicate)
+warning: `nc-code-services-config` (lib test) generated 2 warnings (2 duplicates)
+   Compiling nc-code-services-automation v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-automation)
+   Compiling nc-code-host v3.14.0 (G:\ZCode-main\native\crates\nc-code-host)
+error[E0433]: cannot find module or crate `uuid` in this scope
+   --> crates\nc-code-services-broadcast\src\lib.rs:106:41
+    |
+106 |         let token = format!("local-{}", uuid::Uuid::new_v4());
+    |                                         ^^^^ use of unresolved module or unlinked crate `uuid`
+    |
+    = help: if you wanted to use a crate named `uuid`, use `cargo add uuid` to add it to your `Cargo.toml`
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `nc-code-services-broadcast` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+warning: `nc-code-host` (test "mcp_version_negotiation_e2e") generated 1 warning (1 duplicate)
+warning: `nc-code-services-automation` (test "automation_e2e") generated 1 warning (1 duplicate)
+warning: `nc-code-host` (test "workflow_v4_e2e") generated 1 warning (1 duplicate)
+warning: `nc-code-host` (test "workflow_actor_e2e") generated 1 warning (1 duplicate)
+warning: `nc-code-services-agent` (lib test) generated 1 warning (1 duplicate)

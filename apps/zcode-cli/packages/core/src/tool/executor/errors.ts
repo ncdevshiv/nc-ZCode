@@ -15,13 +15,13 @@ export function createErrorResult(
     isCoreError(error) && isToolHandlerFailure(error.context?.toolHandlerFailure)
       ? error.context.toolHandlerFailure
       : undefined;
-  // 根因：通用错误层按 tool name 拼接 provider 文案会反向依赖具体工具。
-  // handler 只返回自己的 code/message；这里统一组装 envelope，并保留裸 message 给 UI 和日志。
+// Root cause: The general error layer is spliced ​​according to the tool name. The provider copy will be reversely dependent on the specific tool.
+// The handler only returns its own code/message; here the envelope is assembled uniformly, and the bare message is reserved for the UI and logs.
   const modelContent =
     getInitialInputValidationModelContent(error) ??
     (handlerFailure ? `<tool_use_error>${handlerFailure.message}</tool_use_error>` : undefined);
-  // subagent/turn/model 错误常把真实 provider 原因包在 cause 链里；
-  // tool result 是父模型和 UI hover 的共同来源，必须在这里统一投影成可读摘要。
+// subagent/turn/model errors often wrap the real provider cause in the cause chain;
+// tool result is the common source of parent model and UI hover, and must be uniformly projected into a readable summary here.
   const projectedError = projectExecutionErrorPayload(error);
   const reasonSource =
     isCoreError(error) &&
@@ -29,9 +29,9 @@ export function createErrorResult(
       error.context?.reasonSource === "workflow_refine_feedback")
       ? error.context.reasonSource
       : undefined;
-  // ExitPlanMode / workflow Refine 的用户反馈会暂存在 PermissionDenied.message，
-  // 后续还要原样转成 steer 输入；这里不能被展示摘要器截断，否则超长反馈不会触发 input_too_large。
-  // 普通拒绝附带的自由文本反馈（preserveReasonFormatting）同理原样保留。
+// User feedback for ExitPlanMode / workflow Refine will be temporarily stored in PermissionDenied.message.
+// Later, it will be converted to steer input as it is; this cannot be truncated by the display summary, otherwise the input_too_large will not be triggered by the long feedback.
+// The free text feedback (preserveReasonFormatting) attached to ordinary rejection is retained as it is.
   const message =
     reasonSource !== undefined || options?.preserveReasonFormatting === true
       ? error.message

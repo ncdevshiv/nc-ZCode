@@ -97,44 +97,8 @@ export function resolveAccountProviderConfigs(
   for (const [providerId, configured] of input.configuredProviders.entries()) {
     const access = configured.access;
     if (access?.type !== "zhipu-account") continue;
-    const connection = connectionByProviderId.get(providerId) ?? {
-      providerId,
-      status: "unknown" as const,
-    };
-
-    if (connection.status === "available" || connection.status === "pending") {
-      if (access.mode === "start-plan") {
-        const models = normalizeModelIds(connection.models);
-        resolved.push([
-          providerId,
-          new ProviderConfig({
-            // 明确空模型是本轮权威结果，不能保留已经失效的旧白名单。
-            access: new ZhipuAccountAccessConfig({ entitled: connection.status === "available" }),
-            builtinModelIds: models,
-          }),
-        ]);
-        continue;
-      }
-      resolved.push([
-        providerId,
-        new ProviderConfig({
-          access: new ZhipuAccountAccessConfig({ entitled: connection.status === "available" }),
-        }),
-      ]);
-      continue;
-    }
-
-    if (connection.status === "unavailable") {
-      resolved.push([providerId, createEntitlementOverlay(false)]);
-      continue;
-    }
-
-    const previous = connection.resetPrevious ? undefined : input.previousProviders.get(providerId);
-    if (previous) {
-      resolved.push([providerId, previous]);
-    } else {
-      resolved.push([providerId, createEntitlementOverlay(false)]);
-    }
+    // ZCode account providers removed
+    resolved.push([providerId, createEntitlementOverlay(false)]);
   }
 
   return new ProviderConfigMap(resolved);

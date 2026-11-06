@@ -91,8 +91,8 @@ const webSearchHandler: ToolHandler<WebSearchInput, WebSearchOutput> = async (in
       },
     ],
     tools: [createProviderNativeWebSearchContract(input)],
-    // BigModel 的 Anthropic 兼容端点会拒绝 named forced web_search tool_choice（1210）。
-    // 这里保持自动选择，依靠单工具请求和 prompt 触发 provider-native 搜索。
+// BigModel's Anthropic-compatible endpoint rejects named forced web_search tool_choice (1210).
+// Keep automatic selection here, relying on single tool requests and prompts to trigger provider-native searches.
     options: {
       ...auxiliaryModelOptions(model),
       maxOutputTokens: Math.min(4096, model.optionSpecs.maxOutputTokens.max),
@@ -100,9 +100,9 @@ const webSearchHandler: ToolHandler<WebSearchInput, WebSearchOutput> = async (in
     abortSignal: context.abortSignal,
   };
 
-  // BigModel Anthropic 兼容端点的非流式 JSON 会把 provider 内部
-  // web_search 结果返回为 assistant-side 裸 tool_result，AI SDK 会在 schema
-  // 校验阶段抛 Invalid JSON response。走流式可复用现有 SSE compat。
+// BigModel Anthropic compatible endpoint's non-streaming JSON will be passed inside the provider
+// The web_search result is returned as assistant-side bare tool_result, and the AI ​​SDK will
+// Throw Invalid JSON response during the verification phase. Flow-through reuses existing SSE compat.
   const result = await collectWebSearchStreamResult({
     events: runWithModelInvocationContext(
       {
@@ -116,7 +116,7 @@ const webSearchHandler: ToolHandler<WebSearchInput, WebSearchOutput> = async (in
         },
         modelRequestSessionType: "other",
         modelCall: { operation: "web_search" },
-        // statusSink 不在这里设：执行器交出的 context.model 已带默认会话事件出口。
+// statusSink is not set here: the context.model handed over by the executor already has the default session event outlet.
         traceContext: webSearchTraceFromContext(context),
       },
       () => model.streamText(request),
@@ -131,8 +131,8 @@ export const webSearchToolEntry: ToolEntry = {
   providerNative: undefined,
   metadata: {
     name: WEBSEARCH_TOOL_NAME,
-    // 写死月份会导致模型可见的 WebSearch 描述过期。
-    // 每次读取时重新生成，避免长驻进程跨月后继续投递旧月份。
+// Writing a dead month will cause the model's visible WebSearch description to expire.
+// Regenerate each time it is read to prevent the resident process from continuing to deliver the old month after crossing the month.
     get description() {
       return buildWebSearchProviderDescription();
     },

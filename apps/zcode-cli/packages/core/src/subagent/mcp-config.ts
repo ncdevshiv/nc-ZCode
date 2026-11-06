@@ -12,9 +12,9 @@ export function matchesRequiredMcpServer(
   return Object.entries(statuses).some(
     ([serverName, status]) =>
       status.status === "connected" &&
-      // MCP tool name 会把 plugin:android-emulator:android-emulator
-      // 规范化成 plugin_android-emulator_android-emulator；required-server 检查
-      // 必须使用同一套模型可见命名规则，否则已连接的 plugin MCP 会被误判为 missing。
+// MCP tool name will be plugin:android-emulator:android-emulator
+// Normalize to plugin_android-emulator_android-emulator; required-server check
+// The same set of model visible naming rules must be used, otherwise the connected plugin MCP will be misjudged as missing.
       matchesModelVisibleMcpServerName(expected, serverName),
   );
 }

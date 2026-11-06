@@ -101,9 +101,9 @@ function validateNode(
   const type = schema.type;
   if (type !== undefined && !matchesType(value, type)) {
     collector.errors.push(`${displayPath} must be ${formatSchemaType(type)}`);
-    // provider JSON Schema 会同时包含 enum/const 与推导出的 type，但目标
-    // 校验行为在值约束失败时只产生 invalid_value；保留 legacy errors，同时避免
-    // 重复的 invalid_type 改变 provider-visible 参数错误分类。
+// provider JSON Schema will contain both enum/const and derived type, but the target
+// The validation behavior only generates invalid_value when the value constraint fails; retains legacy errors while avoiding
+// Duplicate invalid_type changes provider-visible parameter error classification.
     if (!valueConstraintFailed) {
       if (Array.isArray(type)) {
         collector.issues.push(
@@ -157,8 +157,8 @@ function validateObject(
   for (const [key, propertySchema] of Object.entries(properties)) {
     if (!(key in value) || value[key] === undefined) {
       if (requiredSet.has(key)) {
-        // 参数 fallback 会原样序列化 issues；必须像 schema parser 一样按
-        // properties 顺序生成，不能把所有 required 问题提前到已有字段的约束问题之前。
+// Parameter fallback will serialize issues as is; must be pressed like schema parser
+// Properties are generated sequentially, and all required questions cannot be advanced before constraint questions on existing fields.
         collector.issues.push(
           ...createMissingPropertyIssues(isRecord(propertySchema) ? propertySchema : undefined, [
             ...issuePath,
@@ -230,8 +230,8 @@ function validateArray(
     });
   }
 
-  // parser 会先产生元素问题，再产生数组自身的长度问题；legacy errors
-  // 仍保持原顺序，只调整 provider-visible issues，避免改变 UI / 日志诊断。
+// The parser will first cause element problems, and then the length of the array itself; legacy errors
+// Still keep the original order, only adjust provider-visible issues, avoid changing UI / log diagnostics.
   if (minimumIssue) collector.issues.push(minimumIssue);
   if (maximumIssue) collector.issues.push(maximumIssue);
 }

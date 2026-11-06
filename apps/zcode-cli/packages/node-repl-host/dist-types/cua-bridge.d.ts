@@ -12,7 +12,7 @@ export interface NodeReplCuaBrokerConnection {
     token: string;
 }
 export interface ComputerUseRuntimeBridge {
-    /** 私有 capability 请求；这里不是 MCP tool 调用，MCP 只承载外层 node_repl。 */
+    /** Private capability request; this is not an MCP tool call, MCP only carries the outer node_repl. */
     call(method: string, input: unknown): Promise<CallToolResult>;
     assertAvailable(): void;
     documentationRoot: string;

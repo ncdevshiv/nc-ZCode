@@ -1,0 +1,12 @@
+import { pathToFileURL } from "node:url";
+import { join } from "node:path";
+const base = process.cwd();
+const mod = await import(pathToFileURL(join(base, "apps/zcode-cli/packages/node-repl-host/src/server.ts")).href);
+const exec = mod.createInProcessNodeReplExecutor();
+const t0 = performance.now();
+const r1 = await exec({ code: "1+1", requestMeta: {} });
+const t1 = performance.now();
+const r2 = await exec({ code: "2+2", requestMeta: {} });
+const t2 = performance.now();
+console.log("cold", (t1-t0).toFixed(1), "ms ->", r1?.result ?? JSON.stringify(r1).slice(0,80));
+console.log("warm", (t2-t1).toFixed(1), "ms ->", r2?.result ?? JSON.stringify(r2).slice(0,80));

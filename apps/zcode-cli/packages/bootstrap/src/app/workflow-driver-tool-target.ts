@@ -1,13 +1,13 @@
 // ============================================================
-// 工具调用 → 一条给人看的「目标」线索
+// Tool call → a "target" clue for people to see
 // ============================================================
-// `node-progress` 的 `lastTool.target` 回答的是「它正在动哪儿」：文件类工具给路径，Bash 给命令头，
-// 搜索类给 pattern。它**不是入参**——入参可以装下一整个 patch、一段 base64、一份文件正文，而这条
-// 事件会被主代理读进上下文、被 GUI 画在卡片上，所以只取一个有界的标量键，其余一律当作「认不出」。
+// `lastTool.target` of `node-progress` answers "where is it moving": file tools give the path, Bash gives the command header,
+// Search class for pattern. It is not an input parameter - the input parameter can hold an entire patch, a section of base64, and a file text, and this
+// The event will be read into the context by the main agent and drawn on the card by the GUI, so only a bounded scalar key is taken, and the rest are treated as "unrecognized".
 //
-// 按**键名**而不是按工具名认：工具名会变、MCP 工具的名字根本不在我们手里，而 `file_path` / `command`
-// 这几个键名是本仓库工具入参的既成约定（contracts 的 read/edit/write/bash/glob/grep schema）。
-// 认不出就缺席——合成一个「(unknown)」占位串只会让读者以为那是真的目标。
+// Press **key name** instead of by tool name: the tool name will change, the name of the MCP tool is not in our hands at all, but `file_path` / `command`
+// These key names are established conventions for the input parameters of this warehouse tool (read/edit/write/bash/glob/grep schema of contracts).
+// If you don't recognize it, you will be absent - synthesizing a "(unknown)" placeholder string will only make the reader think that it is the real target.
 
 import {
   LAST_TOOL_NAME_MAX_CHARS,
@@ -16,8 +16,8 @@ import {
 } from "@zcode/dynamic-workflow";
 
 /**
- * 按优先级探测的入参键。命中第一个**非空字符串**即为目标；路径族保尾（文件名才是分辨点），
- * 其余保头（命令、pattern、url 的开头才是分辨点）。
+* Press the parameter input key of priority detection. The first **non-empty string** that hits is the target; the path family is tail-preserving (the file name is the resolution point),
+* The rest of the headers are preserved (the beginning of the command, pattern, and url is the distinguishing point).
  */
 const TARGET_KEYS: readonly { key: string; keep: "head" | "tail" }[] = [
   { key: "file_path", keep: "tail" },
@@ -29,17 +29,17 @@ const TARGET_KEYS: readonly { key: string; keep: "head" | "tail" }[] = [
   { key: "query", keep: "head" },
 ];
 
-/** 省略号标记（保尾时前置）：读者要能看出这条线索被截过。 */
+/** Ellipsis mark (preceded when ending): readers should be able to tell that this clue has been truncated. */
 const ELLIPSIS = "…";
 
-/** 一次工具调用的窄视图：名字 + 入参。两者都可能缺席（老事件、空名调用）。 */
+/** Narrow view of a tool call: name + input parameters. Both may be absent (old events, empty name calls). */
 interface ToolCallSummaryInput {
   toolName?: string;
   input?: unknown;
 }
 
 /**
- * 把一次工具调用压成 `lastTool`。名字缺席即整条缺席——一个没有名字的「最近工具」什么也没说。
+* Flatten a tool call into `lastTool`. The absence of a name is a total absence - a "nearest object" without a name says nothing.
  */
 export function summarizeToolCall(call: ToolCallSummaryInput): AskLastTool | undefined {
   const name = typeof call.toolName === "string" ? call.toolName.trim() : "";
@@ -51,14 +51,14 @@ export function summarizeToolCall(call: ToolCallSummaryInput): AskLastTool | und
   };
 }
 
-/** 从入参里取目标线索；不是对象、没有已知键、或该键不是非空字符串时缺席。 */
+/** Get the target clue from the input parameter; absent when it is not an object, has no known key, or the key is not a non-empty string. */
 function deriveToolTarget(input: unknown): string | undefined {
   if (typeof input !== "object" || input === null || Array.isArray(input)) return undefined;
   const record = input as Record<string, unknown>;
   for (const { key, keep } of TARGET_KEYS) {
     const value = record[key];
     if (typeof value !== "string") continue;
-    // 多行命令只取第一行并压掉连续空白：命令头才是「在跑什么」，整段 heredoc 不是。
+// For multi-line commands, only the first line is taken and continuous whitespace is suppressed: the command header is "what is running", and the entire heredoc is not.
     const flattened = value.split("\n", 1)[0]!.replace(/\s+/g, " ").trim();
     if (flattened.length === 0) continue;
     return bound(flattened, keep);
@@ -66,7 +66,7 @@ function deriveToolTarget(input: unknown): string | undefined {
   return undefined;
 }
 
-/** 截到 {@link LAST_TOOL_TARGET_MAX_CHARS}：保头直接切，保尾前置省略号后切。 */
+/** Cut to {@link LAST_TOOL_TARGET_MAX_CHARS}: cut directly after keeping the head, and cut after keeping the ellipsis in front of the tail. */
 function bound(text: string, keep: "head" | "tail"): string {
   if (text.length <= LAST_TOOL_TARGET_MAX_CHARS) return text;
   if (keep === "head") return text.slice(0, LAST_TOOL_TARGET_MAX_CHARS);

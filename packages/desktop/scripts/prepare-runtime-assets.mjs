@@ -9,7 +9,7 @@ import { getTargetPlatform } from "./target-platform.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const desktopRoot = resolve(scriptDir, "..");
-const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const bunCommand = process.platform === "win32" ? "bun.exe" : "bun";
 const target = getTargetPlatform();
 const nativeSearchReleasePlan = resolveNativeSearchReleasePlan({
   platform: target.os,
@@ -41,11 +41,11 @@ const localRuntimeScripts = [
   ...(shouldPrepareNativeSidecars ? ["prepare:native-sidecars"] : []),
 ];
 
-function runTimedPnpmScript(scriptName) {
+function runTimedBunScript(scriptName) {
   const startMs = Date.now();
   console.log(`[ci][timer] prepare-runtime-assets:${scriptName} start`);
   try {
-    runCommand(pnpmCommand, [scriptName], {
+    runCommand(bunCommand, ["run", scriptName], {
       cwd: desktopRoot,
       env: process.env,
     });
@@ -59,7 +59,7 @@ function runTimedPnpmScript(scriptName) {
 const shouldSkipRemoteAssets = process.env.ZCODE_SKIP_REMOTE_ASSETS === "1";
 
 if (!shouldSkipRemoteAssets) {
-  runTimedPnpmScript("prepare:remote-assets");
+  runTimedBunScript("prepare:remote-assets");
 } else {
   // Windows build job 的桌面安装包不依赖 mock-cdn remote 资产。
   // 之前这里无条件执行 prepare:remote-assets，会在同一个 job 里串行下载/打包跨平台资源，
@@ -68,5 +68,5 @@ if (!shouldSkipRemoteAssets) {
 }
 
 for (const scriptName of localRuntimeScripts) {
-  runTimedPnpmScript(scriptName);
+  runTimedBunScript(scriptName);
 }

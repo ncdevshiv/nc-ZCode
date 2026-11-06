@@ -1,20 +1,20 @@
 // ============================================================
-// Workflow script analysis - 单槽记忆的共享入口
+// Workflow script analysis - shared entry for single-slot memory
 // ============================================================
 //
-// 审批 gate 会在执行前分析脚本，handler 执行后又分析一次，一次获批调用因此要跑两遍
-// TypeScript 程序。按脚本原文做单槽记忆把这一对折叠成一次编译；刻意不是通用缓存——
-// 唯一值得收敛的重复就是这组紧邻的前后调用。
+// The approval gate will analyze the script before execution, and analyze it again after the handler is executed. An approved call therefore needs to be run twice.
+// TypeScript program. Make a single slot memory according to the original script and fold this pair into one compilation; deliberately not a universal cache——
+// The only repetition worthy of convergence is this set of immediately preceding and following calls.
 //
-// 抽到本模块是因为**两个**工具现在共用它：CreateWorkflow 跑脚本前要编译，SaveWorkflow
-// 存脚本前也要编译，而且必须是同一个检查器——「能存下来但跑不起来」是这个特性最难解释的
-// 一种坏掉方式。
+// This module is extracted because **two** tools now share it: CreateWorkflow needs to be compiled before running the script, and SaveWorkflow
+// The script must also be compiled before saving, and it must use the same checker - "it can be saved but cannot be run" is the most difficult thing to explain about this feature
+// A way to be broken.
 
 import { analyzeWorkflowScript, type AnalyzeResult } from "@zcode/dynamic-workflow";
 
 let lastAnalysis: { script: string; result: AnalyzeResult } | null = null;
 
-/** 编译并分析一段 workflow 脚本，紧邻的重复调用命中记忆槽。 */
+/** Compile and analyze a workflow script, and the adjacent repeated calls hit the memory slot. */
 export function analyzeScript(script: string): AnalyzeResult {
   if (lastAnalysis?.script === script) return lastAnalysis.result;
   const result = analyzeWorkflowScript(script);

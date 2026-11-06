@@ -1,0 +1,14 @@
+    pub fn project_assistant_row(
+        &self,
+        turn_id: &str,
+        response_id: &str,
+        model: Option<&str>,
+    ) -> u64 {
+        let base = self.row_base(turn_id, response_id);
+        let row = rows::assistant_text_row(&base, response_id, "", "streaming", model);
+        let row_id = base.row_id;
+        self.append_row(row.clone());
+        self.project_deltas(vec![rows::row_appended(row)], false);
+        row_id
+    }
+

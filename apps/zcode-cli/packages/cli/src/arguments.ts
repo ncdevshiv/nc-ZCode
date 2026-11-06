@@ -82,7 +82,7 @@ export const parseGlobalArgs = (argv: string[]) =>
         type: "string",
       },
 
-      // 在全局注册，run.ts 收集后透传给 plugins-command，不污染其他命令的选项语义。
+// Register globally, collect run.ts and pass it transparently to plugins-command, without polluting the option semantics of other commands.
       all: {
         short: "a",
         type: "boolean",
@@ -105,7 +105,7 @@ export const parseGlobalArgs = (argv: string[]) =>
     strict: true,
   });
 
-/** 入口与命令路由复用同一参数定义，不能把 prompt/cwd 的值误当成协议命令。 */
+/** Entry and command routing reuse the same parameter definition, and the value of prompt/cwd cannot be mistaken for a protocol command. */
 export function isProtocolServerInvocation(argv: string[]): boolean {
   try {
     const parsed = parseGlobalArgs(argv);
@@ -117,7 +117,7 @@ export function isProtocolServerInvocation(argv: string[]): boolean {
       (parsed.positionals[0] === "app-server" || parsed.positionals[0] === "agent-server")
     );
   } catch {
-    // 无效参数由 run 格式化；明确的协议命令仍保护 stdout。
+// Invalid arguments are formatted by run; explicit protocol commands still protect stdout.
     return argv[0] === "app-server" || argv[0] === "agent-server";
   }
 }

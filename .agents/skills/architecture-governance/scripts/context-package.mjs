@@ -6,7 +6,7 @@ import { generateContext } from "../../../../scripts/architecture/index.mjs";
 const [, , moduleId, ...args] = process.argv;
 if (!moduleId) {
   console.error(
-    "用法: node .agents/skills/architecture-governance/scripts/context-package.mjs <module-id> [--output <file>]",
+    "Usage: node .agents/skills/architecture-governance/scripts/context-package.mjs <module-id> [--output <file>]",
   );
   process.exit(1);
 }

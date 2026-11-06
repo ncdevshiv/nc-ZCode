@@ -53,8 +53,8 @@ export const cuaRequestAccessStatusDisplaySchema = z
   })
   .strict();
 
-// CreateWorkflow display 诊断的限长常量与条目 schema 已移至 create-workflow.ts
-// （被 create_workflow 与 eval_workflow_snippet 两个 display payload 复用，放这里会成环）。
+// The limited length constants and entries of CreateWorkflow display diagnostic schema have been moved to create-workflow.ts
+// (Reused by two display payloads, create_workflow and eval_workflow_snippet, it will form a loop if placed here).
 
 export const toolResultDisplayDiffHunkSchema = z
   .object({
@@ -120,7 +120,7 @@ export const cuaToolResultDisplayPayloadSchema = z
     schemaVersion: z.literal(1),
     toolName: z.string().min(1),
     status: z.enum(["success", "failed"]),
-    // 旧 v1 历史记录曾重复携带 ToolCallRow.input；只为回放兼容继续接受，新 producer 不再写入。
+// The old v1 history record once carried ToolCallRow.input repeatedly; it will only continue to be accepted for playback compatibility, and the new producer will no longer write it.
     input: z.string().optional(),
     structuredContent: z.string().optional(),
     text: z.string().optional(),
@@ -133,7 +133,7 @@ export const cuaToolResultDisplayPayloadSchema = z
         z
           .object({
             mimeType: z.string().min(1),
-            // 256 KiB 原始图片编码后的最大 base64 长度；总预算由投影器执行。
+// 256 KiB Maximum base64 length of the original image after encoding; total budget enforced by the projector.
             data: z.string().min(1).max(349_528).optional(),
             artifactUri: z.string().min(1).optional(),
           })
@@ -146,9 +146,9 @@ export const cuaToolResultDisplayPayloadSchema = z
   .strict();
 
 /**
- * node_repl cell 的目标应用身份（Computer Use）。`appKey` 是 producer 的形态：
+* The target application identity (Computer Use) of node_repl cell. `appKey` is the form of producer:
  * `darwin:<bundleId>` / `windows-aumid:<aumid>` / `windows-exe:<path>` / `linux-exe:<path>`；
- * UI 按前缀派生 `ApplicationIconLocator` 再交给平台服务解析，协议不承载图标字节。
+* The UI derives `ApplicationIconLocator` according to the prefix and then passes it to the platform service for parsing. The protocol does not carry icon bytes.
  */
 export const nodeReplCuaAppDisplaySchema = z
   .object({
@@ -160,8 +160,8 @@ export const nodeReplCuaAppDisplaySchema = z
 export const nodeReplImageToolResultDisplayPayloadSchema = z
   .object({
     kind: z.literal("node_repl_images"),
-    // images 可选而不是 min(1)：CUA 的纯动作 cell（点击、输入）没有截图，但仍要投影 app 身份。
-    // kind 名保留为 node_repl_images —— 改名会让已持久化的 row 在 strict union 里整段被剥掉。
+// images optional instead of min(1): CUA's pure action cells (click, input) do not take screenshots, but still project the app identity.
+// kind name remains as node_repl_images - changing the name will cause the entire persisted row to be stripped in strict union.
     images: z
       .array(
         z
@@ -190,9 +190,9 @@ export const mcpToolResultDisplayPayloadSchema = z
     toolName: z.string().min(1).max(MCP_TOOL_DISPLAY_MAX_NAME_CHARS),
     description: z.string().min(1).max(MCP_TOOL_DISPLAY_MAX_DESCRIPTION_CHARS).optional(),
     /**
-     * 官方 Server MCP 判定本次调用不可用时下发的结构化标识（额度耗尽 / 无 Coding Plan）。
-     * 只在 tool result 为 isError 且该 MCP 为官方来源时出现，UI 据此在输入框上方提示。
-     * 与 code 同源：`@zcode/shared` 的 OFFICIAL_MCP_TOOL_ERROR_CODES。
+* The structured identification issued by the official Server MCP when it determines that this call is unavailable (limit exhausted/no Coding Plan).
+* Only appears when tool result is isError and the MCP is an official source, and the UI prompts above the input box accordingly.
+* Same origin as code: OFFICIAL_MCP_TOOL_ERROR_CODES of `@zcode/shared`.
      */
     unavailable: z
       .object({ code: z.enum(OFFICIAL_MCP_TOOL_ERROR_CODES) })
@@ -202,10 +202,10 @@ export const mcpToolResultDisplayPayloadSchema = z
   .strict();
 
 /**
- * ⚠ 这个字段集合是**冻结**的。既有 kind 上多出来的键不是「旧客户端少读一个字段」，而是整块 display
- * 校验不过：两个真实的 strict 解析点（packages/ui 的 create-workflow renderer safeParse，
- * 与 legacy v3 的按 kind 查表）会连带把整条工具结果丢掉。gate 专属的事实一律走**工具入参**
- * 通道（那一侧对所有版本都无 schema），可复用工作流的 saved 来源就是这么做的。
+* ⚠ This field collection is **frozen**. The extra key on the existing kind is not "one less field read by the old client", but the entire display
+* Failure to verify: two real strict parsing points (create-workflow renderer safeParse of packages/ui,
+* With legacy v3 (kind lookup table), the entire tool result will be discarded. Gate-specific facts will be entered through the **tool**
+* channel (that side has no schema for all versions), the saved source of the reusable workflow does this.
  */
 export const createWorkflowToolResultDisplayPayloadSchema = z
   .object({
@@ -215,13 +215,13 @@ export const createWorkflowToolResultDisplayPayloadSchema = z
     diagnostics: z
       .array(createWorkflowToolResultDisplayDiagnosticSchema)
       .max(CREATE_WORKFLOW_DISPLAY_MAX_DIAGNOSTICS),
-    // 工具输出边界已限长（见 create-workflow.ts 的图 schema），display 直接复用同一契约。
+// The tool output boundary has been limited in length (see the schema of create-workflow.ts), and display directly reuses the same contract.
     causalityGraph: CreateWorkflowCausalityGraphSchema.optional(),
     truncated: z.boolean().optional(),
   })
   .strict();
 
-// contracts 使用 zod v3，App 使用 v4；与 shared/bash-output-display.ts 保持同一严格契约。
+// contracts use zod v3, App uses v4; maintain the same strict contract as shared/bash-output-display.ts.
 const bashOutputDisplaySchema = z
   .object({
     kind: z.literal("bash_output"),
@@ -321,27 +321,27 @@ export function parseToolResultDisplayPayload(
 }
 
 /**
- * 解析前的统一清洗。
+* Unified cleaning before parsing.
  *
- * display 是**落库**的：它写进 tool part 的 `metadata.display`，此后每次读取都要重新过
- * 一遍严格解析，而渲染端对每一帧同样有一份严格的镜像 schema。所以剥离必须发生在 CLI 侧、
- * 解析之前——上面两个入口就是唯一的卡点，v4 冷启动水合与 session-transcript 回放都经过它。
+* display is **inventory**: it is written into the `metadata.display` of the tool part, and must be read again every time thereafter.
+* It is strictly parsed in one pass, and the rendering side also has a strict mirror schema for each frame. So the stripping must happen on the CLI side,
+* Before parsing - the above two entrances are the only stuck points, v4 cold start hydration and session-transcript playback both pass through them.
  *
- * 每个 stripper 只认自己那一个 kind，只改在场的键，别的 kind 原样进入解析。
+* Each stripper only recognizes its own kind and only changes the keys present. Other kinds will be parsed as they are.
  */
 function scrubPersistedDisplay(display: unknown): unknown {
   return stripProviderStopFromGetWorkflowRunError(stripWithdrawnRefinedNames(display));
 }
 
 /**
- * 剥掉持久化 get_workflow_run 卡上的 `providerStop`。
+* Strip `providerStop` on persistent get_workflow_run card.
  *
- * 早期构造侧曾把只属于模型通道的 `providerStop` 一并写进 display，而渲染端的
- * 镜像 schema 从来只认 `{code, message}`，那些帧一律被拒。构造侧已经改成只带
- * code / message，但历史持久化的 part 每次冷启动都会被重新读一遍，只能在这里剥。
+* In the early construction side, `providerStop`, which only belonged to the model channel, was written into the display, while the rendering side
+* The mirror schema always only recognizes `{code, message}`, and those frames are always rejected. The structural side has been changed to only take
+* code/message, but the historical persistence part will be re-read every cold start and can only be stripped here.
  *
- * 只认 kind 为 get_workflow_run、且 error 是普通对象、且 `providerStop` 在场的载荷；不带
- * 该键的 error 与缺席的 error 原样返回，不凭空添一个 undefined。
+* Only payloads whose kind is get_workflow_run, error is a normal object, and `providerStop` is present; without
+* The error of the key and the missing error are returned as they are without adding an undefined out of thin air.
  */
 function stripProviderStopFromGetWorkflowRunError(display: unknown): unknown {
   if (!isPlainRecord(display) || display.kind !== "get_workflow_run") return display;
@@ -352,14 +352,14 @@ function stripProviderStopFromGetWorkflowRunError(display: unknown): unknown {
 }
 
 /**
- * 剥掉已撤回的模型精炼字段。
+* Strip withdrawn model refinement fields.
  *
- * 之前持久化的 create_workflow display 里，车道与阶段可能带 `refinedName`、
- * step 可能带 `refinedLabel`。这三个字段已从 schema 删除，而两个入口都是 `.strict()`
- * 解析：不先剥掉，旧会话的整个 display（连同图）会在这里被拒掉，而不只是丢一个名字。
+* In the previously persisted create_workflow display, lanes and stages may have `refinedName`,
+* step may take `refinedLabel`. These three fields have been removed from the schema, and both entries are `.strict()`
+* Analysis: Without stripping it off first, the entire display of the old session (along with the image) will be rejected here, not just a name.
  *
- * 只认 create_workflow 且带 causalityGraph 的载荷；别的 kind 原样进入解析。只改在场的
- * 键，不给缺席的 `phases` 之类凭空添一个 undefined。
+* Only create_workflow with the payload of causalityGraph is recognized; other kinds are parsed as they are. Only change those who are present
+* key, do not add an undefined out of thin air to absent `phases` and the like.
  */
 function stripWithdrawnRefinedNames(display: unknown): unknown {
   if (!isPlainRecord(display) || display.kind !== "create_workflow") return display;

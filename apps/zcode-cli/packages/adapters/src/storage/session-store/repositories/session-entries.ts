@@ -12,8 +12,8 @@ import { touchSession } from "./sessions.js";
 
 export function saveSessionEntry(db: DatabaseSync, input: SessionEntryInfo): void {
   const isModelSelection = input.type === SESSION_ENTRY_MODEL_SELECTION;
-  // 旧版读取 data 的平铺身份；新版 port 仍传逻辑 Selection，包装只属于存储 adapter。
-  // undefined 与既有 fork 的 null 都写成明确空值，防止重启重新导入旧字段。
+// The old version reads the flat identity of data; the new version of the port still passes the logical Selection, and the packaging only belongs to the storage adapter.
+// undefined and null in existing fork are written as clear null values ​​to prevent restarting and re-importing old fields.
   const encoded = encodeJson(
     isModelSelection ? { modelSelection: input.data ?? null } : input.data,
   );

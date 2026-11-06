@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import {
   deriveWorkflowSessionLinks,
   type WorkflowActivitySnapshot,

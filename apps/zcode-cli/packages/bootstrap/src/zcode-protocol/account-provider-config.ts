@@ -10,9 +10,9 @@ import {
 } from "./server-types.js";
 
 /**
- * 更新进程级 Account Provider Config。
+* Update process-level Account Provider Config.
  *
- * 该协议传 Account Overlay 与对应状态；API Key、JWT 和动态 Header 由请求期鉴权协议处理。
+* This protocol transmits Account Overlay and corresponding status; API Key, JWT and dynamic header are processed by the request period authentication protocol.
  */
 export async function updateAccountProviderConfig(
   context: ZCodeProtocolAgentServerContext,

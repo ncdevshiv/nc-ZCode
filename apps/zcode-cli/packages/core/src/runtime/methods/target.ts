@@ -113,8 +113,8 @@ export async function executeTargetContinuationCommand(
     });
     return null;
   }
-  // 没有 nextAction 的失败结果来自 verifier 自身失败或无效输出，
-  // 不是模型确认的下一步工作；继续自动续跑会把内部错误变成无限目标迭代。
+// Failure results without nextAction come from verifier's own failure or invalid output,
+// This is not the next step in model validation; continuing to run automatically will turn an internal error into an infinite target iteration.
   if (verificationResult && !verificationResult.verification.nextAction?.trim()) {
     this.logger?.warn("Goal continuation skipped after verifier failed without next action", {
       ...traceContextToLogContext(traceContext),
@@ -126,8 +126,8 @@ export async function executeTargetContinuationCommand(
     return null;
   }
   const latestTarget = await this.readSessionTargetForContext(traceContext);
-  // 目标校验请求可能在用户点击 Stop 后才返回；队列会保持 stopRequested，
-  // 但 verifier 拿到的是校验开始前的 active target。这里必须重读目标状态，避免用旧对象继续续跑。
+// The target verification request may not return until the user clicks Stop; the queue will remain stopRequested,
+// But the verifier gets the active target before the verification starts. The target state must be reread here to avoid continuing to run with old objects.
   if (
     !latestTarget ||
     latestTarget.status !== "active" ||
@@ -166,9 +166,9 @@ export async function executeTargetContinuationCommand(
 
   return await this.executeTurnCommand(prompt, undefined, {
     abortSignal: options.abortSignal,
-    // session/send 期间触发的目标自动续跑仍属于同一次用户提交。
-    // 若这里丢掉 inputId，最终 turn.completed 会回落到 runtime trace，
-    // 桌面端 activeInputId 对不上后会一直停在 streaming/loading。
+// The automatic continuation of the target triggered during session/send still belongs to the same user submission.
+// If the inputId is lost here, eventually turn.completed will fall back to the runtime trace.
+// Desktop activeInputId will always stop at streaming/loading if it fails to match.
     inputId: options.inputId,
     intent: options.intent,
     inputSource: "goal-continuation",
@@ -424,8 +424,8 @@ export async function activatePausedTargetAfterResume(
 ): Promise<SessionGoal | null> {
   if (!this.sessionStore || this.getPlanEnabled()) return null;
   const target = await this.readSessionTargetForContext(traceContext);
-  // 用户 Stop 运行中的 goal 时，取消收口会把 target 标记为 paused。
-  // 冷恢复不能再把它自动改回 active，否则会在用户明确停止后继续 verifier/continuation，
-  // 也会让桌面队列“立即发送”被残留 active goal 状态卡住。显式 /goal resume 才能重新激活。
+// When the user stops a running goal, canceling the closing will mark the target as paused.
+// Cold recovery cannot automatically change it back to active, otherwise verifier/continuation will continue after the user explicitly stops it.
+// It will also cause the desktop queue "send immediately" to be stuck in the residual active goal state. Explicit /goal resume is required to reactivate.
   return target;
 }

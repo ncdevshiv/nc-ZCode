@@ -73,7 +73,7 @@ function buildEnvInfoContent(info: EnvInfo, model?: Model): string {
     `- ${PLATFORM_LABEL}: ${info.platform}`,
     `- ${SHELL_LABEL}: ${info.shell}`,
     `- ${OS_VERSION_LABEL}: ${info.osVersion}`,
-    // 旧环境快照可能携带历史模型字段；渲染只读取本步骤实际执行的 Model。
+// Old environment snapshots may carry historical model fields; rendering only reads the Model actually executed in this step.
     ...(model
       ? [`- You are powered by the model named ${model.providerId}/${model.modelId}.`]
       : []),

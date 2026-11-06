@@ -98,4 +98,4 @@ sequenceDiagram
 3. `clientMode`/`deliveryProfile` mismatch → rejected by schema `superRefine`.
 4. Mixed rollout: old TS client against new Host (and vice versa) either handshakes
    or fails closed — never partially decodes frames.
-5. `pnpm typecheck` and `pnpm lint` executed and reported on the TS side.
+5. `bun run typecheck` and `bun run lint` executed and reported on the TS side.

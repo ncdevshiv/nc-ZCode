@@ -3,7 +3,9 @@ import { ingestMcpResourceSamples } from "./processResourceMcpTelemetrySource.js
 /* eslint-disable max-lines -- host process 统一处理 main↔host 生命周期、日志、ZCode Agent，拆分前先保持跨进程消息收口。 */
 import { bindDatabaseStartupRelay } from "./databaseStartupRelay.js";
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { isRustHostEnabled, resolveRustServerPath } from "./rustHostSpawn.js";
 import {
   app,
   BrowserWindow,
@@ -233,13 +235,29 @@ export function spawnHostProcess(
     ...(RUNTIME_ZCODE_DEBUG ? [`--inspect-brk=${RUNTIME_ZCODE_DEBUG}`] : []),
     "--no-warnings",
   ];
-  const child = electronUtilityProcess.fork(hostModulePath, [], {
+  // Cutover (spec §6): `ZCODE_NATIVE_HOST=1` forks the Rust channel bridge
+  // (`host/rustChannelBridge.js`, MessagePort ↔ TCP byte bridge over a Rust
+  // `zcode-server`) instead of the TS `host/index.js` runtime. The TS host
+  // stays the fallback when the Rust binary is missing.
+  const rustServerPath = isRustHostEnabled() ? resolveRustServerPath() : undefined;
+  const rustBridgePath = join(dirname(hostModulePath), "rustChannelBridge.js");
+  const useRustBridge = Boolean(rustServerPath && existsSync(rustBridgePath));
+  const forkPath = useRustBridge ? rustBridgePath : hostModulePath;
+  if (isRustHostEnabled()) {
+    dependencies.logger.info(
+      useRustBridge
+        ? `[spawnHostProcess] Rust host selected for (${label}), binary=${rustServerPath}, bridge=${forkPath}`
+        : `[spawnHostProcess] ZCODE_NATIVE_HOST=1 but Rust server/bridge not found (server=${rustServerPath ?? "<missing>"}, bridge=${rustBridgePath}); falling back to TS host`,
+    );
+  }
+  const child = electronUtilityProcess.fork(forkPath, [], {
     serviceName: formatZCodeHostProcessName(label),
     execArgv,
     env: {
       ...buildHostProcessEnv(dependencies.hostProcessLocalEnv),
       ...buildHostE2ECoverageEnv(),
       ZCODE_PROCESS_LABEL: label,
+      ...(rustServerPath ? { ZCODE_RUST_SERVER_PATH: rustServerPath } : {}),
       // macOS-only: the Computer Use Helper launcher runs inside this forked host utilityProcess, whose
       // code-signing identity is a nested Electron helper (NOT dev.zcode.app). Publish THIS (main
       // Electron) process's pid — which IS dev.zcode.app — so helperLauncher passes it as

@@ -96,7 +96,7 @@ export function TuiApp({
   const [slashSelection, setSlashSelection] = useState<SlashSelectionState | undefined>();
   const [approvalQueue, setApprovalQueue] = useState<ApprovalPrompt[]>([]);
   const [inputCursorToEndVersion, setInputCursorToEndVersion] = useState(0);
-  // dwf 运行态镜像：共享 reducer 逐事件维护 + 冷启动一次性补种，无第二时钟。
+// dwf running image: shared reducer event-by-event maintenance + cold start one-time reseeding, no second clock.
   const workflowRuns = useTuiWorkflowRuns({ copy: copy.tui, options, setMessages });
   const sidebar = useSidebarController();
   const subagents = useSubagents(options);

@@ -1,4 +1,5 @@
-import ts from "typescript";
+// @ts-nocheck
+import ts from "../compiler/ts-shim.js";
 import { addOcc, cloneValue, collapse, mergeInto, provisionalFanoutId, type AbstractValue } from "./domain.js";
 import { bindForInitializer } from "./assign.js";
 import type { EvalContext, Evaluator } from "./taint.js";

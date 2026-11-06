@@ -34,24 +34,24 @@ export async function persistUserPrompt(
   traceContext: TraceContext,
   options?: {
     /**
-     * drain 注入的输入把投递语义落到持久事实（metadata.turnSteerDelivery），
-     * 冷恢复据此还原「queue=独立轮 / guide=内联当前轮」的切分，与 live 结构一致。
+* drain injected input puts delivery semantics into persistent facts (metadata.turnSteerDelivery),
+* Cold recovery restores the segmentation of "queue=independent round / guide=inline current round" accordingly, which is consistent with the live structure.
      */
     steerDelivery?: "guide" | "queue";
     inputPresentation?: RuntimeInputPresentation;
     /**
-     * （promotion 原子性）：给定账本 id 且 store 支持时，账本置 promoted
-     * 与 message/parts 持久化走同一事务——杜绝「queue 已消费但 transcript 无
-     * user message」的孤儿窗口（旧 drain 跨 store 无事务）。
+* (promotion atomicity): When the ledger id is given and the store supports it, the ledger is set to promoted
+* Follow the same process as message/parts persistence - to prevent "queue has been consumed but transcript is not available"
+* User message" orphan window (old drain cross-store no transactions).
      */
     sessionInputId?: string;
-    /** V4 command 幂等锚点；必须来自 CLI admission，不能在 drain 时换新 id。 */
+/** V4 command idempotent anchor; must come from CLI admission, and cannot change the id when draining. */
     sourceCommandId?: string;
     clientId?: string;
     intent?: TurnInputIntentMetadata;
-    /** 冷恢复所需的执行语义；不能只存在于 live TurnStarted。 */
+/** Execution semantics required for cold recovery; cannot exist only in live TurnStarted. */
     executionKind?: TurnExecutionKind;
-    /** 引擎附加文本的起点；同样为冷恢复而存。 */
+/** Starting point for engine appended text; also stored for cold recovery. */
     epilogueStart?: number;
   },
 ): Promise<void> {
@@ -156,9 +156,9 @@ export async function persistUserPrompt(
     });
     const sourceCommandId =
       options.intent?.sourceCommandId ?? options.sourceCommandId ?? options.sessionInputId;
-    // promotion 事务提交后再发事件：gateway 只能在此边界解除 live-input pin。
-    // 若在 queue remove/TurnStarted 就解除，LRU churn 会在 transcript 尚未落盘时把
-    // commands/query 退化成 unknown，重复执行同一输入。
+// Promotion event is sent after the transaction is submitted: gateway can only release the live-input pin at this boundary.
+// If it is canceled during queue remove/TurnStarted, LRU churn will be transferred before the transcript is placed.
+// commands/query degenerates into unknown and executes the same input repeatedly.
     await this.appendEvent(
       this.createEvent(
         SessionEventType.SessionInputPromoted,
@@ -203,7 +203,7 @@ export async function persistSyntheticUserNoticeForSession(
     source: SyntheticUserMessageSource;
     text: string;
     traceContext: TraceContext;
-    /** 额外结构化 metadata，会与 `{ source }` 合并写到 part.metadata 上，供 UI 识别消息类型。 */
+/** Additional structured metadata will be merged with `{ source }` and written to part.metadata for the UI to identify the message type. */
     metadata?: Record<string, unknown>;
     visibility?: MessageVisibility;
   },
@@ -305,8 +305,8 @@ export async function persistAssistantMessage(
       },
       error: update?.error,
       parentID,
-      // 默认模型可能在请求进行中切换；模型请求路径必须显式传入生成这条
-      // 消息的模型。默认值只保留给不经过模型结果的既有 synthetic/fallback 路径。
+// The default model may be switched during the request; the model request path must be explicitly passed in to generate this
+// Message model. The default value is only reserved for existing synthetic/fallback paths that do not go through the model results.
       modelId,
       providerId,
       mode: this.config.mode ?? "build",
@@ -314,7 +314,7 @@ export async function persistAssistantMessage(
       agent: this.config.agentName ?? "zcode-agent",
       path: {
         cwd: this.workingDirectory,
-        // cwd 可随 Bash cd 变化，root 必须保留会话初始工作区身份。
+// cwd can change with Bash cd, root must retain the session's initial workspace identity.
         root: this.workspaceRoot,
       },
       cost: 0,

@@ -146,7 +146,7 @@ function parseDotenv(content: string): Record<string, string> {
 
 function resolveWorkspaceRootForEnvFiles(): string | null {
   const workspaceRootCandidate = resolve(import.meta.dirname, "../../../..");
-  return existsSync(join(workspaceRootCandidate, "pnpm-workspace.yaml"))
+  return existsSync(join(workspaceRootCandidate, "bunfig.toml"))
     ? workspaceRootCandidate
     : null;
 }

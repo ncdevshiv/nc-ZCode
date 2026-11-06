@@ -26,30 +26,30 @@ export interface WorkspaceHookTelemetryFields {
   action?: string;
   generation?: number;
   /**
-   * 调用侧传入的 errorMessage 需要透传：否则原始错误在 emit 时被静默丢弃，
-   * 日志里只剩 reasonCode，实际排查无法定位真实 cause。
-   * 仅承载领域错误自身的短消息，不携带命令、脚本内容或 Trust payload。
+* The errorMessage passed in from the calling side needs to be transparently transmitted: otherwise the original error will be silently discarded during emit.
+* Only reasonCode is left in the log, and actual troubleshooting cannot locate the real cause.
+* Only carries the short message of the domain error itself, and does not carry commands, script content or Trust payload.
    */
   errorMessage?: string;
   /**
-   * Trust 落盘条数诊断：store 写入少于已选择声明时，decisionAccepted
-   * 未抛错），日志无从判断是 request 少带了 item 还是写入阶段丢了记录。
+* Diagnosis of the number of Trust disks: when the store writes less than the selected statement, decisionAccepted
+* No error is thrown), the log cannot determine whether the request contains less items or the record is lost during the writing phase.
    *
-   * requestItemCount / requestEnabledCount 记录审核请求实际携带的条数；
-   * grantedRecordCount 记录本次真正写入的条数。三者对不上即为静默丢失。
+* requestItemCount / requestEnabledCount records the actual number of items carried by the audit request;
+* grantedRecordCount records the number of records actually written this time. If the three do not match up, silence will be lost.
    */
   requestItemCount?: number;
   requestEnabledCount?: number;
   grantedRecordCount?: number;
-  /** revoke 实际撤销的声明条数（与 grantedRecordCount 分开，避免语义混用）。 */
+/** revoke The number of statements actually revoked (separate from grantedRecordCount to avoid semantic confusion). */
   revokedCount?: number;
 }
 
 const MAX_TELEMETRY_ERROR_MESSAGE_LENGTH = 300;
 
 /**
- * Workspace Hook 的观测统一复用现有 Logger Port。
- * 只发送稳定 reason、generation 和摘要，不发送命令、脚本内容、路径或 Trust payload。
+* Workspace Hook's observations uniformly reuse the existing Logger Port.
+* Only send stable reason, generation and digest, not command, script content, path or Trust payload.
  */
 export function emitWorkspaceHookTelemetry(
   logger: Logger | undefined,
@@ -90,11 +90,11 @@ export function digestSummary(value: string): string {
 }
 
 /**
- * workspace identity 的 SHA-256 短摘要。
+* SHA-256 short digest of the workspace identity.
  *
- * 本实现的 identity 就是绝对路径，明文要求 telemetry 不上传
- * 完整 workspace path、不记录 source path，因此任何要进入 telemetry 的文本
- * （含领域错误的 message）都必须先经此脱敏，而不是依赖下游过滤。
+* The identity of this implementation is the absolute path, and the telemetry is explicitly required not to be uploaded.
+* Complete workspace path, source path is not recorded, so any text that needs to enter telemetry
+* (Messages containing domain errors) must first undergo this desensitization instead of relying on downstream filtering.
  */
 export function workspaceIdentitySummary(value: string): string {
   return createHash("sha256").update(value).digest("hex").slice(0, 12);

@@ -1,7 +1,7 @@
-/* Agent 侧的官方 MCP 身份头端口。
-   Agent 进程不是身份权威：经 interaction/requestOfficialMcpAuthHeaders 反向请求 host，
-   由 host 解析当前 Coding Plan 凭证后回传本次请求的身份头。凭证不落 runtime config、
-   不持久化、不进日志。 */
+/* Official MCP identity header port on the Agent side.
+Agent process is not an identity authority: reverse request to host via interaction/requestOfficialMcpAuthHeaders,
+The host parses the current Coding Plan credentials and returns the identity header of this request. The credentials do not fall into runtime config,
+No persistence, no logging. */
 import {
   zcodeOfficialMcpAuthHeadersResponseSchema,
   zcodeProtocolMethods,
@@ -12,30 +12,30 @@ import type { ZCodeProtocolAgentServerContext } from "./server-types.js";
 
 let requestSequence = 0;
 
-/** 端口只需要发反向请求的能力，不需要整个 server context。 */
+/** The port only needs the ability to send reverse requests, not the entire server context. */
 export type OfficialMcpAuthRequestContext = Pick<
   ZCodeProtocolAgentServerContext,
   "requestClient"
 >;
 
 /**
- * 构造经协议反向请求取身份头的端口。
+* Construct the port for obtaining the identity header through protocol reverse request.
  *
- * `resolveContext` 是惰性的：MCP 连接池的构造早于 ZCodeProtocolAgentServer，
- * server 就绪前返回 undefined，此时按不可用处理（不降级为匿名请求）。
+* `resolveContext` is lazy: the MCP connection pool was constructed earlier than ZCodeProtocolAgentServer,
+* Returns undefined before the server is ready. At this time, it will be treated as unavailable (it will not be downgraded to an anonymous request).
  *
- * 失败一律走返回值（ok:false + 可枚举 reason），不抛异常：
- * 传输层异常统一归为 official_auth_unavailable，由 MCP adapter 置该 server 为 failed。
+* In case of failure, the return value (ok:false + enumerable reason) will be returned, and no exception will be thrown:
+* Transport layer exceptions are uniformly classified as official_auth_unavailable, and the MCP adapter sets the server to failed.
  *
- * workspace 的用途与已知缺口：
- * - host 侧**不**用它路由响应——响应经 `client.respond(request.id, ...)` 回到发起请求的
- *   那条 stdio 连接，路由由连接本身决定。该字段仅作请求上下文/审计用；
- * - 但仍必须遵守仓库约定 `workspaceKey = workspaceIdentity?.trim() || workspacePath`，
- *   否则同路径不同 identity 的远端 workspace 在审计上下文里无法区分；
- * - **剩余缺口**：CLI agent 进程当前没有 workspaceIdentity 来源
- *   （`RunZCodeProtocolAgentOptions` 只有 cwd/env/…，也无对应环境变量），因此该字段实际
- *   退化为 workspacePath。这里保证的是"拿到 identity 就正确透传"，而不是"identity 一定存在"。
- *   若将来审计需要真实远端身份，需在 spawn 或协议层把 identity 传给 agent，不在本阶段范围。
+*Usage and known gaps of workspace:
+* - The host side does not use it to route responses - responses are returned to the requester via `client.respond(request.id, ...)`
+* For that stdio connection, routing is determined by the connection itself. This field is only for request context/auditing purposes;
+* - but must still adhere to the warehouse convention `workspaceKey = workspaceIdentity?.trim() || workspacePath`,
+* Otherwise, remote workspaces with the same path and different identities cannot be distinguished in the audit context;
+* - **Remaining Gap**: The CLI agent process currently has no workspaceIdentity source
+* (`RunZCodeProtocolAgentOptions` only has cwd/env/... and no corresponding environment variables), so this field is actually
+* Degenerates into workspacePath. What is guaranteed here is "correct and transparent transmission once the identity is obtained", not "identity must exist".
+* If the real remote identity is required for future audits, the identity needs to be passed to the agent at the spawn or protocol layer, which is not within the scope of this stage.
  */
 export function createOfficialMcpAuthHeadersPort(input: {
   resolveContext: () => OfficialMcpAuthRequestContext | undefined;
@@ -69,8 +69,8 @@ export function createOfficialMcpAuthHeadersPort(input: {
           request.signal ? { signal: request.signal } : {},
         );
       } catch {
-        // host 不可达/协议错误：按不可用处理。错误详情不带出（可能含请求上下文），
-        // host 侧已记录不含秘密的分类日志。
+// Host unreachable/protocol error: handled as unavailable. Error details are not brought out (may include request context),
+// The host side has recorded classified logs without secrets.
         return { ok: false, reason: "official_auth_unavailable" };
       }
     },

@@ -1,6 +1,7 @@
-# Decision: workflow engine stays TypeScript; the native host is the conversation runtime
+# Decision: workflow engine core ported to Rust; native host is the conversation runtime
 
-Status: **accepted** (2026-10-27, main-dev decision)
+> **WARNING**: Never trust docs/logs without fully auditing code. Always verify against actual implementation.
+Status: **updated** (2026-11-05) — originally accepted 2026-10-27 stating engine stays TypeScript; code audit shows engine is implemented in Rust (`native/crates/nc-code-workflow`) and integrated into `native/crates/nc-code-host/src/workflow_service/`. TS compiler/sandbox may still be used in some paths per design; see `specs/disabled-features.md §3.3`. **Always audit code, not just docs.**
 Scope: `native/crates/zcode-host` v4 surface — the four workflow commands and the
 seven `workflowRun*` read methods, plus `discardSharedContext`.
 
@@ -27,9 +28,7 @@ product, not a port.
 1. The native host is the **conversation runtime**: sessions, turns, tools, hooks,
    goals, file ledger/rewind, queue, interactions, read model. That surface must be
    complete, tested and benchmarked — it is.
-2. The **workflow execution engine remains TypeScript**. The host does not emulate
-   runs, does not synthesize `backgroundWorks`/`workflowRuns` state, and does not
-   accept workflow commands it cannot carry out.
+2. The **workflow execution engine core is ported to Rust** (`native/crates/nc-code-workflow`) and integrated into `nc-code-host` workflow service. Some compilation/sandbox paths may still use TS/Node components by design; see `specs/disabled-features.md §3.3`. The TS workflow stack may remain the live path until the native host is default per rollout policy.
 3. The affected commands stay in `commands::UNROUTED_COMMANDS` and answer
    `fault.command.unsupported:<command>` with the missing-subsystem message. The
    affected methods stay in `rpc::V4_METHODS_UNIMPLEMENTED` and answer a JSON-RPC

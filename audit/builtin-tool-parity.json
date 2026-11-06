@@ -1,0 +1,12 @@
+{
+  "originalTools": 40,
+  "rustRegistered": 47,
+  "rustSyncRegistrations": 32,
+  "rustAsyncRegistrations": 15,
+  "tableRows": 44,
+  "boundaryTools": ["OffPeakCreate", "OffPeakList", "RespondToCoordinator"],
+  "rustOnlyTools": ["ReadImage", "Browser", "Computer", "ApplyPatch"],
+  "verifiedParity": 40,
+  "parityGate": "pass",
+  "notes": "TS built-in tools (40 from handlers/index.ts builtInTools) all have parity-table entries (ported or boundary) and Rust registry/checker passes. OffPeakCreate/OffPeakList/RespondToCoordinator are product boundaries (registered fail-closed/honest behavior). Browser/Computer/ReadImage/ApplyPatch are Rust-side tools registered in nc-code-host. WebSearch live-network success remains testExempt in table; validation/fail-closed covered. See native/tools/check-tool-parity.mjs and cargo test evidence."
+}

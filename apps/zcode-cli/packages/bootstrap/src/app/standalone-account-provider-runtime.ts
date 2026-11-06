@@ -73,7 +73,7 @@ export async function resolveStandaloneCodingPlanProvider(
   );
   if (matches.length !== 1) {
     throw new Error(
-      `ZCode Built-in Config 必须为 ${family} 声明唯一 Individual Coding Plan Provider`,
+      `ZCode Built-in Config must declare a unique Individual Coding Plan Provider for ${family}`,
     );
   }
   return matches[0]!;
@@ -81,26 +81,26 @@ export async function resolveStandaloneCodingPlanProvider(
 
 export function standaloneAccountIdentityCredentialKey(providerId: string): string {
   const normalized = providerId.trim();
-  if (!normalized) throw new Error("Standalone Account Provider ID 不能为空");
+  if (!normalized) throw new Error("Standalone Account Provider ID cannot be empty");
   return `account-provider:${normalized}:identity`;
 }
 
-/** Standalone Credential Store 私有键；不得进入 Provider Config、Model 或 Protocol。 */
+/** Standalone Credential Store private key; must not enter Provider Config, Model, or Protocol. */
 export function standaloneAccountProviderCredentialKey(input: {
   readonly providerId: string;
   readonly accountIdentity: string;
 }): string {
   const providerId = input.providerId.trim();
   const accountIdentity = input.accountIdentity.trim();
-  if (!providerId) throw new Error("Standalone Account Provider ID 不能为空");
-  if (!accountIdentity) throw new Error("Standalone Account Identity 不能为空");
+  if (!providerId) throw new Error("Standalone Account Provider ID cannot be empty");
+  if (!accountIdentity) throw new Error("Standalone Account Identity cannot be empty");
   return `account-provider:coding-plan:${providerId}:account:${encodeURIComponent(accountIdentity)}:api-key`;
 }
 
-/** 没有账号 Profile 的手工 Key 登录使用稳定、不可逆的连接身份。 */
+/** Manual Key login without account profile uses a stable, irreversible connection identity. */
 export function createStandaloneAccountIdentityFromSecret(secret: string): string {
   const normalized = secret.trim();
-  if (!normalized) throw new Error("Standalone Account Secret 不能为空");
+  if (!normalized) throw new Error("Standalone Account Secret cannot be empty");
   return `key-${createHash("sha256").update(normalized).digest("hex").slice(0, 24)}`;
 }
 
@@ -135,8 +135,8 @@ export async function readStandaloneAccountProviderConfigSnapshot(
       const candidate = candidateByProviderId.get(providerId);
       const apiKey = candidate ? apiKeyByCredentialKey[candidate.credentialKey]?.trim() : undefined;
       if (!candidate || !apiKey) {
-        // 账号 Overlay 缺少成员表示“不覆盖”，不能表达账号已断开；必须显式
-        // entitled=false，才能让 Built-in 账号 Provider 在凭据删除后从 Registry 退出。
+// Account Overlay lack of members means "no overlay" and cannot express that the account has been disconnected; it must be explicit
+// entitled=false allows the Built-in Account Provider to exit the Registry after the credentials are deleted.
         return [
           providerId,
           new ProviderConfig({
@@ -179,13 +179,13 @@ export function createStandaloneProviderRuntimeHeadersPort(
       const providerId = input.providerId.trim();
       const access = input.accountAccess;
       if (!access || access.mode !== "individual-coding-plan") {
-        throw new Error(`Standalone Account Provider 请求身份无效: ${providerId}`);
+        throw new Error(`Standalone Account Provider request identity is invalid: ${providerId}`);
       }
       const currentIdentity = (
         await credentialStore.load(standaloneAccountIdentityCredentialKey(providerId))
       )?.trim();
       if (!currentIdentity)
-        throw new Error(`Standalone Account Provider 凭据已经失效: ${providerId}`);
+        throw new Error(`Standalone Account Provider credentials have expired: ${providerId}`);
       const apiKey = (
         await credentialStore.load(
           standaloneAccountProviderCredentialKey({
@@ -195,7 +195,7 @@ export function createStandaloneProviderRuntimeHeadersPort(
         )
       )?.trim();
       if (!apiKey) {
-        throw new Error(`Standalone Account Provider 缺少请求凭据: ${providerId}`);
+        throw new Error(`Standalone Account Provider Missing request credentials: ${providerId}`);
       }
       return {
         headersApplied: true,

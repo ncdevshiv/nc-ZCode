@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 // ============================================================
 // Node FileSystem Adapter
 // ============================================================
@@ -234,8 +235,8 @@ export class NodeFileSystemAdapter implements FileSystemPort {
           ? await readFile(path)
           : await readAtMostBytes(path, request.maxBytes + 1, info.size);
       if (request.maxBytes !== undefined && buffer.byteLength > request.maxBytes) {
-        // stat 与 readFile 之间文件可能增长；实际读取也必须保持有界，
-        // 否则 maxBytes 既挡不住超限内容，也挡不住一次性大内存分配。
+// The file may grow between stat and readFile; actual reading must also remain bounded,
+// Otherwise, maxBytes can neither block over-limit content nor block one-time large memory allocation.
         throw createFileSystemError({
           code: "too_large",
           path,
@@ -664,7 +665,7 @@ async function readAtMostBytes(
 ): Promise<Buffer> {
   const handle = await open(path, "r");
   try {
-    // 稳定文件按 stat 大小一次读取；只有文件在 stat 后增长时才继续分块追到硬上限。
+// Stable files are read at a time according to the stat size; only when the file grows after stat will it continue to be divided into blocks to catch up to the hard upper limit.
     const firstBuffer = Buffer.allocUnsafe(Math.min(maxBytes, Math.max(1, initialSizeBytes + 1)));
     const chunks: Buffer[] = [];
     let bytesReadTotal = 0;
@@ -674,7 +675,7 @@ async function readAtMostBytes(
           ? firstBuffer
           : Buffer.allocUnsafe(Math.min(64 * 1024, maxBytes - bytesReadTotal));
       const { bytesRead } = await handle.read(chunk, 0, chunk.byteLength, bytesReadTotal);
-      // FileHandle.read 的短读不等于 EOF；只有明确返回 0 字节才能停止。
+// The short read of FileHandle.read is not equal to EOF; it can only be stopped by explicitly returning 0 bytes.
       if (bytesRead === 0) break;
       chunks.push(chunk.subarray(0, bytesRead));
       bytesReadTotal += bytesRead;
@@ -724,7 +725,7 @@ async function atomicWrite(path: string, content: Buffer): Promise<void> {
     try {
       await handle.writeFile(content);
       if (existingMode !== undefined) {
-        // 原子写会用临时文件 inode 覆盖目标文件；必须先复制原文件权限，避免抹掉脚本执行位。
+// Atomic writing will overwrite the target file with the temporary file inode; the original file permissions must be copied first to avoid erasing the script execution bit.
         await handle.chmod(existingMode);
       }
       await handle.sync();
@@ -1053,9 +1054,9 @@ function runBundledRipgrepWorker(
     return Promise.reject(createAbortError("ripgrep search was cancelled before it started"));
   }
 
-  // 不能在 agent 主线程里直接运行 WASI ripgrep。大目录搜索会占住 Node
-  // event loop，导致 session/stop 虽然绕过协议队列，却没有机会被 agent 处理。
-  // 放到 Worker 后，用户 stop 和超时都能从主线程 terminate 这个搜索执行单元。
+// WASI ripgrep cannot be run directly in the agent main thread. Large directory search will occupy Node
+// event loop causes session/stop to bypass the protocol queue but has no chance to be processed by the agent.
+// After placing it in Worker, user stop and timeout can terminate this search execution unit from the main thread.
   const worker = createRipgrepWorker({
     args: args.map(String),
     preopens,
@@ -1666,8 +1667,8 @@ function createOnlyMatchingEntries(input: {
     ];
   }
 
-  // ripgrep 只把 LF/CRLF 当作输出行边界；单独的 CR 是普通匹配文本。
-  // 同时，跨行 match 内部的空行不生成 entry，但整段零长度 match 需要保留空 entry。
+// ripgrep only treats LF/CRLF as output line boundaries; CR alone is normal matching text.
+// At the same time, the empty lines inside the cross-line match do not generate entries, but the entire zero-length match needs to retain empty entries.
   return input.text
     .split(/\r?\n/)
     .flatMap((line, index) =>
@@ -1686,7 +1687,7 @@ function createOnlyMatchingEntries(input: {
 }
 
 function splitRipgrepSearchLines(content: string): string[] {
-  // ripgrep 以 LF/CRLF 作为行结束符；末尾换行不是额外空行，单独的 CR 保留在行内容中。
+// ripgrep uses LF/CRLF as line terminators; the trailing newline is not an extra blank line, and a single CR remains in the line content.
   if (content.length === 0) return [];
   return content.replace(/\r?\n$/, "").split(/\r?\n/);
 }

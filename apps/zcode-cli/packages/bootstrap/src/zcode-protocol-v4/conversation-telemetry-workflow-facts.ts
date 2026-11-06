@@ -1,9 +1,9 @@
 // ============================================================
-// 动态工作流子代理的归属事实（子代理 token 埋点）
+// Attribution facts of dynamic workflow sub-agent (sub-agent token burying point)
 // ============================================================
-// 父会话的 DynamicWorkflowRunProgress 事件 → `workflow.lifecycle` 埋点事实。只在两种引擎事件上
-// 派生：actor-created（登记子代理 ↔ 子会话 ↔ 发起轮）与 run-settled（该 run 全部子代理的终态）。
-// 没有 `launchInputId`（升级前发起的 run）就不发：没有锚点的 step 无处可挂，宁缺毋造。
+// DynamicWorkflowRunProgress event of the parent session → `workflow.lifecycle` bury the facts. Only on two engine events
+// Derived: actor-created (registered subagent ↔ subsession ↔ initiated round) and run-settled (the final state of all subagents in this run).
+// If there is no `launchInputId` (the run initiated before the upgrade), it will not be launched: the step without anchor point has nowhere to hang, it is better to lack it than to create it.
 
 import type { DynamicWorkflowRunProgressPayload } from "@zcode/contracts";
 import {
@@ -15,11 +15,11 @@ const ACTOR_CREATED_EVENT_TYPE = "actor-created";
 const RUN_SETTLED_EVENT_TYPE = "run-settled";
 const RUN_STOPPED_ERROR_MESSAGE = "Workflow run stopped";
 
-/** run 的三终态词与停止原因，与引擎 RunStatus / RunStopReason 同集。 */
+/** The three final words and stop reasons of run are the same as the engine RunStatus / RunStopReason. */
 type WorkflowRunSettledStatus = "completed" | "errored" | "stopped";
 type WorkflowRunStopReason = "user" | "model" | "provider" | "interrupted" | "superseded";
 
-/** 进度事件信封上的派生字段（toProgressPayload 挂的，契约见 DynamicWorkflowRunProgressPayload）。 */
+/** The derived field on the progress event envelope (linked to toProgressPayload, see DynamicWorkflowRunProgressPayload for the contract). */
 interface WorkflowProgressDerivedFields {
   actorSessionId?: unknown;
   launchInputId?: unknown;
@@ -42,7 +42,7 @@ export function workflowLifecycleFactFromProgress(
       ...base,
       kind: "workflow.lifecycle",
       phase: "actor-spawned",
-      // 锚点即 sourceCommandId：子代理 step 挂在发起 run 那一轮的 message 下。
+// The anchor point is sourceCommandId: the sub-agent step is hung under the message of the round that initiated the run.
       sourceCommandId: launchInputId,
       runId: progress.runId,
       ...(toolCallId === undefined ? {} : { toolCallId }),
@@ -56,8 +56,8 @@ export function workflowLifecycleFactFromProgress(
     if (status === undefined) return null;
     const stopReason =
       status === "stopped" ? settledStopReason(progress.payload.stopReason) : undefined;
-    // 错误原文照引擎事件：errored 恒带 error；stopped 只对 provider / interrupted 带 error，
-    // user / model 停下没有原文，用固定文案加原因，让看板仍能分辨是谁停的。
+// The original text of the error is according to the engine event: errored always has error; stopped only has error for provider / interrupted.
+// There is no original text for user/model stop. Use fixed copy to add the reason so that the board can still tell who stopped.
     const engineMessage = optionalString(errorRecord(progress.payload.error)?.message);
     const errorMessage =
       status === "completed"
@@ -79,7 +79,7 @@ export function workflowLifecycleFactFromProgress(
   return null;
 }
 
-/** `siteId@ordinal`：与 dwf 引擎 refToString 同串（run 侧板的子代理标签也是它）。 */
+/** `siteId@ordinal`: the same string as the dwf engine refToString (the sub-agent tag of the run side panel is also it). */
 function actorRefString(value: unknown): string | undefined {
   if (typeof value !== "object" || value === null) return undefined;
   const ref = value as { siteId?: unknown; ordinal?: unknown };

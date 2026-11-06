@@ -35,10 +35,10 @@ export async function terminateMcpStdioProcessTree(
   pid: number,
   options: McpStdioProcessTreeTerminatorOptions = {},
 ): Promise<void> {
-  // Rust sidecar（Job Objects / Toolhelp + 权威存活探针）。flag 开且 sidecar 可用
-  // → 走 `kill_tree`（契约：根已死即空结果 no-op，与下方 TS 实现的存活守卫同）；
-  // 不可用 → 告警并继续用 TS 实现。可注入 execFile/kill/now/sleep/platform 的
-  // 测试路径跳过 sidecar（options 一旦被注入就是显式的确定性测试）。
+// Rust sidecar (Job Objects/Toolhelp + authoritative survival probe). flag is on and sidecar is available
+// → Go to `kill_tree` (contract: if the root is dead, the result is no-op, the same as the survival guard implemented by TS below);
+// Not available → Warn and continue using TS. Injectable into execFile/kill/now/sleep/platform
+// Test path skips sidecar (options are explicit deterministic tests once injected).
   if (!options.execFile && !options.kill && !options.now && !options.sleep) {
     if (await tryNativeTerminateProcessTree(pid)) {
       return;
@@ -163,7 +163,7 @@ function killPid(
   try {
     kill(pid, signal);
   } catch {
-    // 进程可能已经被 SDK close 或前一轮信号回收；关闭路径要求幂等。
+// The process may have been recycled by SDK close or previous round of signals; the closing path requires idempotence.
   }
 }
 
@@ -176,7 +176,7 @@ function killProcessGroup(
   try {
     kill(-pid, signal);
   } catch {
-    // SDK 当前没有 detached spawn，进程组可能不存在；保留兼容未来 launcher 的能力。
+// The SDK currently does not have detached spawn, and the process group may not exist; retaining compatibility with future launchers.
   }
 }
 

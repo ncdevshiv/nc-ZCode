@@ -1,7 +1,7 @@
-// dwf 运行态镜像的 TUI 控制器（与 useSidebarController / useInputHistory 同一 hook 惯例）。
+// TUI controller of dwf running image (same hook convention as useSidebarController / useInputHistory).
 //
-// 只管状态与派生：镜像本体、卡片联接表、展开集合。会话事件的接线留在 app.tsx
-// （订阅要拿到 applySessionEvent，而后者反过来要拿本 hook 的 setter，放一起会绕成环）。
+// Only state and derivation: mirror body, card connection table, expanded collection. Wiring for session events remains in app.tsx
+// (Subscription needs to get applySessionEvent, which in turn needs the setter of this hook, which will form a loop when put together).
 import React from "react";
 import type { TuiCopy } from "@zcode/i18n";
 import type { WorkflowRunProgressEnvelope } from "@zcode/shared/zcode-protocol-v4";
@@ -18,9 +18,9 @@ import {
   type TuiWorkflowRunSeed,
 } from "./app-workflow-mirror.js";
 
-/** `+`/`-` 的展开控制面。挂在一个对象上是为了让 app.tsx 只多传一个 prop。 */
+/** Expansion control surface for `+`/`-`. Hanging on an object allows app.tsx to pass only one more prop. */
 export type TuiWorkflowExpansionControls = {
-  /** 至少有一张卡时才允许吃掉 `+`/`-`——否则那两个键必须照常打进草稿。 */
+/** Capturing `+`/`-` is only allowed if there is at least one card - otherwise those two keys must be entered into the draft as usual. */
   hasCards: boolean;
   expandAll: () => void;
   collapseAll: () => void;
@@ -57,9 +57,9 @@ export function useTuiWorkflowRuns(input: {
     });
   }, []);
 
-  // 冷补种只搬展示名（label / updatedAt）。运行态走下面的回放：journal 的**真实、有序**事件
-  // 经同一个 reducer 归约——「绝不把摘要合成事件喂给 reducer」的禁令针对的是乱序合成，
-  // 对按 sequence 重放的引擎事件不成立。
+// Cold reseeding only moves the display name (label / updatedAt). Play the following playback in running state: journal’s **real and ordered** events
+// Reduced by the same reducer - the "never feed summary synthesis events to the reducer" prohibition is for out-of-order synthesis,
+// Not true for engine events replayed by sequence.
   const seed = React.useCallback((seeds: readonly TuiWorkflowRunSeed[]) => {
     setMirror((current) => seedWorkflowMirror(current, seeds));
   }, []);
@@ -73,14 +73,14 @@ export function useTuiWorkflowRuns(input: {
     [],
   );
 
-  // 展开/收起全部：TUI 刻意没有卡片选择机制（无面板、无光标），所以 `+`/`-` 只能作用于全体。
+// Expand/collapse all: TUI deliberately does not have a card selection mechanism (no panel, no cursor), so `+`/`-` can only work on the whole.
   const runIdsKey = [...cardsByToolCallId.values()].map((card) => card.runId).join("\u0000");
   const expandAll = React.useCallback(() => {
     setExpandedRunIds(new Set(runIdsKey.length === 0 ? [] : runIdsKey.split("\u0000")));
   }, [runIdsKey]);
   const collapseAll = React.useCallback(() => setExpandedRunIds(new Set<string>()), []);
 
-  // 挂载时补种一次并打 interrupted notice；无轮询（第二时钟是 legacy 面板的反面教材）。
+// Reseed once when mounting and hit interrupted notice; no polling (the second clock is the negative teaching material of the legacy panel).
   useWorkflowRunSeeding({
     copy: input.copy,
     ...(input.options.listWorkflowRuns === undefined

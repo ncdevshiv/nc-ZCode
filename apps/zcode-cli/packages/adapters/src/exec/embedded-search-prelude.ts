@@ -12,7 +12,7 @@ interface EmbeddedSearchPreludeOptions {
   shellDialect?: EmbeddedSearchPreludeShellDialect;
 }
 
-// ugrep 的 -z/-Z 与 GNU grep 的 null-data 语义不同；这些参数必须绕回系统 grep。
+// ugrep's -z/-Z have different semantics than GNU grep's null-data; these arguments must be wrapped around system grep.
 const GREP_BYPASS_CASE_PATTERN =
   "-*-filter*|-*-pager*|-*-view*|-*-format-open*|-*-config*|---*|-@*|-*-save-config*|-[Zz]*|-[!-]*[Zz]*|--null|--null-data";
 
@@ -39,7 +39,7 @@ export function buildEmbeddedSearchPreludeContent(
   if (!supportsPosixShellFunctionPrelude(options.shellDialect)) return undefined;
 
   const backend = normalizeBackendForShell(prelude.backend, options.shellDialect);
-  // Windows 不分发 bfs；Git Bash 必须保留系统 find，不能只因存在 fallback 就覆盖用户定义。
+// Windows does not distribute bfs; Git Bash must retain the system find and cannot overwrite user definitions just because there is a fallback.
   const shouldWrapFind = options.shellDialect !== "git-bash";
   const content =
     prelude.findAndGrepEnabled === false
@@ -145,15 +145,15 @@ function createRipgrepFallback(backend: EmbeddedSearchBackend): string | undefin
 
   switch (backend.kind) {
     case "internal-cli":
-      // 兼容 backend 没有原生 rg；不能恢复无法保留 stdin 的 Node/WASM 转发路径。
+// Compatible backend without native rg; cannot restore Node/WASM forwarding path that cannot preserve stdin.
       return undefined;
     case "argv0-dispatch":
       backendCommand = backend.command;
       invocation = `ARGV0=rg ${createCommandInvocation(backend)} "$@"`;
       break;
     case "native-binaries":
-      // 同名 rg 不是独立 fallback：外层检查已经证明 shell 里没有可执行 rg。
-      // 此时再定义 rg function 会让 command -v 误报可用，但调用仍只能失败。
+// The rg with the same name is not an independent fallback: outer inspection has proven that there is no executable rg in the shell.
+// Defining rg function again at this time will make command -v false positives available, but the call will still fail.
       if (backend.rgCommand === "rg") return undefined;
       backendCommand = backend.rgCommand;
       invocation = `command ${shellQuote(backend.rgCommand)} "$@"`;

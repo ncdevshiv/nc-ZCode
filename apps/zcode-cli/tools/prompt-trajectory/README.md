@@ -8,20 +8,20 @@ the production CLI and SEA packaging path.
 ## Commands
 
 ```bash
-pnpm --filter @zcode/bootstrap^... build
-pnpm --filter @zcode/bootstrap build
+bun run --filter @zcode/bootstrap^... build
+bun run --filter @zcode/bootstrap build
 
-pnpm --filter @zcode/prompt-trajectory record -- \
+bun run --filter @zcode/prompt-trajectory record -- \
   --fixture /path/to/recording.json \
   --out /tmp/zcode-prompt-trajectory/basic-live
 
-pnpm --filter @zcode/prompt-trajectory record:prompt -- \
+bun run --filter @zcode/prompt-trajectory record:prompt -- \
   --prompt "Say hello in one short sentence."
 
-pnpm --filter @zcode/prompt-trajectory derive -- \
+bun run --filter @zcode/prompt-trajectory derive -- \
   --out /tmp/zcode-prompt-trajectory/basic-live
 
-pnpm --filter @zcode/prompt-trajectory model-io -- \
+bun run --filter @zcode/prompt-trajectory model-io -- \
   --input ~/.zcode/cli/debug/model-io-<session>.jsonl \
   --out /tmp/zcode-prompt-trajectory/model-io-session
 ```

@@ -683,12 +683,14 @@ function ConversationComposerImpl({
       onDragOver: handleConversationDragOver,
       onDragLeave: handleConversationDragLeave,
       onDrop: handleConversationDrop,
+      onLocalPaths: attachmentsApi.addAttachmentLocalPaths,
     }),
     [
       conversationDragKind,
       handleConversationDragLeave,
       handleConversationDragOver,
       handleConversationDrop,
+      attachmentsApi.addAttachmentLocalPaths,
     ],
   );
   useEffect(() => {

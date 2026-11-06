@@ -20,9 +20,9 @@ export function providerOptionsForReasoningBlock(
     return { providerOptions: block.providerOptions };
   }
 
-  // 把“没有 signature”直接等同于“不兼容”会让同模型历史里的
-  // unsigned thinking 在 provider 序列化前被静默删除。跨模型、孤立和尾部清理由请求级
-  // history normalization 决定；这里用 serializer 支持的空签名表示保留的 unsigned block。
+// Directly equating "no signature" with "incompatible" will make it the same as in the model history
+// unsigned thinking is silently deleted before provider serialization. Cross-model, orphan, and tail cleanup are performed at the request level
+// History normalization decision; here the empty signature supported by the serializer is used to represent the reserved unsigned block.
   return {
     providerOptions: {
       ...providerOptions,

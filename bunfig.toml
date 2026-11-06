@@ -1,0 +1,4 @@
+[install]
+# The repo's tooling (Electron/tsup/vite/node-pty) was built against a hoisted
+# node_modules layout; keep Bun's linker aligned with the old pnpm setting.
+linker = "hoisted"

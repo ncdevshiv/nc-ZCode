@@ -1,0 +1,87 @@
+# App command surface exposed to the loopback-served web UI.
+#
+# The main window loads the real web UI from the embedded Rust server on
+# `http://127.0.0.1:<port>`, which Tauri treats as a remote origin. Remote
+# origins are denied app commands unless a capability explicitly allows them.
+# `capabilities/default.json` grants this permission to the `main` and
+# `resource-manager` webviews only (not to child browser webviews).
+#
+# Keep this list in sync with `tauri::generate_handler!` in `src/main.rs`;
+# `tests::command_permission_list_matches_invoke_handler` enforces it.
+
+[[permission]]
+identifier = "shell"
+description = "Allow the ZCode web UI to call the Tauri shell's app commands."
+commands.allow = [
+  "app_version",
+  "open_external_url",
+  "open_path",
+  "window_minimize",
+  "window_toggle_maximize",
+  "window_close",
+  "window_hide",
+  "window_show",
+  "platform_info",
+  "select_directory",
+  "select_file",
+  "select_files",
+  "clipboard_write_text",
+  "clipboard_read_text",
+  "show_task_notification",
+  "sync_window_tabs",
+  "sync_window_unread_count",
+  "sync_active_task_session",
+  "sync_app_settings",
+  "get_desktop_window_chrome_state",
+  "save_file",
+  "deep_link_current",
+  "desktop_command",
+  "get_desktop_zoom_level",
+  "resource_manager_snapshot",
+  "print_page_to_pdf",
+  "save_browser_recording",
+  "is_docker_available",
+  "list_wsl_distros",
+  "list_docker_containers",
+  "list_ssh_config_aliases",
+  "report_telemetry_event",
+  "report_arms_custom_event",
+  "report_renderer_action_trace_batch",
+  "report_renderer_heap_sample",
+  "report_local_ttft_batch",
+  "import_chrome_browser_data",
+  "export_logs",
+  "capture_window_screenshot",
+  "get_installed_editors",
+  "open_in_editor",
+  "load_mcp_from_user_directory",
+  "save_mcp_to_user_directory",
+  "migrate_legacy_common_mcp",
+  "create_temp_text_attachment",
+  "get_device_id",
+  "get_update_state",
+  "check_for_updates",
+  "download_update",
+  "cancel_update_download",
+  "quit_and_install_update",
+  "skip_update_version",
+  "acknowledge_post_update_release_notes",
+  "browser_view_create",
+  "browser_view_set_bounds",
+  "browser_view_set_visible",
+  "browser_view_set_occluded",
+  "browser_view_navigate",
+  "browser_view_reload",
+  "browser_view_go_back",
+  "browser_view_go_forward",
+  "browser_view_eval",
+  "browser_view_set_zoom",
+  "browser_view_open_devtools",
+  "browser_view_state",
+  "browser_view_close",
+  "browser_view_attach_guest",
+  "browser_view_detach_guest",
+  "browser_view_cdp",
+  "browser_use_lifecycle_result",
+  "browser_use_lifecycle_probe",
+]

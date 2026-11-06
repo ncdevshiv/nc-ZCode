@@ -1,5 +1,6 @@
 import type { BrowserViewScreenshotSurfacePreparePayload } from "@zcode/shared";
-import type { CSSProperties } from "react";
+import { useEffect, type CSSProperties } from "react";
+import { setBrowserUseTabUrl } from "@/browser-use/browserUseLifecycle.js";
 import { UnifiedBrowserView } from "@/browser-use/UnifiedBrowserView.js";
 import { cn } from "@/components/lib/utils.js";
 import { TabsContent } from "@/components/ui/tabs.js";
@@ -33,6 +34,16 @@ export function BrowserUseSidePaneContent({
   onUrlChange,
   onPageMetadataChange,
 }: BrowserUseSidePaneContentProps): React.JSX.Element {
+  // The lifecycle snapshot (`listUserTabs`) reads the renderer's last URL; keep
+  // it in sync with the pane without adding another store.
+  useEffect(() => {
+    if (initialUrl) setBrowserUseTabUrl(tab.tabId, initialUrl);
+    return () => setBrowserUseTabUrl(tab.tabId, null);
+  }, [initialUrl, tab.tabId]);
+  const handleUrlChange = (url: string) => {
+    setBrowserUseTabUrl(tab.tabId, url);
+    onUrlChange(url);
+  };
   // 截图 surface 不能依赖收起的 ResizablePanel 提供尺寸：面板宽度为 0 时，Electron
   // guest 会被 Chromium 当成没有 compositor surface，capturePage 会直接失败。把同一份
   // TabsContent 临时固定到窗口内的合成层，并用接近透明的 opacity 隔离视觉；完全移到窗口外
@@ -90,7 +101,7 @@ export function BrowserUseSidePaneContent({
         residencyGeneration={tab.residencyGeneration ?? residencyGeneration}
         browserUseOperationUntil={tab.browserUseOperationUntil}
         browserResizeBaselineVersion={tab.browserUseResizeBaselineVersion}
-        onUrlChange={onUrlChange}
+        onUrlChange={handleUrlChange}
         onPageMetadataChange={onPageMetadataChange}
       />
     </TabsContent>

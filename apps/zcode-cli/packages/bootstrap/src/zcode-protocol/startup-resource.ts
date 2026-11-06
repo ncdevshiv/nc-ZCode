@@ -1,6 +1,6 @@
 import type { Logger } from "@zcode/contracts";
 
-/** 关闭信号不能等卡住的初始化 Promise；迟到资源由创建边界负责释放。 */
+/** The closing signal cannot wait for stuck initialization Promise; late resources are released by the creation boundary. */
 export async function acquireProtocolStartupResource<T>(options: {
   create: () => Promise<T>;
   signal?: AbortSignal;

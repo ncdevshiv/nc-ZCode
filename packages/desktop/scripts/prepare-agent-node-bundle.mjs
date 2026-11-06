@@ -23,11 +23,8 @@ const desktopRoot = resolve(scriptDir, "..");
 const repoRoot = resolve(desktopRoot, "..", "..");
 const cliBundlePath = resolve(repoRoot, "apps/zcode-cli/packages/cli/dist/zcode.cjs");
 const adaptersRoot = resolve(repoRoot, "apps/zcode-cli/packages/adapters");
-const pnpmRunEnv = {
+const bunRunEnv = {
   ...process.env,
-  // pnpm 11 会在 apps/zcode-cli 子 workspace 执行 run 前触发 install；
-  // 子 workspace 不能解析根 workspace 的 @zcode/shared，Docker/web app 打包会因此卡在插件 runtime 构建。
-  PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN: "false",
 };
 const BROWSER_USE_PLUGIN_PACKAGE_NAME = "@zcode/browser-use-plugin";
 
@@ -146,7 +143,7 @@ function buildCliBundle() {
   // 复用仓库根脚本（turbo build:desktop-agent --filter=@zcode/cli），命中缓存时几乎瞬时。
   runCommand(process.execPath, [resolve(repoRoot, "scripts/build-desktop-agent-cli.mjs")], {
     cwd: repoRoot,
-    env: pnpmRunEnv,
+    env: bunRunEnv,
   });
   if (!existsSync(cliBundlePath)) {
     throw new Error(
@@ -166,11 +163,11 @@ function buildOfficialPluginRuntimes() {
     }
 
     runCommand(
-      "pnpm",
-      ["--dir", resolve(repoRoot, "apps/zcode-cli"), "--filter", plugin.packageName, "build"],
+      "bun",
+      ["--cwd", resolve(repoRoot, "apps/zcode-cli"), "run", "--filter", plugin.packageName, "build"],
       {
         cwd: repoRoot,
-        env: pnpmRunEnv,
+        env: bunRunEnv,
       },
     );
     assertOfficialPluginRuntime(plugin);
@@ -194,11 +191,11 @@ function buildOfficialPluginRuntimeForBootstrap(plugin) {
   // 这里仅在 bootstrap 开关下用当前 Node 直接执行等价 tsc + build-mcp，不改变插件自身 build 脚本。
   // browser-use 的 server 与 browser-client 是同一发布对；即使旧 server.js 存在也必须重建，
   // 否则会把旧 server 与当前 client（或缺失 client）一起 stage 到桌面安装包。
-  runCommand(process.execPath, ["../../node_modules/typescript/bin/tsc"], {
+  runCommand("bun", ["../../node_modules/typescript/bin/tsc"], {
     cwd: pluginRoot,
     env: process.env,
   });
-  runCommand(process.execPath, [plugin.runtimeBuildScript], {
+  runCommand("bun", [plugin.runtimeBuildScript], {
     cwd: pluginRoot,
     env: process.env,
   });

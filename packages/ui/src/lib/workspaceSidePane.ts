@@ -1286,7 +1286,8 @@ export function openOrActivateBrowserSidePaneByUrl(
 }
 
 /** 打开或更新一个受控 browser-use tab；ready 重放按 tabId 幂等。 */
-function openBrowserUseSidePane(
+/** Open or update a renderer-owned browser-use tab (agent `newTab` path). */
+export function openBrowserUseSidePane(
   current: WorkspaceSidePaneState | null,
   options: {
     workspaceKey: string;

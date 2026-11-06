@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import type {
   ModelNetworkStatusEvent,
   ModelRequestCompletedStatusEvent,
@@ -40,8 +41,8 @@ interface CallState {
 }
 
 /**
- * 把 Transport 的实时事实直接写入仍然活动的 Model Call/Attempt Span。
- * 不创建终态 Record、不保存开始/结束时间，也不在导出阶段重建 Span。
+* Write the Transport's live facts directly to the still-active Model Call/Attempt Span.
+* No final state Record is created, start/end times are not saved, and Span is not rebuilt during the export phase.
  */
 export class ModelApiTelemetryStatusSink implements ModelStatusSink {
   private readonly calls = new Map<string, CallState>();
@@ -74,15 +75,15 @@ export class ModelApiTelemetryStatusSink implements ModelStatusSink {
     try {
       this.publishSafely(event, failureError);
     } catch (error) {
-      // Bug 根因：Telemetry Sink 位于模型状态 fan-out 内，任何同步异常都会阻断 Provider
-      // 状态持久化和模型主链路；这里必须完全旁路。
+// Bug root cause: Telemetry Sink is located in the model state fan-out, any synchronization exception will block the Provider
+// State persistence and model main link; this must be completely bypassed.
       try {
         this.onWarning?.("Model telemetry status processing failed", {
           eventType: event.type,
           errorType: error instanceof Error ? error.name : typeof error,
         });
       } catch {
-        // 观测健康回调也不能反向污染模型链路。
+// Observing health callbacks cannot reversely pollute the model link.
       }
     }
   }
@@ -379,7 +380,7 @@ export class ModelApiTelemetryStatusSink implements ModelStatusSink {
     try {
       this.onWarning?.(message, context);
     } catch {
-      // Telemetry 健康回调也必须旁路。
+// Telemetry health callbacks must also be bypassed.
     }
   }
 }

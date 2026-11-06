@@ -16,8 +16,8 @@ export function protocolMcpServersToRuntimeMcpConfig(
         command: server.command,
         args: server.args,
         env: Object.fromEntries(server.env.map(({ name, value }) => [name, value])),
-        // ZCode Protocol 的 mcpServers 是 session/runtime 和状态查询的完整覆盖配置。
-        // 这里如果不还原 timeoutMs，UI 保存的超时会在真实工具初始化或 mcp/list 探测前丢失。
+// ZCode Protocol's mcpServers is a complete overlay configuration for session/runtime and status queries.
+// If timeoutMs is not restored here, the timeout saved by the UI will be lost before the real tool is initialized or mcp/list is detected.
         ...(server.timeoutMs !== undefined ? { timeoutMs: server.timeoutMs } : {}),
         ...(server.isolation !== undefined ? { isolation: server.isolation } : {}),
         ...(server.protocolVersion !== undefined
@@ -31,7 +31,7 @@ export function protocolMcpServersToRuntimeMcpConfig(
       url: server.url,
       headers: Object.fromEntries(server.headers.map(({ name, value }) => [name, value])),
       ...(server.oauth !== undefined ? { oauth: server.oauth } : {}),
-      // HTTP/SSE MCP 也复用同一条 protocol 覆盖链路，需和 stdio 一样保留超时。
+// HTTP/SSE MCP also reuses the same protocol coverage link, and needs to retain the same timeout as stdio.
       ...(server.timeoutMs !== undefined ? { timeoutMs: server.timeoutMs } : {}),
       ...(server.isolation !== undefined ? { isolation: server.isolation } : {}),
       ...(server.protocolVersion !== undefined ? { protocolVersion: server.protocolVersion } : {}),

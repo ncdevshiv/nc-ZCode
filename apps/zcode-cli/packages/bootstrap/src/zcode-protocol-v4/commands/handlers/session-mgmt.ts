@@ -1,6 +1,6 @@
-// 会话管理命令组：createSession / renameSession / deleteSession。
-// 每个命令组一个文件：handler 纯函数 (host, envelope) → CommandResult|undefined，
-// 决策逻辑直驱 core，环境能力走 host 钩子（见 ../types.ts 的过渡标注）。
+// Session management command group: createSession / renameSession / deleteSession.
+// One file per command group: handler pure function (host, envelope) → CommandResult|undefined,
+// The decision-making logic directly drives the core, and the environment capabilities use the host hook (see the transition annotation of ../types.ts).
 import type {
   CommandEnvelope,
   CommandPayloadMap,
@@ -20,17 +20,17 @@ import {
 } from "./session-flow.js";
 
 /**
- * createSession：回落面最后一项的原生化。
- * 语义决策（原生层持有）：
- * - draft 语义：新会话一律 deferred（不进 sqlite），首条发送时由 prompt-turn 提升
- *   immediate——record 创建钩子固定传 deferred，提升逻辑不在钩子里。
- * - firstInput 可选：有则经原生 prompt turn 提交（与 sendText 同一条写路径——
- *   draft 提升/提交即返/ready 边界三个语义免费获得），不再经旧 sendPrompt op。
- * - workspaceId：本地工作区 = workspacePath（Workspace Identity 约束的本地 fallback）；
- *   远程 identity（remote:ssh/wsl/docker:...）由 host.createSessionRecord 经
- *   @zcode/shared parseRemoteWorkspaceIdentity 统一解析（跨 workspace 分屏 pane）。
- * 执行面（过渡钩子）：record 建立/事件接线/catalog 同步/失败清理与旧宿主纠缠，
- * 走 host.createSessionRecord（见 ../types.ts）。
+* createSession: Nativeization of the last item in the fallback surface.
+* Semantic decision-making (held by the native layer):
+* - draft semantics: new sessions are always deferred (do not enter sqlite), and are promoted by prompt-turn when the first one is sent
+* immediate——record creation hook is fixed and passed deferred, and the promotion logic is not in the hook.
+* - firstInput optional: if available, submit via native prompt turn (same writing path as sendText -
+* The three semantics of draft promotion/submit return/ready boundary are obtained for free), no longer through the old sendPrompt op.
+* - workspaceId: local workspace = workspacePath (local fallback of Workspace Identity constraint);
+* Remote identity (remote:ssh/wsl/docker:...) is passed by host.createSessionRecord
+* @zcode/shared parseRemoteWorkspaceIdentity unified parsing (cross-workspace split-screen pane).
+* Execution surface (transition hook): record creation/event wiring/catalog synchronization/failure cleanup and entanglement with the old host,
+* Go to host.createSessionRecord (see ../types.ts).
  */
 async function createSession(
   host: V4CommandCoreHost,
@@ -40,7 +40,7 @@ async function createSession(
   if (!host.createSessionRecord) {
     throw new Error("v4 createSession requires host.createSessionRecord capability");
   }
-  // 完全空的 firstInput 必须在创建 record 前拒绝，避免失败请求遗留无效 deferred session。
+// A completely empty firstInput must be rejected before creating a record to avoid failed requests leaving an invalid deferred session.
   if (
     payload.firstInput &&
     !hasPromptInput(payload.firstInput.text, payload.firstInput.attachments)
@@ -53,10 +53,10 @@ async function createSession(
     offPeakToolEnabled: payload.offPeakToolEnabled,
     dynamicWorkflowEnabled: payload.dynamicWorkflowEnabled,
   });
-  // createSession.config 消费——草稿态 UI 的先行选择（模型/思考深度/
-  // 模式）在首发之前应用并补发事件，首条 turn 即用所选配置。必须在 firstInput 之前。
-  // 应用失败不连坐会话创建（record 已建成，failed ACK 只会泄漏会话）：降级 warn，
-  // 会话保持 runtime 缺省。
+// createSession.config consumption - advance selection of draft UI (model/thinking depth/
+// mode) applies and reissues events before the first turn, the first turn uses the selected configuration. Must precede firstInput.
+// Application failure does not involve session creation (record has been created, failed ACK will only leak the session): downgrade warn,
+// The session remains runtime default.
   if (payload.config) {
     const record = requireRecord(host, sessionId);
     try {
@@ -76,7 +76,7 @@ async function createSession(
       }
     | undefined;
   if (payload.firstInput) {
-    // 附件命令面：firstInput.attachments（AttachmentRef → TurnAttachment）随首条发送。
+// Attachment command surface: firstInput.attachments (AttachmentRef → TurnAttachment) is sent with the first item.
     const record = requireRecord(host, sessionId);
     const admission = commandAdmissionOf(envelope);
     const durableAdmission =
@@ -112,8 +112,8 @@ async function createSession(
             "fault.command.inputRejected",
           );
         } catch (cancelError) {
-          // 取消账本失败不能覆盖真正的首发失败；否则客户端会拿到错误的失败原因，
-          // 而 admission 仍可在重启查询时按 discarded 收口，不会被误判为成功。
+// Failure to cancel the ledger cannot cover the real initial failure; otherwise the client will get the wrong failure reason,
+// Admission can still be closed by discarded when restarting the query, and it will not be misjudged as successful.
           host.logger?.warn?.("v4 createSession first input cancellation failed", {
             cancelError: cancelError instanceof Error ? cancelError.message : String(cancelError),
             inputError: error instanceof Error ? error.message : String(error),
@@ -129,13 +129,13 @@ async function createSession(
 }
 
 /**
- * renameSession：用户显式重命名 → core runtime.setCustomSessionTitle。
- * - titleSource=custom 的粘性（此后自动标题生成被 custom_title 短路跳过）由 core 保证
- *   （core/src/runtime/methods/session-title.ts），handler 不重复实现。
- * - traceContext 透传会话根 traceContext（record 窄视图字段）：重命名归属该会话的
- *   任务链，不另起 trace（可观测性纪律）。
- * - 不做 legacy 广播：core 发 SessionTitleUpdated 事件，经 gateway 投影收口，
- *   v4 消费者由此感知标题变更。
+* renameSession: Explicit rename by user → core runtime.setCustomSessionTitle.
+* - Stickiness of titleSource=custom (after which automatic title generation is skipped by custom_title short-circuit) is guaranteed by core
+* (core/src/runtime/methods/session-title.ts), handler is not implemented repeatedly.
+* - traceContext transparently transmits the session root traceContext (record narrow view field): renames the session root
+* Task chain, no new trace (observability discipline).
+* - No legacy broadcast: core sends SessionTitleUpdated event and closes via gateway projection.
+* v4 consumers thus perceive title changes.
  */
 async function renameSession(
   host: V4CommandCoreHost,
@@ -143,7 +143,7 @@ async function renameSession(
 ): Promise<CommandResult | undefined> {
   const payload = envelope.payload as CommandPayloadMap["renameSession"];
   const record = requireRecord(host, envelope.sessionId);
-  // 注意：方法必须经 runtime 调用（不可解构，实现依赖 this 绑定，见 methods/index.ts 挂载方式）。
+// Note: Methods must be called by runtime (cannot be deconstructed, implementation depends on this binding, see methods/index.ts mounting method).
   await record.app.runtime.setCustomSessionTitle({
     title: payload.title,
     traceContext: record.traceContext,
@@ -152,10 +152,10 @@ async function renameSession(
 }
 
 /**
- * deleteSession：语义 = closeSession（关闭 + 清理运行时资源），非真删 record——
- * message 库无删除 API，与旧协议路径一致（旧协议的“删除”同样只是 close，历史仍在库里，
- * 只是不再出现在活跃注册表）。
- * 会话注册表仍归宿主，实际关闭走 host.closeSession 过渡钩子（归宿：v4 自持会话注册表，见 ../types.ts）。
+* deleteSession: semantics = closeSession (close + clean up runtime resources), non-true record deletion——
+* The message library has no deletion API, which is consistent with the old protocol path (the "delete" of the old protocol is also just close, and the history is still in the library.
+* just no longer appears in the active registry).
+* The session registry still belongs to the host, and the host.closeSession transition hook is used to actually close it (destination: v4 self-sustained session registry, see ../types.ts).
  */
 async function deleteSession(
   host: V4CommandCoreHost,
@@ -163,7 +163,7 @@ async function deleteSession(
 ): Promise<CommandResult | undefined> {
   const record = requireRecord(host, envelope.sessionId);
   if (!host.closeSession) {
-    // 关闭不能静默降级：钩子缺失说明 binder 接线不完整，直接失败（ACK failed）。
+// Shut down and cannot be downgraded silently: The missing hook indicates that the binder wiring is incomplete and fails directly (ACK failed).
     throw new Error("v4 deleteSession requires host.closeSession capability");
   }
   await host.closeSession(record.app.sessionId);

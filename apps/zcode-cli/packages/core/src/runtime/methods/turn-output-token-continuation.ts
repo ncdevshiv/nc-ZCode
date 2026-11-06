@@ -41,18 +41,18 @@ export function isOutputTokenLimitFinishReason(
   finishReason: string | undefined,
   rawFinishReason: string | undefined,
 ): boolean {
-  // 有意设计（非 Bug）：成功响应的 model_context_window_exceeded 属于 Continue。
+// Intentional design (not a bug): successfully responded model_context_window_exceeded belongs to Continue.
 
-  // 即使 content 全空也共享最多 3 次恢复;
-  // Anthropic 允许 input 未超窗但 input + max_tokens 超窗；生成填满窗口会截断成功响应，
-  // 这不等同于 input 本身超窗导致的请求失败，不能仅按名称转成异常并抢先 Reactive Compact。
-  // 行为差异：之前见该成功 stop reason 就尝试 Reactive Compact；现在先保存 partial、
-  // 追加 Continue，再回到 outer loop 检查 Micro/Auto Compact，需要时压缩后发起续写。
-  // 续写若抛出真实超窗异常，Reactive Compact 成功后重试当前续写，无法恢复则报错；
-  // 压缩既不额外追加 Continue，也不重置已用次数，三次限制不包含压缩请求和异常重试。
-  // 第四次仍为成功截断时按输出上限报错，不再额外尝试一次 Reactive Compact。
-  // 因此，若服务端持续返回该标记而本地自动压缩未触发，可能多次无效续写后耗尽；
-  // 此取舍保留了先续写、按需压缩的原约定，不保证下一次续写一定成功。
+// Share up to 3 restores even if the content is empty;
+// Anthropic allows input not to exceed the window but input + max_tokens to exceed the window; generating a filled window will truncate the successful response.
+// This is not equivalent to the request failure caused by the input itself exceeding the window. It cannot be converted into an exception by name and preempted by Reactive Compact.
+// Difference in behavior: I tried Reactive Compact when I saw the success stop reason before; now save partial,
+//Append Continue, then return to the outer loop to check Micro/Auto Compact, and initiate continuation after compression if necessary.
+// If a true over-window exception is thrown during the continuation, Reactive Compact will retry the current continuation after success. If it cannot recover, an error will be reported;
+// Compression neither appends additional Continue nor resets the used count. The three limit does not include compression requests and exception retries.
+// If the truncation is still successful for the fourth time, an error will be reported according to the output upper limit, and Reactive Compact will not be tried again.
+// Therefore, if the server continues to return this mark and local automatic compression is not triggered, it may be exhausted after multiple invalid renewals;
+// This trade-off retains the original agreement of continuation first and compression on demand. There is no guarantee that the next continuation will be successful.
   return finishReason === "length" || OUTPUT_LIMIT_RAW_REASONS.has(rawFinishReason ?? "");
 }
 
@@ -79,8 +79,8 @@ export function preserveCanonicalContextPrefix(
   currentCanonicalEntries: readonly RuntimeMessageEntry[],
   turnLocalEntries: readonly RuntimeMessageEntry[],
 ): readonly RuntimeMessageEntry[] {
-  // 配置刷新会立即替换 canonical prefix，而恢复链继续持有原子 Turn 的旧
-  // prefix。turn-local Compact 若整体回写会撤销刷新，因此只提交转换后的 conversation tail。
+// Configuration refresh will immediately replace the canonical prefix, while the recovery chain continues to hold the old atomic Turn
+// prefix. turn-local Compact will cancel the refresh if it is written back as a whole, so only the converted conversation tail is submitted.
   return [
     ...currentCanonicalEntries.slice(0, countContextPrefixMessages(currentCanonicalEntries)),
     ...turnLocalEntries.slice(countContextPrefixMessages(turnLocalEntries)),
@@ -115,8 +115,8 @@ export function commitAssistantToTurnRequest(
   const hasAssistantContent =
     state.modelResponse.length > 0 || (reasoning?.length ?? 0) > 0 || (toolCalls?.length ?? 0) > 0;
   if (!hasAssistantContent) return false;
-  // provider result metadata 可能报告别的模型；assistant 归因必须使用
-  // Turn 已绑定的 Model，避免恢复链重新引入旧的 provider-owned 模型身份。
+// provider result metadata may report other models; assistant attribution must be used
+// Turn the bound Model to avoid the recovery chain reintroducing the old provider-owned model identity.
   const modelRef = { providerId: state.model.providerId, modelId: state.model.modelId };
   commitTurnRequestEntries(runtime, state.turnRequestState, [
     createRuntimeAssistantEntry(

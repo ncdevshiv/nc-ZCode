@@ -26,8 +26,8 @@ const TITLE_GENERATION_TIMEOUT_MS = 60_000;
 const MAX_TITLE_INPUT_CHARS = 1_200;
 const MAX_TITLE_CHARS = 100;
 
-// 标题 sidecar 的 user message 是原始 query，弱约束时模型可能把它当成对话请求直接回答。
-// system prompt 必须明确 query 只作为标题素材，并禁止回答或执行；首句保持稳定供旧 model-io 识别。
+//The user message of the title sidecar is the original query. When the constraints are weak, the model may treat it as a dialogue request and answer it directly.
+// system prompt must make it clear that query is only used as title material and is prohibited from being answered or executed; the first sentence remains stable for old model-io to recognize.
 const SESSION_TITLE_SYSTEM_PROMPT = `Generate a concise title for this coding session.
 
 This is a title-generation task, not a conversation.
@@ -268,8 +268,8 @@ function parseTitleJsonCandidate(text: string): string | null {
 }
 
 function extractFencedJson(text: string): string | null {
-  // 部分模型会把标题 JSON 包在 Markdown fenced code block 中返回，
-  // 直接 JSON.parse 会失败，并让后续首行兜底误把 ```json 清洗成标题。
+// Some models will wrap the title JSON in Markdown fenced code block and return it.
+// Direct JSON.parse will fail, and the subsequent first line will mistakenly clean ```json into the title.
   const match = text.trim().match(/^```[ \t]*(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n?```$/i);
   return match?.[1]?.trim() ?? null;
 }

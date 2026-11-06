@@ -1,11 +1,11 @@
 import type { TurnInputIntentMetadata } from "../deps.js";
 
 /**
- * 把 runtime 的协议无关参数组装成 transcript/ledger 共用的完整输入事实。
+* Assemble the runtime's protocol-independent parameters into complete input facts shared by transcript/ledger.
  *
- * 只分别保存 text 与一组 metadata 的话，恢复端必须再次推断 delivery、
- * steer 和 dispatch，容易让 live projection 与 cold snapshot 出现不同状态。这里在
- * admission/drain 边界一次性固化，后续消费者只能读取，不能重新猜测。
+* If only text and a set of metadata are saved separately, the recovery end must infer delivery,
+* Steer and dispatch can easily cause live projection and cold snapshot to appear in different states. here at
+* The admission/drain boundary is solidified once, and subsequent consumers can only read it and cannot re-guess it.
  */
 export function buildPersistedConversationInputIntent(
   text: string,
@@ -25,8 +25,8 @@ export function buildPersistedConversationInputIntent(
     queueItemId: intent.queueItemId,
     clientId: intent.clientId,
     kind: intent.kind,
-    // goal 的 message text 可以是 `/goal ...` 展示文案；admission 已持有 runtime
-    // 解析后的 canonical objective，持久化必须优先使用它以保证 live/cold 等价。
+// The message text of goal can be `/goal...` to display the copy; admission has runtime
+// Parsed canonical objective, persistence must use it first to ensure live/cold equivalence.
     text: intent.text ?? text,
     attachments: intent.attachmentRefs ?? [],
     ...(intent.modelSelection ? { modelSelection: intent.modelSelection } : {}),

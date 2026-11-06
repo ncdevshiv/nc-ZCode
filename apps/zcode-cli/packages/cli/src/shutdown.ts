@@ -79,14 +79,14 @@ export async function flushE2ECoverage(): Promise<void> {
     return;
   }
   try {
-    // Agent shutdown 最终调用 process.exit，SIGTERM 路径不会可靠触发
-    // NODE_V8_COVERAGE 的自动落盘；只在 E2E coverage 模式下显式刷新。
+// Agent shutdown eventually calls process.exit, and the SIGTERM path will not be triggered reliably.
+// Automatic placement of NODE_V8_COVERAGE; only explicitly refreshed in E2E coverage mode.
     takeCoverage();
-    // takeCoverage 会把写盘交给 V8 后台任务；立即 process.exit 偶发只留下 readiness
-    // marker。coverage 模式留出短暂落盘窗口，普通 CLI shutdown 不增加延迟。
+// takeCoverage will hand over the disk writing to the V8 background task; immediately process.exit will occasionally leave only readiness
+// marker. Coverage mode leaves a short disk download window, and ordinary CLI shutdown does not increase the delay.
     await new Promise<void>((resolve) => setTimeout(resolve, 500));
   } catch {
-    // coverage 是诊断产物，写盘失败不能阻塞 CLI 的既有退出流程。
+// Coverage is a diagnostic product, and disk writing failure cannot block the existing exit process of the CLI.
   }
 }
 
@@ -132,8 +132,8 @@ export function scheduleCliExitWatchdog(options: CliExitWatchdogOptions): () => 
     Math.trunc(options.timeoutMs ?? DEFAULT_CLI_EXIT_WATCHDOG_TIMEOUT_MS),
   );
   const timer = setTimeout(() => {
-    // 正常 run() 已完成后仍可能残留未知 pipe/socket handle。watchdog
-    // 只在 event loop 到 deadline 仍未耗尽时执行，因此不会延迟自然退出路径。
+// Unknown pipe/socket handles may still remain after normal run() has completed. watchdog
+// Only executed when the event loop has not been exhausted by the deadline, so the natural exit path will not be delayed.
     void flushE2ECoverage().finally(() => exitProcess(options.exitCode));
   }, timeoutMs);
   timer.unref?.();

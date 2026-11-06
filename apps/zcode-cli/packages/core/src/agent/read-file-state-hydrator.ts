@@ -89,7 +89,7 @@ function restoreReadToolState(
   if (!toolInput) return false;
   if (!isHistoricalFullReadWindow(toolInput as HistoricalReadWindow)) {
 
-    // 真正的 range Read 只在同一 runtime 内作为最新水位，跨 resume 不恢复。
+// The real range read is only used as the latest water level within the same runtime and will not be restored across resumes.
     result.skippedRangeReadCount++;
     return false;
   }
@@ -101,8 +101,8 @@ function restoreReadToolState(
     return false;
   }
   setFullReadState(input.readFileState, metadata.path, metadata.content, {
-    // resume 不再从 provider-visible cat-n 文本恢复 Read 状态；只有带
-    // mtimeMs/revisionId/sizeBytes 的结构化 metadata 才能支撑后续 stale guard。
+// resume no longer resumes Read state from provider-visible cat-n text; only with
+// The structured metadata of mtimeMs/revisionId/sizeBytes can support subsequent stale guard.
     isPartialView: metadata.isPartialView,
     mtimeMs: normalizeReadFileStateMtimeMs(metadata.mtimeMs),
     readAt: new Date(metadata.readAtMs),
@@ -122,8 +122,8 @@ function restoreMetadataToolState(
   if (!metadata || metadata.tool !== expectedTool) return false;
   if (!isHistoricalFullReadWindow(metadata)) return false;
 
-  // Write/Edit 的历史 tool part 不能在 resume 时读取当前磁盘来“补全”状态；
-  // 外部手动保存会被误认证为 agent 已读。这里只恢复成功时持久化的完整快照。
+// Write/Edit history tool part cannot read the current disk to "complete" the status during resume;
+// External manual saving will be mistakenly authenticated as agent read. Here only the complete snapshot persisted upon success is restored.
   setFullReadState(readFileState, metadata.path, metadata.content, {
     isPartialView: metadata.isPartialView,
     mtimeMs: normalizeReadFileStateMtimeMs(metadata.mtimeMs),

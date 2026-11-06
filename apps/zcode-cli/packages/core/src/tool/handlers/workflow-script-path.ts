@@ -1,26 +1,26 @@
 // ============================================================
-// 工作流脚本文件的模型面写法
+// How to write the model side of the workflow script file
 // ============================================================
-// journal 里存的永远是**绝对路径**：它是 run 身份的一部分，而会话的工作目录会变（`cd`、
-// 另一个会话读同一个 run），相对路径存下来就会在别处指向别的文件。
+// The absolute path stored in the journal is always **absolute path**: it is part of the run identity, and the working directory of the session will change (`cd`,
+// Another session reads the same run), and the relative path will point to other files elsewhere if saved.
 //
-// 但模型看到的应该是工作区里的写法：它接下来要做的事是 `Edit` 这个文件，而工作区相对路径
-// 正是它在别处读写文件时用的那一种。两者只差这一个纯函数——铸一次、三个模型面共用
-// （终态通知、`GetWorkflowRun`、工具响应），所以不可能在三处之间分叉。
+// But the model should see the writing in the workspace: the next thing it needs to do is `Edit` the file, and the workspace relative path
+// Exactly the one it uses when reading and writing files elsewhere. The only difference between the two is this pure function - cast once and shared by three model surfaces.
+// (final state notification, `GetWorkflowRun`, tool response), so it is impossible to branch between the three places.
 
 import path from "node:path";
 
 /**
- * 把脚本文件的绝对路径写成模型面该看到的样子：在会话工作目录之下就给工作区相对路径，
- * 否则原样给绝对路径。
+* Write the absolute path of the script file as it should be seen in the model: give the relative path to the workspace under the session working directory,
+* Otherwise, give the absolute path as is.
  *
- * 「在工作目录之下」的判据是 `path.relative` 的结果既不以 `..` 开头、也不是绝对路径——
- * 这一条同时挡住了两种不能相对化的情形：目录外的兄弟路径（`../other/x.dwf.ts`，相对写法
- * 读起来像在说工作区里有这么个东西），以及 Windows 上的跨盘符（`C:` → `D:`，`path.relative`
- * 直接给回绝对路径）。空结果（路径恰好等于工作目录）同样退回绝对路径：空串不是一个能
- * `Edit` 的文件名。
+* The criterion for "under the working directory" is that the result of `path.relative` neither starts with `..` nor is it an absolute path——
+* This article blocks two situations that cannot be relativized at the same time: sibling paths outside the directory (`../other/x.dwf.ts`, relative writing
+* reads like there is such a thing in the workspace), and spanning drive letters on Windows (`C:` → `D:`, `path.relative`
+* Directly return the absolute path). An empty result (the path is exactly equal to the working directory) also returns an absolute path: the empty string is not a valid
+* The file name of `Edit`.
  *
- * `cwd` 缺席即宿主没有工作目录概念（部分端口 stub / 无会话上下文），此时无从相对化。
+* The absence of `cwd` means that the host has no working directory concept (partial port stub / no session context), and there is no way to relativize it at this time.
  */
 export function describeWorkflowScriptPath(absolutePath: string, cwd: string | undefined): string {
   if (cwd === undefined || cwd === "") return absolutePath;

@@ -1,4 +1,4 @@
-import { useCallback, type RefObject } from "react";
+import { useCallback, useEffect, useRef, type CSSProperties, type RefObject } from "react";
 import {
   BROWSER_VIEW_RESTORE_BOOTSTRAP_URL,
   TID_BROWSER_WEBVIEW,
@@ -10,6 +10,15 @@ import {
   resolveResponsiveBrowserGuestLayout,
   type BrowserViewportZoom,
 } from "@/browser-use/browserViewportZoom.js";
+import {
+  attachTauriBrowserGuest,
+  isTauriBrowserRuntime,
+  type TauriBrowserGuestController,
+} from "@/browser-use/tauriBrowserGuest.js";
+import {
+  startBrowserOcclusionWatcher,
+  type BrowserOcclusionWatcher,
+} from "@/browser-use/browserUseOcclusion.js";
 import { cn } from "@/components/lib/utils.js";
 import {
   BrowserEmptyState,
@@ -23,6 +32,7 @@ import {
 } from "@/embeddedBrowserHelpers.js";
 
 export function BrowserViewportSurface({
+  browserKey,
   browserRegionRef,
   browserState,
   desktopZoomFactor,
@@ -43,6 +53,7 @@ export function BrowserViewportSurface({
   viewportSize,
   viewportZoom,
 }: {
+  browserKey: string;
   browserRegionRef: RefObject<HTMLDivElement | null>;
   browserState: BrowserState;
   desktopZoomFactor: number;
@@ -80,6 +91,75 @@ export function BrowserViewportSurface({
     },
     [onWebviewRef],
   );
+  const isTauri = isTauriBrowserRuntime();
+  const isComposedRef = useRef(isComposed);
+  isComposedRef.current = isComposed;
+  const tauriControllerRef = useRef<TauriBrowserGuestController | null>(null);
+  const occlusionWatcherRef = useRef<BrowserOcclusionWatcher | null>(null);
+  const handleTauriContainerRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      occlusionWatcherRef.current?.dispose();
+      occlusionWatcherRef.current = null;
+      tauriControllerRef.current?.dispose();
+      tauriControllerRef.current = null;
+      if (!node) {
+        onWebviewRef(null);
+        return;
+      }
+      tauriControllerRef.current = attachTauriBrowserGuest(node, {
+        key: browserKey,
+        visible: isComposedRef.current,
+        initialUrl: isResidencyRestore
+          ? BROWSER_VIEW_RESTORE_BOOTSTRAP_URL
+          : DEFAULT_BROWSER_URL,
+      });
+      // DOM overlays cannot paint above the native child webview; hide it while
+      // a menu/dialog intersects the pane and restore it afterwards.
+      occlusionWatcherRef.current = startBrowserOcclusionWatcher({
+        container: node,
+        onChange: (occluded) => tauriControllerRef.current?.setOccluded(occluded),
+      });
+      onWebviewRef(node as unknown as ElectronWebviewTag);
+    },
+    [browserKey, isResidencyRestore, onWebviewRef],
+  );
+  useEffect(() => {
+    tauriControllerRef.current?.setVisible(isComposed);
+  }, [isComposed]);
+  useEffect(
+    () => () => {
+      occlusionWatcherRef.current?.dispose();
+      occlusionWatcherRef.current = null;
+      tauriControllerRef.current?.dispose();
+      tauriControllerRef.current = null;
+    },
+    [],
+  );
+  const guestStyle: CSSProperties = {
+    // 网页画布默认按浏览器语义使用白色；这里只设置 guest 节点底色，
+    // 不增加覆盖层，也不向 guest 页面注入或覆盖任何样式。
+    backgroundColor: "#fff",
+    ...(isEmptyBrowserState ? { visibility: "hidden" as const } : {}),
+    ...(isResponsiveMode
+      ? {
+          ...(needsResponsiveGuestLayout
+            ? {
+                height: responsiveGuestLayoutSize,
+                left: 0,
+                position: "absolute" as const,
+                top: 0,
+                width: responsiveGuestLayoutSize,
+              }
+            : {}),
+          ...(responsiveGuestTransformScale !== 1
+            ? {
+                transform: `scale(${responsiveGuestTransformScale})`,
+                transformOrigin: "top left",
+              }
+            : {}),
+        }
+      : {}),
+  };
 
   return (
     <div
@@ -143,56 +223,49 @@ export function BrowserViewportSurface({
             可能先于宿主隐藏样式绘制白色首帧。因此只在确认导航后创建 human guest；
             已创建的 guest 仍保持稳定挂载。 */}
         {shouldMountWebview ? (
-          <webview
-            key={`webview:${webviewGeneration}`}
-            ref={handleWebviewRef}
-            allowpopups={"" as unknown as boolean}
-            src={isResidencyRestore ? BROWSER_VIEW_RESTORE_BOOTSTRAP_URL : DEFAULT_BROWSER_URL}
-            partition="persist:zcode-embedded-browser"
-            nodeintegrationinsubframes="true"
-            data-browser-compositor-scale={isResponsiveMode ? desktopZoomFactor : undefined}
-            data-browser-layout-scale={isResponsiveMode ? responsiveGuestLayoutScale : undefined}
-            data-browser-transform-scale={
-              isResponsiveMode ? responsiveGuestTransformScale : undefined
-            }
-            data-testid={TID_BROWSER_WEBVIEW}
-            data-browser-resize-dimmed={showResizeWarning ? "true" : undefined}
-            className={cn(
-              "browser-use-viewport h-full min-h-0 w-full",
-              isEmptyBrowserState || guestFailure || loadError ? "hidden" : "inline-flex",
-            )}
-            // Electron 的 `<webview>` 独立 guest surface 对 page zoom 的合成并不对称：放大时
-            // 由 main 的 CDP metrics scale 校正 raster；缩小时先按 1 / zoom 扩布局再缩放。
-            // absolute 避免补偿布局污染 Fit 的 scroll extent。
-            // 这里只改变宿主布局/合成；guest zoom、CSS viewport、DPR 与 Browser Use 回读保持不变。
-            style={{
-              // 网页画布默认按浏览器语义使用白色；这里只设置 webview 节点底色，
-              // 不增加覆盖层，也不向 guest 页面注入或覆盖任何样式。
-              backgroundColor: "#fff",
-              // Electron guest surface 可能早于 Tailwind hidden 类完成首次合成，
-              // 导致新 tab 闪一帧白色；创建期内联 visibility 可封住该时序窗口。
-              ...(isEmptyBrowserState ? { visibility: "hidden" as const } : {}),
-              ...(isResponsiveMode
-                ? {
-                    ...(needsResponsiveGuestLayout
-                      ? {
-                          height: responsiveGuestLayoutSize,
-                          left: 0,
-                          position: "absolute" as const,
-                          top: 0,
-                          width: responsiveGuestLayoutSize,
-                        }
-                      : {}),
-                    ...(responsiveGuestTransformScale !== 1
-                      ? {
-                          transform: `scale(${responsiveGuestTransformScale})`,
-                          transformOrigin: "top left",
-                        }
-                      : {}),
-                  }
-                : {}),
-            }}
-          />
+          isTauri ? (
+            <div
+              key={`tauri-guest:${webviewGeneration}`}
+              ref={handleTauriContainerRef}
+              data-browser-compositor-scale={isResponsiveMode ? desktopZoomFactor : undefined}
+              data-browser-layout-scale={isResponsiveMode ? responsiveGuestLayoutScale : undefined}
+              data-browser-transform-scale={
+                isResponsiveMode ? responsiveGuestTransformScale : undefined
+              }
+              data-testid={TID_BROWSER_WEBVIEW}
+              data-browser-resize-dimmed={showResizeWarning ? "true" : undefined}
+              className={cn(
+                "browser-use-viewport h-full min-h-0 w-full",
+                isEmptyBrowserState || guestFailure || loadError ? "hidden" : "inline-flex",
+              )}
+              style={guestStyle}
+            />
+          ) : (
+            <webview
+              key={`webview:${webviewGeneration}`}
+              ref={handleWebviewRef}
+              allowpopups={"" as unknown as boolean}
+              src={isResidencyRestore ? BROWSER_VIEW_RESTORE_BOOTSTRAP_URL : DEFAULT_BROWSER_URL}
+              partition="persist:zcode-embedded-browser"
+              nodeintegrationinsubframes="true"
+              data-browser-compositor-scale={isResponsiveMode ? desktopZoomFactor : undefined}
+              data-browser-layout-scale={isResponsiveMode ? responsiveGuestLayoutScale : undefined}
+              data-browser-transform-scale={
+                isResponsiveMode ? responsiveGuestTransformScale : undefined
+              }
+              data-testid={TID_BROWSER_WEBVIEW}
+              data-browser-resize-dimmed={showResizeWarning ? "true" : undefined}
+              className={cn(
+                "browser-use-viewport h-full min-h-0 w-full",
+                isEmptyBrowserState || guestFailure || loadError ? "hidden" : "inline-flex",
+              )}
+              // Electron 的 `<webview>` 独立 guest surface 对 page zoom 的合成并不对称：放大时
+              // 由 main 的 CDP metrics scale 校正 raster；缩小时先按 1 / zoom 扩布局再缩放。
+              // absolute 避免补偿布局污染 Fit 的 scroll extent。
+              // 这里只改变宿主布局/合成；guest zoom、CSS viewport、DPR 与 Browser Use 回读保持不变。
+              style={guestStyle}
+            />
+          )
         ) : null}
       </ResponsiveBrowserViewport>
     </div>

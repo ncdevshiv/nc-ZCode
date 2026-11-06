@@ -16,8 +16,8 @@ export async function recordGoalStateChangeReminder(
     activeTurn?.kind === "regular" &&
     activeTurn.goalStateChangeReminderDeferralOpen
   ) {
-    // Stop 会先暂停 goal、再 abort 正在执行的工具。此处若立即写 history，
-    // reminder 会落在 tool_use 与 cancelled tool_result 之间，导致下一次请求违反 provider grammar。
+// Stop will first pause the goal and then abort the executing tool. If you write history immediately here,
+// reminder will fall between tool_use and canceled tool_result, causing the next request to violate the provider grammar.
     activeTurn.pendingGoalStateChangeReminder = { text: input.text };
     return;
   }
@@ -39,8 +39,8 @@ export async function closeGoalStateChangeReminderDeferral(
 ): Promise<void> {
   if (activeTurn?.kind !== "regular") return;
 
-  // activeTurn 会继续存活到 terminal/accounting 全部结束，不能再用它的
-  // 存在与否判断 pending 所有权。先同步关闭，之后到达的 reminder 会直接物化。
+// activeTurn will continue to survive until terminal/accounting is completed and cannot be used anymore.
+// Determine whether pending ownership exists or not. It is closed synchronously first, and the reminder that arrives later will be directly materialized.
   activeTurn.goalStateChangeReminderDeferralOpen = false;
   const pending = activeTurn.pendingGoalStateChangeReminder;
   if (!pending) return;
@@ -49,8 +49,8 @@ export async function closeGoalStateChangeReminderDeferral(
   try {
     await materializeGoalStateChangeReminder.call(this, pending.text, traceContext);
   } catch (error) {
-    // 权威 target 已先落库；reminder 持久化失败不能阻止 Stop turn 发出 terminal event。
-    // 保持单次物化，不在 turn 收尾引入 retry、cursor 或额外持久化状态机。
+// The authoritative target has been dropped into the library first; the failure of reminder persistence cannot prevent Stop turn from issuing a terminal event.
+// Maintain a single materialization and do not introduce retry, cursor or additional persistent state machine at the end of the turn.
     this.logger?.warn("Failed to materialize pending goal state reminder", {
       ...traceContextToLogContext(traceContext),
       errorMessage: error instanceof Error ? error.message : String(error),

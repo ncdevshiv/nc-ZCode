@@ -1,25 +1,25 @@
-// 旧默认值与模型常用的 30 秒页面等待相同，发送等副作用成功后会在结果读取前被中止。
-// 执行层和模型可见文案共用该常量，避免真实超时与 tools/list 描述漂移。
+// The old default is the same as the 30 second page wait commonly used by models, and side effects such as sending are aborted before the results are read.
+// The execution layer and model visible copy share this constant to avoid real timeout and tools/list description drift.
 export const NODE_REPL_DEFAULT_TIMEOUT_MS = 60_000;
 
-// MCP serverInfo 曾长期硬编码为 0.1.0，与插件发布版本分叉，导致宿主无法据此判断
-// 实际加载的 Browser Use runtime。版本升级时该值应与 package.json 同步。
-// 宿主自己的版本，不是 browser-use 插件的版本。把宿主抽成 @zcode/node-repl-host
-// 时保留了这个数字：它一直就是 node_repl server 对外宣告的版本，换个数字等于无谓地改协议。
-// 从此它随宿主契约（bridge 成员、工具面）变化，与两个插件各自的版本解耦。
-// 升到 0.5.0：本次宿主契约本身变了（node_repl 从 browser-use 抽出成独立 seed 单元、
-// 工具面随 CUA 的 node_repl SDK 重建调整），按上面这条规则该动。数字与 browser-use 0.5.0 相同
-// 只是同源历史的巧合，不构成耦合——两者仍各自独立升版。
-// 升到 0.6.0：工具面收敛到只剩 `js`，`js_reset` 与 `js_add_node_module_dir` 连同
-// moduleDirs 能力一起删除。前者自 fresh-kernel 改造起就是固定返回成功的空操作，且"永不失败"
-// 会让模型连续重复调用（重复调用会持续消耗预算）；后者
-// 是把宿主职责推给模型——模型无法自行知道该传哪个 node_modules，能告诉它的只有 skill 文档，
-// 而文档知道的路径宿主自己就能注入。两者实测调用量均为 0。宿主协议变了就得让 serverInfo 能被
-// 据此识别，否则宿主无法区分自己连上的是哪一代工具面。
+// MCP serverInfo was hard-coded to 0.1.0 for a long time, which was forked from the plug-in release version, causing the host to be unable to judge based on it.
+//The actual loaded Browser Use runtime. This value should be synchronized with package.json during version upgrades.
+// The host's own version, not the version of the browser-use plug-in. Extract the host into @zcode/node-repl-host
+// This number is retained: it has always been the version announced by the node_repl server. Changing the number is equivalent to changing the protocol needlessly.
+// From now on it changes with the host contract (bridge members, tool surface) and is decoupled from the respective versions of the two plugins.
+//Upgraded to 0.5.0: The host contract itself has changed this time (node_repl is extracted from browser-use into an independent seed unit,
+// The tool surface is adjusted according to the reconstruction and adjustment of CUA's node_repl SDK), and it should be moved according to the above rule. Numbers are the same as browser-use 0.5.0
+// It's just a coincidence of homologous history and does not constitute coupling - the two are still upgraded independently.
+//Up to 0.6.0: The tool surface converges to only `js`, `js_reset` and `js_add_node_module_dir` together
+// moduleDirs capabilities are deleted together. The former has been a fixed return successful no-op since the fresh-kernel transformation, and "never fails"
+// Will cause the model to be called repeatedly (repeated calls will continue to consume the budget); the latter
+// This is to push the hosting responsibility to the model - the model cannot know which node_modules to pass on its own, all it can tell is the skill document.
+// The path that the document knows can be injected by the host itself. The measured call volume of both is 0. If the host protocol changes, serverInfo must be
+//Identify based on this, otherwise the host cannot distinguish which generation of tool surface it is connected to.
 export const NODE_REPL_SERVER_VERSION = "0.6.0";
 
-// node_repl 的底层能力是通用 JS，旧文案却没有声明模型路由边界，导致非浏览器任务
-// 也会误选这个高权限工具。Browser Use 与 Computer Use 是合法入口，因此 server 与 tool 文案都要显式限域。
+// The underlying capability of node_repl is general JS, but the old copy did not declare the model routing boundary, resulting in non-browser tasks
+// This high-privilege tool may also be selected by mistake. Browser Use and Computer Use are legal entries, so the server and tool copywriting must be explicitly restricted.
 export const NODE_REPL_SERVER_INSTRUCTIONS =
   "Browser Use and Computer Use only. Use `js` to run JavaScript in a fresh Node-backed kernel only when " +
   "the corresponding official skill instructs you to control a browser or computer. Do not use this server for unrelated tasks, " +

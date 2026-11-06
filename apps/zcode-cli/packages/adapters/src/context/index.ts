@@ -293,7 +293,9 @@ async function detectProjectContext(projectRoot: string): Promise<ProjectContext
     }
   }
 
-  if (await isFile(join(projectRoot, "pnpm-lock.yaml"))) {
+  if (await isFile(join(projectRoot, "bun.lock"))) {
+    packageManager = "bun";
+  } else if (await isFile(join(projectRoot, "pnpm-lock.yaml"))) {
     packageManager = "pnpm";
   } else if (await isFile(join(projectRoot, "yarn.lock"))) {
     packageManager = "yarn";

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import {
   HookOutcome,
   SessionEventType,
@@ -58,15 +59,15 @@ export class InMemoryHookRunner implements HookRunner {
     };
     const hookInvocationId = crypto.randomUUID();
 
-    // skipLifecycle 的 hook 不发事件，不能计入客户端等待完成的 hookCount。
-    // 修复：先解析全部 matchingHooks 的 admission，把 skipLifecycle 的从参与列表
-    // 剔除后再计算 clientVisibleHookCount，保证 hookCount === 实际会发事件的 hook 数。
+// The skipLifecycle hook does not send events and cannot be counted in the client's hookCount waiting for completion.
+// Fix: First parse the admissions of all matchingHooks, and remove skipLifecycle from the participation list
+// Calculate clientVisibleHookCount after elimination to ensure hookCount === the number of hooks that will actually send events.
     //
-    // 注意：这里的 admission 结果只用于 skipLifecycle 剔除与 hookCount 计算——
-    // 二者取决于「配置是否启用」这一稳定属性。allowed 授权决定绝不能沿用本阶段的
-    // 缓存：一次事件匹配多个顺序执行的 Hook 时，前序 Hook 运行期间发生的
-    // revoke / policy 收紧 / trust store reload 必须对尚未开始的 Hook 立即生效，
-    // 因此循环内在每个 Hook 实际 dispatch 前重新调用 resolveHookRunAdmission。
+// Note: The admission results here are only used for skipLifecycle elimination and hookCount calculation——
+// Both depend on the stable property "whether the configuration is enabled". allowed Authorization decisions must not be inherited from this stage
+// Cache: When an event matches multiple sequentially executed Hooks, the cache occurs during the running of the previous Hook.
+// revoke / policy tightening / trust store reload must take effect immediately for Hooks that have not yet started.
+// So resolveHookRunAdmission is re-called within the loop before each Hook is actually dispatched.
     const participatingHooks: { hook: HookRegistration }[] = [];
     for (const hook of matchingHooks) {
       const admission = resolveHookRunAdmission(hook, input, this.logger);
@@ -84,9 +85,9 @@ export class InMemoryHookRunner implements HookRunner {
       const hookIndex = descriptor.clientVisible ? clientVisibleHookIndex++ : runtimeIndex;
       const hookRunId = crypto.randomUUID();
       const startedAt = Date.now();
-      // dispatch 前重新解析授权决定。预扫描结果可能已过时——前序 Hook
-      // 执行期间用户 revoke、管理员收紧 policy 或 trust store reload 都会改变
-      // 结论。security revision 的价值就在执行边界重验，授权决定不得缓存。
+//Reparse the authorization decision before dispatch. Prescan results may be out of date - Preorder Hook
+// During execution, user revoke, administrator tightening policy or trust store reload will all change
+// in conclusion. The value of security revision is to perform boundary revalidation, and authorization decisions must not be cached.
       const admission = resolveHookRunAdmission(hook, input, this.logger);
       if (!admission.allowed) {
         await this.emitHookEvent(
@@ -123,7 +124,7 @@ export class InMemoryHookRunner implements HookRunner {
       );
 
       if (hook.async) {
-        // async command 的生命周期独立于当前 turn；输出不得反向改变已经继续执行的动作。
+// The life cycle of the async command is independent of the current turn; the output must not reverse the action that has been continued.
         void this.runBackgroundHook({
           clientVisibleHookCount,
           descriptor,
@@ -169,8 +170,8 @@ export class InMemoryHookRunner implements HookRunner {
           processed.permissionRequestResult?.behavior === "deny" ||
           processed.preventContinuation ||
           processed.blockRequested;
-        // 阻断原因必须随终态事件进入持久化投影；只放在 TurnResult/tooltip 会在
-        // 重放或移动端恢复时丢失，用户无法从 Hooks 明细判断是哪条 Hook 拦截了请求。
+// The blocking reason must enter the persistent projection with the final event; only if it is placed in TurnResult/tooltip, it will be in
+// Lost during replay or mobile recovery, the user cannot determine which Hook intercepted the request from the Hooks details.
         const blockReason = blocked
           ? sanitizeHookDisplayText(
               processed.stopReason ??

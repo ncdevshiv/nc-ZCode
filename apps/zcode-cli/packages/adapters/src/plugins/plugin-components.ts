@@ -14,13 +14,13 @@ import { loadPluginMcpServerDefinitions } from "./mcp.js";
 import { scanSkillFilesUnderRootSync } from "../skills/scan.js";
 import type { LoadedPlugin } from "./types.js";
 
-// 组件分组类型定义已上移到 @zcode/contracts（PluginMetadata 需要引用），这里再导出保持对外契约稳定。
+// The component grouping type definition has been moved up to @zcode/contracts (PluginMetadata needs to be referenced), and is exported here to maintain the stability of the external contract.
 export type { PluginComponentGroup, PluginComponentItem, PluginComponentKind };
 
 /**
- * 在已解析的插件根目录上枚举各类组件的名称与描述。纯文件读取，跨平台只用 node:path/fs。
- * manifest 由调用方读取后传入（可为 null）；缺失目录或无 frontmatter 时跳过或省略描述，
- * 不因单个组件异常阻断整体枚举。
+* Enumerate the names and descriptions of various components on the parsed plug-in root directory. Pure file reading, cross-platform only uses node:path/fs.
+* The manifest is passed in after being read by the caller (can be null); the description is skipped or omitted when the directory is missing or there is no frontmatter.
+* Do not block the entire enumeration due to a single component exception.
  */
 export function enumeratePluginComponents(
   rootPath: string,
@@ -34,8 +34,8 @@ export function enumeratePluginComponents(
   const commandItems = collectMarkdownComponents(rootPath, manifest?.commands, "commands");
   if (commandItems.length > 0) groups.push({ kind: "command", items: commandItems });
 
-  // 信任边界：组件枚举的 rootPath 就是插件根，扫描无条件不跟随符号链接——
-  // 不依赖 loaded 是否凑齐（manifest 解析失败的 marketplace describe 链路同样生效）。
+// Trust boundary: The rootPath of component enumeration is the plug-in root. Scanning unconditionally does not follow symbolic links——
+// Does not depend on whether loaded is complete (the marketplace describe link that fails to parse the manifest will also take effect).
   const skillItems = collectSkillComponents(rootPath, manifest?.skills);
   if (skillItems.length > 0) groups.push({ kind: "skill", items: skillItems });
 
@@ -48,7 +48,7 @@ export function enumeratePluginComponents(
   return groups;
 }
 
-/** command/agent：默认目录 + manifest 声明的额外路径下的 .md 文件，读 frontmatter name/description。 */
+/** command/agent: the default directory + the .md file in the additional path declared by the manifest, read frontmatter name/description. */
 function collectMarkdownComponents(
   rootPath: string,
   manifestField: unknown,
@@ -57,7 +57,7 @@ function collectMarkdownComponents(
   const items: PluginComponentItem[] = [];
   const seen = new Set<string>();
 
-  // object 形式声明（{ name: { source|content, description } }）直接取声明的描述。
+// object form declaration ({ name: { source|content, description } }) directly takes the description of the declaration.
   if (isRecord(manifestField)) {
     for (const [rawName, rawMeta] of Object.entries(manifestField)) {
       const name = rawName.trim();
@@ -94,9 +94,9 @@ function collectMarkdownComponents(
 }
 
 /**
- * skill：默认 skills 目录与 manifest 声明路径下枚举技能，读取 SKILL.md frontmatter。
- * 根自身含 SKILL.md 时根自身是一个技能；按文件路径和最终 name 去重，避免声明根与默认根
- * 重复计数，也避免不同路径下同名技能造成展示结果漂移。
+* Skill: Enumerate skills under the default skills directory and manifest declaration path, and read SKILL.md frontmatter.
+* When the root itself contains SKILL.md, the root itself is a skill; remove duplication according to the file path and final name to avoid declaring the root and the default root
+* Repeated counting also avoids the drift of display results caused by skills with the same name under different paths.
  */
 function collectSkillComponents(rootPath: string, manifestField: unknown): PluginComponentItem[] {
   const items: PluginComponentItem[] = [];
@@ -124,7 +124,7 @@ function collectSkillComponents(rootPath: string, manifestField: unknown): Plugi
   return items;
 }
 
-/** hook：复用 loader 的来源发现规则，但只取事件名用于详情展示，不构造可执行 hook。 */
+/** Hook: Reuse the source discovery rules of the loader, but only take the event name for detailed display, and do not construct an executable hook. */
 function collectHookComponents(
   manifest: PluginManifest | null,
   options: { diagnostics?: PluginDiagnostic[]; loaded?: LoadedPlugin },
@@ -139,7 +139,7 @@ function collectHookComponents(
   return collectInlineHookEvents(manifest.hooks).map((name) => ({ name }));
 }
 
-/** mcp：复用 loader 读取 `.mcp.json` + `manifest.mcpServers` 的纯读解析，只展示原始 server 名。 */
+/** mcp: Reuse loader to read `.mcp.json` + `manifest.mcpServers` pure read analysis, only display the original server name. */
 function collectMcpComponents(
   manifest: PluginManifest | null,
   options: { diagnostics?: PluginDiagnostic[]; loaded?: LoadedPlugin },
@@ -179,7 +179,7 @@ function collectInlineHookEvents(value: unknown): string[] {
   return names;
 }
 
-/** 默认目录约定 + manifest 字符串/数组路径声明，合并成去重的待扫描目录列表。 */
+/** Default directory convention + manifest string/array path declaration, combined into a deduplicated directory list to be scanned. */
 function collectComponentDirs(rootPath: string, manifestField: unknown, defaultDir: string): string[] {
   const dirs: string[] = [];
   const seen = new Set<string>();

@@ -25,12 +25,11 @@ export async function generateThirdPartyNotices(root = repositoryRoot) {
       throw new Error(`Changed Node ${runtime.version} license`);
   }
   const pkg = await readJson("package.json");
-  await readInput("pnpm-lock.yaml");
-  await readInput("pnpm-workspace.yaml");
+  await readInput("bun.lock");
   await readInput("third-party/native-search/sources.json");
   const { packages, notInstalled, workspaceManifests } = await collectNpmNotices(root, overrides);
   // 修复：递归扫描会把 bundled-agents/mock-cdn 的可删除缓存当作源码输入，重建立即失效。
-  // workspace 边界由 pnpm 解析，同一份项目集合用于依赖图和 manifest 新鲜度检查。
+  // workspace 边界由 Bun 锁文件解析，同一份项目集合用于依赖图和 manifest 新鲜度检查。
   for (const file of workspaceManifests) await readInput(file);
   const currentPackages = new Set(
     [...packages, ...notInstalled].map((item) => `${item.name}@${item.version}`),
@@ -110,7 +109,7 @@ export async function generateThirdPartyNotices(root = repositoryRoot) {
     "Apache License, Version 2.0",
   );
   const patches = [];
-  for (const [name, file] of Object.entries(pkg.pnpm?.patchedDependencies ?? {})) {
+  for (const [name, file] of Object.entries(pkg.patchedDependencies ?? {})) {
     patches.push({ package: name, file, sha256: hashBytes(await readInput(file)) });
   }
   const native = await readNativeSearchNotices(root, { verify: true });

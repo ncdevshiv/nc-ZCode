@@ -17,7 +17,7 @@ interface ProviderBusinessCodeMapping {
   retryable: boolean;
 }
 
-// 部分 OpenAI-compatible provider 会把可恢复的上游网络故障包装成业务码。
+// Some OpenAI-compatible providers will package recoverable upstream network failures into business codes.
 const PROVIDER_NETWORK_BUSINESS_CODES = new Set(["1234"]);
 const PROVIDER_INTERNAL_NETWORK_MESSAGES = new Set([
   "500 internal network error",
@@ -105,7 +105,7 @@ const PROVIDER_BUSINESS_CODE_MAPPINGS = new Map<string, ProviderBusinessCodeMapp
       retryable: false,
     },
   ],
-  // 3008/3009/3010：并发上限，与配额耗尽 1005 类似但不走 refresh-quota，而是走升级横幅。
+// 3008/3009/3010: Concurrency upper limit, similar to quota exhaustion 1005 but does not use refresh-quota, but uses upgrade banner.
   [
     "3008",
     {
@@ -124,7 +124,7 @@ const PROVIDER_BUSINESS_CODE_MAPPINGS = new Map<string, ProviderBusinessCodeMapp
       retryable: false,
     },
   ],
-  // 3010：当前模型并发上限。保留为非自动重试的 rate limited，由 UI 引导切换模型或升级。
+// 3010: Current model concurrency upper limit. Reserved as a non-automatic retry rate limited, the UI guides model switching or upgrades.
   [
     "3010",
     {
@@ -134,8 +134,8 @@ const PROVIDER_BUSINESS_CODE_MAPPINGS = new Map<string, ProviderBusinessCodeMapp
       retryable: false,
     },
   ],
-  // BigModel 文档里的恢复类错误需要显式入表；同时把 1261 标成超窗，
-  // 长期配额、套餐权限、公平使用限制和 provider 明确终止型业务码则显式终止，避免 generic 429 兜底误重试。
+// Recovery errors in the BigModel document need to be explicitly entered into the table; at the same time, mark 1261 as a super window.
+// Long-term quotas, package permissions, fair usage restrictions and provider explicit termination business codes are explicitly terminated to avoid generic 429 false retries.
   [
     "1120",
     {
@@ -291,9 +291,9 @@ const PROVIDER_BUSINESS_CODE_MAPPINGS = new Map<string, ProviderBusinessCodeMapp
   ],
 ]);
 
-// 这些 code 均来自 provider 官方文档，且语义需要用户充值、调整套餐或等待长期额度重置。
-// 只消费 AI SDK / 既有 ProviderBusinessError 已暴露的 code，不在这里解析厂商原始 response 字段。
-// insufficient_quota 曾落入通用 429 重试；其终止语义不能再依赖 Retry-After 时长。
+// These codes are all from the official documentation of the provider, and the semantics require the user to recharge, adjust the package, or wait for the long-term quota to be reset.
+// Only consume AI SDK / existing ProviderBusinessError exposed code, do not parse the manufacturer's original response field here.
+// insufficient_quota once fell into the generic 429 retry; its termination semantics can no longer rely on the Retry-After duration.
 for (const code of [
   "insufficient_quota",
   "credit_balance_exhausted",
@@ -336,8 +336,8 @@ export function isRetryableProviderBusinessNetworkFailure(
   providerCode: string | undefined,
 ): boolean {
   if (providerCode) {
-    // AI SDK 的 SSE error chunk 会把底层 ECONNRESET 包进 ProviderBusinessError.providerCode。
-    // 这本质仍是传输层断连，必须沿用网络错误重试语义，而不是落成 unknown。
+// The SSE error chunk of AI SDK will wrap the underlying ECONNRESET into ProviderBusinessError.providerCode.
+// This is essentially a transport layer disconnection, and network error retry semantics must be used instead of unknown.
     if (isNetworkFailure(providerCode)) {
       return true;
     }
@@ -359,8 +359,8 @@ export function isRetryableProviderBusinessTimeoutFailure(
   providerCode: string | undefined,
   statusCode?: number,
 ): boolean {
-  // AI SDK/SSE error chunk 可能把底层 headers/body timeout 包进 ProviderBusinessError.providerCode。
-  // 这类错误没有真正的 provider 业务语义，必须保留普通 timeout 的可重试语义。
+// AI SDK/SSE error chunk may wrap underlying headers/body timeout into ProviderBusinessError.providerCode.
+// This type of error has no real provider business semantics and must retain the retryable semantics of ordinary timeout.
   return isTimeoutFailure(
     error,
     providerCode,

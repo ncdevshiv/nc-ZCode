@@ -5,7 +5,7 @@ import { isRecord, mcpOAuthCredentialKey } from "./oauth-credentials.js";
 const MCP_OAUTH_DISCOVERY_STATE_KEY = "discovery_state";
 const MCP_OAUTH_DISCOVERY_FETCHED_AT_KEY = "discovery_state_fetched_at";
 
-/** discovery metadata 缓存寿命。过期后重新发现，避免长期使用换过端点的旧 AS metadata。 */
+/** discovery metadata cache lifetime. Rediscover after expiration to avoid long-term use of old AS metadata with changed endpoints. */
 const MCP_OAUTH_DISCOVERY_TTL_MS = 24 * 60 * 60 * 1000;
 
 export interface McpOAuthAuthorizationContext {
@@ -15,12 +15,12 @@ export interface McpOAuthAuthorizationContext {
 }
 
 /**
- * discovery 记录的时间戳单独存一个 key，不包裹 `discovery_state` 本身。
+* The timestamp of the discovery record is stored in a separate key and does not wrap `discovery_state` itself.
  *
- * `discovery_state` 的值形态必须继续是裸 `OAuthDiscoveryState`：CLI 与 desktop 独立升级、
- * 共享同一个凭据文件，把它换成 `{fetched_at, state}` 包裹结构会让未升级的 reader 读到一个
- * 不含 `authorizationServerUrl` 的对象，静默失去 discovery 缓存。追加一个可选 key 才是
- * 向后兼容的做法。
+* The value form of `discovery_state` must continue to be bare `OAuthDiscoveryState`: CLI and desktop can be upgraded independently,
+* Share the same credentials file, changing it to `{fetched_at, state}` wrapper structure will allow unupgraded readers to read a
+* Objects without `authorizationServerUrl` silently lose discovery cache. Appending an optional key is
+* Backward compatibility practices.
  */
 export async function saveDiscoveryRecord(
   credentialStore: SharedZCodeCredentialStore,
@@ -35,10 +35,10 @@ export async function saveDiscoveryRecord(
 }
 
 /**
- * 读取未过期的 discovery 记录。
+* Read unexpired discovery records.
  *
- * 缺时间戳（旧版本写入）或已过期都返回 `undefined`，让调用方重新发现一次；下一次保存就会补上
- * 时间戳，自愈。
+* If the timestamp is missing (written in the old version) or expired, `undefined` will be returned, allowing the caller to rediscover it; it will be filled in the next time it is saved.
+* Timestamp, self-healing.
  */
 export async function loadDiscoveryRecord(
   credentialStore: SharedZCodeCredentialStore,
@@ -66,7 +66,7 @@ export async function loadDiscoveryRecord(
 
   const state = parsed as unknown as OAuthDiscoveryState;
   if (options.expectedIssuer && !issuersMatch(state, options.expectedIssuer)) {
-    // canonical 记录的 issuer 与缓存不一致：授权服务器换了，缓存必须作废。
+// The issuer recorded by canonical is inconsistent with the cache: the authorization server has changed, and the cache must be invalidated.
     return undefined;
   }
   return state;

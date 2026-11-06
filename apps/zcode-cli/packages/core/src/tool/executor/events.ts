@@ -24,7 +24,7 @@ export async function emitToolCallStarted(
   turnId: TurnId | undefined,
   startTime: number,
   display?: ToolResultDisplayPayload,
-  // 解析后的副作用能力（与权限判定同源）：订阅者据此在工具动手前知道「要写了」。
+// Side effect capabilities after parsing (same origin as permission determination): Subscribers know based on this that "it is about to be written" before using the tool.
   capability?: { readOnly?: boolean; sideEffectScope?: ToolSideEffectScope },
 ): Promise<void> {
   await deps.emitEvent({

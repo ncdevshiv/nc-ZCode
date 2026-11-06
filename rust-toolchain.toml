@@ -1,0 +1,7 @@
+# Pin the Rust toolchain. The build unit hash of target/ contains the rustc version, and whenever the toolchain drifts once,
+# The entire dependency graph will be re-hashed, and old products will remain permanently (actually measured workspace rustc hash has appeared for 3 generations).
+# Place it at the root of the warehouse instead of native/: rustup parses override according to cwd, and warehouse scripts mostly start from the root directory
+# When calling cargo with --manifest-path native/Cargo.toml, only the root directory can be covered.
+[toolchain]
+channel = "1.99.1"
+components = ["rustfmt", "clippy"]

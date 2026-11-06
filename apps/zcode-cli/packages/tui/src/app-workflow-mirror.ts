@@ -1,17 +1,17 @@
 // ============================================================
-// TUI 侧的 workflowRuns 镜像
+// workflowRuns image on TUI side
 // ============================================================
-// 单时钟：运行态**只**由共享 reducer 逐事件归约维护（@zcode/shared 的
-// workflow-runs-reducer，与 v4 投影同一份实现），外加冷启动/恢复时的一次性补种。
-// 没有轮询、没有 setInterval——legacy workflow 面板每秒全量重拉是反面教材。
+// Single clock: The running state is **only** maintained by the shared reducer event-by-event reduction (@zcode/shared's
+// workflow-runs-reducer, same implementation as v4 projection), plus one-time reseeding during cold start/recovery.
+// No polling, no setInterval - the legacy workflow panel's full re-pulling every second is a negative example.
 //
-// 镜像比协议状态键多两样东西，都是刻意的：
-//   1. `logTailByRunId`：log 事件**不在** workflowRuns schema 里（它们只进 journal 事件日志），
-//      但展开详情要显示 log 尾，所以 TUI 自己留最近若干条（有界）。
-//   2. `seedByRunId`：冷补种从 listDynamicWorkflowRuns 带回的**展示元信息**（label / updatedAt）。
-//      运行态（状态、步数、用量、resumable）**不**从摘要来：冷启动 / `/resume` 时 journal 的事件
-//      经 `replayWorkflowRuns` 回放进同一个 reducer（冷回放），镜像里的 run 与重启前逐字节一致；`resumable` 是状态位，由 CLI 在
-//      run-settled 载荷上裁定——dynamic-workflow-run.port.ts 的既有裁定「渲染服务端布尔」照旧。
+// The image has two more things than the protocol status key, both of which are intentional:
+// 1. `logTailByRunId`: log events are not in workflowRuns schema (they only enter the journal event log),
+// But the expanded details need to display the tail of the log, so TUI keeps the most recent ones (bounded).
+// 2. `seedByRunId`: **Display meta information** (label / updatedAt) brought back from listDynamicWorkflowRuns by cold reseeding.
+// Running status (status, steps, usage, resumable) **not** from the summary: cold start / journal events during `/resume`
+// After `replayWorkflowRuns` is played back into the same reducer (cold playback), the run in the image is the same as before restarting byte by byte; `resumable` is the status bit, which is controlled by the CLI
+// Run-settled payload decision - the existing decision "render server boolean" of dynamic-workflow-run.port.ts remains the same.
 
 import {
   reduceWorkflowRunsState,
@@ -22,17 +22,17 @@ import {
   type WorkflowRunsState,
 } from "@zcode/shared/zcode-protocol-v4";
 
-/** log 尾的界：条数与单条长度都限，避免一个话多的 run 把镜像吃成无界。 */
+/** The limit for the end of the log: both the number of entries and the length of a single entry are limited to prevent a talkative run from eating the image into an unbounded state. */
 const TUI_WORKFLOW_LOG_TAIL_LIMITS = {
   maxEntries: 10,
   maxEntryLength: 200,
 } as const;
 
 /**
- * 冷补种摘要里 TUI 会渲染的**展示**字段（运行态一律走回放，见文件头）。
+* The **display** field that TUI will render in the cold replanting summary (the running state will always be played back, see the file header).
  *
- * `label` / `updatedAt` 是 additive optional（见 spec 的 `/dwf` 边界行「实现期修订」）：
- * 服务端还没带上时就是 undefined，渲染侧一律退回 runId，绝不在这里造一个假 label。
+* `label` / `updatedAt` are additive optional (see spec's `/dwf` boundary line "Implementation revision"):
+* It is undefined when the server has not brought it. The rendering side will always return runId and never create a false label here.
  */
 export type TuiWorkflowRunSeed = {
   runId: string;
@@ -41,7 +41,7 @@ export type TuiWorkflowRunSeed = {
 };
 
 export type TuiWorkflowMirror = {
-  /** 共享 reducer 维护的权威运行态。 */
+/** Share the authoritative running state maintained by the reducer. */
   state: WorkflowRunsState;
   logTailByRunId: Readonly<Record<string, readonly string[]>>;
   seedByRunId: Readonly<Record<string, TuiWorkflowRunSeed>>;
@@ -54,10 +54,10 @@ export const EMPTY_TUI_WORKFLOW_MIRROR: TuiWorkflowMirror = {
 };
 
 /**
- * 一条 dwf 进度事件 → 新镜像。
+* A dwf progress event → new image.
  *
- * **无变化时返回传入的同一个引用**，这样 React 的 setState 会直接跳过重渲染：
- * 共享 reducer 的「null = 语义无变化」契约在这里落成「不重绘」，不需要额外的相等判断。
+* **Return the same reference passed in when there is no change**, so React's setState will directly skip re-rendering:
+* The "null = no semantic change" contract of the shared reducer is implemented here as "no redrawing", and no additional equality judgment is required.
  */
 export function applyWorkflowProgressToMirror(
   mirror: TuiWorkflowMirror,
@@ -74,10 +74,10 @@ export function applyWorkflowProgressToMirror(
 }
 
 /**
- * 冷补种：把 `listDynamicWorkflowRuns` 的会话级摘要里的**展示名**并进镜像。
+* Cold reseeding: Merge the **display name** in the session-level summary of `listDynamicWorkflowRuns` into the image.
  *
- * 只填元信息，**不**伪造运行态条目——运行态由冷回放（`replayWorkflowRuns` → 共享 reducer）
- * 给出，与重启前逐字节一致；摘要没有的东西（label 之外）这里一个也不造。
+* Only fill in meta information, **do not** forge running state entries - running state is controlled by cold replay (`replayWorkflowRuns` → shared reducer)
+* Given, it is consistent byte by byte before restarting; nothing that is not included in the summary (except label) is created here.
  */
 export function seedWorkflowMirror(
   mirror: TuiWorkflowMirror,
@@ -97,11 +97,11 @@ export function seedWorkflowMirror(
 }
 
 /**
- * 步数进度：**已结算 / 已排程**（settled / observed）。
+* Step progress: **Settled / Scheduled** (settled / observed).
  *
- * 动态工作流没有静态总数，所以分母是已排程节点数，绝不冒充全程百分比。规则来源是
- * GUI 的 `packages/ui/src/v4/workflowRunCardJoin.ts`（同一条规则的桌面侧唯一实现）；
- * TUI 不能 import packages/ui（那是 Electron renderer 的 React 层），所以这里按同规重写。
+* Dynamic workflow does not have a static total, so the denominator is the number of scheduled nodes, which never pretends to be a full percentage. The source of the rules is
+* GUI's `packages/ui/src/v4/workflowRunCardJoin.ts` (the only desktop implementation of the same rule);
+* TUI cannot import packages/ui (that is the React layer of Electron renderer), so it is rewritten according to the same rules here.
  */
 export function workflowRunStepCounts(run: WorkflowRunState): {
   nodesSettled: number;
@@ -114,11 +114,11 @@ export function workflowRunStepCounts(run: WorkflowRunState): {
   return { nodesSettled, nodesTotal: run.nodes.length };
 }
 
-/** 卡片渲染需要的全部事实——让视图成为 props 的纯函数（TUI 测试按函数式调用组件）。 */
+/** All the facts needed for card rendering - make the view a pure function of props (TUI tests call components functionally). */
 export type TuiWorkflowCard = {
   runId: string;
   status: WorkflowRunState["status"];
-  /** `stopped` 的原因；reducer 从 run-settled 载荷搬运。 */
+/** Reason for `stopped`; reducer moved from run-settled load. */
   stopReason?: WorkflowRunState["stopReason"];
   nodesSettled: number;
   nodesTotal: number;
@@ -133,16 +133,16 @@ export type TuiWorkflowCard = {
 };
 
 /**
- * 工具卡 → workflow run 的联接，按 `toolCallId`（schema 注释里它就是「工具卡 → 详情页的关联键」）。
- * 与 GUI `buildWorkflowRunByToolCallId` 同规。运行态只有一个来源——镜像状态（live 事件与
- * 冷回放经同一个 reducer），补种只给展示名。
+* For the connection of tool card → workflow run, press `toolCallId` (in the schema comment, it is the "association key of tool card → details page").
+* Same as GUI `buildWorkflowRunByToolCallId`. There is only one source of running state - mirror state (live events and
+* Cold replay via the same reducer), reseeding only gives the display name.
  */
 export function buildTuiWorkflowCardIndex(
   mirror: TuiWorkflowMirror,
 ): ReadonlyMap<string, TuiWorkflowCard> {
   const byToolCallId = new Map<string, TuiWorkflowCard>();
   for (const run of mirror.state.runs) {
-    // 没有 toolCallId 的 run 没有可联接的卡片，不进表。
+// A run without toolCallId has no connectable card and will not be entered into the table.
     if (!run.toolCallId) continue;
     byToolCallId.set(run.toolCallId, cardFromRun(run, mirror));
   }
@@ -158,9 +158,9 @@ function cardFromRun(run: WorkflowRunState, mirror: TuiWorkflowMirror): TuiWorkf
     ...(run.stopReason === undefined ? {} : { stopReason: run.stopReason }),
     nodesSettled,
     nodesTotal,
-    // label 只有服务端知道；投影条目不带它，命中补种就用补种的。
+// Label is only known by the server; projection entries do not carry it, and reseeding is used when reseeding is hit.
     ...(seed?.label === undefined ? {} : { label: seed.label }),
-    // resumable 是状态位（CLI 在 run-settled 载荷上裁定，reducer 搬运），TUI 不重推导。
+// resumable is a status bit (CLI arbitrates on run-settled loads, reducer handles), TUI does not re-derive.
     ...(run.resumable === undefined ? {} : { resumable: run.resumable }),
     usage: run.usage,
     actors: run.actors,

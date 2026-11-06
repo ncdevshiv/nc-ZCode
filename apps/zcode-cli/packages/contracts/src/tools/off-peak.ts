@@ -1,9 +1,9 @@
 // ============================================================
 // Off-Peak tools - session-level idle-time task creation
 // ============================================================
-// 闲时任务与 cron automation 是兄弟实体：schema 独立镜像，禁止互相复用。
-// workspace/凭证不是模型入参；permissionMode/model/thoughtLevel 缺省在 host 端解析
-// （yolo / allowed_models 末位 / 最高推理档），模型只在用户显式要求时覆盖。
+// Idle tasks and cron automation are sibling entities: schema independent mirroring, mutual reuse is prohibited.
+// workspace/credential is not a model input parameter; permissionMode/model/thoughtLevel is parsed on the host side by default
+// (yolo / allowed_models last position / highest inference file), the model will only be overwritten when the user explicitly requests it.
 
 import { z } from "zod";
 import { toToolJsonSchema } from "./json-schema.js";
@@ -13,7 +13,7 @@ const nonEmptyString = z.string().trim().min(1);
 export const OffPeakCreateInputSchema = z
   .object({
     title: nonEmptyString.describe(
-      "Concise idle-time task title describing the deferred work, for example '重构 utils 目录' or 'Fix flaky auth tests'. Keep it short and do not include file paths.",
+      "Concise idle-time task title describing the deferred work, for example 'Refactor utils directory' or 'Fix flaky auth tests'. Keep it short and do not include file paths.",
     ),
     prompt: nonEmptyString.describe(
       "Instructions for the deferred run, which later continues THIS conversation unattended with the full history available, so it may refer to context already established here. State the expected deliverable explicitly (nobody will answer questions during the run); never ask the run to create, schedule, or configure another idle-time task or automation.",
@@ -39,7 +39,7 @@ export const OffPeakCreateInputSchema = z
 export type OffPeakCreateInput = z.infer<typeof OffPeakCreateInputSchema>;
 export const OffPeakCreateInputJsonSchema = toToolJsonSchema(OffPeakCreateInputSchema);
 
-/** 客户端执行态（与 shared ZCodeOffPeakTaskStatus 同值镜像；zod v3/v4 边界不 import shared）。 */
+/** Client execution status (same value mirroring as shared ZCodeOffPeakTaskStatus; zod v3/v4 boundary does not import shared). */
 export const OffPeakTaskStatusSchema = z.enum([
   "queued",
   "paused",
@@ -50,7 +50,7 @@ export const OffPeakTaskStatusSchema = z.enum([
 ]);
 export type OffPeakTaskStatus = z.infer<typeof OffPeakTaskStatusSchema>;
 
-/** 轮尾卡片与 OffPeakList 的最小任务快照：不暴露 serverTicketId / providerName。 */
+/** Minimal task snapshot of tail card and OffPeakList: do not expose serverTicketId / providerName. */
 export const OffPeakTaskSummarySchema = z
   .object({
     offPeakTaskId: nonEmptyString,

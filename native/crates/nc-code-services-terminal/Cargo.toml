@@ -1,0 +1,24 @@
+[package]
+name = "nc-code-services-terminal"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "terminal service channel: real pseudoterminals (ConPTY on Windows, pty on POSIX)"
+
+[dependencies]
+async-trait = "0.1"
+base64 = "0.22"
+portable-pty = "0.9"
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml = "0.9"
+tokio.workspace = true
+toml = "0.8"
+nc-code-channels = { path = "../nc-code-channels" }
+nc-code-rpc = { path = "../nc-code-rpc" }
+nc-code-service-core = { path = "../nc-code-service-core" }
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.10"

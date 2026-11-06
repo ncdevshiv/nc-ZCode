@@ -4,8 +4,8 @@ import { resolve } from "node:path";
 const workspaceRoot = resolve(import.meta.dirname, "..");
 
 const child = spawn(
-  process.platform === "win32" ? "pnpm.cmd" : "pnpm",
-  ["--filter", "@zcode/desktop", "exec", "tsup", "--watch", "--sourcemap"],
+  process.platform === "win32" ? "bun.exe" : "bun",
+  ["--cwd=packages/desktop", "x", "tsup", "--watch", "--sourcemap"],
   {
     cwd: workspaceRoot,
     stdio: ["inherit", "pipe", "pipe"],

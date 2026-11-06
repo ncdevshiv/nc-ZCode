@@ -13,7 +13,7 @@ export interface LocalTurnPreparationFact {
   outcome?: "completed" | "failed" | "cancelled";
 }
 type Subscription = { publish: (fact: LocalTurnPreparationFact) => void; sequence: number };
-// 仅保存观察回调，不保存业务输入或阶段事实；CLI recorder 独占事实与订阅生命周期。
+//Only save observation callbacks, not business inputs or stage facts; CLI recorder exclusive facts and subscription life cycle.
 const subscriptions = new Map<string, Subscription>();
 const noop = () => {};
 export function observeLocalTurnPreparation(
@@ -41,12 +41,12 @@ export function beginLocalTurnPreparation(
     start: localTtftNow(),
   };
   const publish = (value: LocalTurnPreparationFact) => {
-    // 观测回调失败不得改变 Core 的返回值或异常；首输出解绑后不再补采工具循环。
+// Failure to observe the callback must not change Core's return value or exception; no additional acquisition tool loop will be required after the first output is unbound.
     if (subscriptions.get(trace.queryId!) !== subscription) return;
     try {
       subscription.publish(value);
     } catch {
-      /* 遥测不参与业务裁决。 */
+/* Telemetry does not participate in business decisions. */
     }
   };
   publish(fact);

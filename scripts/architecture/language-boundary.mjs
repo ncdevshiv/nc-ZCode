@@ -33,7 +33,7 @@ async function readTsBaseline(cwd) {
       throw Object.assign(
         new Error(
           `缺少 ${TS_BASELINE_FILE}：语言边界没有基线就无法区分「存量债」与「新增债」。` +
-            `先运行 pnpm architecture:ts-baseline:update 生成。`,
+            `先运行 bun run architecture:ts-baseline:update 生成。`,
         ),
         { code: "ENOENT" },
       );
@@ -325,7 +325,7 @@ export async function updateTsBaseline({ cwd = process.cwd(), acceptGrowth = nul
     version: 1,
     rule: current.rule,
     generatedAt: today,
-    generator: "pnpm architecture:ts-baseline:update",
+    generator: "bun run architecture:ts-baseline:update",
     // 引导日期冻结在第一次生成，之后任何再生成都不会把它抹掉——读者一眼能看出
     // 这份基线从哪天起就该只减不增，以及之后批准过几次扩大。
     bootstrappedAt: previous?.bootstrappedAt ?? today,

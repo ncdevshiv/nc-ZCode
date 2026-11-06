@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 // ============================================================
 // Vercel AI SDK protocol transforms
 // ============================================================
@@ -106,14 +107,14 @@ export function toAiSdkMessages(
           );
         }
         const toolName = projectToolNameForProvider(message.toolName, options);
-        // 含 video 的 tool result 在所有 provider kind 上都强制 textify + 后置投影：
-        // AI SDK tool result part 无 video 变体，anthropic 内嵌路径同样会丢失视频内容。
+// Tool results containing video force textify + backprojection on all provider kinds:
+// AI SDK tool result part has no video variant, and the anthropopic embedded path will also lose the video content.
         const messageTextifyToolResult =
           textifyStructuredToolResults || toolResultHasVideoMedia(message.content);
 
-        // 通用 fail-closed：帧引用结果在媒体不可投递时整体错误化（约束：
-        // 引用文本不得与"媒体不可用"占位符同现，否则 actionable frame_id 会诱导
-        // 模型对未见过画面的坐标产生动作）。
+// General fail-closed: The frame reference result is completely incorrect when the media is undeliverable (constraints:
+// Reference text must not appear with the "Media Not Available" placeholder, otherwise actionable frame_id will induce
+//The model generates actions on the coordinates of the unseen screen).
         const frameReferenceFailure = undeliverableFrameReferenceText(message.content, options);
 
         const toolMediaParts =
@@ -222,9 +223,9 @@ function contentBlockToAiSdkToolResultParts(
           },
         ];
       }
-      // AI SDK tool result part 无 video 变体：视频媒体统一由 tool-result-media-projection
-      // 拆成后置 user part（toolResultHasVideoMedia 对含 video 的 tool result 在所有
-      // provider kind 上强制 textify），这里不产出内嵌 part。
+// AI SDK tool result part has no video variant: video media is unified by tool-result-media-projection
+// Split into post user part (toolResultHasVideoMedia for all tool results containing video
+// Mandatory textify on provider kind), no embedded part is generated here.
       return [];
     }
 
@@ -302,12 +303,12 @@ function contentBlockToAiSdkAssistantParts(
         options.stripOpenAiResponsesStoredReasoning === true &&
         hasOpenAiStoredReasoningItemId(block.providerOptions)
       ) {
-        // 部分 Responses 兼容端点不支持无 previousResponseId 时回放 store=true 的
-        // reasoning item_reference；只在 Responses 无状态回放边界丢弃该引用，避免工具结果续轮变成 5xx。
+// Some Responses compatible endpoints do not support playback of store=true without previousResponseId.
+// reasoning item_reference; only discard the reference at the Responses stateless playback boundary to prevent the tool result from becoming 5xx.
         return [];
       }
-      // 没有正文和 provider 元数据的流式 reasoning 空壳会在历史回放时被
-      // Anthropic metadata 补全误认为有效 thinking；只在请求投影边界移除精确空壳。
+// The empty shell of streaming reasoning without body and provider metadata will be deleted during history playback.
+// Anthropic metadata completion mistaken for valid thinking; only removes exact empty shells at requested projection boundaries.
       if (block.text.length === 0 && Object.keys(block.providerOptions ?? {}).length === 0) {
         return [];
       }
@@ -367,8 +368,8 @@ function projectToolNameForProvider(
     return apiFormat === "anthropic-messages" ? toolName : "empty_tool_name";
   }
 
-  // OpenAI-compatible wire 不可靠接受空 function name，但历史中的原始
-  // 名称仍需保留给 Anthropic 回放；占位值只在 provider 投影边界生成。
+// OpenAI-compatible wire does not reliably accept empty function name, but the original in history
+// The name still needs to be reserved for Anthropic playback; placeholder values ​​are only generated at the provider's projection boundaries.
   return options.providerKind === "anthropic" ? toolName : "empty_tool_name";
 }
 
@@ -389,9 +390,9 @@ function toAiSdkUserContent(
   content: ModelMessageContent,
   options: AiSdkMessageTransformOptions,
 ): AiSdkUserContent {
-  // 附件-only query 拆出 prompt attachment 后可能留下空 user
-  // content，空白占位又可能被 provider trim 后视为缺失 prompt。只在 wire
-  // 序列化边界使用固定 fallback，避免改写 session 事实、UI 可见 query 和标题种子。
+// Attachment-only query may leave an empty user after removing the prompt attachment
+// content, blank space may be treated as missing prompt after provider trim. only in wire
+// Use fixed fallback for serialization boundaries to avoid overwriting session facts, UI visible query and title seeds.
   if (typeof content === "string") return content || EMPTY_USER_CONTENT_FALLBACK;
 
   const parts = content.flatMap((block) => contentBlockToAiSdkUserParts(block, options));
@@ -456,8 +457,8 @@ function contentBlockToAiSdkUserParts(
           },
         ];
       }
-      // AI SDK 无 video part 类型；mediaType 为自由 string，video/* file part 由
-      // patch 后的 @ai-sdk/openai-compatible / @ai-sdk/anthropic 转成 video_url / video block。
+// AI SDK has no video part type; mediaType is a free string, video/* file part is
+// After patching, @ai-sdk/openai-compatible / @ai-sdk/anthropic is converted into video_url / video block.
       return [{ type: "file", data: data.data, mediaType: block.mediaType }];
     }
 

@@ -20,7 +20,7 @@ function option(name) {
 
 if (command === "context") {
   const moduleId = args[1];
-  if (!moduleId) throw new Error("用法: pnpm architecture:context <module-id>");
+  if (!moduleId) throw new Error("用法: bun run architecture:context <module-id>");
   console.log(await generateContext({ cwd, moduleId }));
   process.exit(0);
 }
@@ -53,7 +53,7 @@ if (command === "baseline:update") {
   await updateBaseline({ cwd, violations: result.violations });
   console.log(
     `baseline updated: ${result.violations.length} violations` +
-      `（模块规则基线；语言边界基线请用 pnpm architecture:ts-baseline:update）`,
+      `（模块规则基线；语言边界基线请用 bun run architecture:ts-baseline:update）`,
   );
   process.exit(0);
 }

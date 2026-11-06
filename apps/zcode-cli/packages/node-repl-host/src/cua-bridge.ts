@@ -20,7 +20,7 @@ export interface NodeReplCuaBrokerConnection {
 }
 
 export interface ComputerUseRuntimeBridge {
-  /** 私有 capability 请求；这里不是 MCP tool 调用，MCP 只承载外层 node_repl。 */
+/** Private capability request; this is not an MCP tool call, MCP only carries the outer node_repl. */
   call(method: string, input: unknown): Promise<CallToolResult>;
   assertAvailable(): void;
   documentationRoot: string;
@@ -69,9 +69,9 @@ export function createComputerUseBridgeGlobals(input: {
       );
       assertActive();
       if (result.responseMeta) input.session().mergeResponseMeta(result.responseMeta);
-      // 目标应用身份必须在这里取：broker 响应是模型看不见也改不了的一跳。等到
-      // `projectToHost` 把 `_meta` 交给 `nodeRepl.emitStructuredResult` 就已经落在模型可写的
-      // sandbox 通道上，无法再区分「producer 给的」和「cell 里自己写的」。
+// The target application identity must be taken here: the broker response is a hop that the model cannot see and cannot change. wait until
+// `projectToHost` passes `_meta` to `nodeRepl.emitStructuredResult` and it is already writable by the model
+// On the sandbox channel, it is no longer possible to distinguish between "given by the producer" and "written by myself in the cell".
       const app = readPrimaryAppIdentity(result.result);
       if (app) input.session().recordCuaAppIdentity(app);
       return result.result;
@@ -82,12 +82,12 @@ export function createComputerUseBridgeGlobals(input: {
 }
 
 /**
- * 从 producer 的 app-associations 元数据里取出单一目标应用。
+* Extract a single target application from the producer's app-associations metadata.
  *
- * 只读 `primary`：`list_apps` 用的是 `items` 模式（按结果下标关联，node_repl 下没有逐条列表卡），
- * `request_access` / `stop_computer_control` 声明 `none`，这三者都不该覆盖同一 cell 里前面动作
- * 已经确立的身份。producer 自带的内联 icon PNG 刻意不取：会话协议不承载图标字节，UI 按
- * appKey 派生 locator 后交平台服务解析。
+* Read-only `primary`: `list_apps` uses `items` mode (associated by result subscript, there is no itemized list card under node_repl),
+* `request_access` / `stop_computer_control` declare `none`, these three should not cover the previous action in the same cell
+* Established identity. The inline icon PNG that comes with the producer is deliberately not used: the session protocol does not carry the icon bytes, and the UI
+* appKey derives locator and then submits it to the platform service for analysis.
  */
 function readPrimaryAppIdentity(result: CallToolResult): NodeReplCuaAppIdentity | undefined {
   const meta = result._meta;

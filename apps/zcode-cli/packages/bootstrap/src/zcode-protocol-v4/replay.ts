@@ -1,11 +1,11 @@
-// 回放导出桶。
+// Playback export bucket.
 //
-// 下游回放页面在浏览器里用 CLI 自己的三段归约器把持久化的 MessageWithParts 重建成
+// The downstream playback page uses the CLI's own three-segment reducer in the browser to reconstruct the persistent MessageWithParts into
 // ConversationSnapshot：synthesizeEventsFromMessages → mergeColdConversationEvents →
-// ProductProjection（hydration replay）。三者都是纯函数/纯类，无 node 依赖——这条纪律由
-// 浏览器回放包的 `vite build` 机械检查（桶里一旦混进 node 内建模块导入，浏览器包立刻构建失败）。
+// ProductProjection(hydration replay). All three are pure functions/pure classes, without node dependencies - this discipline is governed by
+// `vite build` mechanical check of the browser playback package (once the node built-in module import is mixed into the bucket, the browser package will immediately fail to build).
 //
-// 只 re-export，不定义任何东西。
+// Just re-export, don't define anything.
 export { ProductProjection } from "./product-projection.js";
 export { synthesizeEventsFromMessages } from "./transcript-hydration.js";
 export { mergeColdConversationEvents, type ColdEventMergeResult } from "./cold-event-merge.js";

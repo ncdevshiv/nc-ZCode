@@ -1,0 +1,14 @@
+# Commands used only by the deterministic `--browser-recording-selftest`
+# window. The selftest page is a local asset and captures a real child webview
+# over CDP, encodes WebM with MediaRecorder, and writes it through the same
+# workspace-safe command the product uses.
+
+[[permission]]
+identifier = "recording-selftest"
+description = "Allow the local recording selftest page to capture and persist a WebM."
+commands.allow = [
+  "recording_selftest_config",
+  "recording_selftest_result",
+  "browser_view_cdp",
+  "save_browser_recording",
+]

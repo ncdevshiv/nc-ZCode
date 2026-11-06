@@ -1,4 +1,4 @@
-import { IOffPeakTaskService } from "./session/offPeakTask.js";
+﻿import { IOffPeakTaskService } from "./session/offPeakTask.js";
 import type { IFileService } from "./file/file.js";
 import type { IMediaPreviewService } from "./media-preview/mediaPreview.js";
 import type { IGitService } from "./git/git.js";
@@ -13,13 +13,10 @@ import type { IZCodeAgentService } from "./zcode-agent/zcodeAgent.js";
 import type { IZCodeSessionService } from "./zcode-session/zcodeSession.js";
 import type { ICuaPermissionService } from "./cua-permission-broker/cuaPermissionService.js";
 import type { IFileWatcherService } from "./fileWatcher/fileWatcher.js";
-import type { IOAuthService } from "./oauth/oauth.js";
 import type {
   IModelSelectionService,
   IProviderSettingsService,
 } from "./model-provider/providerFacadeServices.js";
-import type { IUsageStatsService } from "./usage-stats/usageStats.js";
-import type { ICodingPlanSubscriptionService } from "./coding-plan-subscription/codingPlanSubscription.js";
 import type { IClientConfigService } from "./client-config/clientConfig.js";
 import type { IClientScenesService } from "./client-scenes/clientScenes.js";
 import type { ISkillsService } from "./skills/skills.js";
@@ -39,7 +36,7 @@ import type { IWindowControllerService } from "./window-controller/windowControl
 import type { IOnboardingRecordService } from "./onboarding/onboardingRecord.js";
 import type { IConversationShareService } from "./conversation-share/conversationShare.js";
 
-/** UI 层消费的统一服务接口 */
+/** UI å±‚æ¶ˆè´¹çš„ç»Ÿä¸€æœåŠ¡æŽ¥å£ */
 export interface IServiceAccessor {
   readonly fileService: IFileService;
   readonly mediaPreviewService?: IMediaPreviewService;
@@ -48,36 +45,33 @@ export interface IServiceAccessor {
   readonly systemService: ISystemService;
   readonly terminalService: ITerminalService;
   readonly settingService: ISettingService;
-  /** Onboarding 完成记录（本地持久化）；旧测试 double / 不支持的 host 可不提供。 */
+  /** Onboarding å®Œæˆè®°å½•ï¼ˆæœ¬åœ°æŒä¹…åŒ–ï¼‰ï¼›æ—§æµ‹è¯• double / ä¸æ”¯æŒçš„ host å¯ä¸æä¾›ã€‚ */
   readonly onboardingRecordService?: IOnboardingRecordService;
   readonly credentialService: ICredentialService;
   readonly broadcastService: IBroadcastService;
   readonly zcodeTaskService: IZCodeTaskService;
-  /** 窗口 Host 聚合面；旧 server wire 或测试 double 可暂不提供。 */
+  /** çª—å£ Host èšåˆé¢ï¼›æ—§ server wire æˆ–æµ‹è¯• double å¯æš‚ä¸æä¾›ã€‚ */
   readonly windowControllerService?: IWindowControllerService;
   readonly zcodeAgentService: IZCodeAgentService;
   readonly zcodeSessionService: IZCodeSessionService;
-  // CUA 是 opt-in 内测特性：local macOS host 提供，远端 等 host 没有。可选避免连锁必填。
+  // CUA æ˜¯ opt-in å†…æµ‹ç‰¹æ€§ï¼šlocal macOS host æä¾›ï¼Œè¿œç«¯ ç­‰ host æ²¡æœ‰ã€‚å¯é€‰é¿å…è¿žé”å¿…å¡«ã€‚
   readonly cuaPermissionService?: ICuaPermissionService;
   readonly conversationShareService: IConversationShareService;
   readonly fileWatcherService: IFileWatcherService;
-  readonly oauthService: IOAuthService;
-  /** 当前 Environment 的 Provider 配置与设置视图。 */
+  /** å½“å‰ Environment çš„ Provider é…ç½®ä¸Žè®¾ç½®è§†å›¾ã€‚ */
   readonly providerSettingsService: IProviderSettingsService;
-  /** 当前 Environment Registry 发布的唯一模型选择 View。 */
+  /** å½“å‰ Environment Registry å‘å¸ƒçš„å”¯ä¸€æ¨¡åž‹é€‰æ‹© Viewã€‚ */
   readonly modelSelectionService: IModelSelectionService;
-  readonly usageStatsService: IUsageStatsService;
-  readonly codingPlanSubscriptionService: ICodingPlanSubscriptionService;
   readonly clientConfigService: IClientConfigService;
   readonly clientScenesService: IClientScenesService;
-  /** 闲时任务管理（独立服务面）。 */
+  /** é—²æ—¶ä»»åŠ¡ç®¡ç†ï¼ˆç‹¬ç«‹æœåŠ¡é¢ï¼‰ã€‚ */
   readonly offPeakTaskService: IOffPeakTaskService;
   readonly skillsService: ISkillsService;
   readonly skillSyncService: ISkillSyncService;
   readonly mcpSyncService: IMcpSyncService;
   readonly pluginSyncService: IPluginSyncService;
   readonly pluginsService: IPluginsService;
-  /** 设置页插件管理（UI 不再直触 zcodeAgentService 的 plugins/* 面） */
+  /** è®¾ç½®é¡µæ’ä»¶ç®¡ç†ï¼ˆUI ä¸å†ç›´è§¦ zcodeAgentService çš„ plugins/* é¢ï¼‰ */
   readonly pluginManagementService: IPluginManagementService;
   readonly subagentsService: ISubagentsService;
   readonly commandsService: ICommandsService;

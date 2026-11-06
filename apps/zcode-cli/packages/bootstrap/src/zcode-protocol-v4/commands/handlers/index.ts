@@ -1,5 +1,5 @@
-// 原生 handler 注册表（每组加一行 spread）。
-// 组文件命名 = 命令分组：session-flow / queue / session-mgmt /
+// Native handler registry (plus one spread line for each group).
+// Group file naming = command grouping: session-flow/queue/session-mgmt/
 // goal-compact / model-config / interaction-background / fork-edit-retry。
 import { forkEditRetryHandlers } from "./fork-edit-retry.js";
 import { fileRewindHandlers } from "./file-rewind.js";

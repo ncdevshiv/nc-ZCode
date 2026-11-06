@@ -30,11 +30,11 @@ const cargoLock = join(repoRoot, "native", "Cargo.lock");
 
 /** Binaries published as sidecars (lib-only crates such as core/v4-wire excluded). */
 export const SIDECAR_CRATES = [
-  "zcode-diff",
-  "zcode-scan",
-  "zcode-watch",
-  "zcode-proc",
-  "zcode-image",
+  "nc-code-diff",
+  "nc-code-scan",
+  "nc-code-watch",
+  "nc-code-proc",
+  "nc-code-image",
 ];
 
 const BUNDLE_META_FILE = ".bundle-meta.json";
@@ -43,8 +43,17 @@ function sha256File(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
 
+const CRATE_TO_BIN = {
+  "nc-code-diff": "zcode-diff",
+  "nc-code-scan": "zcode-scan",
+  "nc-code-watch": "zcode-watch",
+  "nc-code-proc": "zcode-proc",
+  "nc-code-image": "zcode-image",
+};
+
 function binaryFileName(crate) {
-  return process.platform === "win32" ? `${crate}.exe` : crate;
+  const bin = CRATE_TO_BIN[crate] || crate.replace(/^nc-code-/, "zcode-");
+  return process.platform === "win32" ? `${bin}.exe` : bin;
 }
 
 function manifestFingerprint() {

@@ -1,6 +1,6 @@
-// task-output.ts 顶到 oxlint max-lines 上限（400 行），把任务投影
-// （projectTask 及 dwf / agent 分支）、输出文件尾部快照读取和紧凑文件大小格式化拆到本文件；
-// 公开面仍从 task-output.ts 导出。
+// task-output.ts reaches the upper limit of oxlint max-lines (400 lines) and projects the task
+// (projectTask and dwf/agent branches), output file tail snapshot reading and compact file size formatting are split into this file;
+// The public side is still exported from task-output.ts.
 import { open } from "node:fs/promises";
 import type { TaskOutputTask } from "@zcode/contracts";
 import type { RuntimeTaskSnapshot } from "../../runtime-task/registry.js";
@@ -52,8 +52,8 @@ export async function projectTask(
 }
 
 /**
- * workflow run 的投影优先读取终态更新时写入的 resultText；只读 outputFile 可能遗漏结果。
- * 文件读取保留为回退，返回形状与 {@link projectAgentTask} 一致。
+* The projection of workflow run gives priority to reading the resultText written when the final state is updated; the read-only outputFile may miss the result.
+* File reading remains as fallback, and the return shape is consistent with {@link projectAgentTask}.
  */
 async function projectDynamicWorkflowTask(
   task: RuntimeTaskSnapshot,

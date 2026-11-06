@@ -142,7 +142,7 @@ export class OutputCollector {
       return;
     }
 
-    // 通用 pipe 执行仍在写盘前限制单路和共享预算；Bash 文件软阈值不经过这里。
+// Universal pipe implementation still limits single-channel and shared budgets before writing to disk; Bash file soft thresholds do not pass here.
     const streamRemaining = this.maxPersistedBytes - this.artifactBytes;
     const aggregateRemaining = this.aggregatePersistedBudget
       ? this.aggregatePersistedBudget.maxBytes - this.aggregatePersistedBudget.bytes

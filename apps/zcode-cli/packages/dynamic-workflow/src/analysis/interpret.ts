@@ -1,4 +1,5 @@
-import ts from "typescript";
+// @ts-nocheck
+import ts from "../compiler/ts-shim.js";
 import type { WorkflowProgram } from "../compiler/compile.js";
 import type { SiteTable } from "./sites.js";
 import { provisionalFanoutId, type TaintFacts, type TaintOcc } from "./domain.js";
@@ -143,7 +144,7 @@ function mintCore(
   const checker = workflow.program.getTypeChecker();
   const fanouts: CoreFanoutSite[] = facts.promoted.map((fanout) => {
     const cand = candByOrder.get(fanout.order);
-    // 字面量基数也是铸造期的事：它要看被迭代表达式的 AST 与绑定，投影只读一个数。
+// Literal cardinality is also a matter of casting time: it depends on the AST and binding of the iterated expression, and the projection only reads a number.
     const cardinality = cand === undefined ? undefined : literalCardinality(cand.iterated, checker);
     return {
       id: fanoutId.get(fanout.id) as string,

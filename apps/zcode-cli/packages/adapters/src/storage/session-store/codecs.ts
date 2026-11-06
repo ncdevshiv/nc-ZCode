@@ -91,8 +91,8 @@ function decodeStoredMessage(value: unknown): Record<string, unknown> {
   if (!isRecord(value)) return {};
   if (value.role === "user") {
     const { model: _legacyModel, modelSelection: rawSelection, ...message } = value;
-    // 迁移无法确定身份时可能留下 null；回滚后也可能缺字段。不能让配置残缺阻断整条消息的协议读取。
-    // 这里只校验新结构，不查执行资格、不回读旧快照，磁盘内容保持不变。
+// Migration may leave null when the identity cannot be determined; fields may also be missing after rollback. An incomplete configuration cannot block protocol reading of the entire message.
+// Only the new structure is verified here, execution qualification is not checked, old snapshots are not read back, and the disk content remains unchanged.
     const modelSelection = parseModelSelectionValue(rawSelection);
     return { ...message, ...(modelSelection ? { modelSelection } : {}) };
   }
@@ -149,7 +149,7 @@ function decodeStoredPart(value: unknown): Record<string, unknown> {
 
 function decodeTimelineSelection(value: unknown) {
   if (!isRecord(value)) return undefined;
-  // label 仅是 Timeline 展示信息，不属于严格的 Selection；不能误删合法的带标签历史。
+// Label is only Timeline display information and does not belong to strict Selection; legal labeled history cannot be deleted by mistake.
   const { label, ...rawSelection } = value;
   const selection = parseModelSelectionValue(rawSelection);
   return selection ? { ...selection, ...(typeof label === "string" ? { label } : {}) } : undefined;
@@ -173,8 +173,8 @@ export function decodeSessionEntryRow(row: SessionEntryRow): SessionEntryInfo {
 }
 
 function decodeStoredSessionModelSelection(value: unknown): unknown {
-  // 旧平铺字段只属于升级入口。新成员即使为空/非法也不能借旧快照补值。
-  // 解包在存储边界完成，core/bootstrap/fork 只消费 port 的当前逻辑 Selection。
+//Old tile fields only belong to the upgrade entry. Even if the new member is empty/illegal, it cannot borrow the value from the old snapshot.
+// Unpacking is completed at the storage boundary, core/bootstrap/fork only consumes the current logical Selection of the port.
   if (!isRecord(value)) return undefined;
   return parseModelSelectionValue(value.modelSelection) ?? value.modelSelection;
 }

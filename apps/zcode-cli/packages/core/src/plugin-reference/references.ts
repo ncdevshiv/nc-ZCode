@@ -1,12 +1,12 @@
-// Plugin 对话引用的严格 canonical 解析。
-// 契约：
-// - 只接受 Markdown 链接 destination 形如 `plugin://stable-id`，协议名大小写敏感（仅小写）。
-// - stable-id 必须是 `name@marketplace`，两段均匹配 [A-Za-z0-9][A-Za-z0-9._-]*，总长 ≤ 256。
-// - 拒绝 query、fragment、credentials、空白、控制字符和 `%`（不做隐式 percent-decoding）。
-// - 身份只来自 destination；label 永不参与解析。
+// Strict canonical parsing of Plugin dialogue references.
+//Contract:
+// - Only accept Markdown link destinations in the form of `plugin://stable-id`, and the protocol name is case-sensitive (lowercase only).
+// - stable-id must be `name@marketplace`, both segments match [A-Za-z0-9][A-Za-z0-9._-]*, total length ≤ 256.
+// - Reject query, fragment, credentials, whitespace, control characters, and `%` (no implicit percent-decoding).
+// - Identity only comes from destination; label never participates in parsing.
 
 const PLUGIN_REFERENCE_SCHEME = "plugin://";
-// 与 mentionMarkdown 的链接语法保持一致：label 支持 \ 转义，destination 支持 <...> 或裸形式。
+// Consistent with the link syntax of mentionMarkdown: label supports \ escaping, and destination supports <...> or bare form.
 const MARKDOWN_LINK_PATTERN =
   /\[(?:\\.|[^\\\]])*\]\((?:<((?:\\.|[^>])*?)>|((?:\\.|[^)\s])*))\)/g;
 const PLUGIN_ID_SEGMENT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -15,8 +15,8 @@ export const MAX_PLUGIN_REFERENCES_PER_TURN = 8;
 const MAX_PLUGIN_STABLE_ID_LENGTH = 256;
 
 /**
- * 校验一个候选字符串是否为严格合法的 Plugin stable ID（`name@marketplace`）。
- * 该校验同时用于 parser 和 reminder 输出侧的防御（fail closed）。
+* Verify whether a candidate string is a strictly legal Plugin stable ID (`name@marketplace`).
+* This check is used for defense on both parser and reminder output sides (fail closed).
  */
 export function isValidPluginStableId(candidate: string): boolean {
   if (candidate.length === 0 || candidate.length > MAX_PLUGIN_STABLE_ID_LENGTH) {
@@ -28,13 +28,13 @@ export function isValidPluginStableId(candidate: string): boolean {
   }
   const name = candidate.slice(0, separatorIndex);
   const marketplace = candidate.slice(separatorIndex + 1);
-  // 段级字符集校验即完整安全边界：query/fragment/credentials/空白/控制字符/% 都不在
-  // [A-Za-z0-9._-] 集合内，一律拒绝，不做任何隐式 percent-decoding 或宽容匹配。
+// Segment-level character set verification is the complete security boundary: query/fragment/credentials/blank/control characters/% are not present
+// Within the [A-Za-z0-9._-] set, all are rejected without any implicit percent-decoding or tolerant matching.
   return PLUGIN_ID_SEGMENT_PATTERN.test(name) && PLUGIN_ID_SEGMENT_PATTERN.test(marketplace);
 }
 
 function parsePluginDestination(destination: string): string | null {
-  // 协议名大小写敏感：`Plugin://`、`PLUGIN://` 都不接受。
+//The protocol name is case-sensitive: neither `Plugin://` nor `PLUGIN://` is accepted.
   if (!destination.startsWith(PLUGIN_REFERENCE_SCHEME)) {
     return null;
   }
@@ -46,23 +46,23 @@ function parsePluginDestination(destination: string): string | null {
 }
 
 function isPluginSchemeDestination(destination: string): boolean {
-  // 只把"意图上是 plugin 协议"的 destination 计入 invalid 统计；
-  // 大小写变体（Plugin:// 等）也算意图命中但解析失败，防 label 欺骗绕过统计。
+// Only destinations that are "intentionally plugin protocol" are counted in the invalid statistics;
+// Uppercase and lowercase variants (Plugin://, etc.) are also counted as intent hits but fail to parse, preventing label spoofing and bypassing statistics.
   return /^plugin:\/\//i.test(destination);
 }
 
 export interface ExtractPluginReferencesResult {
-  /** 按正文首次出现顺序、按 stable ID 去重后的引用。 */
+/** References in the order of first appearance in the text and after deduplication by stable ID. */
   references: string[];
-  /** 超过单轮上限被丢弃的引用次数（fail closed，调用侧记 debug truncated）。 */
+/** The number of references that are discarded beyond the upper limit of a single round (fail closed, call side note debug truncated). */
   truncatedCount: number;
-  /** 命中 plugin 协议意图但解析失败的 destination 数量（unknown 之前的格式级拒绝）。 */
+/** The number of destinations that hit the plugin protocol intent but failed to parse (format-level rejection before unknown). */
   invalidCount: number;
 }
 
 /**
- * 从 canonical 用户文本中提取 Plugin 引用（stable ID）。
- * 身份只来自链接 destination；Markdown label 完全不参与。
+* Extract Plugin reference (stable ID) from canonical user text.
+* The identity only comes from the link destination; the Markdown label does not participate at all.
  */
 export function extractPluginReferences(input: string): ExtractPluginReferencesResult {
   const references: string[] = [];

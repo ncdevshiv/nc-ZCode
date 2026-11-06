@@ -260,8 +260,8 @@ function skipQuestionAnswer(
   update((draft) => {
     const target = draft.input.questions[draft.currentQuestionIndex];
     if (!target) return;
-    // 焦点只服务键盘导航；显式跳过必须清除该题已有草稿并推进，
-    // 不能把焦点选项或本地化的“跳过”文案写进共享 answers 契约。
+// Focus only serves keyboard navigation; to explicitly skip, you must clear the existing draft of the question and advance it.
+// Cannot write focus options or localized "skip" copy into the shared answers contract.
     delete draft.answers[target.question];
     delete draft.annotations[target.question];
     delete draft.multiSelections[target.question];

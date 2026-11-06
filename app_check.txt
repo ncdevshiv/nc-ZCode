@@ -1,0 +1,286 @@
+﻿cargo :     Checking writeable v0.6.4
+At line:1 char:1
++ cargo check -p nc-code-app --manifest-path "G:\ZCode-main\native\Carg ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (    Checking writeable v0.6.4:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    Checking litemap v0.8.3
+    Checking yoke v0.8.4
+    Checking simdutf8 v0.1.5
+    Checking allocator-api2 v0.2.21
+    Checking nc-code-rpc v0.1.0 (G:\ZCode-main\native\crates\nc-code-rpc)
+    Checking icu_normalizer_data v2.4.0
+    Checking icu_properties_data v2.4.0
+    Checking zerovec v0.11.9
+    Checking zerotrie v0.2.5
+    Checking encoding_rs v0.8.41
+    Checking icu_locale_fallback_data v2.4.0
+    Checking icu_segmenter_data v2.4.0
+    Checking smawk v0.3.3
+   Compiling oxc-miette-derive v1.0.2
+    Checking owo-colors v4.4.0
+    Checking nc-code-channels v0.1.0 (G:\ZCode-main\native\crates\nc-code-channels)
+    Checking bumpalo v3.20.3
+    Checking hashbrown v0.15.5
+    Checking hashbrown v0.16.1
+    Checking rustc-hash v2.1.3
+    Checking compact_str v0.8.2
+    Checking nc-code-sidecar-proto v0.1.0 (G:\ZCode-main\native\crates\nc-code-sidecar-proto)
+   Compiling oxc_ast_macros v0.52.0
+    Checking oxc_estree v0.52.0
+    Checking cow-utils v0.1.3
+    Checking nc-code-service-core v0.1.0 (G:\ZCode-main\native\crates\nc-code-service-core)
+    Checking zopfli v0.8.4
+    Checking unicode-id-start v1.5.0
+    Checking oxc_allocator v0.52.0
+    Checking tinystr v0.8.5
+    Checking potential_utf v0.1.6
+    Checking safetensors v0.7.0
+    Checking nonmax v0.5.5
+    Checking oxc_index v2.0.0
+    Checking assert-unchecked v0.1.2
+    Checking ryu-js v1.0.3
+    Checking zip v7.2.0
+    Checking nc-code-proc v0.1.0 (G:\ZCode-main\native\crates\nc-code-proc)
+    Checking num-integer v0.1.47
+    Checking icu_locale_core v2.4.0
+    Checking icu_collections v2.4.0
+    Checking hashlink v0.10.0
+    Checking nc-code-services-config v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-config)
+    Checking nc-code-scan v0.1.0 (G:\ZCode-main\native\crates\nc-code-scan)
+    Checking nc-code-core v0.1.0 (G:\ZCode-main\native\crates\nc-code-core)
+    Checking quick-xml v0.41.0
+    Checking encoding_rs_io v0.1.8
+    Checking lopdf v0.34.0
+    Checking num-bigint v0.4.8
+    Checking nc-code-diff v0.1.0 (G:\ZCode-main\native\crates\nc-code-diff)
+    Checking nc-code-node-repl v0.1.0 (G:\ZCode-main\native\crates\nc-code-node-repl)
+    Checking grep-searcher v0.1.17
+    Checking rusqlite v0.37.0
+    Checking nc-code-services-terminal v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-terminal)
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-config\src\cua_permission.rs:8:41
+  |
+8 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-config\src\cua_pip_session.rs:8:41
+  |
+8 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+
+    Checking nc-code-services-system v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-system)
+    Checking nc-code-services-usage-stats v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-usage-stats)
+    Checking nc-code-services-mcp-sync v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-mcp-sync)
+    Checking candle-core v0.9.2
+    Checking nc-code-services-settings-sync v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-settings-sync)
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-usage-stats\src\lib.rs:7:41
+  |
+7 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+    Checking icu_provider v2.4.0
+    Checking nc-code-services-memory v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-memory)
+    Checking nc-code-services-feedback v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-feedback)
+warning: `nc-code-services-usage-stats` (lib) generated 1 warning (run `cargo fix --lib -p 
+nc-code-services-usage-stats` to apply 1 suggestion)
+    Checking nc-code-services-plugin-sync v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-plugin-sync)
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-settings-sync\src\lib.rs:8:41
+  |
+8 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-memory\src\lib.rs:8:41
+  |
+8 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-feedback\src\lib.rs:8:41
+  |
+8 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `nc-code-services-settings-sync` (lib) generated 1 warning (run `cargo fix --lib -p 
+nc-code-services-settings-sync` to apply 1 suggestion)
+    Checking nc-code-services-commands v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-commands)
+warning: `nc-code-services-memory` (lib) generated 1 warning (run `cargo fix --lib -p nc-code-services-memory` to 
+apply 1 suggestion)
+    Checking nc-code-services-window-controller v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-window-controller)
+warning: `nc-code-services-feedback` (lib) generated 1 warning (run `cargo fix --lib -p nc-code-services-feedback` to 
+apply 1 suggestion)
+    Checking nc-code-services-subagents v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-subagents)
+warning: `nc-code-services-config` (lib) generated 2 warnings (run `cargo fix --lib -p nc-code-services-config` to 
+apply 2 suggestions)
+    Checking nc-code-services-hooks v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-hooks)
+    Checking nc-code-services-conversation-share v0.1.0 
+(G:\ZCode-main\native\crates\nc-code-services-conversation-share)
+    Checking nc-code-services-prompt-attachment-transfer v0.1.0 
+(G:\ZCode-main\native\crates\nc-code-services-prompt-attachment-transfer)
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-commands\src\lib.rs:8:41
+  |
+8 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+    Checking nc-code-services-skill-sync v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-skill-sync)
+warning: field `config` is never read
+  --> crates\nc-code-node-repl\src\session.rs:22:5
+   |
+21 | pub struct Session {
+   |            ------- field in this struct
+22 |     config: SessionConfig,
+   |     ^^^^^^
+   |
+   = note: `Session` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code 
+analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-window-controller\src\lib.rs:8:41
+  |
+8 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-conversation-share\src\lib.rs:8:41
+  |
+8 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `nc-code-services-commands` (lib) generated 1 warning (run `cargo fix --lib -p nc-code-services-commands` to 
+apply 1 suggestion)
+    Checking nc-code-services-offpeak v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-offpeak)
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-subagents\src\lib.rs:8:41
+  |
+8 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ServiceError`
+ --> crates\nc-code-services-hooks\src\lib.rs:8:41
+  |
+8 | use nc_code_service_core::{ServiceArgs, ServiceError};
+  |                                         ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+    Checking icu_properties v2.4.0
+warning: `nc-code-node-repl` (lib) generated 1 warning
+    Checking icu_normalizer v2.4.0
+warning: `nc-code-services-conversation-share` (lib) generated 1 warning (run `cargo fix --lib -p 
+nc-code-services-conversation-share` to apply 1 suggestion)
+    Checking icu_locale_fallback v2.4.0
+warning: `nc-code-services-window-controller` (lib) generated 1 warning (run `cargo fix --lib -p 
+nc-code-services-window-controller` to apply 1 suggestion)
+warning: `nc-code-services-hooks` (lib) generated 1 warning (run `cargo fix --lib -p nc-code-services-hooks` to apply 
+1 suggestion)
+warning: `nc-code-services-subagents` (lib) generated 1 warning (run `cargo fix --lib -p nc-code-services-subagents` 
+to apply 1 suggestion)
+    Checking pdf-extract v0.7.12
+    Checking icu_segmenter v2.4.0
+    Checking textwrap v0.16.4
+    Checking oxc-miette v1.0.2
+    Checking idna_adapter v1.2.2
+    Checking idna v1.1.0
+    Checking url v2.5.8
+    Checking oxc_span v0.52.0
+    Checking oxc_diagnostics v0.52.0
+    Checking oxc_syntax v0.52.0
+    Checking oxc_regular_expression v0.52.0
+    Checking tower-http v0.6.11
+    Checking ureq v2.12.1
+    Checking feed-rs v2.4.0
+    Checking candle-nn v0.9.2
+    Checking oxc_ast v0.52.0
+    Checking nct-browser v0.2.0 (G:\nc-sdk\nc-tools\crates\nct-browser)
+    Checking reqwest v0.12.28
+    Checking candle-transformers v0.9.2
+    Checking nc-code-provider v0.1.0 (G:\ZCode-main\native\crates\nc-code-provider)
+    Checking nc-code-services-plugins v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-plugins)
+    Checking nc-code-services-workspace v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-workspace)
+    Checking nc-code-services-provider v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-provider)
+    Checking nc-code-services-git v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-git)
+    Checking oxc_ecmascript v0.52.0
+    Checking oxc_parser v0.52.0
+    Checking nc-code-services-git-checkpoint v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-git-checkpoint)
+    Checking nc-code-workflow v3.14.0 (G:\ZCode-main\native\crates\nc-code-workflow)
+    Checking nct-semantic v0.2.0 (G:\nc-sdk\nc-tools\crates\nct-semantic)
+    Checking nct-net v0.2.0 (G:\nc-sdk\nc-tools\crates\nct-net)
+    Checking nct-fs v0.2.0 (G:\nc-sdk\nc-tools\crates\nct-fs)
+    Checking nct-mcp v0.2.0 (G:\nc-sdk\nc-tools\crates\nct-mcp)
+    Checking nc-code-host v3.14.0 (G:\ZCode-main\native\crates\nc-code-host)
+    Checking nc-code-services-automation v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-automation)
+    Checking nc-code-services-extensions v0.1.0 (G:\ZCode-main\native\crates\nc-code-services-extensions)
+    Checking nc-code-services-agent v3.14.0 (G:\ZCode-main\native\crates\nc-code-services-agent)
+    Checking nc-code-services-client v3.14.0 (G:\ZCode-main\native\crates\nc-code-services-client)
+    Checking nc-code-app v0.1.0 (G:\ZCode-main\native\crates\nc-code-app)
+warning: unused import: `nc_code_services_subagents::SubagentsService`
+  --> crates\nc-code-app\src\lib.rs:26:5
+   |
+26 | use nc_code_services_subagents::SubagentsService;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `nc_code_services_settings_sync::SettingsSyncService`
+  --> crates\nc-code-app\src\lib.rs:27:5
+   |
+27 | use nc_code_services_settings_sync::SettingsSyncService;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `nc_code_services_feedback::FeedbackService`
+  --> crates\nc-code-app\src\lib.rs:28:5
+   |
+28 | use nc_code_services_feedback::FeedbackService;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `nc_code_services_memory::MemoryService`
+  --> crates\nc-code-app\src\lib.rs:29:5
+   |
+29 | use nc_code_services_memory::MemoryService;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `nc_code_services_hooks::HooksService`
+  --> crates\nc-code-app\src\lib.rs:30:5
+   |
+30 | use nc_code_services_hooks::HooksService;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `nc_code_services_commands::CommandsService`
+  --> crates\nc-code-app\src\lib.rs:31:5
+   |
+31 | use nc_code_services_commands::CommandsService;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `nc_code_services_window_controller::WindowControllerService`
+  --> crates\nc-code-app\src\lib.rs:32:5
+   |
+32 | use nc_code_services_window_controller::WindowControllerService;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `nc-code-app` (lib) generated 7 warnings (run `cargo fix --lib -p nc-code-app` to apply 7 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 49.70s

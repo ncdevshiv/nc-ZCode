@@ -1,16 +1,16 @@
 // ============================================================
-// submit profile 的运行时守卫
+//Runtime guard for submit profile
 // ============================================================
-// 独立成文件：workflow-driver.ts 早已超过 max-lines，而这段只读 driver 的 deps / sink / 会话态，
-// 与状态机的其余部分无关。
+// Independent file: workflow-driver.ts has already exceeded max-lines, and this read-only driver's deps / sink / session state,
+// Independent of the rest of the state machine.
 //
-// 静态 profile 是站点图 may-set 上的推导；一个 typed ask 落到与之不符的会话上，只可能是分析不够
-// 精确——不是脚本的错，也不该让 run 静默出错：
-//   - `mono` 但 schema 不同：把这个会话的 submit_result 换回通用声明并让 runtime 重算工具面，
-//     此后该会话按 generic 走（尾注带整份 schema）。代价是一次缓存前缀失效，正确性不受影响。
-//   - `untyped`：这个 runtime 根本没有 submit 端口（工厂据 profile 没注入），没有工具可换回——
-//     以 DriverError 让**这个 ask** 失败并说清是哪个站点，而不是让它耗尽 nudge 后以
-//     ResultNotSubmitted 失败、把分析问题伪装成模型问题。
+// Static profile is a derivation of the site map may-set; if a typed ask falls on a session that does not match it, it may only be due to insufficient analysis.
+// Precise - it's not the script's fault, nor should run fail silently:
+// - `mono` but with a different schema: change this session's submit_result back to a generic declaration and let the runtime recalculate the tool surface,
+// From now on, the session will be run as generic (the endnote will contain the entire schema). The cost is that the cache prefix is ​​invalidated once, and the correctness is not affected.
+// - `untyped`: This runtime does not have a submit port at all (the factory profile does not inject it), and there is no tool to replace it——
+// Use DriverError to make **this ask** fail and tell which site it is, instead of letting it exhaust nudge and then continue
+// ResultNotSubmitted failed, disguising the analysis problem as a model problem.
 
 import { submitResultToolEntry } from "@zcode/core";
 import {
@@ -24,12 +24,12 @@ import {
 } from "@zcode/dynamic-workflow";
 import type { AgentRuntimeWorkflowDriverDeps, SessionState } from "./workflow-driver-types.js";
 
-/** 静态 profile 与 ask 不符时的日志事件名。 */
+/** Log event name when static profile does not match ask. */
 const SUBMIT_PROFILE_MISMATCH_EVENT = "dynamic_workflow.submit_profile.mismatch";
 
 /**
- * 让会话的 submit_result 形态与这次 typed ask 相符。返回 false 表示 ask 已经失败、调用方不得再派发
- * turn。generic 会话与 schema 相同的 mono 会话原样通过。
+* Make the session's submit_result form match this typed ask. Returning false indicates that ask has failed and the caller must not dispatch any more
+*turn. A generic session with the same schema as a mono session is passed unchanged.
  */
 export function ensureSubmitProfileFits(
   deps: AgentRuntimeWorkflowDriverDeps,
@@ -64,8 +64,8 @@ export function ensureSubmitProfileFits(
       sessionId: state.sessionId,
     },
   );
-  // 同一个注册表、同一个名字：register 覆盖 typed 条目；静默，因为覆盖正是意图。缓存必须失效，
-  // 否则 getTools 会继续把旧的 typed 声明发给模型。
+// Same registry, same name: register overrides the typed entry; silently, because overwriting is exactly the intention. The cache must be invalidated,
+// Otherwise getTools will continue to send the old typed declaration to the model.
   state.runtime.getToolRegistry().register(submitResultToolEntry, { silentDuplicateWarning: true });
   state.runtime.invalidateToolCache();
   state.submitProfile = GENERIC_SUBMIT_PROFILE;

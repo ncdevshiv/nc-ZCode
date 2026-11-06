@@ -1,5 +1,5 @@
 /**
- * @zcode/dynamic-workflow 执行引擎核心的模块导出。
+* @zcode/dynamic-workflow Execute the module export of the engine core.
  */
 
 export { WorkflowEngine, type EngineConfig, type RunSettlement } from "./engine.js";

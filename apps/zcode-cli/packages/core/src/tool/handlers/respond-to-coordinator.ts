@@ -122,7 +122,7 @@ function formatRespondToCoordinatorModelContent(output: unknown): string {
   if (result.status === "success") {
     return `Response ${result.responseId} was queued for the coordinator. ${continuation}`;
   }
-  // 错误详情无长度上限，continuation 必须放在它之前，避免 resultBudget 截断关键指引。
+// There is no upper limit on the length of the error details, and the continuation must be placed before it to avoid resultBudget truncation of key instructions.
   return `Response ${result.responseId} failed to queue for the coordinator. ${continuation} Failure: ${result.error ?? result.message}.`;
 }
 

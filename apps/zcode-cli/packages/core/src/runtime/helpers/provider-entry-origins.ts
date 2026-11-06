@@ -6,7 +6,7 @@ import {
 } from "../../system-reminder/incoming-message.js";
 import { wrapSystemReminderForSource } from "../../system-reminder/source.js";
 
-/** 仅单次请求拥有的投影映射；不写入 canonical history 或 provider payload。 */
+/** Projection map owned by a single request only; no canonical history or provider payload is written. */
 export class ProviderEntryOrigins {
   private readonly origins = new WeakMap<RuntimeMessageEntry, readonly RuntimeMessageEntry[]>();
 
@@ -64,7 +64,7 @@ export function projectIncomingMessageEntries(
         ? content
         : content.map((block) => (block.type === "text" ? block.text : "")).join("\n");
     const formatted = formatIncomingMessage(body, presentation);
-    // 新轮通知不经过 Attachment 包装；在同一投影边界补齐标签与转义，保持 user 身份和原始历史。
+// The new round of notifications is not packaged by Attachment; labels and escaping are completed at the same projection boundary to maintain user identity and original history.
     const text =
       presentation === "task_notification"
         ? wrapSystemReminderForSource("incoming_message", formatted)

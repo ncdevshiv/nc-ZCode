@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import { randomUUID } from "node:crypto";
 import type {
   BrowserBackendDescriptor,
@@ -133,7 +134,7 @@ class ManagedCdpBrowserControlPort implements BrowserControlPort {
     if (creating) {
       const settled = await waitForPromise(creating, this.#closeTimeoutMs);
       if (!settled) {
-        // late launch/context 创建完成后仍需再次回收；closingSessionIds 防止它重新登记 session。
+// late launch/context still needs to be recycled again after creation; closingSessionIds prevents it from re-registering the session.
         void creating.then(
           async () => {
             if (this.#sessions.size === 0) await this.closeBrowser();
@@ -169,7 +170,7 @@ class ManagedCdpBrowserControlPort implements BrowserControlPort {
     );
     this.#sessions.clear();
     await this.closeBrowser();
-    // Playwright launch 可能仍在异步创建子进程；只关闭当前 #browser 会漏掉迟到进程。
+// Playwright launch may still be creating child processes asynchronously; just closing the current #browser will miss late-coming processes.
     if (launchPromise) {
       await waitForPromise(
         launchPromise.then(async (browser) => this.closeBrowserInstance(browser)),
@@ -205,7 +206,7 @@ class ManagedCdpBrowserControlPort implements BrowserControlPort {
           args: ["--no-first-run", "--no-default-browser-check"],
         });
       } catch (error) {
-        // 底层 Playwright 错误可能包含临时 profile/CDP endpoint；对外只保留可操作分类，cause 供调试。
+// Underlying Playwright errors may contain temporary profile/CDP endpoints; only operational classifications are retained externally for debugging.
         throw new Error(
           "Managed headless Chromium is unavailable: launch failed. " +
             "Verify the browser executable and OS sandbox/runtime dependencies.",
@@ -398,8 +399,8 @@ class ManagedCdpBrowserControlPort implements BrowserControlPort {
 
   private async closeBrowserInstance(browser: Browser): Promise<void> {
     if (!browser.isConnected()) return;
-    // WebSocket/SSE 页面可能让 Playwright 的 context/browser close 永不 settle。
-    // adapter 只能有限等待；外层 session cleanup 和 CLI watchdog 会继续回收其它资源。
+// WebSocket/SSE pages may cause Playwright's context/browser close to never settle.
+// The adapter can only wait for a limited time; the outer session cleanup and CLI watchdog will continue to recycle other resources.
     await waitForPromise(browser.close(), this.#closeTimeoutMs);
   }
 }

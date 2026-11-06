@@ -1,13 +1,13 @@
-// 影子重放对账（交付 / 测试基建）。
-// 用途：把本机真实 CLI 库（默认 ~/.zcode/cli/db/db.sqlite）的历史会话全量喂给
-// 冷恢复管线（transcript 合成 → ProductProjection），输出守恒对账报告——
-// 每阶段上线门槛 = 全量重放无崩溃、无静默丢弃、失败清单审查完毕。
+// Shadow replay reconciliation (delivery/test infrastructure).
+// Purpose: Feed all the historical sessions of the local real CLI library (default ~/.zcode/cli/db/db.sqlite)
+// Cold recovery pipeline (transcript synthesis → ProductProjection), output conservation reconciliation report——
+// Each stage's online threshold = full replay without crashes, no silent discards, and failure list review completed.
 //
-// 对源库只读：默认把 db（含 -wal/-shm）复制到临时目录再打开——store 打开时会跑
-// 迁移（0015/0016 等），不能直接落在用户真实库上（迁移应由 CLI 正常启动路径应用）。
-// 运行前先构建：pnpm -C apps/zcode-cli build（脚本从各包 dist 导入）。
+// Read-only for the source library: By default, the db (including -wal/-shm) is copied to the temporary directory and then opened - the store will run when it is opened.
+// Migration (0015/0016, etc.) cannot fall directly on the user's real library (migration should be applied by the CLI normal startup path).
+// Build before running: bun --cwd apps/zcode-cli build (script imports from each package dist).
 //
-// 用法：
+// Usage:
 //   node scripts/shadow-replay.mjs [--db <path>] [--limit <n>] [--session <id>] [--verbose] [--no-copy]
 import { parseArgs } from "node:util";
 import { homedir, tmpdir } from "node:os";
@@ -103,8 +103,8 @@ for (const session of sessions) {
     for (const event of events) projection.applyEvent(event);
     const rows = projection.getSnapshot().rows.window;
 
-    // ── 守恒对账 ──
-    // assistant 守恒：每条可见 assistant text 必须出现在 rows（多重集覆盖）。
+//──Conservation reconciliation──
+// assistant conservation: every visible assistant text must appear in rows (multiset coverage).
     const expectedTexts = [];
     for (const message of messages) {
       if (message.info.role !== "assistant") continue;
@@ -126,10 +126,10 @@ for (const session of sessions) {
     }
     if (missingTexts > 0) {
       totals.assistantTextMissing += 1;
-      report.problems.push(`assistant text 缺失 ${missingTexts}/${expectedTexts.length}`);
+      report.problems.push(`assistant text missing ${missingTexts}/${expectedTexts.length}`);
     }
 
-    // goal verify 守恒：part ∪ entry 的 lifecycle key 数 vs goalVerify marker 行数。
+// goal verify conservation: the number of lifecycle keys of part ∪ entry vs the number of goalVerify marker rows.
     const goalKeys = new Set();
     for (const message of messages) {
       for (const part of message.parts) {
@@ -158,19 +158,19 @@ for (const session of sessions) {
       report.problems.push(`goalVerify marker ${goalMarkers}/${goalKeys.size}`);
     }
 
-    // 可见 user 输入守恒：userInput 行数不得少于真实 user 文本消息数的下限估计
-    //（synthetic/model-only 不计；guide steer 内联也是可见行，计入两侧）。
-    // 已知误报：legacy 数据里 goal-continuation reminder / fork notice 以裸文本
-    // 持久化（无 synthetic/source/metadata 标记），分类器按文本前缀正确隐藏，
-    // 本启发式会把它们计成可见——flag 需人工核对（全量重放中 21 个
-    // flag 全为此类误报，真实守恒失败为 0）。
+// Visible user input conservation: the number of userInput lines must not be less than the lower limit estimate of the number of real user text messages
+// (synthetic/model-only does not count; guide steer inline is also a visible line and counts both sides).
+// Known false positive: goal-continuation reminder / fork notice in legacy data as bare text
+// Persistence (no synthetic/source/metadata tag), classifiers are correctly hidden by text prefix,
+// This heuristic will count them as visible - flag needs to be checked manually (21 in full replay
+// The flag is all false positives of this type, and the true conservation failure is 0).
     const expectedUsers = messages.filter(
       (message) =>
         message.info.role === "user" &&
         message.info.synthetic !== true &&
         message.info.visibility !== "model-only" &&
-        // compact 续接摘要（info.summary / semantics.kind=compact_summary）是
-        // providerContextOnly：分类器裁决不可见，不计入可见 user 下限。
+// compact continuation summary (info.summary / semantics.kind=compact_summary) is
+// providerContextOnly: The classifier ruling is not visible and does not count towards the lower limit of visible users.
         message.info.summary === undefined &&
         !message.info.semantics?.kind?.startsWith?.("compact") &&
         message.info.source === undefined &&
@@ -181,12 +181,12 @@ for (const session of sessions) {
     const actualUsers = rows.filter((row) => row.kind === "userInput").length;
     if (actualUsers < expectedUsers) {
       totals.userInputMismatch += 1;
-      report.problems.push(`userInput 行 ${actualUsers}/${expectedUsers}`);
+      report.problems.push(`userInput line ${actualUsers}/${expectedUsers}`);
     }
 
-    // 可寻址性守恒：shadow replay 不能只证明“文本还在”。每条 transcript row 的
-    // entity/productTurn/message target，以及每个已发布 action，都必须由同一次 cold
-    // materialization 的 resolver 精确命中；否则 UI 会显示按钮但命令必然 stale/reject。
+// Addressability conservation: shadow replay cannot just prove "the text is still there". of each transcript row
+// entity/productTurn/message target, and each published action, must be started by the same cold
+// The resolver of materialization is an exact hit; otherwise the UI will display the button but the command must be stale/reject.
     let entityTargetProblems = 0;
     let actionProblems = 0;
     const actionByFlag = [
@@ -233,17 +233,17 @@ for (const session of sessions) {
     }
     if (entityTargetProblems > 0) {
       totals.entityTargetMismatch += 1;
-      report.problems.push(`entity/target 不可寻址 ${entityTargetProblems}`);
+      report.problems.push(`entity/target is not addressable ${entityTargetProblems}`);
     }
     if (actionProblems > 0) {
       totals.actionAddressabilityMismatch += 1;
-      report.problems.push(`row.actions resolver 不等价 ${actionProblems}`);
+      report.problems.push(`row.actions resolver is not equivalent to ${actionProblems}`);
     }
 
     if (report.problems.length === 0) totals.clean += 1;
   } catch (error) {
     totals.crashed += 1;
-    report.problems.push(`重放崩溃: ${error?.message ?? error}`);
+    report.problems.push(`Replay crash: ${error?.message ?? error}`);
   }
   if (report.problems.length > 0) {
     offenders.push(report);
@@ -255,9 +255,9 @@ for (const session of sessions) {
 
 store.close();
 
-console.log("\n── 影子重放对账报告 ──");
-console.log(`源 DB: ${sourceDbPath}${dbPath === sourceDbPath ? "" : "（已复制到临时副本重放）"}`);
-console.log(`会话: ${totals.sessions}（干净 ${totals.clean}）`);
+console.log("\n── Shadow replay reconciliation report──");
+console.log(`Source DB: ${sourceDbPath}${dbPath === sourceDbPath ? "" : "(copied to temporary copy for replay)"}`);
+console.log(`Sessions: ${totals.sessions} (clean ${totals.clean})`);
 console.log(`重放崩溃: ${totals.crashed}`);
 console.log(`assistant text 缺失: ${totals.assistantTextMissing}`);
 console.log(`userInput 行不足: ${totals.userInputMismatch}`);

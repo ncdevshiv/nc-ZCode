@@ -547,6 +547,15 @@ export interface IPlatformService {
    */
   getPathForFile?(file: unknown): string | null;
 
+  /**
+   * 订阅宿主原生文件拖放的真实本地路径（Tauri child webview 拦截 OS drop 后
+   * DOM 不再收到 File）。`position` 为窗口物理像素，供多 pane 命中测试。
+   * 返回 disposer；Web/Electron 不实现时由 DOM File 路径兜底。
+   */
+  onFileDropPaths?(
+    handler: (payload: { paths: string[]; position?: { x: number; y: number } }) => void,
+  ): () => void;
+
   /** 把 Agent 已授权的 Desktop 本地视频路径转换为可供媒体元素读取的宿主 URL。 */
   createLocalMediaPreviewUrl?(path: string): string;
 

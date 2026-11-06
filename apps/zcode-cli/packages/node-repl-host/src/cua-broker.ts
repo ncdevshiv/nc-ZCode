@@ -88,8 +88,8 @@ async function handleSocket(socket: Socket, runtime: ComputerUseRuntime, token: 
     requestId = payload.id;
     const context = parseContext(payload.context);
     const result = await runtime.execute({
-      // 这里把 capability method 适配到 staging runtime 的内部 handler；
-      // 外层 SDK/bridge 不再构造或调用 MCP tool envelope。
+// Here the capability method is adapted to the internal handler of the staging runtime;
+// The outer SDK/bridge no longer constructs or calls the MCP tool envelope.
       toolName: payload.method as never,
       arguments: payload.input,
       context,

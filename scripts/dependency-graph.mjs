@@ -34,7 +34,7 @@ function parseArgs(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
 
-    // pnpm run 在透传参数时会保留一个裸 --，这里需要显式跳过，避免把它误当成待分析路径。
+    // bun run run 在透传参数时会保留一个裸 --，这里需要显式跳过，避免把它误当成待分析路径。
     if (arg === "--") {
       continue;
     }
@@ -85,9 +85,9 @@ function printHelp() {
   console.log(`根据 packages 里的源码 import/export 关系生成文件级依赖图。
 
 用法:
-  pnpm dep:graph
-  pnpm dep:graph -- packages/ui/src
-  pnpm dep:graph -- --format json -o -
+  bun run dep:graph
+  bun run dep:graph -- packages/ui/src
+  bun run dep:graph -- --format json -o -
 
 选项:
   -o, --output <path>         输出文件路径，传 - 表示输出到 stdout

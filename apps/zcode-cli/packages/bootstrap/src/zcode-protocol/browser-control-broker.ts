@@ -13,11 +13,11 @@ import {
 } from "./server-types.js";
 
 /**
- * ProtocolBrowserControlBroker —— agent 侧 BrowserControlPort 实现。
+* ProtocolBrowserControlBroker - agent side BrowserControlPort implementation.
  *
- * browser-client 的 agent.browsers.* 每个调用经此把一条 BrowserCommand 变成
- * ZCode Protocol 的 interaction/browserExecute 反向请求，由 app（host→main WebContentsView/CDP）
- * 执行并返回结果。与 permission broker 并列注入（server-operations 的 createWorkspaceZCodeApp options）。
+* browser-client's agent.browsers.* Each call here turns a BrowserCommand into
+* ZCode Protocol's interaction/browserExecute reverse request, by app (host→main WebContentsView/CDP)
+* Execute and return results. Injected in parallel with permission broker (createWorkspaceZCodeApp options of server-operations).
  */
 export function createProtocolBrowserControlBroker(
   context: ZCodeProtocolAgentServerContext,
@@ -82,9 +82,9 @@ export function createProtocolBrowserControlBroker(
         traceContext,
       });
       const cancelBackendRequest = () => {
-        // 只取消 agent 侧 requestClient 会让 host/main 的 CDP 动作继续执行。
-        // 这里用同一 backend/generation 发送内部 cancelRequest，main 再按原 requestId 中断 waiter；
-        // 已下发动作无法证明无副作用时由 manager 返回 uncertain 标记。
+// Only canceling the agent-side requestClient will allow the CDP action of host/main to continue executing.
+// Here, the same backend/generation is used to send the internal cancelRequest, and main interrupts the waiter according to the original requestId;
+// When the issued action cannot be proven to have no side effects, the manager returns the uncertain flag.
         void context
           .requestClient(
             zcodeProtocolMethods.interactionBrowserExecute,
@@ -148,8 +148,8 @@ function buildBrowserRequestContext(
     ...((input.turnId ?? input.traceContext?.turnId)
       ? { turnId: String(input.turnId ?? input.traceContext?.turnId) }
       : {}),
-    // workspacePath 可能在不同 remote workspace 中相同，隔离 key 必须优先使用
-    // workspaceIdentity，避免 browser backend/tab ownership 跨工作区串线。
+// workspacePath may be the same in different remote workspaces, and the isolation key must be used first
+// workspaceIdentity, avoid browser backend/tab ownership cross-workspace thread.
     workspaceKey: workspaceIdentity ?? workspacePath,
     workspacePath,
     ...(workspaceIdentity ? { workspaceIdentity } : {}),

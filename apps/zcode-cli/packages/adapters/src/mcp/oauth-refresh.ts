@@ -27,10 +27,10 @@ import { sanitizeKeyPrefix } from "./oauth-lease.js";
 import { loadDiscoveryRecord, saveDiscoveryRecord } from "./oauth-shared.js";
 
 /**
- * refresh 锁的获取预算。
+* Refresh lock acquisition budget.
  *
- * 必须覆盖锁内的网络预算（一次 discovery + 一次 token 请求），否则等待者会在 winner 还没
- * 发布结果时就超时。`withFileLock` 的默认值只有 8 秒（privateFilePersistence.ts:9），不够。
+* The network budget within the lock must be covered (one discovery + one token request), otherwise the waiter will wait before the winner
+* Timed out when publishing results. The default value of `withFileLock` is only 8 seconds (privateFilePersistence.ts:9), which is not enough.
  */
 const REFRESH_LOCK_MAX_WAIT_MS = 45_000;
 
@@ -40,16 +40,16 @@ interface RefreshMcpOAuthTokensInput {
   keyPrefix: string;
   logger?: Logger;
   /**
-   * reactive = 由 401 的 `onUnauthorized` 触发。
+* reactive = triggered by 401 `onUnauthorized`.
    *
-   * 决定网络失败时的语义：proactive（临期主动刷新）可以 fail-soft 返回现值，因为那个 token 还没
-   * 被资源服务器拒绝；reactive 不能——它刚被拒绝，返回它必然产生第二次 401 并抛
-   * `ClientHttpAuthentication`，还会把临时 AS 故障误判成需要交互授权。
+* Determine the semantics when the network fails: proactive (proactive refresh at the expiration date) can fail-soft return the current value, because the token has not yet been
+* Rejected by the resource server; reactive cannot - it has just been rejected, returning it will inevitably generate a second 401 and throw
+* `ClientHttpAuthentication` will also misjudge temporary AS failures as requiring interactive authorization.
    */
   reactive: boolean;
   serverName: string;
   serverUrl: string;
-  /** 静态配置的 clientId。存在时 `invalid_client` 不能靠交互授权自愈。 */
+/** Static configured clientId. When present, `invalid_client` cannot heal itself by interactive authorization. */
   staticClientId?: string;
 }
 
@@ -60,11 +60,11 @@ interface ResolvedAsMetadata {
 }
 
 /**
- * 在跨进程单飞锁内刷新 access token，返回可用的 access token。
+* Refresh the access token in the cross-process solo lock and return the available access token.
  *
- * 并发刷新问题：多个 CLI 进程共享同一份凭据文件，`withFileLock` 只覆盖凭据读写、不覆盖网络
- * token exchange。access token 过期时各进程并发用同一个 refresh token 刷新，撞授权服务器的
- * rotation reuse-detection，整个 token family 被撤销，最终退化成重新授权。
+* Concurrent refresh problem: multiple CLI processes share the same credential file, `withFileLock` only covers credential reading and writing, not the network
+* token exchange. When the access token expires, each process concurrently refreshes with the same refresh token, which affects the authorization server.
+* rotation reuse-detection, the entire token family is revoked and eventually degrades to reauthorization.
  */
 export async function refreshMcpOAuthTokensUnderLock(
   input: RefreshMcpOAuthTokensInput,
@@ -83,7 +83,7 @@ export async function refreshMcpOAuthTokensUnderLock(
     );
   } catch (error) {
     if (!isZCodeFileLockTimeoutError(error)) throw error;
-    // 等锁超时不代表刷新失败：winner 可能已经发布结果。先重读，确认换代且有 token 就直接用。
+// Waiting for the lock timeout does not mean that the refresh failed: the winner may have already published the results. Reread it first, confirm the replacement and use it directly if you have the token.
     const current = await loadCredentialPair(input.credentialStore, input.keyPrefix);
     if (current?.tokens && current.generation !== observedGeneration) {
       return current.tokens.access_token;
@@ -98,13 +98,13 @@ async function refreshLocked(
 ): Promise<string> {
   const current = await loadCredentialPair(input.credentialStore, input.keyPrefix);
 
-  // 合并：等锁期间别人已经刷新过就直接复用，零二次请求。这是 rotation reuse-detection 的关键。
+// Merge: Reuse directly after others have refreshed during the lock period, zero second request. This is the key to rotation reuse-detection.
   if (current?.tokens && current.generation !== observedGeneration) {
     return current.tokens.access_token;
   }
   if (!current?.tokens) {
-    // generation 变了但 winner 没留下 token（例如它收到 invalid_grant）：不能当成「没有凭据」
-    // 静默返回，必须转入交互授权。
+// The generation changed but the winner did not leave a token (for example, it received an invalid_grant): it cannot be regarded as "no credentials"
+// Return silently and must switch to interactive authorization.
     throw createInteractiveAuthorizationRequiredError({
       reason: "no_credentials",
       serverName: input.serverName,
@@ -123,7 +123,7 @@ async function refreshLocked(
   try {
     resolved = await resolveAsMetadata(input, current);
   } catch (error) {
-    // discovery 失败绝不能当作 grant 失效。
+// Discovery failure must not be treated as grant failure.
     return failSoft(input, current, error);
   }
 
@@ -175,7 +175,7 @@ async function handleRefreshFailure(
   });
 
   if (oauthErrorCode === OAuthErrorCode.InvalidGrant) {
-    // 确定性失效：refresh token 已被撤销或过期。CAS 清 tokens、保留 client 作为重新授权种子。
+// Deterministic invalidation: refresh token has been revoked or expired. CAS clears tokens and retains the client as the re-authorization seed.
     if (current.raw) {
       await invalidateCanonicalCredentials(
         input.credentialStore,
@@ -196,8 +196,8 @@ async function handleRefreshFailure(
     oauthErrorCode === OAuthErrorCode.UnauthorizedClient
   ) {
     if (input.staticClientId) {
-      // 静态配置 client 的 invalid_client 无法靠交互授权自愈：Phase 2 仍会使用同一个 client，
-      // 转授权只会形成循环。按配置错误上报。
+// The invalid_client of the statically configured client cannot heal itself by interactive authorization: Phase 2 will still use the same client.
+// Sub-authorization will only create a cycle. Report configuration errors.
       throw new Error(
         `MCP server ${input.serverName} OAuth client was rejected by the authorization server (invalid_client). ` +
           `The configured clientId is not usable; fix the MCP oauth configuration.`,
@@ -223,10 +223,10 @@ async function handleRefreshFailure(
 }
 
 /**
- * 非确定性失败（网络、5xx、`server_error`）。
+* Non-deterministic failure (network, 5xx, `server_error`).
  *
- * proactive 返回现值：token 还没被拒绝，让请求继续走，401 路径保留最终裁决权。
- * reactive 必须抛临时错误：现值刚被拒绝，返回它一定再 401。
+* Proactive returns the current value: the token has not been rejected yet, let the request continue, and the 401 path retains the final decision.
+* reactive must throw a temporary error: the present value has just been rejected, return it must be 401 again.
  */
 function failSoft(
   input: RefreshMcpOAuthTokensInput,
@@ -240,10 +240,10 @@ function failSoft(
 }
 
 /**
- * 解析授权服务器元数据与经校验的 resource。
+* Parse authorization server metadata and verified resources.
  *
- * discovery 记录带 TTL 且与 Phase 2 共用；`resource` 必须求出并带进 refresh 请求（RFC 8707），
- * SDK 自己的 refresh 会传它，我们绕开 `auth()` 后必须自己补上，否则受众绑定丢失。
+* discovery records have TTL and are shared with Phase 2; `resource` must be retrieved and brought into refresh requests (RFC 8707),
+* The SDK's own refresh will pass it, and we must make it up ourselves after bypassing `auth()`, otherwise the audience binding will be lost.
  */
 async function resolveAsMetadata(
   input: Pick<
@@ -266,7 +266,7 @@ async function resolveAsMetadata(
 
   const resource = await selectResourceURL(
     input.serverUrl,
-    // selectResourceURL 只读 provider 的 validateResourceURL；这里没有 provider，传一个空壳即可。
+// selectResourceURL reads only provider's validateResourceURL; there is no provider here, just pass an empty shell.
     {} as never,
     discovered.resourceMetadata,
   );
@@ -280,11 +280,11 @@ async function resolveAsMetadata(
 }
 
 /**
- * refresh 锁文件路径。
+* refresh lock file path.
  *
- * 必须独立于 credentials 文件：锁内会调用 `publishCanonicalCredentials`，后者自己对
- * credentials.json 加锁；同一路径会自重入死锁。basename 只含 hash 与连字符（Windows 文件名
- * 不允许冒号）。
+* Must be independent of the credentials file: `publishCanonicalCredentials` will be called within the lock, which itself
+* Credentials.json is locked; the same path will enter a deadlock by itself. basename contains only hash and hyphen (Windows filename
+* no colons allowed).
  */
 function resolveRefreshLockPath(credentialsFilePath: string, keyPrefix: string): string {
   return join(dirname(credentialsFilePath), `${sanitizeKeyPrefix(keyPrefix)}.refresh`);

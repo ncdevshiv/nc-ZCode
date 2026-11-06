@@ -1,4 +1,5 @@
-// Session Store Port：为会话输入、消息和投影提供稳定的存储边界。
+/* eslint-disable max-lines -- Session store port keeps input/message/projection boundaries in one contract. */
+// Session Store Port: Provides stable storage boundaries for session input, messages, and projections.
 // ============================================================
 
 import type {
@@ -59,9 +60,9 @@ export const SYNTHETIC_USER_MESSAGE_SOURCES = [
   "subagent",
   "subagent_message",
   "todo_reminder",
-  // 中枢直接启动已保存工作流时落的那条 user 消息的来源。
-  // 它虽是 synthetic（GUI 用元数据画启动卡而非显示文本），语义上却是用户真实动作：
-  // origin=real_user、kind=user_prompt，与其余「运行时注入的提醒」类来源不同档。
+// The source of the user message that dropped when the hub directly started the saved workflow.
+// Although it is synthetic (the GUI uses metadata to draw the startup card instead of displaying text), the semantics are the real actions of the user:
+// origin=real_user, kind=user_prompt, different sources from other "runtime injected reminder" classes.
   "workflow_launch",
   "shared_context",
 ] as const;
@@ -98,9 +99,9 @@ export interface MessageSemantics {
   transcriptVisibility: "visible" | "hidden";
 }
 
-// v4 投影锚点词表（userInput.origin）。
-// 与 MessageSemanticsOrigin 并存不互替：semantics.origin 是旧读侧语义，
-// anchor.origin 是新协议 row 派生依据；老值由读侧只读映射。
+// v4 projected anchor vocabulary (userInput.origin).
+// Coexists with MessageSemanticsOrigin and is not interchangeable: semantics.origin is the old read-side semantics.
+// anchor.origin is the new protocol row derivation basis; the old value is read-only mapped by the read side.
 export const MESSAGE_ANCHOR_ORIGINS = [
   "realUser",
   "backgroundResult",
@@ -111,8 +112,8 @@ export const MESSAGE_ANCHOR_ORIGINS = [
 export type MessageAnchorOrigin = (typeof MESSAGE_ANCHOR_ORIGINS)[number];
 
 /**
- * stable fork 的 fork 点 goal 事实。undefined 只表示旧数据；新数据必须显式写 none
- * 或完整快照，避免 fork 时读取 parent 当前 goal 冒充历史状态。
+* Fork point goal fact for stable fork. undefined only represents old data; new data must be explicitly written none
+* Or a complete snapshot to avoid reading the parent current goal and pretending to be a historical state when forking.
  */
 export type StableForkGoalBoundaryMetadata =
   | { kind: "none" }
@@ -123,18 +124,18 @@ export type StableForkGoalBoundaryMetadata =
     };
 
 /**
- * v4 transcript 锚点（清单）：全部 optional，
- * 走 message JSON blob 的 additive 演进，历史数据留空、读侧宽容降级。
- * sourceCommandId 是命令幂等的 transcript 兜底查重键，
- * 由 v4 command inbox 铺路后写入（接线）。
+* v4 transcript anchors (list): all optional,
+* Take the additive evolution of message JSON blob, leave historical data blank, and tolerate downgrades on the read side.
+* sourceCommandId is the idempotent transcript duplication check key of the command.
+* Written (wired) by v4 command inbox after paving the way.
  */
 export interface MessageProjectionAnchor {
   turnId?: TurnId;
   origin?: MessageAnchorOrigin;
   sourceCommandId?: string;
-  /** 最终 assistant 固化当前 query 的历史轮次，供 cold hydration 精确恢复。 */
+/** Finally, the assistant solidifies the historical rounds of the current query for accurate recovery by cold hydration. */
   historyRoundCount?: number;
-  /** 新数据的 stable fork 固定边界；历史消息缺省，由唯一 resolver 无歧义时惰性补写。 */
+/** The stable fork fixed boundary of new data; historical messages are defaulted and are lazily added by the only resolver when there is no ambiguity. */
   productTurnId?: string;
   orderedMessageIds?: MessageId[];
   boundaryMessageId?: MessageId;
@@ -193,7 +194,7 @@ export interface CreateSessionInput {
   };
 }
 
-/** V4 stable fork resolver 固定的目标 product turn segment。 */
+/** V4 stable fork resolver fixed target product turn segment. */
 export interface StableForkTargetMetadata {
   productTurnId: string;
   transcriptTurnId: string;
@@ -201,7 +202,7 @@ export interface StableForkTargetMetadata {
   boundaryMessageId: string;
 }
 
-/** 与 child session 同事务落盘的命令幂等事实。 */
+/** The fact that the command is idempotent with the same transaction placement as child session. */
 export interface ForkChildSessionMetadata {
   parentSessionId: string;
   sourceCommandId: string;
@@ -214,14 +215,14 @@ export type ForkCommandResult =
   | { type: "editUserQuery"; disposition: "fork"; sessionId: string };
 
 /**
- * conversation fork 的唯一原子提交载荷。core 在内存完成 remap；adapter 不参与业务裁决，
- * 只保证 child/copy/goal/entries/input/parent command fact 全有或全无。
+* The only atomic commit payload for conversation forks. The core completes remap in memory; the adapter does not participate in business decision-making.
+* Only ensures that the child/copy/goal/entries/input/parent command fact is all or nothing.
  */
 export interface ForkCommitBundle {
   child: CreateSessionInput;
   messages: MessageWithParts[];
   entries: SessionEntryInfo[];
-  /** 存储复制来源（目标 ID -> 父记录 ID）；只保留旧磁盘快照，不参与模型选择。 */
+/** Storage copy source (target ID -> parent record ID); only old disk snapshots are retained and do not participate in model selection. */
   copySources?: { messages: Record<string, string>; parts: Record<string, string> };
   goal?: { source: SessionGoal; status: GoalStatus };
   initialInput?: {
@@ -285,17 +286,17 @@ export interface SessionRevert {
   createdMessageID?: MessageId;
   keptMessageIDs?: MessageId[];
   /**
-   * append-only conversation branch 的 cut 游标：本次 rewind 提交前最后一条持久消息。
-   * active branch = keptMessageIDs + 该消息之后新追加的消息。旧 createdMessageID 仅用于兼容。
+* The cut cursor of the append-only conversation branch: the last persistent message before this rewind submission.
+* active branch = keptMessageIDs + newly appended messages after this message. Old createdMessageID is for compatibility only.
    */
   branchCutAfterMessageID?: MessageId;
-  /** 每次 destructive conversation rewind 单调递增，用于隔离旧分支异步结果。 */
+/** Each destructive conversation rewind is monotonically increasing, used to isolate the asynchronous results of the old branch. */
   branchGeneration?: number;
 }
 
 export interface ListSessionsInput {
   projectID?: ProjectId;
-  /** undefined = 不按 identity 过滤；null = 仅本地/legacy 空 identity；字符串 = 精确 workspace identity。 */
+/** undefined = do not filter by identity; null = local/legacy empty identity only; string = exact workspace identity. */
   workspaceID?: WorkspaceId | null;
   directory?: string;
   path?: string;
@@ -353,7 +354,7 @@ export interface UserMessageInfo {
   format?: OutputFormat;
   summary?: MessageSummary;
   agent: string;
-  /** 未绑定会话的合成消息、缺少模型信息的旧消息不伪造请求来源。 */
+/** Synthetic messages that are not bound to a session and old messages that lack model information do not forge the request source. */
   modelSelection?: ModelSelection;
   system?: string;
   tools?: Record<string, boolean>;
@@ -392,11 +393,11 @@ export interface AssistantMessageInfo {
   };
   error?: AssistantErrorInfo;
   parentID: MessageId;
-  /** 真正模型输出应携带来源；历史恢复的合成时间线允许没有执行模型。 */
+/** True model output should carry provenance; historical restored synthesis timelines are allowed without executing the model. */
   modelId?: ModelId;
   providerId?: ModelProviderId;
   mode: string;
-  /** 当前输出对应的 Plan 状态；旧记录缺失时按旧 mode 解释，不回填历史。 */
+/** The Plan status corresponding to the current output; when the old record is missing, it will be interpreted according to the old mode and the history will not be backfilled. */
   planEnabled?: boolean;
   agent: string;
   path: {
@@ -411,7 +412,7 @@ export interface AssistantMessageInfo {
   finish?: string;
   semantics?: MessageSemantics;
   anchor?: MessageProjectionAnchor;
-  /** 附加领域语义（fork copy 的 forkOrigin provenance 等）。 */
+/** Additional domain semantics (fork copy's forkOrigin provenance, etc.). */
   metadata?: Record<string, unknown>;
 }
 
@@ -573,11 +574,11 @@ export interface TimelinePartBase {
   status?: TimelinePartStatus;
   anchorMessageId?: MessageId;
   anchorTurnId?: TurnId;
-  /** 用户命令产生的 marker 查重锚点；auto/system marker 缺省。 */
+/** The marker duplication check anchor point generated by user command; auto/system marker is the default. */
   sourceCommandId?: string;
   /**
-   * fork copy 降级 provenance：anchor 指向未被复制的消息/父轮时，
-   * 本地 anchor 必须清空（不得参与 child 落位），原引用降级到 origin* 仅供溯源。
+* fork copy degrades provenance: when anchor points to a message/parent that has not been copied,
+* The local anchor must be cleared (not allowed to participate in child placement), and the original reference is downgraded to origin* for traceability only.
    */
   originAnchorMessageId?: MessageId;
   originAnchorTurnId?: TurnId;
@@ -626,7 +627,7 @@ export interface SessionForkTimelinePart extends TimelinePartBase {
 export interface ModelChangeTimelinePart extends TimelinePartBase {
   timelineType: "model_change";
   fromModel?: TimelineModelSelection;
-  /** 回滚再升级后模型配置可缺失；不能因此丢掉整条历史内容。 */
+/** Model configuration can be lost after rolling back and upgrading; the entire historical content cannot be lost. */
   toModel?: TimelineModelSelection & { label: string };
 }
 
@@ -754,7 +755,7 @@ export interface ToolPart {
   messageID: MessageId;
   type: "tool";
   callID: string;
-  /** 同一 assistant 内本地工具的声明序号；旧记录可缺失，不能用落盘顺序代替。 */
+/** The declaration serial number of the local tool in the same assistant; old records can be missing and cannot be replaced by the order of disk placement. */
   declarationIndex?: number;
   tool: string;
   state: ToolState;
@@ -781,7 +782,7 @@ export interface MessageWithParts {
   parts: MessagePart[];
 }
 
-/** 分享导入的单事务载荷：新 session、唯一 model-only 上下文和 provenance 全有或全无。 */
+/** Share imported single transaction payload: new session, model-only context and provenance all or nothing. */
 export interface SharedContextImportCommitBundle {
   session: CreateSessionInput;
   contextMessage: MessageWithParts;
@@ -825,29 +826,29 @@ export interface SessionEntryInfo {
   id: string;
   sessionID: SessionId;
   type: SessionEntryType | string;
-  // session entry 既承载用户/工具活动，也承载 session-local 配置快照。
-  // 配置恢复或切换只应更新 entry 自己的版本，不能把任务活动时间伪装成“刚刚”。
+// A session entry carries both user/tool ​​activity and session-local configuration snapshots.
+// Configuration restoration or switching should only update the entry's own version, and the task activity time cannot be disguised as "just now".
   touchSession?: boolean;
   time: {
     created: number;
     updated: number;
   };
   /**
-   * 逻辑 payload，不等同于数据库 JSON。runtime/model_selection 的读写为公共
-   * ModelSelection（无选择沿用 null）；SQLite adapter 负责 modelSelection 包装，
-   * 旧平铺字段仅供一次性迁移/回滚，不能暴露给普通消费者或复制到 fork 子记录。
+* Logical payload, not equivalent to database JSON. The reading and writing of runtime/model_selection are public
+* ModelSelection (use null if there is no selection); SQLite adapter is responsible for modelSelection packaging,
+* Old tile fields are for one-time migration/rollback only and cannot be exposed to regular consumers or copied to fork child records.
    */
   data: unknown;
 }
 
-// ── session_input 账本──
-// 输入的 durable 生命周期：admitted（已接受，排队/待注入）→ promoted（已消费成
-// transcript user message，与消息持久化同事务）/ cancelled（用户删除队列项等）/
-// discarded（session_resumed=重启不保留队列；user_cleared=heldQueue 清空发送）/
-// failed（已接受但运行时无法启动；保留终态，重启时禁止再改写成 discarded）。
-// id = input/command id（admission 时即存在）；promoted_message_id 是 nullable 外键——
-// messageId 在 drain 时才生成。startNow 也必须先经过 durable admission：即使 CLI 在 ACK 后、
-// user message 原子 promotion 前崩溃，恢复端也能把输入明确标成 discarded。
+//── session_input ledger──
+// Input durable life cycle: admitted (accepted, queued/to be injected) → promoted (consumed)
+// transcript user message, same transaction as message persistence)/ canceled (user deletes queue items, etc.)/
+// discarded (session_resumed=restart without retaining the queue; user_cleared=heldQueue cleared and sent)/
+// failed (accepted but cannot be started at runtime; final state retained, prohibited from being rewritten to discarded during restart).
+// id = input/command id (exists when admission); promoted_message_id is a nullable foreign key——
+// messageId is only generated when drain is used. startNow must also go through durable admission first: even if the CLI is after ACK,
+// User message crashes before atomic promotion, and the recovery end can also clearly mark the input as discarded.
 export type SessionInputDelivery = "startNow" | "guide" | "queue";
 
 export type SessionInputStatus = "admitted" | "promoted" | "cancelled" | "discarded" | "failed";
@@ -980,11 +981,11 @@ export interface ToolUsageRecord {
 }
 
 export interface AppUsageQueryInput {
-  /** 含 (since, until] 的下界（unix ms）。 */
+/** Lower bound (unix ms) with (since, until]. */
   since: number;
-  /** 上界（unix ms），通常为 now。 */
+/** Upper bound (unix ms), usually now. */
   until: number;
-  /** 调用端时区相对 UTC 的固定偏移（ms），用于按本地日归桶。 */
+/** The fixed offset (ms) of the calling end's time zone relative to UTC, used to bucket based on the local day. */
   tzOffsetMs: number;
 }
 
@@ -1088,12 +1089,12 @@ export interface LocalSettingStorePort {
 
 export interface SessionStorePort {
   createSession(input: CreateSessionInput): Promise<SessionInfo>;
-  /** legacy 兼容原语；V4 stable/compact-edit fork 禁止调用，统一走 commitForkBundle。 */
+/** legacy compatible primitive; V4 stable/compact-edit fork is prohibited from being called, and commitForkBundle is used uniformly. */
   createForkedSessionWithMetadata?(
     input: CreateSessionInput,
     metadata: ForkChildSessionMetadata,
   ): Promise<SessionInfo>;
-  /** V4 stable/compact-edit fork 的唯一事务入口。legacy workspace fork 不调用。 */
+/** The only transaction entry for V4 stable/compact-edit fork. Legacy workspace fork is not called. */
   commitForkBundle?(bundle: ForkCommitBundle): Promise<SessionInfo>;
   commitSharedContextImportBundle?(bundle: SharedContextImportCommitBundle): Promise<SessionInfo>;
   transitionSharedContextImport?(input: SharedContextImportTransition): Promise<boolean>;
@@ -1101,20 +1102,20 @@ export interface SessionStorePort {
   getSession(sessionID: SessionId): Promise<SessionInfo | null>;
   listSessions(input?: ListSessionsInput): Promise<SessionInfo[]>;
   /**
-   * 用 host task-index allowlist 为旧远端 session 补写 workspace identity。
-   * 实现必须同时校验 id、directory 与 workspace_id is null，禁止覆盖已有 identity。
+* Use host task-index allowlist to rewrite the workspace identity for the old remote session.
+* The implementation must verify that id, directory and workspace_id are null at the same time, and overwriting the existing identity is prohibited.
    */
   claimLegacySessionWorkspace?(input: ClaimLegacySessionWorkspaceInput): Promise<number>;
   /**
-   * 修复曾把 remote identity 写入 directory/path 的单条历史 session。
-   * 实现必须校验 session id、NULL workspace_id 及旧目录精确匹配，禁止批量路径迁移。
+* Fixed a single historical session that had written remote identity to directory/path.
+* The implementation must verify that session id, NULL workspace_id and the old directory match exactly, and batch path migration is prohibited.
    */
   repairLegacyRemoteSessionWorkspace?(
     input: RepairLegacyRemoteSessionWorkspaceInput,
   ): Promise<boolean>;
   /**
-   * 已有 remote identity 的维护性路径自愈 CAS。
-   * 实现只能更新 directory、path 和单调 time_updated，禁止写回其它 session 元数据。
+* There is a maintenance path self-healing CAS for remote identity.
+* The implementation can only update directory, path and monotonic time_updated, and prohibits writing back other session metadata.
    */
   repairRemoteSessionPaths?(input: RepairRemoteSessionPathsInput): Promise<boolean>;
   saveMessage(input: MessageInfo, copyFrom?: { sessionID: SessionId; id: string }): Promise<void>;
@@ -1131,8 +1132,8 @@ export interface SessionStorePort {
     sessionID: SessionId;
     type?: SessionEntryType | string;
   }): Promise<SessionEntryInfo[]>;
-  // ── session_input 账本（可选方法，旧宿主可不实现）──
-  /** admission：输入已被接受（排队/待注入），durable 记账。幂等（同 id 重入更新 payload）。 */
+//── session_input ledger (optional method, the old host may not implement it)──
+/** admission: Input has been accepted (queued/to be injected), durable accounting. Idempotent (reentrant update payload with the same id). */
   saveSessionInput?(input: {
     id: string;
     sessionID: SessionId;
@@ -1140,7 +1141,7 @@ export interface SessionStorePort {
     delivery: SessionInputDelivery;
     payload: { text: string; [key: string]: unknown };
   }): Promise<void>;
-  /** 审批完全访问：execution、固定队列权限和幂等 receipt 同一事务；无 schema migration。 */
+/** Approval full access: execution, fixed queue permissions and idempotent receipt same transaction; no schema migration. */
   commitPermissionFullAccess?(input: {
     sessionID: SessionId;
     queueItemIds: string[];
@@ -1148,7 +1149,7 @@ export interface SessionStorePort {
     receipt: SessionEntryInfo;
     signal?: AbortSignal;
   }): Promise<void>;
-  /** queue 编辑/重排的 durable 原子更新；只允许修改 admitted 记录。 */
+/** Queue edit/requeue durable atomic updates; only allowed modifications to admitted records are allowed. */
   updateSessionInputs?(input: {
     sessionID: SessionId;
     updates: Array<{
@@ -1160,8 +1161,8 @@ export interface SessionStorePort {
     }>;
   }): Promise<void>;
   /**
-   * promotion（原子性硬要求）：账本置 promoted + user message/parts
-   * 持久化在同一事务——杜绝「queue 已消费但 transcript 无 user message」的孤儿窗口。
+* promotion (hard requirement for atomicity): ledger setting promoted + user message/parts
+* Persistence in the same transaction - eliminate orphan windows where "queue has been consumed but transcript has no user message".
    */
   promoteSessionInput?(input: {
     id: string;
@@ -1170,15 +1171,15 @@ export interface SessionStorePort {
     parts: MessagePart[];
   }): Promise<void>;
   /**
-   * 非原子 promotion 标记：message 持久化已在别处完成的路径（background wake 的
-   * synthetic notice）只补账本状态。新路径应优先用 promoteSessionInput（原子）。
+* Non-atomic promotion tag: path where message persistence has been completed elsewhere (background wake's
+*synthetic notice) only makes up for the ledger status. New paths should prefer promoteSessionInput (atomic).
    */
   markSessionInputPromoted?(input: {
     id: string;
     sessionID: SessionId;
     promotedMessageID: MessageId;
   }): Promise<void>;
-  /** 终态收口：cancelled（user_removed 等）/ discarded（session_resumed / user_cleared）。 */
+/** Final state closing: canceled (user_removed, etc.) / discarded (session_resumed / user_cleared). */
   settleSessionInput?(input: {
     id: string;
     sessionID: SessionId;
@@ -1189,7 +1190,7 @@ export interface SessionStorePort {
     sessionID: SessionId;
     status?: SessionInputStatus;
   }): Promise<SessionInputRecord[]>;
-  /** global createSession.firstInput 查重：由 queue_<sourceCommandId> 找回真实 session。 */
+/** global createSession.firstInput duplication check: retrieve the real session from queue_<sourceCommandId>. */
   getSessionInputById?(id: string): Promise<SessionInputRecord | null>;
   readTodos(input: { sessionID: SessionId }): Promise<TodoItem[]>;
   updateTodos(input: { sessionID: SessionId; todos: TodoItem[] }): Promise<void>;

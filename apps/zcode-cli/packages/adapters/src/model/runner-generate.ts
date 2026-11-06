@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Cohesive contract/runtime module kept in one file; split is tracked separately. */
 import type { Logger, ModelStatusSink, ModelTextResult } from "@zcode/contracts";
 import {
   ModelErrorCode,
@@ -74,8 +75,8 @@ export async function runGenerateText(input: {
   statusSink?: ModelStatusSink;
   modelIoFullRetentionEnabled: boolean;
 }): Promise<ModelTextResult> {
-  // 重试预算档位：workflow actor 的请求带 unbounded，
-  // 只放宽瞬态失败的放弃条件；状态事件里的 maxAttempts 以 0 表示无上限。
+//Retry budget gear: workflow actor's request is unbounded,
+// Only relax the abandon condition for transient failure; maxAttempts in the status event is 0 to indicate no upper limit.
   const retryBudget = input.request.modelRetryBudget;
   const statusMaxAttempts = (extraAttempts: number): number =>
     retryBudgetMaxAttempts(retryBudget, input.retry.maxAttempts + extraAttempts);
@@ -120,9 +121,9 @@ export async function runGenerateText(input: {
     let requestHeaders: Record<string, string> = {};
     let requestHeaderCount = 0;
 
-    // 进程级准入：每次尝试发出前等槽位，
-    // 票据在本次尝试结束时归还（成功 / 失败 / 抛出都经 finally；退避 sleep 之前先归还）。等待中被
-    // 取消 → 与 sleep 被取消同一条路：记 connect 阶段的 cancelled 失败，抛出。
+// Process-level admission: each attempt to issue the first slot,
+// The ticket is returned at the end of this attempt (success/failure/throw are all handled by finally; returned before exiting sleep). waiting to be
+// Cancellation → The same path as sleep being canceled: remember that canceled in the connect phase fails and is thrown.
     let admission: AttemptAdmission;
     try {
       admission = await admitAttempt({
@@ -190,12 +191,12 @@ export async function runGenerateText(input: {
         statusPublishOptions(input, admission),
       );
 
-      // 部分非流式 provider/fetch 兼容层收到 AbortSignal 后不会及时 settle
-      // generateText promise，导致 runtime 已 Stop，goal verifier 仍要等上游自然返回才收口。
-      // adapter 是本地取消契约边界：signal 一旦 abort 就立即拒绝，迟到 provider 结果只丢弃。
+// Some non-streaming provider/fetch compatibility layers will not settle in time after receiving AbortSignal.
+// generateText promise causes the runtime to stop, and the goal verifier still has to wait for the upstream to return naturally before stopping.
+// The adapter is a local cancellation contract boundary: the signal is rejected immediately once aborted, and the late provider result is only discarded.
       const pendingResult = input.runtime.generateText(options);
-      // options 构造成功不等于 runtime 已接受请求；同步 setup 异常会在调用点直接抛出。
-      // 只有 generateText 调用返回 pending promise 后才进入 response 归因边界，避免把本地 setup 记成 provider。
+// The successful construction of options does not mean that the runtime has accepted the request; the synchronous setup exception will be thrown directly at the call point.
+// Only when the generateText call returns a pending promise does it enter the response attribution boundary to avoid recording the local setup as a provider.
       requestInvocationCompleted = true;
       const result = await waitForGenerateTextOrAbort(pendingResult, input.request.abortSignal);
       const responseHeaders = sanitizeModelNetworkHeaders(
@@ -244,8 +245,8 @@ export async function runGenerateText(input: {
         })
       ) {
         const completedAt = Date.now();
-        // 空 completion 是 provider promise 正常 resolve，不会进入异常重试 catch；
-        // 必须在 adapter 返回前识别并重试一次，否则 core 只能收到最终空响应错误。
+// Empty completion means that the provider promise resolves normally and will not enter the exception retry catch;
+// It must be recognized and retried before the adapter returns, otherwise the core can only receive a final empty response error.
         logGenerateTextDiagnostics({
           attempt,
           completedAt,
@@ -329,7 +330,7 @@ export async function runGenerateText(input: {
         providerMetadata: result.providerMetadata as Record<string, unknown> | undefined,
       };
     } catch (error) {
-      // 合并后鉴权解析进入 attempt try；与 stream 一致保留网络前凭据缺失的类型化错误。
+// After merging, the authentication parsing enters attempt try; consistent with stream, the typed error of missing credentials before the network is retained.
       if (
         error instanceof ModelProtocolError &&
         error.code === ModelErrorCode.ModelRequestAuthMissing
@@ -341,8 +342,8 @@ export async function runGenerateText(input: {
         classified.message = error.message;
         classified.retryable = false;
       }
-      // off-peak 特判（仅 idle plan provider，见 offpeak-retry.ts）：排队 429 豁免预算、
-      // 3102（兼容旧 3001）以稳定标记落败触发 desktop 侧续跑。
+// off-peak special decision (only idle plan provider, see offpeak-retry.ts): queue 429 exempt budget,
+// 3102 (compatible with old 3001) triggers desktop side continuation with stable mark failure.
       const offPeak = resolveOffPeakFailureDecision({
         offPeak: resolved.accountAccess?.mode === "off-peak",
         failure: classified,
@@ -367,9 +368,9 @@ export async function runGenerateText(input: {
           : undefined;
       const retryWithRepairedHistory = repairedMessages !== undefined;
       if (repairedMessages) {
-        // 签名只对生成它的 thinking block 有效。明确收到签名校验 400 时，
-        // 只替换本次请求副本，并给一次不占普通 retry 预算的物理请求机会；不能通过
-        // 回退 attempt 复用 requestId，也不能改写 canonical history。
+// The signature is only valid for the thinking block that generated it. When signature verification 400 is explicitly received,
+// Only replace the copy of this request and give a physical request opportunity that does not occupy the ordinary retry budget; it cannot pass
+// Fallback attempt reuses requestId, and cannot rewrite canonical history.
         signatureRepairAttempted = true;
         requestMessages = repairedMessages;
         statusContext = {
@@ -381,7 +382,7 @@ export async function runGenerateText(input: {
         offPeak?.kind === "queued"
           ? true
           : retryBudgetAllows(retryBudget, retryBudgetAttempt, input.retry.maxAttempts) &&
-            // workflow 流量（无上限预算）读策略表而不是分类器的 retryable；有界预算逐字不变。
+// Workflow traffic (uncapped budget) reads the policy table instead of the classifier's retryable; bounded budgets are literal unchanged.
             retryAllowedByFailurePolicy(
               failure,
               retryBudget,
@@ -492,7 +493,7 @@ export async function runGenerateText(input: {
         admission,
       );
 
-      // 退避期间不持票：槽位让给别人，重试再准入。
+//Do not hold a ticket during the retreat period: give the slot to others, try again and gain admission.
       admission.release();
       try {
         await sleep(delayMs, input.request.abortSignal);
@@ -518,7 +519,7 @@ export async function runGenerateText(input: {
             type: "model_request_failed",
           },
           {
-            // 退避期间票据已归还：这次取消不属于任何一次尝试，不转投票据。
+// The ticket has been returned during the withdrawal period: this cancellation does not belong to any attempt and the ticket will not be transferred.
             ...statusPublishOptions(input),
             failureError: unwrapRetryError(sleepError),
           },
@@ -528,7 +529,7 @@ export async function runGenerateText(input: {
         });
       }
       if (offPeak?.kind === "queued") {
-        // 排队等待不消耗重试预算：回退计数让 for 自增后原地重试，无限探测。
+// Waiting in queue does not consume the retry budget: the rollback count allows for to retry in place after incrementing, with unlimited detection.
         attempt -= 1;
       }
     } finally {
@@ -607,7 +608,7 @@ function statusPublishOptions(
     logger: input.logger,
     requestStatusSink: input.request.statusSink,
     statusSink: input.statusSink,
-    // 本次尝试的准入票据也是它的状态事件汇。
+// The admission ticket for this attempt is also its status event sink.
     ...(admission?.ticket === undefined ? {} : { admissionTicket: admission.ticket }),
   };
 }

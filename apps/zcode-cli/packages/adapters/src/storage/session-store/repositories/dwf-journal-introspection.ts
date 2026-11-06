@@ -1,11 +1,11 @@
 /**
- * dwf-journal.ts 顶到 oxlint max-lines 上限（400 行），把宿主侧 **run 内省读面**
- * 一族（`DwfRunIntrospectionQueries` 及其 SQL）拆到本文件；公开面仍从 dwf-journal.ts 导出，
- * `SqliteDwfJournalStore` 只做委托。
+* dwf-journal.ts reaches the upper limit of oxlint max-lines (400 lines), and puts the host side **run introspection reading**
+* The family (`DwfRunIntrospectionQueries` and its SQL) is split into this file; the public side is still exported from dwf-journal.ts,
+* `SqliteDwfJournalStore` only does delegation.
  *
- * 与 dwf-journal-artifacts.ts 同一种分法：这些查询只要一个 db 句柄，与 run/actor/node/event
- * 的写入-读取无共享状态，而各自带着一大段「取数源为何是这张表、排序为何是这个」的论证。
- * 引擎的 `JournalStorePort` 写面不在这里——这里没有任何写入者。
+* Same split as dwf-journal-artifacts.ts: these queries only require one db handle, same as run/actor/node/event
+*'s writing-reading has no shared state, and each comes with a long argument of "why the data source is this table, and why the sorting is this".
+* The engine's `JournalStorePort` writing surface is not here - there are no writers here.
  */
 
 import type { DatabaseSync } from "node:sqlite";
@@ -29,35 +29,35 @@ import {
   encodeRunStatusPredicate,
 } from "./dwf-journal-codecs.js";
 
-/** {@link DwfRunIntrospectionQueries.listRuns} 的查询袋。 */
+/** Query bag for {@link DwfRunIntrospectionQueries.listRuns}. */
 export interface DwfListRunsQuery {
   /**
-   * 项目键。字面等值匹配 `dwf_run.cwd`（写入侧原样落，读侧原样查）。
+* Project key. Literal equivalent matches `dwf_run.cwd` (the writing side is dropped as is, the reading side is checked as is).
    *
-   * **可选**：缺省即不加 cwd 谓词，跨所有项目枚举。全局工作流的运行历史横跨它被发起过的每个
-   * 项目（`workflows/runs` 的 `scope: "global"` 变体）；项目档变体仍传 cwd，行为逐字不变。
+* **Optional**: By default, no cwd predicate is added, and it is enumerated across all projects. The running history of a global workflow spans every time it has been initiated
+* Project (`scope: "global"` variant of `workflows/runs`); the project file variant still passes cwd, and the behavior is verbatim.
    */
   cwd?: string;
   /**
-   * 返回行数上限，**必填**。钳制策略属于调用方（工具面钳到 [1, 50]）；存储层不替它猜一个
-   * 默认值——一条无界的枚举查询是这里唯一不该有的形状。
+* Return the upper limit of rows, **required**. The clamping policy belongs to the caller (the tool face clamps to [1, 50]); the storage layer does not guess one for it
+* Default - an unbounded enum query is the only shape that shouldn't be there.
    *
-   * 但**别在这里加自己的天花板**（如 `Math.min(50, limit)`）。调用方合法地传「钳制上限 + 1」：
-   * run service 多取一条来判定 `truncated`（多取的那条不进页）。一个 50 的硬顶会把探测行悄悄
-   * 吃掉，于是 `truncated` 在**恰好** limit = 50 时永久缺席——正是用户最需要知道"还有更多"的
-   * 那个页大小，而且没有任何测试会在别的 limit 上发现它。
+* But **don't add your own ceiling** here (like `Math.min(50, limit)`). The caller can legally pass "clamp_limit + 1":
+* Run service takes one more item to determine `truncated` (the extra one will not enter the page). A 50 hard top will silence the detection line
+* eaten, so `truncated` is permanently absent when **exactly** limit = 50 - exactly what the user needs to know "there's more"
+* that page size, and no tests will find it on other limits.
    */
   limit: number;
-  /** 可选状态子集。缺省即不过滤；空数组即「不匹配任何状态」（回空页）。 */
+/** Optional subset of states. The default is no filtering; an empty array means "does not match any status" (returns to an empty page). */
   statuses?: readonly RunStatus[];
   /**
-   * 可选的 run 名字（`dwf_run.name` 字面等值）。GUI 中枢按「工作流名 = run 名」归属运行历史，过滤下推到 SQL 而不是取一页再筛——否则一个高频
-   * 工作流会把别的工作流挤出页外，卡片上的「上次运行」就是错的。
+* Optional run name (literal equivalent of `dwf_run.name`). The GUI center belongs to the running history according to "workflow name = run name", and the filter is pushed down to SQL instead of taking a page and filtering again - otherwise a high-frequency
+* The workflow will push other workflows out of the page, and the "last run" on the card will be wrong.
    */
   name?: string;
 }
 
-/** dwf_node 的三态计数（`NodeRecordStatus` 的全部取值，三个键恒在场）。 */
+/** Three-state count of dwf_node (all values ​​of `NodeRecordStatus`, three keys are always present). */
 export interface DwfNodeStatusCounts {
   completed: number;
   failed: number;
@@ -65,15 +65,15 @@ export interface DwfNodeStatusCounts {
 }
 
 /**
- * 宿主侧的 run 内省查询面（`ListWorkflowRuns` / `GetWorkflowRun` 两个只读工具的取数底座）。
+* Run introspection query surface on the host side (`ListWorkflowRuns` / `GetWorkflowRun` two read-only tool access bases).
  *
- * 刻意**不加宽**引擎的 `JournalStorePort`，与 {@link SqliteDwfJournalStore.listNonTerminalRuns}
- * 逐字同一条论证：引擎只按 runId 读写自己那一行，从不枚举 run、也不做聚合计数——把这些加进
- * 领域端口，等于要求每个 journal 实现（包括引擎自带的内存实现）为一件引擎不做的事负责。
+* Intentionally **not widening** the engine's `JournalStorePort`, with {@link SqliteDwfJournalStore.listNonTerminalRuns}
+* The same argument verbatim: the engine only reads and writes its own row according to runId, never enumerates runs, and does no aggregate counting - add these to
+* Domain port is equivalent to requiring each journal implementation (including the memory implementation that comes with the engine) to be responsible for something that the engine does not do.
  *
- * 消费方按能力探测（`typeof journal.listRuns === "function"`）决定工具可用性，所以这个接口是
- * 宿主与 adapter 之间**唯一**的签名来源：签名在两处各写一份就会漂移，而漂移的后果是工具静默
- * 降级成「本会话没有这个能力」。
+* The consumer determines tool availability based on capability detection (`typeof journal.listRuns === "function"`), so this interface is
+* The **only** signature source between the host and the adapter: if the signature is written in two places, it will drift, and the consequence of the drift is that the tool becomes silent
+* Downgraded to "This session does not have this ability".
  */
 export interface DwfRunIntrospectionQueries {
   countNodesByStatus(runId: string): DwfNodeStatusCounts;
@@ -87,39 +87,39 @@ export interface DwfRunIntrospectionQueries {
   listRecentLogEvents(runId: string, limit: number): StoredEvent[];
   listRuns(query: DwfListRunsQuery): DwfRunListItem[];
   /**
-   * 本 run 的 world-read / world-run 行，按落库先后（`order by id`），带 journal 时间戳。**不取
-   * `result_json`**：这条读面是清单（op / args / 状态 / 时间），正文另有按 (siteId, ordinal)
-   * 的读面——一页 256 个节点把每个 256 KB 的 stdout 一起解出来，等于把整条 journal 读进内存。
+* The world-read / world-run lines of this run are in the order of logging (`order by id`), with journal timestamps. **Not taken
+* `result_json`**: This reading page is a list (op / args / status / time), and the text is also (siteId, ordinal)
+* Reading surface - 256 nodes on a page to solve each 256 KB stdout together, which is equivalent to reading the entire journal into memory.
    */
   listWorldNodes(runId: string): DwfWorldNodeRow[];
 }
 
 /**
- * 按项目（cwd）枚举 run，最近更新的在前。与 {@link SqliteDwfJournalStore.listNonTerminalRuns} 同一条论证：引擎
- * 从不枚举 run，这是宿主的读面需求（`ListWorkflowRuns` 工具），所以不进领域端口。
+* Enumerate runs by project (cwd), with the most recently updated first. Same argument as {@link SqliteDwfJournalStore.listNonTerminalRuns}: Engine
+* Never enumerate run, this is the reading requirement of the host (`ListWorkflowRuns` tool), so it does not enter the domain port.
  *
- * cwd / statuses / 排序 / limit **全部下推 SQL**：`dwf_run_cwd_idx`（0021）正是这个形状；
- * 在 JS 里取全量再筛就把索引和 limit 一起浪费掉了。cwd 是**字面**等值匹配——写入侧原样落
- * `context.workingDirectory`，读侧原样查，任何单侧的路径规范化都只会造出不匹配。
+* cwd / statuses / sort / limit **Push down all SQL**: `dwf_run_cwd_idx` (0021) is exactly this shape;
+* If you take the whole amount in JS and then filter it, the index and limit will be wasted. cwd is a **literal** equivalent match - the write side falls as is
+* `context.workingDirectory`, check the read side as it is, any unilateral path normalization will only create a mismatch.
  *
- * 行是窄投影（{@link DwfRunListItem}，不带 failure / result）：列表面不展示产物，而产物
- * 可以很大。
+* The row is a narrow projection ({@link DwfRunListItem}, without failure / result): the list surface does not display the product, but the product
+* Can be very large.
  */
 export function listRuns(db: DatabaseSync, query: DwfListRunsQuery): DwfRunListItem[] {
-  // 空状态集合的语义是「不匹配任何状态」而不是「不过滤」：把它当成后者，等于让一个显式
-  // 传下来的过滤器静默失效。同理 limit ≤ 0 是空页（listEvents 的 `limit -1` 全量惯用法
-  // 在这条查询上不适用——枚举面永远是有界的）。
+// The semantics of the empty state set is "not matching any state" rather than "no filtering": treating it as the latter is equivalent to making an explicit
+//The passed filter is silently invalidated. In the same way, limit ≤ 0 is an empty page (the `limit -1` of listEvents is the full idiom
+// Not applicable for this query - enum faces are always bounded).
   //
-  // 地板在这里，天花板**不在**：调用方合法地传「工具面上限 + 1」当截断探测行，加一个
-  // `Math.min(50, …)` 会让 truncated 在恰好 limit = 50 时永久缺席。见 {@link DwfListRunsQuery.limit}。
+// Floor here, ceiling **not**: the caller legally passes "Tool surface upper limit + 1" when truncating the probe line and adding one
+// `Math.min(50, …)` will make truncated permanently absent at exactly limit = 50. See {@link DwfListRunsQuery.limit}.
   if (query.statuses !== undefined && query.statuses.length === 0) return [];
   if (query.limit <= 0) return [];
 
-  // cwd 缺省即不加谓词：全局工作流的历史跨所有它跑过的项目（全局变体不按 cwd 过滤）。
-  // 给了 cwd 就字面等值匹配，走 dwf_run_cwd_idx，行为逐字不变。
+// cwd defaults to no predicate: the history of the global workflow spans all projects it runs (global variants are not filtered by cwd).
+// If cwd is given, literal equivalent matching will be performed. Use dwf_run_cwd_idx, and the behavior will remain unchanged.
   const cwdFilter = query.cwd === undefined ? "" : " and cwd = ?";
-  // 逻辑状态 → 物理谓词（stopped / errored 共享物理 failed，靠 failure_json 的 code 在 SQL
-  // 里分清；见 dwf-journal-codecs.ts 的 encodeRunStatusPredicate）。
+// Logical state → physical predicate (stopped / errored shared physical failed, relying on the code of failure_json in SQL
+// distinguish; see encodeRunStatusPredicate of dwf-journal-codecs.ts).
   const statusPredicate =
     query.statuses === undefined ? undefined : encodeRunStatusPredicate(query.statuses);
   const statusFilter = statusPredicate === undefined ? "" : ` and ${statusPredicate.sql}`;
@@ -147,9 +147,9 @@ export function listRuns(db: DatabaseSync, query: DwfListRunsQuery): DwfRunListI
 }
 
 /**
- * 单个 run 的完整行 + journal 时间戳。`getRun` 回的 `RunRecord` 不带时间（引擎不关心），
- * 而详情面要报 createdAt / updatedAt，且**必须直读 journal**——内存快照在条目蒸发后给的是
- * 假的起始时间。
+* Complete line of a single run + journal timestamp. The `RunRecord` returned by `getRun` does not contain time (the engine does not care),
+* The details must be reported createdAt / updatedAt, and **must read the journal directly** - the memory snapshot is given after the entry evaporates.
+* False starting time.
  */
 export function getRunRow(db: DatabaseSync, runId: string): DwfRunDetailRow | undefined {
   const row = db.prepare("select * from dwf_run where id = ?").get(runId) as DwfRunRow | undefined;
@@ -157,11 +157,11 @@ export function getRunRow(db: DatabaseSync, runId: string): DwfRunDetailRow | un
 }
 
 /**
- * 本 run 的节点按 status 聚合计数。计数在 SQL 里做：详情面只要三个数字，把 dwf_node 全行
- * 读出来再数是同一个答案的昂贵版本（而节点数没有上界之外的保证）。
+* The nodes of this run are aggregated and counted by status. Counting is done in SQL: the details page only needs three numbers, and the entire dwf_node row
+* Reading it out and counting is an expensive version of the same answer (and the number of nodes is not guaranteed beyond the upper bound).
  *
- * 三个键恒在场（缺节点即 0）：下游要拿它们直接相加算 nodesObserved，缺键会把「还没有节点」
- * 变成 NaN。词汇表就是 `NodeRecordStatus` 的三值——`queued` 只存在于事件相位、不落库。
+* The three keys are always present (the missing node is 0): the downstream needs to add them directly to calculate nodesObserved. The missing key will be "no node yet"
+* becomes NaN. The vocabulary is the three values ​​of `NodeRecordStatus` - `queued` only exists in the event phase and does not fall into the queue.
  */
 export function countNodesByStatus(db: DatabaseSync, runId: string): DwfNodeStatusCounts {
   const rows = db
@@ -173,11 +173,11 @@ export function countNodesByStatus(db: DatabaseSync, runId: string): DwfNodeStat
 }
 
 /**
- * 本 run 最后 N 条 `log` 事件，按时序（sequence 升序）返回。
+* The last N `log` events of this run are returned in time sequence (sequence ascending order).
  *
- * 取法是 `order by sequence desc limit ?` 再在 JS 里反转：一条长 run 的 dwf_event 是它最大的
- * 一张表，为了尾巴几条把整条 journal 读进内存正是分页存在的理由要排除的做法。类型过滤同样
- * 下推——`type` 列就是为此存的冗余（payload_json 里也有一份）。
+* The method is `order by sequence desc limit ?` and then reverse it in JS: a long run dwf_event is its largest
+* For a table, reading the entire journal into memory for the sake of a few tail entries is exactly the reason why paging exists and should be eliminated. Type filtering is the same
+* Pushdown - The `type` column is redundant for this purpose (there is also a copy in payload_json).
  */
 export function listRecentLogEvents(db: DatabaseSync, runId: string, limit: number): StoredEvent[] {
   if (limit <= 0) return [];
@@ -190,18 +190,18 @@ export function listRecentLogEvents(db: DatabaseSync, runId: string, limit: numb
 }
 
 /**
- * 某父会话名下的 run（最近更新在前，最多 limit 条）。服务宿主侧的枚举面
- * （`DynamicWorkflowRunPort.listRunsForSession` → UI 重启后的发现查询）：`workflowRuns` 投影跨进程不存活，工具卡 join
- * 与 Resume 按钮的可用性只能从这张表还原。
+* Run under the name of a certain parent session (most recently updated first, up to limit items). The enumeration side of the service host
+* (`DynamicWorkflowRunPort.listRunsForSession` → Discovery query after UI restart): `workflowRuns` projection does not survive across processes, tool card join
+* Availability with the Resume button can only be restored from this table.
  *
- * 与 {@link SqliteDwfJournalStore.listNonTerminalRuns} 同族：宿主窄查询，刻意不进引擎的 JournalStorePort。
- * 无索引：dwf_run 的行数是「每会话的 workflow 次数」量级（个位到两位数），全扫可接受；
- * 若将来量级变了，索引形状应是 (parent_session_id, time_updated)。
+* Same family as {@link SqliteDwfJournalStore.listNonTerminalRuns}: hosts narrow queries and deliberately does not enter the engine's JournalStorePort.
+* No index: The number of rows in dwf_run is in the order of "number of workflows per session" (single digits to double digits), and full scanning is acceptable;
+* If the magnitude changes in the future, the index shape should be (parent_session_id, time_updated).
  *
- * 行是窄投影（{@link DwfRunSessionListItem}）：**不 select `result_json`**——那一列是脚本的
- * 顶层返回值，真正无界，而列表面从不展示产物。`failure_json` 反而必须取：会话枚举面要报
- * failureCode，且 `resumable` 的谓词就是「failed 且 code 为 Interrupted」，省掉它会让每个
- * 被打断的 run 都被静默算成不可恢复。时间戳随行返回（`RunRecord` 刻意不带时间）。
+* Row is narrow projection ({@link DwfRunSessionListItem}): **Not select `result_json`** - that column is scripted
+* The top-level return value is truly unbounded, and the list surface never displays the product. `failure_json` must be taken instead: the session enumeration page must be reported
+* failureCode, and the predicate of `resumable` is "failed and code is Interrupted", omitting it will make every
+* Interrupted runs are silently counted as unrecoverable. The timestamp is returned along with the string (`RunRecord` is intentionally not accompanied by a time).
  */
 export function listRunsByParentSession(
   db: DatabaseSync,

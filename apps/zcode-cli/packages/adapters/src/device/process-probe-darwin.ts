@@ -5,7 +5,7 @@ import {
   type ProcessRow,
 } from "./process-probe-shared.js";
 
-/** macOS 只允许 `ps`；输出格式与列名成对声明，避免两处各写一份而静默错位。 */
+/** macOS only allows `ps`; the output format and column name are declared in pairs to avoid silent misalignment caused by writing one copy in each place. */
 const PS_COMMAND = "ps";
 const PS_PROCESS_TABLE_FORMAT = {
   columns: ["pid", "parentPid", "rssKb", "cpuTime"],
@@ -21,14 +21,14 @@ const PS_PROCESS_GROUP_FLAG = "-g";
 const SECONDS_PER_MINUTE = 60;
 const SECONDS_PER_DAY = 86_400;
 const MS_PER_SECOND = 1_000;
-/** BSD `cputime` 最多 `dd-hh:mm:ss`，即冒号分段不超过 3 段 */
+/** BSD `cputime` is at most `dd-hh:mm:ss`, that is, the colon segment does not exceed 3 segments */
 const MAX_BSD_CLOCK_SEGMENTS = 3;
 
-/** macOS：唯一允许的外部进程是 `ps`，每次采样最多一次调用。 */
+/** macOS: The only external process allowed is `ps`, with a maximum of one call per sample. */
 export async function readDarwinProcessTable(
   execFile: ProcessProbeExecFile,
 ): Promise<readonly ProcessRow[]> {
-  // 进程树需要 ppid，而 `-p <pid 列表>` 只会回列表里的进程、拿不到后代，因此取一次全表。
+// The process tree requires ppid, and `-p <pid list>` will only return the processes in the list, but not the descendants, so the entire table will be fetched once.
   const stdout = await runProbeCommand(execFile, PS_COMMAND, [
     PS_ALL_PROCESSES_FLAG,
     PS_PROCESS_TABLE_FORMAT.spec,
@@ -74,7 +74,7 @@ function parseDarwinRows(stdout: string, columns: readonly DarwinColumn[]): read
   return rows;
 }
 
-/** BSD `cputime` 形如 `[dd-][hh:]mm:ss[.ff]`。 */
+/** BSD `cputime` has the form `[dd-][hh:]mm:ss[.ff]`. */
 function parseBsdCpuTimeMs(raw: string): number | undefined {
   const trimmed = raw.trim();
   if (!trimmed) return undefined;

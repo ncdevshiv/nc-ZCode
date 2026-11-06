@@ -91,8 +91,8 @@ export interface RunDependencies extends PluginsCommandOverrides {
   loadCustomCommand?: (
     options: InspectZCodeCustomCommandOptions,
   ) => ReturnType<typeof loadZCodeCustomCommand>;
-  // headless slash 路由要和 app facade 的保留名 gate 用同一个判据；默认取 bootstrap 的，
-  // 注入点只为让单测不必拉起整个 bootstrap 模块。见 prompt-command.ts。
+// The headless slash route must use the same criterion as the reserved name gate of the app facade; the default is bootstrap.
+// The injection point is just so that the single test does not have to pull up the entire bootstrap module. See prompt-command.ts.
   isReservedSlashCommandName?: BootstrapModule["isReservedZCodeSlashCommandName"];
   listSkills?: (options: ListZCodeSkillsOptions) => ReturnType<typeof listZCodeSkills>;
   logger?: Logger;

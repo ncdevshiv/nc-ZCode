@@ -3,8 +3,8 @@ import type { CommandAck } from "@zcode/shared/zcode-protocol-v4";
 import { queueItemIdForCommand } from "./command-inbox.js";
 
 /**
- * createSession 使用 global command bucket，但 firstInput 的 durable fact 落在新 session。
- * 通过全局唯一 queue item id 找回真实 session，闭合 ACK 丢失/CLI restart 的查重路径。
+* createSession uses the global command bucket, but the durable fact of firstInput falls on the new session.
+* Retrieve the real session through the globally unique queue item id, and close the duplicate checking path for ACK loss/CLI restart.
  */
 export async function lookupGlobalCreateSessionCommand(
   store: SessionStorePort | undefined,

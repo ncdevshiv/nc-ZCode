@@ -19,7 +19,7 @@ interface Observation {
   completedRequests: Set<string>;
   hasUnknownCacheUsage: boolean;
 }
-// 旁路记录跟随 CLI record 回收，不挂到聊天投影、轮次事实或已提交输入队列上。
+// Bypass records follow CLI record recycling and are not hung on chat projections, turn facts or submitted input queues.
 const observations = new WeakMap<SessionRecord, Observation>();
 const MAX_HEADER_COUNT = 32;
 const MAX_HEADER_VALUE_LENGTH = 512;
@@ -35,7 +35,7 @@ function remember(keys: Set<string>, key: string): boolean {
   return true;
 }
 function boundedHeaders(headers: Record<string, string>): Record<string, string> {
-  // adapter 已脱敏；此处只限制调试响应体积，不保存正文，也不复制无限大小的 headers。
+// The adapter has been desensitized; here it only limits the debugging response size, does not save the body, and does not copy unlimited-size headers.
   return Object.fromEntries(
     Object.entries(headers)
       .slice(0, MAX_HEADER_COUNT)
@@ -83,7 +83,7 @@ export function observeSessionDebug(record: SessionRecord, event: SessionEvent):
     {
       ...entry,
       recordedAt,
-      // maxAttempts=0 表示无限重试，旧映射器会丢掉它，调试面必须保留。
+// maxAttempts=0 means infinite retries, the old mapper will throw it away, the debug surface must be retained.
       maxAttempts: payload.maxAttempts,
       requestHeaders: boundedHeaders(entry.requestHeaders),
       responseHeaders: boundedHeaders(entry.responseHeaders),

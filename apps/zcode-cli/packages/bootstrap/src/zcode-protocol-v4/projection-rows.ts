@@ -1,5 +1,5 @@
-// SessionEvent payload → ConversationRow 的构造纯函数。
-// row 自包含原则：这里产出的每一行都必须不依赖其它行即可渲染。
+// SessionEvent payload → Constructor pure function of ConversationRow.
+// row self-contained principle: Each row produced here must be able to be rendered without relying on other rows.
 import type {
   CompactTimelineStatus,
   CompactTrigger,
@@ -76,9 +76,9 @@ export function buildTurnHeaderRow(base: RowBaseInput, payload: TurnStartedPaylo
 }
 
 export function buildUserInputRow(base: RowBaseInput, payload: TurnStartedPayload): UserInputRow {
-  // 附件渲染：TurnStarted 携带的展示元信息 → row.attachments。
-  // ref 是内容引用占位（本地路径/artifact URI）；无稳定引用时以行内序号占位，
-  // 展示层只用 fileName/mime/bytes，不据 ref 取内容（attachment/get query 属后续）。
+// Attachment rendering: Display meta information carried by TurnStarted → row.attachments.
+// ref is the content reference placeholder (local path/artifact URI); when there is no stable reference, the inline serial number is used as the placeholder.
+// The display layer only uses fileName/mime/bytes and does not retrieve content based on ref (attachment/get query is a follow-up).
   const attachments =
     payload.intent?.attachmentRefs ??
     payload.attachments?.map((meta, index) => ({
@@ -116,7 +116,7 @@ export function mapTurnResultToHeaderState(
 }
 
 // CompactTimelineStatus → compact marker.status。
-// 语义映射：retrying 仍是运行中；skipped = 无事发生（noop）；interrupted = 被 stop（cancelled）。
+// Semantic mapping: retrying is still running; skipped = nothing happened (noop); interrupted = stopped (cancelled).
 export function mapCompactMarkerStatus(
   status: CompactTimelineStatus,
 ): Extract<TimelineMarkerPayload, { type: "compact" }>["status"] {
@@ -135,17 +135,17 @@ export function mapCompactMarkerStatus(
   }
 }
 
-// CompactTrigger → marker.origin：manual 之外（auto/partial/reactive/session_memory）
-// 一律归 auto —— UI 只区分「用户点的」与「系统触发的」。
+// CompactTrigger → marker.origin: outside manual (auto/partial/reactive/session_memory)
+// All return to auto - the UI only distinguishes between "user clicked" and "system triggered".
 export function mapCompactMarkerOrigin(
   trigger: CompactTrigger,
 ): Extract<TimelineMarkerPayload, { type: "compact" }>["origin"] {
   return trigger === "manual" ? "manual" : "auto";
 }
 
-// 旧 GoalStatus → v4 GoalState.status。
-// budget_limited 归 paused：预算耗尽与被 stop 一样等待用户显式 resume；
-// complete 归 verified：旧词表没有 verifying/notSatisfied 细分，终态语义等价。
+// old GoalStatus → v4 GoalState.status.
+// budget_limited returns to paused: the budget is exhausted and is stopped, waiting for the user to explicitly resume;
+// complete returns to verified: the old vocabulary list does not have verifying/notSatisfied subdivisions, and the final state is semantically equivalent.
 export function mapGoalStatus(status: GoalStatus): GoalState["status"] {
   switch (status) {
     case "active":
@@ -157,12 +157,12 @@ export function mapGoalStatus(status: GoalStatus): GoalState["status"] {
   }
 }
 
-// 终态截断全档统一：head+tail 各 32K，超出部分以 truncated.ref 按需拉取。
-// 阶段 ref 先用 toolCallId 占位（artifact 存取属传输外壳期）。
+//The final state is truncated and all files are unified: head+tail are 32K each, and the excess is pulled on demand using truncated.ref.
+// Stage ref first uses toolCallId to occupy the space (artifact access belongs to the transmission shell stage).
 export function buildToolOutput(result: ToolResultPayload, toolCallId: string): ToolOutput {
   const text = result.content;
-  // 模型可见文本只保留图片占位符，若 V4 output 不独立携带 display，
-  // 实时投影和冷恢复都会丢失 CUA 截图。Node REPL 图片仍走 ToolCallRow.display 专用通道。
+// The visible text of the model only retains the image placeholder. If the V4 output does not carry display independently,
+// Both real-time projection and cold recovery will lose CUA screenshots. Node REPL images still use the ToolCallRow.display dedicated channel.
   const display = result.display?.kind === "node_repl_images" ? undefined : result.display;
   const headBytes = PROTOCOL_V4_LIMITS.toolOutputFinalHeadBytes;
   const tailBytes = PROTOCOL_V4_LIMITS.toolOutputFinalTailBytes;

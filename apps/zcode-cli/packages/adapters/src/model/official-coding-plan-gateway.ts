@@ -2,20 +2,20 @@ import { resolveRuntimeZCodeEndpointOrigin } from "@zcode/shared";
 import type { EnvRecord } from "./model-execution.js";
 
 /**
- * 官方 Coding Plan 的模型请求经 ZCode 平台网关发送。
+* Model requests for the official Coding Plan are sent via the ZCode platform gateway.
  *
- * Z.ai / BigModel Coding Plan 是 ZCode 的官方订阅套餐，模型请求统一发往 ZCode 平台网关，
- * 由平台完成套餐权益校验等平台侧处理后转发到对应的模型服务。客户端这里只做一件事：
- * 把官方模型端点替换为对应的网关端点，请求方法、请求体、鉴权头与响应均原样透传。
+* Z.ai / BigModel Coding Plan is the official subscription package of ZCode. Model requests are uniformly sent to the ZCode platform gateway.
+* The platform completes platform-side processing such as package rights verification and then forwards it to the corresponding model service. The client only does one thing here:
+* Replace the official model endpoint with the corresponding gateway endpoint, and the request method, request body, authentication header and response are transparently transmitted as they are.
  *
- * 只对下表中的官方端点生效，按协议、主机、端口、路径精确匹配，用户自建 provider 与
- * 第三方模型服务不受影响。网关 origin 跟随 ZCODE_BASE_URL / ZCODE_ENDPOINT_ORIGIN，
- * 缺省为线上 https://zcode.z.ai。
+* Only takes effect for the official endpoints in the table below. Accurate matching based on protocol, host, port, and path. User-built providers and
+* Third-party model services are not affected. Gateway origin follows ZCODE_BASE_URL/ZCODE_ENDPOINT_ORIGIN,
+* The default is online https://zcode.z.ai.
  */
 export interface OfficialCodingPlanGatewayRoute {
-  /** 官方模型端点（含路径），仅 https。 */
+/** Official model endpoint (with path), https only. */
   readonly providerEndpoint: string;
-  /** 对应的网关端点路径，相对 ZCode 平台 origin。 */
+/** The corresponding gateway endpoint path, relative to the ZCode platform origin. */
   readonly gatewayPath: string;
 }
 
@@ -31,9 +31,9 @@ export const OFFICIAL_CODING_PLAN_GATEWAY_ROUTES: readonly OfficialCodingPlanGat
 ];
 
 export interface OfficialCodingPlanGatewayDecision {
-  /** 是否命中官方端点并改为经网关发送。 */
+/** Whether the official endpoint is hit and sent via the gateway instead. */
   readonly viaGateway: boolean;
-  /** 实际发送的 URL；未命中时与入参一致。 */
+/** The URL actually sent; if not hit, it is consistent with the input parameter. */
   readonly url: string;
 }
 
@@ -68,8 +68,8 @@ export function resolveOfficialCodingPlanGatewayUrl(
 }
 
 /**
- * 包装模型 provider 的 fetch：命中官方端点时发往网关端点，其余请求原样交给下层 fetch。
- * 应放在用户 HTTP 代理 fetch 之前，使 httpProxy / noProxy 规则按实际发送的网关地址判定。
+* Packaging model provider's fetch: when hitting the official endpoint, it is sent to the gateway endpoint, and the rest of the requests are handed over to the lower-level fetch as is.
+* Should be placed before the user's HTTP proxy fetch so that the httpProxy / noProxy rules are determined based on the actual sent gateway address.
  */
 export function createOfficialCodingPlanGatewayFetch(options: {
   env?: EnvRecord;
@@ -84,7 +84,7 @@ export function createOfficialCodingPlanGatewayFetch(options: {
     if (!decision.viaGateway) {
       return await options.fetch(input, init);
     }
-    // 显式 Host 头会指向官方模型端点的主机，改为经网关发送后由 fetch 按实际 URL 重新计算。
+// The explicit Host header will point to the host of the official model endpoint, which will be recalculated by fetch based on the actual URL after being sent through the gateway.
     const gatewayInput = withUrl(input, decision.url);
     if (gatewayInput instanceof Request) {
       gatewayInput.headers.delete(HOST_HEADER);

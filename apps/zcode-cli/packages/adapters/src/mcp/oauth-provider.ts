@@ -18,18 +18,18 @@ interface CreateMcpOAuthTokenProviderInput {
 }
 
 /**
- * Phase 1 运行期 AuthProvider。
+* Phase 1 runtime AuthProvider.
  *
- * 只实现 `token()` 与 `onUnauthorized()`，**不是** `OAuthClientProvider`：transport 的
- * `isOAuthClientProvider()` 判定因此为 false，`_oauthProvider` 保持为空
- * （client@2.0.0 `index.mjs:4977-4980`），于是：
+* Only implements `token()` and `onUnauthorized()`, **not** `OAuthClientProvider`: transport
+* The assertion of `isOAuthClientProvider()` is therefore false and `_oauthProvider` remains empty
+* (client@2.0.0 `index.mjs:4977-4980`), then:
  *
- * - 建连不做 discovery、不做 DCR、不开 callback listener；
- * - 401 只调用我们的 `onUnauthorized()` 并自动重试一次，SDK 的 `auth()` 完全不参与，
- *   所有 refresh 都被强制汇入我们的跨进程单飞锁。
+* - No discovery, no DCR, no callback listener enabled when establishing a connection;
+* - 401 only calls our `onUnauthorized()` and automatically retries once, the SDK's `auth()` does not participate at all,
+* All refreshes are forced to import our cross-process solo lock.
  *
- * 绝不要把 `OAuthClientProvider` 传给运行期 transport：它会被 `adaptOAuthProvider` 包裹，
- * 401 走 SDK 的 `handleOAuthUnauthorized()` → `auth()`，绕过 refresh 锁，并发刷新问题立即复发。
+* Never pass `OAuthClientProvider` to the runtime transport: it will be wrapped by `adaptOAuthProvider`,
+* 401 uses SDK's `handleOAuthUnauthorized()` → `auth()` to bypass the refresh lock, and the concurrent refresh problem recurs immediately.
  */
 export function createMcpOAuthTokenProvider(input: CreateMcpOAuthTokenProviderInput): AuthProvider {
   const refreshInput = {
@@ -45,10 +45,10 @@ export function createMcpOAuthTokenProvider(input: CreateMcpOAuthTokenProviderIn
   return {
     async token(): Promise<string | undefined> {
       const pair = await loadCredentialPair(input.credentialStore, input.keyPrefix);
-      // 没有 token 时返回 undefined：请求照发、拿到 401，再由 onUnauthorized 统一分类。
+// When there is no token, undefined is returned: the request is sent as usual, 401 is obtained, and then classified uniformly by onUnauthorized.
       if (!pair?.tokens) return undefined;
       if (!isCanonicalTokenNearExpiry(pair)) return pair.tokens.access_token;
-      // 临期主动刷新。没有 refresh token 就直接用现值撑到 401，不虚构刷新。
+//Proactively refresh on deadline. If there is no refresh token, just use the current value to support 401 without imaginary refresh.
       if (!pair.tokens.refresh_token) return pair.tokens.access_token;
       return await refreshMcpOAuthTokensUnderLock({ ...refreshInput, reactive: false });
     },
@@ -61,8 +61,8 @@ export function createMcpOAuthTokenProvider(input: CreateMcpOAuthTokenProviderIn
           serverName: input.serverName,
         });
       }
-      // 契约是「让下一次 token() 返回可用 token」，返回值本身被 SDK 忽略；刷新结果已发布到
-      // canonical，下一次 token() 会重新读取。
+// The contract is "let token() return the available token next time", the return value itself is ignored by the SDK; the refresh result has been published to
+// canonical, token() will be re-read next time.
       await refreshMcpOAuthTokensUnderLock({ ...refreshInput, reactive: true });
     },
   };

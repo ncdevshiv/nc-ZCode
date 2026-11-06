@@ -1,0 +1,25 @@
+{
+  "items": [
+    {
+      "id": "REG-QUEUE-RACE",
+      "test": "queued_input_drains_after_active_turn",
+      "status": "FAILING",
+      "classification": "Timing/concurrency"
+    },
+    {
+      "id": "REG-FMT",
+      "check": "cargo fmt --check",
+      "status": "FAILING"
+    },
+    {
+      "id": "REG-TOOL-PARITY",
+      "check": "pnpm native:tool-parity",
+      "status": "FAILING"
+    },
+    {
+      "id": "REG-ARCH",
+      "check": "pnpm architecture:check",
+      "status": "FAILING"
+    }
+  ]
+}

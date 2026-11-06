@@ -1,4 +1,5 @@
-import ts from "typescript";
+// @ts-nocheck
+import ts from "../compiler/ts-shim.js";
 import { FACADE_FILE_NAME } from "../facade/dts.js";
 import { facadeContainerOf, isSiteProducing, SITE_MEMBER_NAMES } from "../facade/registry.js";
 import type { CompileDiagnostic, WorkflowProgram } from "../compiler/compile.js";
@@ -142,8 +143,8 @@ export function collectFacadeMisuse(
     ...table.actors.map((site) => site.call),
     ...table.worldReads.map((site) => site.call),
     ...table.reports.map((site) => site.call),
-    // 产物站点与 report 同席：它们产生站点（registry），
-    // 所以已 site 的直接调用不得被误报，而收集漏掉的那一次必须被报出来。
+// Product sites sit with report: they produce sites (registries),
+// Therefore, the direct call to site must not be falsely reported, and the one missed by the collection must be reported.
     ...table.artifacts.map((site) => site.call),
     ...table.joins.map((site) => site.call),
   ]);

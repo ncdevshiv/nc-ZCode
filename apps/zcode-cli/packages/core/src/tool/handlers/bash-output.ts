@@ -38,8 +38,8 @@ export async function toBashOutput(
   const persistedOutputPath = stdoutPersistedOutputPath ?? stderrPersistedOutputPath;
   const stdoutPersistedOutputSize = result.stdout.artifactBytes;
   const stderrPersistedOutputSize = result.stderr.artifactBytes;
-  // artifactBytes 是 64MiB cap 后的实际文件大小，不是模型可见文案中的
-  // 原始观测大小。Bash persisted-output 必须使用截断前的 stream bytes。
+// artifactBytes is the actual file size after the 64MiB cap, not the one in the visible copy of the model
+// Original observation size. Bash persisted-output must use stream bytes before truncation.
   const persistedOutputSize = persistedOutputPath
     ? (stdoutPersistedOutputPath ? result.stdout.bytes : 0) +
       (stderrPersistedOutputPath ? result.stderr.bytes : 0)

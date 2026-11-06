@@ -1,4 +1,5 @@
-import ts from "typescript";
+// @ts-nocheck
+import ts from "../compiler/ts-shim.js";
 import type { IterationCandidate } from "./sites.js";
 import {
   addOcc,

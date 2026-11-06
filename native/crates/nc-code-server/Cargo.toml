@@ -1,0 +1,38 @@
+[package]
+name = "nc-code-server"
+version = "3.14.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "axum mirror of packages/server (S5): static UI + SPA fallback, health endpoints, HostPort seam"
+
+[lib]
+name = "nc_code_server"
+path = "src/lib.rs"
+
+[[bin]]
+name = "zcode-server"
+path = "src/main.rs"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+axum = { version = "0.8", features = ["ws"] }
+async-trait = "0.1"
+clap = { version = "4", features = ["derive"] }
+tower-http = { version = "0.6", features = ["fs"] }
+rand = "0.8"
+percent-encoding = "2"
+nc-code-app = { path = "../nc-code-app" }
+nc-code-service-core = { path = "../nc-code-service-core" }
+nc-code-channels = { path = "../nc-code-channels" }
+nc-code-rpc = { path = "../nc-code-rpc" }
+nc-code-services-client = { path = "../nc-code-services-client" }
+
+[dev-dependencies]
+http-body-util = "0.1"
+futures = "0.3"
+tokio-tungstenite = "0.24"
+tower = { version = "0.5", features = ["util"] }

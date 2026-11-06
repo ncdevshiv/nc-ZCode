@@ -11,34 +11,6 @@ export function buildLoginSelection(locale?: string): TuiSelection {
     help: copy.help,
     items: [
       {
-        command: "/login zai-coding-plan",
-        id: "zai-coding-plan",
-        keywords: ["zai", "oauth", "coding", "plan"],
-        pending: {
-          cancelStatus: copy.pending.cancelStatus,
-          help: copy.pending.help,
-          primary: copy.options.zaiOauth.pendingPrimary,
-          secondary: copy.options.zaiOauth.pendingSecondary,
-          status: copy.pending.status,
-        },
-        primary: copy.options.zaiOauth.primary,
-        secondary: copy.options.zaiOauth.secondary,
-      },
-      {
-        command: "/login bigmodel-coding-plan",
-        id: "bigmodel-coding-plan",
-        keywords: ["bigmodel", "oauth", "coding", "plan"],
-        pending: {
-          cancelStatus: copy.pending.cancelStatus,
-          help: copy.pending.help,
-          primary: copy.options.bigmodelOauth.pendingPrimary,
-          secondary: copy.options.bigmodelOauth.pendingSecondary,
-          status: copy.pending.status,
-        },
-        primary: copy.options.bigmodelOauth.primary,
-        secondary: copy.options.bigmodelOauth.secondary,
-      },
-      {
         command: "/login zai-coding-plan-api-key",
         id: "zai-coding-plan-api-key",
         input: {

@@ -1,12 +1,12 @@
 /**
- * 跨语言存储 parity：Rust 写的库必须能被 TS（node:sqlite）读，TS 写的库必须能被
- * Rust 读——这是「单写者迁移期共存」的真实底线，不是同语言自洽测试。
+* Cross-language storage parity: libraries written in Rust must be readable by TS (node:sqlite), and libraries written in TS must be readable by TS (node:sqlite).
+* Rust reading - this is the real bottom line of "single writer coexistence during the migration period", not a self-consistent test of the same language.
  *
- * 本测试由 Rust 创建库并写入任务，然后**用 node:sqlite 打开同一个文件**验证
- * 结构与数据（schema 列名/默认值/索引语义一致）。反向方向（TS 写 → Rust 读）由
- * `storage_crosslang.test.ts` 覆盖。
+* This test is created by Rust creating a library and writing tasks, and then **opening the same file using node:sqlite** to verify
+* Structure and data (schema column names/default values/index semantics are consistent). The reverse direction (TS write → Rust read) is given by
+* `storage_crosslang.test.ts` override.
  *
- * 运行：cd apps/zcode-cli/packages/sidecar && node --import tsx --test test/storage_crosslang.test.ts
+* Run: cd apps/zcode-cli/packages/sidecar && node --import tsx --test test/storage_crosslang.test.ts
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -16,7 +16,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { after, test } from "node:test";
 
-// <repo>/apps/zcode-cli/packages/sidecar/test → 五级上行到 repo 根。
+// <repo>/apps/zcode-cli/packages/sidecar/test → Five levels upstream to the repo root.
 const repoRoot = join(import.meta.dirname, "..", "..", "..", "..", "..");
 const hostManifest = join(repoRoot, "native", "Cargo.toml");
 
@@ -26,23 +26,27 @@ let dbPath: string;
 test("Rust-created database is readable by node:sqlite", () => {
   workdir = mkdtempSync(join(tmpdir(), "zcode-crosslang-"));
   dbPath = join(workdir, "tasks.sqlite");
-  // 用 host 的 storage 层建库并写入种子任务（真实 cargo 二进制，不是 mock）。
-  execFileSync(
-    "cargo",
-    [
-      "run",
-      "--quiet",
-      "--manifest-path",
-      hostManifest,
-      "-p",
-      "zcode-host",
-      "--bin",
-      "storage_probe",
-      "--",
-      dbPath,
-    ],
-    { stdio: "pipe" },
-  );
+// Use the storage layer of the host to build a library and write the seed task (real cargo binary, not mock).
+  const storageProbeBin = process.platform === "win32"
+    ? join(repoRoot, "native", "target", "debug", "storage_probe.exe")
+    : join(repoRoot, "native", "target", "debug", "storage_probe");
+  if (!existsSync(storageProbeBin)) {
+    execFileSync(
+      "cargo",
+      [
+        "build",
+        "--quiet",
+        "--manifest-path",
+        hostManifest,
+        "-p",
+        "nc-code-host",
+        "--bin",
+        "storage_probe",
+      ],
+      { stdio: "pipe" },
+    );
+  }
+  execFileSync(storageProbeBin, [dbPath], { stdio: "pipe" });
 
   assert.ok(existsSync(dbPath), "Rust host must create the sqlite file");
   const database = new DatabaseSync(dbPath);
@@ -63,7 +67,7 @@ test("Rust-created database is readable by node:sqlite", () => {
       assert.ok(tables.includes(table), `missing table for TS: ${table}`);
     }
 
-    // Rust 写入的任务，TS 按 TS 侧查询读得出来。
+// Tasks written by Rust can be read by TS by querying on the TS side.
     const rows = database
       .prepare(
         "SELECT task_id, title, mode, meta_json FROM tasks WHERE deleted = 0 ORDER BY updated_at DESC",
@@ -73,7 +77,7 @@ test("Rust-created database is readable by node:sqlite", () => {
     assert.equal(String(rows[0].task_id), "task-new");
     assert.equal(String(rows[0].title), "written by rust");
 
-    // 反向：TS 插入的行，schema 默认值与 TS 一致（mode/meta_json/flags）。
+// Reverse: TS inserted rows, the default schema value is consistent with TS (mode/meta_json/flags).
     database
       .prepare(
         "INSERT INTO tasks (workspace_key, workspace_path, task_id, created_at, updated_at) VALUES (?,?,?,?,?)",
@@ -87,7 +91,13 @@ test("Rust-created database is readable by node:sqlite", () => {
     assert.equal(Number(inserted.archived), 0);
     assert.equal(Number(inserted.deleted), 0);
   } finally {
-    database.close();
-    rmSync(workdir, { recursive: true, force: true });
+    try {
+      database.close();
+    } catch {}
+    try {
+      rmSync(workdir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+    } catch {
+      // Ignore cleanup errors on Windows
+    }
   }
 });

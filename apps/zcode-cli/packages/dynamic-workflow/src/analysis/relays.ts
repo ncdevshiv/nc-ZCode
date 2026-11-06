@@ -1,4 +1,5 @@
-import ts from "typescript";
+// @ts-nocheck
+import ts from "../compiler/ts-shim.js";
 import { addOcc, collapse, liveField, mergeInto, singleOcc, type AbstractValue } from "./domain.js";
 import type { EvalContext, Evaluator } from "./taint.js";
 

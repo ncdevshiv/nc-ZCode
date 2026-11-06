@@ -1,0 +1,24 @@
+[package]
+name = "nc-code-services-git"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "git service channel: real Git CLI repository state, branch operations, diffs and commit-message generation"
+
+[dependencies]
+async-trait = "0.1"
+serde_json.workspace = true
+tokio.workspace = true
+nc-code-channels = { path = "../nc-code-channels" }
+nc-code-provider = { path = "../nc-code-provider" }
+nc-code-rpc = { path = "../nc-code-rpc" }
+nc-code-service-core = { path = "../nc-code-service-core" }
+nc-code-services-provider = { path = "../nc-code-services-provider" }
+
+[dev-dependencies]
+axum = "0.8"
+tempfile = "3.12"
+tokio = { workspace = true, features = ["test-util"] }
+async-trait = "0.1"

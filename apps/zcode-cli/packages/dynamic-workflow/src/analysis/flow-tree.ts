@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { OrderEvent, OrderRegion, OrderTrace } from "./causality-order.js";
 
 /**

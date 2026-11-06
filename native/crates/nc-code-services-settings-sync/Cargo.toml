@@ -1,0 +1,20 @@
+[package]
+name = "nc-code-services-settings-sync"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "settings-sync service channel"
+
+[dependencies]
+async-trait = "0.1"
+serde_json.workspace = true
+tokio.workspace = true
+nc-code-channels = { path = "../nc-code-channels" }
+nc-code-rpc = { path = "../nc-code-rpc" }
+nc-code-service-core = { path = "../nc-code-service-core" }
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { workspace = true, features = ["test-util", "macros", "rt-multi-thread", "fs"] }

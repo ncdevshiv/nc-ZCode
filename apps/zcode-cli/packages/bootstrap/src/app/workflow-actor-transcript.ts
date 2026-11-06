@@ -1,20 +1,20 @@
 // ============================================================
-// actor 会话转录的两件事：边界计数与种子截断复制（amend-resume）
+// Two things for actor session transcription: boundary counting and seed truncation replication (amend-resume)
 // ============================================================
 //
-// 这两件事必须同住一个模块，因为它们共享一条**载荷性**的不变式：
+// These two things must live in the same module because they share a **loadability** invariant:
 //
-//   边界 N ⇒ 复制源会话前 N 条消息，恰好得到「到该 ask 为止」的完整转录。
+// Boundary N ⇒ Copy the first N messages of the source conversation, just to get the complete transcription "up to the ask".
 //
-// 而它成立的唯一理由是：数消息与复制消息走**同一个存取面**（{@link ActorTranscriptStore.messages}），
-// 也正是 core 的 `resumeFromStore` 重水化时读的那一个（core/src/runtime/methods/resume.ts）。
-// 三个读者只要有一个换成别的口径（比如只数 active branch、或按 part 数计），边界在两个读者眼里
-// 就是两个长度，截断出来的转录会多一条或少一条——而那正是「模型看见的上文」与「journal 记的边界」
-// 悄悄错位的样子。所以：**要改计数口径，三处一起改**。
+// The only reason why it is established is: counting messages and copying messages go to the same access plane ({@link ActorTranscriptStore.messages}),
+// It is also the one read when core's `resumeFromStore` is rehydrated (core/src/runtime/methods/resume.ts).
+// As long as one of the three readers changes to another caliber (such as counting only active branches, or counting by parts), the boundary is in the eyes of the two readers
+// It’s just two lengths. The truncated transcription will have one more or one less text - and that’s exactly the boundary between “the text seen by the model” and “journal note”
+// The look of being quietly misplaced. Therefore: **The counting caliber needs to be changed, and the three places must be changed at the same time**.
 //
-// count offset（而不是消息 id 区间）的关键性质是**前缀复制下不变**：复制进新会话后 id 全变、
-// count 不变，于是被复制 ask 的边界值在新会话里原样有效——链式修订（B 从 A 抄、C 再从 B 抄）
-// 的根基就是这一条。
+// The key property of count offset (rather than message id range) is that the **prefix remains unchanged after copying**: the id will all change after copying into a new session.
+// The count remains unchanged, so the boundary value of the copied ask remains valid in the new session - chain revision (B copies from A, C then copies from B)
+// The basis of this is this.
 
 import {
   createMessageId,
@@ -30,11 +30,11 @@ import { cloneMessageForFork, clonePartForFork } from "@zcode/core";
 import { WorkflowError, type ActorSessionSeed } from "@zcode/dynamic-workflow";
 
 /**
- * driver 侧需要的会话转录存取面：读一个会话的全部消息、写一条消息 / 一个 part。
+* Session transcription access interface required on the driver side: read all messages of a session, write one message/part.
  *
- * 结构上是 {@link import("@zcode/contracts").SessionStorePort} 的真子集，所以生产直接把
- * session store 传进来即可。窄化的理由与 run service 的 journal / task-link 端口同款：driver
- * 只需要这三个方法，声明成整个 store 会让"driver 依赖会话存储的全部能力"变成一句真话。
+* Structurally, it is a true subset of {@link import("@zcode/contracts").SessionStorePort}, so production can directly
+* Just pass in the session store. The reason for narrowing is the same as the journal / task-link port of run service: driver
+* With only these three methods, declaring the entire store will make "the driver relies on the full capabilities of the session store" true.
  */
 export interface ActorTranscriptStore {
   messages(input: { sessionID: SessionId }): Promise<MessageWithParts[]>;
@@ -43,10 +43,10 @@ export interface ActorTranscriptStore {
 }
 
 /**
- * 一个 actor 会话当前**已持久化**的消息条数（ask 边界记账的值）。
+* The number of messages that are currently persisted in an actor session (the value of ask boundary accounting).
  *
- * 只数落库的那些：driver 在一次交换结束时问这个数，而 runtime 的消息持久化在 turn 内就已 await
- * 完成（core 的 persistMessage / persistPart），所以此刻的落库量就是这次交换的全部产出。
+* Only count those that fall into the library: the driver asks this number at the end of an exchange, and the runtime's message persistence is awaited within the turn
+* Completed (core's persistMessage/persistPart), so the amount dropped at this moment is the entire output of this exchange.
  */
 export async function countActorTranscript(
   store: ActorTranscriptStore,
@@ -56,25 +56,25 @@ export async function countActorTranscript(
 }
 
 /**
- * 把源会话的前 `seed.messageCount` 条消息（连同各自的 part）复制进目标会话。
+* Copy the first `seed.messageCount` messages (along with their respective parts) from the source session into the target session.
  *
- * 三条性质：
+*Three properties:
  *
- * 1. **前驱只读**。复制出去的每条消息、每个 part 都铸新 id——`message.id` / `part.id` 是全库主键，
- *    而 `saveMessage` 的 upsert 在 id 冲突时会把 `session_id` 改成新值（adapters 的
- *    messages.ts）。原样搬 id 不是"复制"，是把前驱的转录**搬走**。id 重铸随之要求 `parentID`
- *    与 part 内嵌锚点跟着重映射，这正是 core 的 fork 克隆器 {@link cloneMessageForFork} /
- *    {@link clonePartForFork} 已经做对的事（fork 与本函数是同一个动作：按值复制一段转录到另一个
- *    会话，child 用本地 id 续写），所以这里复用它们而不是写第二份。
- * 2. **幂等**。目标会话已经有 ≥ messageCount 条消息即整段跳过：那是修订 run 崩溃后 resume 的情形
- *    ——会话 id 由 (runId, actorRef) 纯确定地铸出，重挂拿到的就是那个已经装着"复制的 + 新产的"
- *    内容的会话，再抄一遍等于把上文翻倍。不足则重抄（复制中途崩溃留下的半截前缀）：id 按
- *    (目标会话, 下标) 纯确定，重抄是对已有行的 upsert，不会产生重复。
- * 3. **缺料即大声失败**。源会话不存在（读回空）或短于边界，说明 service 从 journal 事实构造出的
- *    种子这个 store 兑现不了——corruption 级，不是可降级情形（可降级的那一半在 service 侧的门里：
- *    链上缺会话的候选在那里就该被弃置）。
+* 1. **Precursor read-only**. Each message and part copied out has a new ID - `message.id` / `part.id` is the primary key of the whole database.
+* And `saveMessage`’s upsert will change `session_id` to a new value when ids conflict (adapters’
+* messages.ts). Moving the ID as it is is not "copying", it is moving the predecessor's transcription. id recasting then requires `parentID`
+* With part inline anchors followed by remapping, this is exactly what core's fork cloner {@link cloneMessageForFork} /
+* {@link clonePartForFork} has done the right thing (fork is the same action as this function: copy one paragraph by value to another
+* session, child continues with local id), so reuse them here instead of writing a second copy.
+* 2. **Impotent**. The target session already has ≥ messageCount messages, that is, the entire section is skipped: that is the case of resume after the crash of revised run.
+* ——The session id is cast purely deterministically from (runId, actorRef), and the one obtained by re-hanging is the one that has been loaded with "copy + new one"
+* Conversation of content, copying it again is equivalent to doubling the above text. If insufficient, copy again (half prefix left by a crash during copying): id press
+* (Target session, subscript) Purely determined, re-copying is an upsert of existing lines, and no duplication will occur.
+* 3. **Lack of material means loud failure**. The source session does not exist (read back empty) or is shorter than bounds, indicating that the service was constructed from the journal fact
+* The seed store cannot be redeemed - corruption level, not downgradeable (the half that can be downgraded is in the door on the service side:
+* Candidates with missing sessions on the chain should be discarded there).
  *
- * @returns 实际复制的条数；`undefined` 表示幂等跳过。
+* @returns The actual number of copied items; `undefined` means idempotent skipping.
  */
 export async function seedActorTranscript(input: {
   seed: ActorSessionSeed;
@@ -95,8 +95,8 @@ export async function seedActorTranscript(input: {
     );
   }
 
-  // 老 id → 新 id：assistant 的 parentID 与 part 的内嵌锚点都按它重映射。前缀是连续的，
-  // 所以每条消息引用到的更早消息必然已经在表里（下标严格递增）。
+//Old id → New id: The parentID of assistant and the embedded anchor point of part are remapped according to it. The prefixes are consecutive,
+//So the earlier message referenced by each message must already be in the table (the subscript is strictly increasing).
   const messageIds = new Map<MessageId, MessageId>();
   for (let index = 0; index < seed.messageCount; index++) {
     const message = source[index]!;
@@ -123,10 +123,10 @@ export async function seedActorTranscript(input: {
 }
 
 /**
- * 种子副本的 id：按 (目标会话, 前缀下标) 纯确定。
+* The id of the seed copy: by (target session, prefix_subscript) pure OK.
  *
- * 确定性买到的是**半截复制的可修复性**：复制到一半崩溃，重挂时既有行会被同一个 id upsert 回去，
- * 而不是在旁边再长出一份。会话 id 已经含 runId 与 actorRef，所以两个不同目标会话的副本天然不撞。
+* What you buy with certainty is the **repairability of half-copy**: the copy crashes halfway, and the existing rows will be upserted back with the same id when re-hanging.
+* Instead of growing another one next to it. The session id already contains runId and actorRef, so copies of two different target sessions will naturally not collide.
  */
 function seededMessageId(targetSessionId: SessionId, index: number): MessageId {
   return createMessageId(`${targetSessionId}-seed-${index}`);
