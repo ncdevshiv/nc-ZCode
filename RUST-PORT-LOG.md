@@ -5219,3 +5219,31 @@ It is impossible to honestly claim that the entire port is complete until the wo
   marker rewrites added zero net lines; `bunx tsc -b packages/shared
   packages/desktop/tsconfig.host.json` â†’ exit 0.
 
+
+## ENTRY 138 â€” 2026-11-09 â€” native backend launched and driven end to end (real binary, real HTTP + WS)
+
+- **What this proves**: the goal's acceptance step "launch and test the Rust-based backend
+  e2e". Not a test harness â€” the built `zcode-server` binary is spawned and driven by an
+  external Node client over real sockets.
+- **New command**: `scripts/native-backend-smoke.mjs` + `bun run native:smoke`
+  (documented in `native/README.md`). It:
+  1. spawns `native/target/{debug,release}/zcode-server --workspace <tmp> --data-dir <tmp>
+     --port 0` and parses the `LISTENING <addr>` contract line (60 s bound);
+  2. asserts `GET /healthz` â†’ `200 {"status":"ok"}`;
+  3. asserts `GET /api/server-info` advertises exactly the temp workspace (path equality);
+  4. asserts unknown `/api/*` is a JSON 404 (`{"error":"not_found"}`), not HTML;
+  5. opens `ws://<addr>/ws` and requires the server's first frame (the channel protocol
+     Initialize) to arrive within 15 s and be â‰¥ 13 bytes (the wire header size);
+  6. always kills the child and removes both temp dirs; every mismatch exits 1 with the
+     observed payload.
+- **Observed run** (debug build, this machine):
+  `listening on 127.0.0.1:52977` / `/healthz -> 200 {"status":"ok"}` /
+  `/api/server-info -> 200 workspace=â€¦` / `/api/does-not-exist -> 404 JSON` /
+  `/ws -> initialize frame 19 bytes` / `PASS`.
+- **Why this is not circular**: the assertions are on the bytes the shipped binary emits
+  (status codes, JSON envelope, Initialize frame size), and the same binary is what the
+  Tauri shell embeds (`nc-code-shell/src/backend.rs` builds `nc-code-app` and serves it on
+  `127.0.0.1:0`).
+- **Verification**: `node scripts/native-backend-smoke.mjs` â†’ exit 0 (`PASS`);
+  `bun run native:smoke` â†’ same; `package.json` re-parsed valid after the script entry.
+

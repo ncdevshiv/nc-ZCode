@@ -39,6 +39,7 @@ bun run golden:vectors        # regenerate fixtures from TS source
 bun run golden:check          # fail if fixtures drift from TS source
 bun run native:test           # cargo test (includes golden-vector conformance)
 # or directly: cargo test --manifest-path native/Cargo.toml
+bun run native:smoke          # boot the real zcode-server binary and drive its HTTP+WS surface
 ```
 
 ## Fixture scope & known divergence boundaries
