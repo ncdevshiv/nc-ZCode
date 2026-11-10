@@ -5119,3 +5119,50 @@ It is impossible to honestly claim that the entire port is complete until the wo
   `cargo clippy -p nc-code-shell --all-targets -- -D warnings` â†’ 0;
   `bunx tsc -p packages/web/tsconfig.json --noEmit` â†’ exit 0.
 
+
+## ENTRY 134 â€” 2026-11-09 â€” Windows AUMID set explicitly (taskbar/toast identity without an installer)
+
+- **The gap**: Electron called `app.setAppUserModelId(...)` before the first window, so
+  taskbar grouping, toast identity and jump lists belonged to NC-Code. The Tauri shell
+  never set an AUMID: a portable/unpackaged run grouped under the generic host process and
+  notifications lost their app identity.
+- **Implementation** (`nc-code-shell/src/main.rs`): `set_app_user_model_id(&identifier)`
+  called first in `setup`, before tray and window creation. Windows uses
+  `SetCurrentProcessExplicitAppUserModelID` (newly enabled `Win32_UI_Shell` feature on the
+  `windows` crate); the identifier is the bundle identifier from `tauri.conf.json`
+  (`dev.zcode.app`), i.e. the same identity the packaged app uses. The HRESULT is advisory
+  â€” a refused AUMID never blocks startup â€” and the function is a no-op on non-Windows.
+- **Docs**: README R4 table gained an AUMID row with the exact call and ordering rule.
+- **Verification**: `cargo test -p nc-code-shell --bin zcode-shell` â†’ 133/133;
+  `cargo clippy -p nc-code-shell --all-targets -- -D warnings` â†’ 0.
+
+
+## ENTRY 135 â€” 2026-11-09 â€” Tauri: OS locale from the shell + fullscreen event bridge
+
+- **Gaps closed**:
+  1. `getSystemLocale`: the Tauri adapter inherited the web fallback (`navigator.language`).
+     Electron resolved the OS language via `app.getPreferredSystemLanguages()[0]` and mapped
+     `zh*` â†’ `zh-CN`, everything else â†’ `en-US` â€” a WebView can report a different language
+     than the OS (the IntlProvider comments call this out). New `system_locale` command uses
+     `sys-locale` (Windows `GetUserDefaultLocaleName`, macOS preferred languages, Linux
+     `LANG`) and applies the identical normalisation in a pure, unit-tested function; the
+     renderer adapter calls it.
+  2. `onWindowFullscreenChanged`: Tauri never emitted it, so UI reacting to
+     enter/leave-full-screen (Electron `enter-full-screen`/`leave-full-screen`) was dead.
+     The shell now derives it from `WindowEvent::Resized` + `is_fullscreen()` and emits
+     `zcode:window-fullscreen` **only when the state actually changes** (resize fires
+     continuously); the renderer adapter subscribes with `listenTauriEvent`.
+- **Dependency**: `sys-locale = "0.3"` (crates.io latest; `0.5` does not exist).
+  Cargo notices regenerated: `third-party/native-cargo/sources.json` 893 crates, `--check`
+  fresh.
+- **Docs**: README R4 table â€” `getSystemLocale` âœ… with the exact mapping (and why
+  `setApplicationLocale` stays a no-op: menu labels are rebuilt by
+  `syncAppSettings({locale})`), event-family row records the fullscreen bridge and its
+  dedupe rule.
+- **Tests**: shell binary unit `system_locale_matches_electrons_mapping` (zh-CN/zh-Hans/
+  ZH-tw â†’ zh-CN; en-GB/ja-JP/None/"" â†’ en-US) â€” suite **134 passed**;
+  `command_permission_list_matches_invoke_handler` covers the new `system_locale` entry.
+- **Verification**: `cargo test -p nc-code-shell --bin zcode-shell` â†’ 134/134;
+  `bunx tsc -p packages/web/tsconfig.json --noEmit` â†’ exit 0;
+  `node scripts/third-party-cargo.mjs --check` â†’ OK.
+

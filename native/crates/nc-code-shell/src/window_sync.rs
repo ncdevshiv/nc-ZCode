@@ -12,7 +12,7 @@ use std::sync::Mutex;
 
 use serde::Deserialize;
 use std::collections::BTreeMap;
-use tauri::WebviewWindow;
+use tauri::{Emitter, WebviewWindow, Window};
 
 use crate::app_menu::MenuState;
 use crate::power_save::PowerSaveManager;
@@ -21,6 +21,18 @@ const MAX_TRACKED_TABS: usize = 200;
 const MAX_ACTIVE_SESSION_CHARS: usize = 255;
 
 static EXPLICIT_QUIT: AtomicBool = AtomicBool::new(false);
+
+/// Last fullscreen state emitted to the renderer. Electron fires
+/// `enter-full-screen`/`leave-full-screen`; this shell derives the same fact from window
+/// resize events and only emits on a real change (resize fires continuously).
+static LAST_FULLSCREEN: AtomicBool = AtomicBool::new(false);
+
+/// Emit `zcode:window-fullscreen` when the fullscreen state actually changed.
+pub fn emit_fullscreen_if_changed(window: &Window, fullscreen: bool) {
+    if LAST_FULLSCREEN.swap(fullscreen, Ordering::SeqCst) != fullscreen {
+        let _ = window.emit("zcode:window-fullscreen", fullscreen);
+    }
+}
 
 pub struct WindowSyncState {
     tabs: Mutex<Vec<String>>,

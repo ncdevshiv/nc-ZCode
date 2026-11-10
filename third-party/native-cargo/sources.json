@@ -4,7 +4,7 @@
   "inputs": {
     "scripts/third-party-cargo.mjs": "f149e0eb60186cfa64d139185bc26e0566ba0bd0f46561c6dbf849e82b1dee4d",
     "native/Cargo.toml": "28447cdf4bc05d37bc81185a2cb33962190e4f7a360012b861541dfd80440728",
-    "native/Cargo.lock": "24aacea3723a690ec6230fe7ef81c7f1bba0bbc2680c345d7cf7ff9cbad628a3"
+    "native/Cargo.lock": "c7da5e0663d5670ae34c96dd6096a13db7c8ef7b5bf83e85911f30471b791507"
   },
   "packages": [
     {
@@ -9345,6 +9345,22 @@
         {
           "file": "third-party/native-cargo/licenses/synstructure-0.14.0/LICENSE",
           "sha256": "219920e865eee70b7dcfc948a86b099e7f4fe2de01bcca2ca9a20c0a033f2b59"
+        }
+      ]
+    },
+    {
+      "name": "sys-locale",
+      "version": "0.3.2",
+      "license": "MIT OR Apache-2.0",
+      "source": "crates.io registry",
+      "notices": [
+        {
+          "file": "third-party/native-cargo/licenses/sys-locale-0.3.2/LICENSE-APACHE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        },
+        {
+          "file": "third-party/native-cargo/licenses/sys-locale-0.3.2/LICENSE-MIT",
+          "sha256": "5cc390ab5e5e6507f467368cbab1297552d64bfd863f4b496c7928508bcfefd8"
         }
       ]
     },

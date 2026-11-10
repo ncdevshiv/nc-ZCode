@@ -23,6 +23,7 @@ commands.allow = [
   "window_hide",
   "window_show",
   "platform_info",
+  "system_locale",
   "select_directory",
   "select_file",
   "select_files",

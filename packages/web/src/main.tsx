@@ -36,6 +36,7 @@ import type {
   ChromeBrowserDataImportResult,
   DockerContainerInfo,
   IPlatformService,
+  Locale,
   RemoteTarget,
   SaveFileResult,
   ServerRemoteInfo,
@@ -901,6 +902,11 @@ function createTauriPlatform(): IPlatformService {
       if (communityUrl) await invoke("open_external_url", { url: communityUrl });
     },
     getDeviceId: () => tauriDeviceId ?? generateMobileDeviceFingerprint(),
+    // The OS language comes from the shell (Electron `resolveSystemApplicationLocale`
+    // semantics), not from `navigator.language`, which a WebView may report differently.
+    getSystemLocale: () => invoke("system_locale") as Promise<Locale>,
+    onWindowFullscreenChanged: (handler) =>
+      listenTauriEvent<boolean>("zcode:window-fullscreen", (payload) => handler(payload)),
     onFileDropPaths: (handler) => {
       const webview = tauriWebview();
       if (!webview?.onDragDropEvent) return () => {};

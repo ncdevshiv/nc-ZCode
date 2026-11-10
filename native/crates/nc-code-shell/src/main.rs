@@ -208,6 +208,23 @@ fn platform_info() -> PlatformInfo {
     }
 }
 
+/// `IPlatformService.getSystemLocale`: the OS language, mapped to the two supported
+/// locales exactly like Electron's `resolveSystemApplicationLocale`
+/// (`preferredSystemLanguages[0]`, `zh*` → `zh-CN`, everything else → `en-US`).
+#[tauri::command]
+fn system_locale() -> String {
+    normalize_system_locale(sys_locale::get_locale().as_deref())
+}
+
+/// Pure mapping so the fallback rules are pinned by a unit test.
+fn normalize_system_locale(tag: Option<&str>) -> String {
+    match tag {
+        Some(tag) if tag.to_ascii_lowercase().starts_with("zh") => "zh-CN".to_string(),
+        // Unknown/absent system language follows Electron's else-branch.
+        _ => "en-US".to_string(),
+    }
+}
+
 /// 程序生成的 16x16 tray 图标：透明外圈 + 蓝底白色 X 形，避免仓库携带
 /// `.ico`/`.png` 二进制资产；与 electron 正式图标的对等验证属开放项（见 README）。
 fn generate_tray_rgba() -> Vec<u8> {
@@ -261,6 +278,20 @@ fn handle_second_instance(app: &tauri::AppHandle, argv: &[String]) {
         let _ = app.emit("zcode:deep-link", url);
     }
 }
+
+/// Windows App User Model ID: taskbar grouping, toast identity and jump lists key off it.
+/// A portable/unpackaged run has no installer to set it, so the shell sets it explicitly
+/// from the bundle identifier (Electron `app.setAppUserModelId` parity). No-op elsewhere.
+#[cfg(windows)]
+fn set_app_user_model_id(identifier: &str) {
+    use windows::core::HSTRING;
+    use windows::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID;
+    // Advisory: a refused AUMID must not prevent the app from starting.
+    let _ = unsafe { SetCurrentProcessExplicitAppUserModelID(&HSTRING::from(identifier)) };
+}
+
+#[cfg(not(windows))]
+fn set_app_user_model_id(_identifier: &str) {}
 
 /// 注册 tray：与 Electron 托盘一致的入口（Open / New Task / Open Workspace /
 /// About / Clear All Data / Quit）。菜单命令发到 renderer，窗口动作留在壳层。
@@ -939,6 +970,12 @@ fn main() {
                     let _ = window.hide();
                 }
             }
+            // Electron emitted enter/leave-full-screen; the Tauri adapter's
+            // `onWindowFullscreenChanged` consumes the same fact.
+            if let tauri::WindowEvent::Resized(_) = event {
+                let fullscreen = window.is_fullscreen().unwrap_or(false);
+                window_sync::emit_fullscreen_if_changed(window, fullscreen);
+            }
         })
         .invoke_handler(tauri::generate_handler![
             app_version,
@@ -951,6 +988,7 @@ fn main() {
             window_hide,
             window_show,
             platform_info,
+            system_locale,
             select_directory,
             select_file,
             select_files,
@@ -1015,6 +1053,8 @@ fn main() {
             browser_use_bridge::browser_use_lifecycle_probe
         ])
         .setup(|app| {
+            // Must run before the first window/tray so taskbar identity is set.
+            set_app_user_model_id(&app.config().identifier);
             setup_tray(app)?;
             app_menu::install(app.handle()).map_err(Box::<dyn std::error::Error>::from)?;
             app.on_menu_event(|app, event| {
@@ -1062,7 +1102,19 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{deep_links_from_argv, is_blocked_ip, reveal_command_for};
+    use super::{deep_links_from_argv, is_blocked_ip, normalize_system_locale, reveal_command_for};
+
+    #[test]
+    fn system_locale_matches_electrons_mapping() {
+        // zh* (any region/script) → zh-CN; everything else → en-US, including absence.
+        assert_eq!(normalize_system_locale(Some("zh-CN")), "zh-CN");
+        assert_eq!(normalize_system_locale(Some("zh-Hans")), "zh-CN");
+        assert_eq!(normalize_system_locale(Some("ZH-tw")), "zh-CN");
+        assert_eq!(normalize_system_locale(Some("en-GB")), "en-US");
+        assert_eq!(normalize_system_locale(Some("ja-JP")), "en-US");
+        assert_eq!(normalize_system_locale(None), "en-US");
+        assert_eq!(normalize_system_locale(Some("")), "en-US");
+    }
 
     #[test]
     fn reveal_command_selects_the_file_per_platform() {
