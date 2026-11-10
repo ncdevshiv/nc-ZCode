@@ -9,6 +9,9 @@
 //!   (`x-zcode-intranet-token`, `expectedMarker`). `https://` targets fail honestly
 //!   (TLS not implemented in this build) rather than fabricating reachability.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 use std::net::TcpStream;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

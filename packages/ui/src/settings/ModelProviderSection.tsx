@@ -1095,6 +1095,15 @@ export function ModelProviderSection({
             return handleCreateProvider({ providerName: label });
           }}
         />
+      ) : navigationItems.length === 0 && !loading ? (
+        <div className="flex min-h-64 flex-col items-center justify-center gap-2 text-center">
+          <p className="text-ui-lg font-medium text-foreground">
+            {intl.formatMessage({ id: "settings.modelProvider.emptyTitle" })}
+          </p>
+          <p className="text-ui-base text-foreground-subtle">
+            {intl.formatMessage({ id: "settings.modelProvider.emptyDescription" })}
+          </p>
+        </div>
       ) : (
         <ModelProviderSectionDetail
           connectionSelections={effectiveConnectionSelections}

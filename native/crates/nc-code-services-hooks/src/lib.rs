@@ -1,11 +1,14 @@
 //! `hooks` channel
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use nc_code_channels::{CancelToken, Channel, ChannelContext, ChannelFailure};
 use nc_code_rpc::WireValue;
-use nc_code_service_core::{ServiceArgs, ServiceError};
+use nc_code_service_core::ServiceArgs;
 use serde_json::json;
 
 pub struct HooksService;

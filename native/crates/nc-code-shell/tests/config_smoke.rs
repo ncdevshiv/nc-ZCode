@@ -8,8 +8,11 @@ fn tauri_config_matches_electron_identity() {
     let cfg: serde_json::Value =
         serde_json::from_str(include_str!("../tauri.conf.json")).expect("parse tauri.conf.json");
     assert_eq!(cfg["identifier"], "dev.zcode.app");
-    assert_eq!(cfg["productName"], "ZCode");
-    assert_eq!(cfg["bundle"]["active"], true, "打包已启用（§5 bundle active）");
+    assert_eq!(cfg["productName"], "NC-Code");
+    assert_eq!(
+        cfg["bundle"]["active"], true,
+        "打包已启用（§5 bundle active）"
+    );
     // frontendDist 必须指向本 crate 的脚手架 dist（真实 UI 接入是开放项）。
     assert_eq!(cfg["build"]["frontendDist"], "./dist");
 }

@@ -146,8 +146,33 @@ impl HostServer {
 
 #[cfg(test)]
 mod tests {
+    /// The notifier text for a settled Bash work item names the work id and the status
+    /// word, so the model-only backgroundResult turn can be attributed to a real task.
     #[test]
-    fn basic_test() {
-        assert!(true);
+    fn bash_notification_text_names_the_work_and_status() {
+        let work = crate::background::BackgroundWork {
+            work_id: "bg-1".to_string(),
+            command: "echo hi".to_string(),
+            output_path: std::path::PathBuf::from("bg-1.log"),
+            status: "completed",
+            started_at: 0,
+            ended_at: Some(1),
+            exit_code: Some(0),
+            error: None,
+            pid: None,
+            tool_call_id: None,
+            task_type: "local_bash",
+            description: None,
+            notified: false,
+            cancel: Some(std::sync::Arc::new(std::sync::atomic::AtomicBool::new(
+                false,
+            ))),
+        };
+        let text = crate::notifications::notification_text(&work, Some("hi"));
+        assert!(text.contains("bg-1"), "{text}");
+        assert!(
+            text.contains("completed") || text.contains("finished"),
+            "{text}"
+        );
     }
 }

@@ -15,6 +15,7 @@
 
 import type { FitAddon } from "@xterm/addon-fit";
 import type { ITheme, Terminal as XTerm } from "@xterm/xterm";
+import { logger } from "@/logger.js";
 import { uiMemoryDiagnosticsRegistry } from "@/lib/memoryDiagnostics.js";
 
 /**
@@ -81,10 +82,7 @@ function releaseEntry(key: string): void {
     // Bug 说明：dispose 内部杀 PTY/销 xterm，理论上不应抛；但即使抛也不能阻塞关 tab 流程，
     // 否则单个 terminal release 异常会卡住整批关闭（关闭其他/全部）。吞掉打日志，对称下侧容错。
     // 风险：PTY 可能残留，由 terminalService disposeAll 在 host 退出时兜底回收。
-    if (typeof console !== "undefined") {
-      // eslint-disable-next-line no-console
-      console.warn("[sidePaneTerminalSessionRegistry] release dispose failed", error);
-    }
+    logger.warn("[sidePaneTerminalSessionRegistry] release dispose failed", error);
   }
   entry.hostEl.remove();
 }

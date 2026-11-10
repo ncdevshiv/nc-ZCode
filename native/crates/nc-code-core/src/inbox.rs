@@ -927,8 +927,11 @@ impl<H: CommandInboxHost> Deref for SharedCommandInbox<H> {
 
 #[cfg(test)]
 mod tests {
+    /// Queue ids are derived from the command id: the UI keys queued rows by it, so a
+    /// change of shape silently breaks reorder/delete targeting.
     #[test]
-    fn basic_test() {
-        assert!(true);
+    fn queue_item_id_derives_from_the_command_id() {
+        assert_eq!(super::queue_item_id_for_command("cmd-1"), "queue_cmd-1");
+        assert_eq!(super::queue_item_id_for_command(""), "queue_");
     }
 }

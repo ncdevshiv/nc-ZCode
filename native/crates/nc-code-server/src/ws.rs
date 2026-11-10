@@ -16,6 +16,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use axum::extract::ws::{CloseFrame, Message, WebSocket};
 use nc_code_channels::{ChannelConnection, ChannelContext, ChannelRegistry, ClientMode};
 use nc_code_rpc::{encode_frame, ChannelMessage, FrameDecoder, PROTOCOL_MESSAGE_REGULAR};
+use nc_code_service_core::logger::ServiceLogger;
 use tokio::sync::mpsc;
 
 static CONNECTION_SEQUENCE: AtomicU64 = AtomicU64::new(1);
@@ -95,7 +96,10 @@ pub async fn handle_socket(
 
     connection.shutdown();
     if let Some((code, reason)) = violation {
-        eprintln!("[nc-code-server] channel connection {connection_id} closed ({code}): {reason}");
+        ServiceLogger::new("nc-code-server").warn(
+            None,
+            format!("channel connection {connection_id} closed ({code}): {reason}"),
+        );
         let _ = socket
             .send(Message::Close(Some(CloseFrame {
                 code,
@@ -121,10 +125,19 @@ fn log_channel_error(payload: &[u8]) {
                 .get("message")
                 .and_then(|value| value.as_str())
                 .unwrap_or("(no message)");
-            eprintln!("[nc-code-server] rpc error id={id} {name}: {text}");
+            let logger = ServiceLogger::new("nc-code-server");
+            let line = format!("rpc error id={id} {name}: {text}");
+            // `existing-only` observers intentionally call this when no runtime is running
+            // (task list before the first model is configured). It is not a service failure.
+            if name == "ZCodeWorkspaceRuntimeNotFound" {
+                logger.debug(None, line);
+            } else {
+                logger.warn(None, line);
+            }
         }
         ChannelMessage::PromiseErrorObj { id, .. } => {
-            eprintln!("[nc-code-server] rpc error id={id} thrown non-Error value");
+            ServiceLogger::new("nc-code-server")
+                .warn(None, format!("rpc error id={id} thrown non-Error value"));
         }
         _ => {}
     }

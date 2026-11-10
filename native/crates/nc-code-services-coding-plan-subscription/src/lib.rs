@@ -4,6 +4,9 @@
 //! Purchase/subscription mutations fail with `CodingPlanPurchaseRemoved`; read methods
 //! return explicit disabled/empty defaults. No network calls, no fake success.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 use std::sync::Arc;
 
 use async_trait::async_trait;

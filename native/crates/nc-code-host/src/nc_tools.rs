@@ -24,6 +24,23 @@ use serde_json::Value;
 
 use crate::tools::{Tool, ToolContext, ToolContract, ToolError as HostToolError, ToolErrorCode};
 
+/// OpenAI-compatible gateways enforce `^[A-Za-z0-9_-]+$` on `function.name`
+/// (probed 2026-11-08 against the open-design gateway: a single `agent.compact`
+/// entry answers 400 `upstream_error`, the same entry renamed `agent_compact`
+/// answers 200). nc-tools uses dotted names, so the model-facing name is the
+/// sanitized form and the dotted name stays as a resolution alias.
+pub fn model_facing_tool_name(name: &str) -> String {
+    name.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
 /// 工具描述：Kernel::descriptors() 返回 `{name, description, inputSchema}`。
 fn tool_descriptors(kernel: &Kernel) -> Vec<(String, String, Value)> {
     kernel
@@ -46,8 +63,12 @@ fn tool_descriptors(kernel: &Kernel) -> Vec<(String, String, Value)> {
 }
 
 /// 单个 nc-tools 工具的 host 侧代理。持有共享 kernel（Arc）+ 工具名。
+///
+/// `kernel_name` 是 kernel 注册的点号名（`call` 用它）；`name` 是模型面的
+/// 安全名（OpenAI 兼容网关只接受 `[A-Za-z0-9_-]`）。
 pub struct NcTool {
     kernel: Arc<Kernel>,
+    kernel_name: String,
     name: String,
     description: String,
     input_schema: Value,
@@ -56,13 +77,14 @@ pub struct NcTool {
 impl NcTool {
     pub fn new(
         kernel: Arc<Kernel>,
-        name: String,
+        kernel_name: String,
         description: String,
         input_schema: Value,
     ) -> Self {
         Self {
+            name: model_facing_tool_name(&kernel_name),
             kernel,
-            name,
+            kernel_name,
             description,
             input_schema,
         }
@@ -70,6 +92,11 @@ impl NcTool {
 
     pub fn tool_name(&self) -> &str {
         &self.name
+    }
+
+    /// kernel 侧的点号名（`ToolRegistry` 把它注册成解析别名）。
+    pub fn kernel_name(&self) -> &str {
+        &self.kernel_name
     }
 }
 
@@ -103,7 +130,7 @@ impl Tool for NcTool {
         // Tool::execute 是同步面（与仓库其余工具一致）。Kernel::call 本身是同步且
         // 内部有界等待（proc.start 走线程、net.http 有上限），所以这里直接调用；
         // 需要真超时的长操作由 nc-tools 自己的 handler 契约承担。
-        render_outcome(self.kernel.call(&self.name, input))
+        render_outcome(self.kernel.call(&self.kernel_name, input))
     }
 }
 

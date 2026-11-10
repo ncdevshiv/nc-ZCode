@@ -36,34 +36,40 @@ use nc_code_provider::request::Message;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+/// 键名是跨层契约：这里写盘、`AgentService::workspace_session_facts` / `list_sessions_info`
+/// / `workspace_session_facts_for_task` 逐字读 `sessionId`/`createdAt`/`updatedAt`/
+/// `workspaceIdentity`/`collaborationMode`。此前结构体按 Rust 字段名落盘（`session_id`…），
+/// 冷会话在磁盘基线上全部读不到，任务列表重启后/关闭后整批消失。旧文件靠 alias 仍可加载。
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SessionMeta {
+    #[serde(alias = "session_id")]
     pub session_id: String,
     pub title: String,
+    #[serde(alias = "title_source")]
     pub title_source: String,
+    #[serde(alias = "log_epoch")]
     pub log_epoch: String,
     pub revision: i64,
+    #[serde(alias = "workspace_identity")]
     pub workspace_identity: String,
+    #[serde(alias = "created_at")]
     pub created_at: i64,
     /// Last real state write (ms). Missing in old meta files → 0, callers fall back
     /// to `created_at`.
-    #[serde(default)]
+    #[serde(default, alias = "updated_at")]
     pub updated_at: i64,
     /// `subagent_child` marks a child session excluded from the task list.
-    #[serde(default, rename = "taskType", skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub task_type: Option<String>,
     /// Parent session id for forked/subagent child sessions.
-    #[serde(
-        default,
-        rename = "parentSessionId",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent_session_id: Option<String>,
     /// 会话级配置（setFollowupMode/switchModelConfig/switchCollaborationMode 的
     /// 持久化落点）。serde default 保证旧 meta.json（无这些键）仍可加载。
-    #[serde(default = "default_followup_mode")]
+    #[serde(default = "default_followup_mode", alias = "followup_mode")]
     pub followup_mode: String,
-    #[serde(default = "default_collaboration_mode")]
+    #[serde(default = "default_collaboration_mode", alias = "collaboration_mode")]
     pub collaboration_mode: String,
     #[serde(default)]
     pub provider: String,
@@ -72,7 +78,7 @@ pub struct SessionMeta {
     #[serde(default)]
     pub thought: String,
     /// Mode to restore when leaving plan mode (`""` = none).
-    #[serde(default, rename = "planPreviousMode")]
+    #[serde(default, alias = "plan_previous_mode")]
     pub plan_previous_mode: String,
     /// 会话目标（TS 的 `SessionGoal` 持久行）。serde default 保证旧 meta.json 仍可加载。
     #[serde(default)]
@@ -159,6 +165,15 @@ pub enum TranscriptEntry {
     FileChange {
         record: crate::file_ledger::FileChangeRecord,
     },
+    /// 一轮的用户可见用量事实（tokens / 请求数 / 工具调用数 / 模型 / 时长）。
+    ///
+    /// 为什么单独成条而不是复用 turnHeader：turnHeader 是**投影行**，字段受
+    /// `turnHeaderRowSchema` 约束（strict），塞进去会破坏客户端解析；而
+    /// `v4/usage/stats` 需要跨会话聚合，不能只活在进程内存里。本条目是独立
+    /// 的追加事实，回放时累加进 `Transcript.usage_facts`。
+    Usage {
+        fact: Value,
+    },
     /// 分支截断（edit/retry）：**丢弃 `from_row_id` 及其之后的所有行**，与
     /// `conversationDeltaSchema` 的 `row.removed{fromRowId}` 语义逐字对齐
     /// （"删除该行及之后所有"）。同样以事件追加而非重写文件，理由与
@@ -206,7 +221,14 @@ fn parse_entry(line: &[u8]) -> Result<Option<TranscriptEntry>, EntryParseError> 
     };
     if !matches!(
         tag,
-        "row" | "upsert" | "ack" | "history" | "historyCompacted" | "rowsTruncated" | "fileChange"
+        "row"
+            | "upsert"
+            | "ack"
+            | "history"
+            | "historyCompacted"
+            | "rowsTruncated"
+            | "fileChange"
+            | "usage"
     ) {
         return Ok(None);
     }
@@ -363,6 +385,11 @@ impl TranscriptStore {
         )
     }
 
+    /// 追加一轮的用量事实（聚合读面的 durable 写路径；append-only，不改投影）。
+    pub fn append_usage_fact(&self, session_id: &str, fact: &Value) -> Result<(), StoreError> {
+        self.append_entry(session_id, &TranscriptEntry::Usage { fact: fact.clone() })
+    }
+
     /// 追加一条模型历史消息（会话记忆的 durable 写路径）。
     pub fn append_history(&self, session_id: &str, message: &Message) -> Result<(), StoreError> {
         self.append_entry(
@@ -513,6 +540,7 @@ impl TranscriptStore {
                 TranscriptEntry::FileChange { record } => {
                     transcript.file_changes.push(record);
                 }
+                TranscriptEntry::Usage { fact } => transcript.usage_facts.push(fact),
                 TranscriptEntry::RowsTruncated { from_row_id } => {
                     // 与 `row.removed{fromRowId}` 同一语义：该行及其后全部消失。
                     let removed_turns: Vec<String> = transcript
@@ -577,6 +605,8 @@ pub struct Transcript {
     pub acks: std::collections::HashMap<String, Value>,
     pub history: Vec<Message>,
     pub skipped_lines: Vec<String>,
+    /// 每轮落盘的用量事实（`v4/usage/stats` 的唯一 durable 事实源）。
+    pub usage_facts: Vec<Value>,
 }
 
 /// 会话 id 生成：进程内计数器 + 纳秒时间戳 + pid，避免为 id 引入 uuid 依赖。
@@ -604,4 +634,98 @@ pub fn is_safe_session_id(session_id: &str) -> bool {
         && session_id
             .chars()
             .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_')
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn temp_store(tag: &str) -> TranscriptStore {
+        let root = std::env::temp_dir().join(format!(
+            "zcode-store-meta-{}-{tag}-{}",
+            std::process::id(),
+            now_ms()
+        ));
+        std::fs::create_dir_all(root.join("sessions")).expect("root");
+        TranscriptStore::new(root)
+    }
+
+    fn meta() -> SessionMeta {
+        SessionMeta {
+            session_id: "s1".to_string(),
+            title: "Fix the build".to_string(),
+            title_source: "custom".to_string(),
+            log_epoch: "epoch-1".to_string(),
+            revision: 3,
+            workspace_identity: "G:/ws".to_string(),
+            created_at: 1_700_000_000_000,
+            updated_at: 1_700_000_100_000,
+            task_type: Some("subagent_child".to_string()),
+            parent_session_id: Some("parent".to_string()),
+            followup_mode: "queue".to_string(),
+            collaboration_mode: "plan".to_string(),
+            provider: "anthropic".to_string(),
+            model: "claude-sonnet".to_string(),
+            thought: "high".to_string(),
+            plan_previous_mode: "build".to_string(),
+            goal: None,
+        }
+    }
+
+    /// 磁盘键名是跨语言契约：agent 层的冷会话事实读取逐字查 `sessionId`/`createdAt`/
+    /// `updatedAt`/`workspaceIdentity`/`collaborationMode`/`taskType`。用 Rust 字段名落盘
+    /// 会让每个冷会话在任务列表里消失（重启与 closeSession 之后都读不到）。
+    #[test]
+    fn meta_serializes_the_names_the_channel_reads() {
+        let store = temp_store("keys");
+        let meta = meta();
+        store.create_session(&meta).expect("create");
+        let text = std::fs::read_to_string(store.meta_path(&meta.session_id)).expect("meta");
+        let value: Value = serde_json::from_str(&text).expect("json");
+        assert_eq!(value["sessionId"], json!("s1"), "{value}");
+        assert_eq!(value["titleSource"], json!("custom"), "{value}");
+        assert_eq!(value["logEpoch"], json!("epoch-1"), "{value}");
+        assert_eq!(value["workspaceIdentity"], json!("G:/ws"), "{value}");
+        assert_eq!(value["createdAt"], json!(1_700_000_000_000i64), "{value}");
+        assert_eq!(value["updatedAt"], json!(1_700_000_100_000i64), "{value}");
+        assert_eq!(value["taskType"], json!("subagent_child"), "{value}");
+        assert_eq!(value["parentSessionId"], json!("parent"), "{value}");
+        assert_eq!(value["followupMode"], json!("queue"), "{value}");
+        assert_eq!(value["collaborationMode"], json!("plan"), "{value}");
+        assert_eq!(value["planPreviousMode"], json!("build"), "{value}");
+        let loaded = store.load_meta("s1").expect("load");
+        assert_eq!(loaded.created_at, meta.created_at);
+        assert_eq!(loaded.collaboration_mode, "plan");
+        assert_eq!(loaded.task_type.as_deref(), Some("subagent_child"));
+    }
+
+    /// 旧文件（Rust 字段名落盘）必须仍能加载，否则升级后的第一次冷恢复会丢会话。
+    #[test]
+    fn legacy_snake_case_meta_still_loads() {
+        let store = temp_store("legacy");
+        let session_dir = store.session_dir("s1");
+        std::fs::create_dir_all(&session_dir).expect("session dir");
+        std::fs::write(
+            session_dir.join("meta.json"),
+            json!({
+                "session_id": "s1",
+                "title": "legacy",
+                "title_source": "default",
+                "log_epoch": "epoch-legacy",
+                "revision": 0,
+                "workspace_identity": "G:/ws",
+                "created_at": 1_600_000_000_000i64,
+                "updated_at": 1_600_000_000_000i64,
+                "followup_mode": "queue",
+                "collaboration_mode": "build"
+            })
+            .to_string(),
+        )
+        .expect("write legacy meta");
+        let loaded = store.load_meta("s1").expect("legacy meta still loads");
+        assert_eq!(loaded.created_at, 1_600_000_000_000);
+        assert_eq!(loaded.log_epoch, "epoch-legacy");
+        assert_eq!(loaded.workspace_identity, "G:/ws");
+    }
 }

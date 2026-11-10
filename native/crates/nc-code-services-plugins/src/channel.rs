@@ -712,18 +712,24 @@ fn params_object(args: &ServiceArgs) -> Result<Map<String, Value>, ServiceError>
 }
 
 fn workspace_path(params: &Map<String, Value>) -> Result<String, ServiceError> {
-    params
+    // Two callers reach this channel:
+    // 1. `ProxyChannel.toService` (the product channel client) sends the flat params object.
+    // 2. The legacy CLI protocol wraps the workspace ref under `params.workspace`.
+    // Both must resolve to the same workspace or the settings page fails with a red
+    // "workspacePath must be a non-empty string" banner (observed in the Tauri app).
+    let nested = params
         .get("workspace")
         .and_then(Value::as_object)
         .and_then(|workspace| workspace.get("workspacePath"))
-        .and_then(Value::as_str)
+        .and_then(Value::as_str);
+    let flat = params.get("workspacePath").and_then(Value::as_str);
+    nested
+        .or(flat)
         .map(str::trim)
         .filter(|path| !path.is_empty())
         .map(str::to_string)
         .ok_or_else(|| {
-            ServiceError::invalid_params(
-                "params.workspace.workspacePath must be a non-empty string",
-            )
+            ServiceError::invalid_params("params.workspacePath must be a non-empty string")
         })
 }
 

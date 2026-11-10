@@ -129,11 +129,3 @@ impl HostServer {
         lines
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn basic_test() {
-        assert!(true);
-    }
-}

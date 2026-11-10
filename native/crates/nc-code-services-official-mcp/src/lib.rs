@@ -5,6 +5,9 @@
 //! crate exposes an honest status surface: reads report unavailable/empty, and
 //! mutating operations fail explicitly (no fake success).
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 use std::sync::Arc;
 
 use async_trait::async_trait;

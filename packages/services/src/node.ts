@@ -83,6 +83,11 @@ export {
   createSettingServiceWithMigrations,
 } from "./setting/settingService.js";
 export { createCredentialService } from "./credential/credentialService.js";
+export { createOAuthService } from "./oauth/oauthService.js";
+export { createOAuthProviderLogoutHandler } from "./oauth/oauthProviderLogout.js";
+export { OAuthCredentialRepo } from "./oauth/repo/oauthCredentialRepo.js";
+export { createUsageStatsService } from "./usage-stats/usageStatsService.js";
+export { createCodingPlanSubscriptionService } from "./coding-plan-subscription/codingPlanSubscriptionService.js";
 export { createBroadcastService } from "./broadcast/broadcastService.js";
 export { createZCodeAgentService } from "./zcode-agent/zcodeAgentService.js";
 export { createZCodeTaskServiceAdapter } from "./zcode-agent/zcodeTaskServiceAdapter.js";
@@ -343,6 +348,9 @@ import { createZCodeTaskIndexSyncer } from "./zcode-agent/zcodeTaskIndexSyncer.j
 import { TaskIndexRepo } from "./session/taskIndexRepo.js";
 import type { SessionMessageSendRequested } from "#src/session/sessionMailbox.js";
 import { createFileWatcherService } from "./fileWatcher/fileWatcherService.js";
+import { isCurrentOAuthCredentialRequest } from "#src/oauth/oauthUnauthorizedRequest.js";
+import { createOAuthProviderLogoutHandler } from "./oauth/oauthProviderLogout.js";
+import { OAuthCredentialRepo } from "./oauth/repo/oauthCredentialRepo.js";
 
 import { readLegacyZCodeConfigProviders } from "./model-provider/legacyZCodeConfigProviderReader.js";
 import { resolveAccountTeamPlanRuntimeApiKey } from "./model-provider/accountProviderTeamPlanRequestKey.js";
@@ -484,7 +492,6 @@ import {
   DEFAULT_ZCODE_MODEL_CONTEXT_BUDGET_STRATEGY,
   resolveSafeEndpointHostname,
   ZCODE_JWT_INVALID_BROADCAST_CHANNEL,
-  formatLogPrefix,
   isCredentialDecryptError,
   isStartPlanModelProviderId,
   OFF_PEAK_PROVIDER_IDS,
@@ -504,8 +511,6 @@ import {
   getCapturedZCodeAgentTelemetryEnv,
   ZCODE_DESKTOP_CONTEXT_PROMPT_ENABLED_ENV,
   ZAI_PROVIDER_ID,
-  zcodeAccountAccessSchema,
-  zcodeProviderAccountAccessSchema,
   ZCODE_VERSION,
   ZCODE_ENV,
   buildRuntimeZCodeApiUrl,
@@ -1278,9 +1283,7 @@ export function createLocalServices(options: {
   hostApiNetworkTransport?: HostApiNetworkTransport;
   /** Desktop Host 请求 Main 登记 Agent 已授权的精确本地视频路径。 */
   authorizeLocalMediaPreviewPath?: (path: string) => Promise<string>;
-  feedback?: Partial<
-    Omit<CreateFeedbackServiceOptions, "apiClient" | "credentialService">
-  >;
+  feedback?: Partial<Omit<CreateFeedbackServiceOptions, "apiClient" | "credentialService">>;
   processLifecycleReporter?: RuntimeProcessLifecycleReporter;
   taskRuntimeReporter?: RuntimeTaskReporter;
   /** workspace 文件搜索默认使用内置过滤器；后续规则来源只需在 Host 装配时注入最终实现。 */
@@ -1374,7 +1377,7 @@ export function createLocalServices(options: {
   try {
     ensureAppCaCert();
   } catch (error) {
-    console.error(formatLogPrefix("appCaCert", process.pid), "ensure app CA cert failed:", error);
+    createServiceLogger("appCaCert").error(undefined, "ensure app CA cert failed:", error);
   }
 
   const localSettings = options?.settingService ? null : createSettingServiceWithMigrations();
@@ -2051,7 +2054,10 @@ export function createLocalServices(options: {
     options?.serviceAuthorityMode === "desktop-attached-remote"
       ? {}
       : {
-          resolveOffPeakClientConfig: async () => ({ enabled: false, modelSelectionView: { providers: [], groups: [] } as any }),
+          resolveOffPeakClientConfig: async () => ({
+            enabled: false,
+            modelSelectionView: { providers: [], groups: [] } as any,
+          }),
           resolveOffPeakTaskService: () => offPeakTaskServiceForAgent,
         };
   const zcodeAgentService = createZCodeAgentService({
@@ -2065,7 +2071,7 @@ export function createLocalServices(options: {
     // 动态工作流灰度：与 Off-Peak 不同，
     // 这里不按 serviceAuthorityMode 裁剪——SSH/WSL/Docker 的 desktop-attached-remote Host
     // 是它自己那些 workspace 的唯一裁决者，灰度开启时远程 workspace 同样提供工作流。
-    resolveDynamicWorkflowClientConfig: async () => ({ mode: "onDemand" } as any),
+    resolveDynamicWorkflowClientConfig: async () => ({ mode: "onDemand" }) as any,
     commandResolver: options?.zcodeAgentCommandResolver,
     presentationSurface: resolveZCodeAgentPresentationSurface({
       runtimeSurface: options?.agentRuntimeContext?.runtimeSurface,
@@ -2307,9 +2313,6 @@ export function createLocalServices(options: {
     settingService,
     cuaProductMcpServerResolver,
   });
-  const zcodeJwtLogoutHandlerRef.current = (_input: any, _headers: any) => {
-    // ZCode cloud auth removed
-  };
   // Desktop Host 曾从 Settings View 再扫描一次 Account Provider，既绕开
   // Registry 的 entitlement/executable 事实，也在多个套餐同时可见时无法唯一选择。
   // 闲时服务与 Host 派发必须共享同一个 Registry-backed 凭据解析闭包。

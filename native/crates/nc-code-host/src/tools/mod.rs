@@ -382,11 +382,16 @@ impl ToolRegistry {
 
     /// 把 nc-tools 的原生工具面（进程内 Kernel，89 个 typed 工具）并入注册表。
     ///
-    /// 点号工具名（`fs.read`/`git.status`…）与 TS 侧工具名并存，互不覆盖。
+    /// 模型面用安全名（点号→下划线，OpenAI 兼容网关只接受 `[A-Za-z0-9_-]`）；
+    /// kernel 的点号名注册为解析别名，所以模型误用 `fs.read` 也能命中。
     pub fn with_nc_tools(mut self, nc: Vec<Arc<crate::nc_tools::NcTool>>) -> Self {
         for tool in nc {
-            self.tools
-                .insert(tool.contract().name, tool as Arc<dyn Tool>);
+            let safe = tool.contract().name;
+            let kernel_name = tool.kernel_name().to_string();
+            if safe != kernel_name {
+                self.aliases.insert(kernel_name, safe.clone());
+            }
+            self.tools.insert(safe, tool as Arc<dyn Tool>);
         }
         self
     }

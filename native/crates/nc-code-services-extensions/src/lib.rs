@@ -1,5 +1,8 @@
 //! File/config-backed extension service channels (Rust backend).
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 pub mod command_markdown;
 pub mod commands;
 pub mod hooks;
@@ -47,13 +50,5 @@ impl ExtensionsServices {
         registry.register("memory", self.memory.clone())?;
         registry.register("skills", self.skills.clone())?;
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn crate_compiles() {
-        assert!(true);
     }
 }

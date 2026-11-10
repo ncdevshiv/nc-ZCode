@@ -565,11 +565,18 @@ impl CompileKernel {
                 // Extract declared artifacts from site analysis (artifact declarations)
                 let declared_artifacts =
                     super::ts_workflow::collect_declared_artifacts(script_text);
+                let phase_names = super::ts_workflow::collect_phase_names(script_text);
                 Ok(json!({
                     "ok": true,
                     "diagnostics": [],
                     "declaredArtifacts": declared_artifacts,
                     "siteIds": compiled.site_ids,
+                    "causality": { "steps": [], "lanes": [] },
+                    "flow": { "phases": phase_names
+                        .iter()
+                        .enumerate()
+                        .map(|(index, name)| json!({"id": format!("phase#{}", index + 1), "name": name}))
+                        .collect::<Vec<_>>() },
                 }))
             }
             Err(CompileError::Diagnostics(diags)) => {
@@ -658,29 +665,6 @@ mod tests {
         env!("CARGO_MANIFEST_DIR"),
         "/tests/fixtures/workflow_linear.ts"
     );
-
-    fn node_available() -> bool {
-        std::process::Command::new(default_node())
-            .arg("--version")
-            .output()
-            .map(|output| output.status.success())
-            .unwrap_or(false)
-    }
-
-    fn dist_entry_if_present() -> Option<PathBuf> {
-        let configured = std::env::var("ZCODE_WORKFLOW_DIST")
-            .ok()
-            .filter(|value| !value.trim().is_empty());
-        let candidate = configured.map_or_else(default_dist_entry, PathBuf::from);
-        if candidate.is_dir() {
-            let entry = candidate.join("index.js");
-            entry.is_file().then_some(entry)
-        } else if candidate.is_file() {
-            Some(candidate)
-        } else {
-            None
-        }
-    }
 
     /// A latch file per test case: the fixture's crash-once / hang-once relies on it to tell the first process from the restart.
     async fn fixture_kernel(mode: &str, request_timeout: Duration) -> CompileKernel {

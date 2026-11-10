@@ -1,2 +1,8 @@
 /target/
 Cargo.lock.bak
+
+# One-off build/test output captures (compiler logs, test dumps). Reproducible by
+# re-running the tool; they are not source. Existing tracked files are unaffected —
+# see docs/engineering/change-removal-log.md.
+/*.txt
+/_*.py

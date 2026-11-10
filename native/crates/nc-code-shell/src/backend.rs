@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use nc_code_server::{ServerOptions, WorkspaceInfo};
+use nc_code_service_core::logger::ServiceLogger;
 use nc_code_service_core::AppPaths;
 use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Manager, Url};
@@ -73,6 +74,37 @@ pub fn start(app: &tauri::App) -> Result<BackendHandle, String> {
         nc_code_app::run_automation_scheduler(automation_agent).await
     });
     let channels = registry.len();
+    // NC-AG runs in-process with the desktop shell (specs/nc-ag-orchestration.md §8).
+    let ncag_runtime = match nc_code_orchestrator::NcagConfig::from_env() {
+        Ok(config) => {
+            nc_code_orchestrator::main_support::runtime_from_config(config, &backend.paths)
+                .map(std::sync::Arc::new)
+                .inspect_err(|error| {
+                    ServiceLogger::new("nc-code-shell")
+                        .warn(None, format!("NC-AG disabled: {}", error.message));
+                })
+                .ok()
+        }
+        Err(error) => {
+            ServiceLogger::new("nc-code-shell")
+                .warn(None, format!("NC-AG disabled: {}", error.message));
+            None
+        }
+    };
+    if let Some(runtime) = &ncag_runtime {
+        // The Tauri setup hook runs on a plain thread, not inside a Tokio reactor, so a bare
+        // tokio::spawn (runtime.spawn_background) panics with "there is no reactor running"
+        // and aborted the whole desktop process at startup. Hop onto the shell's own runtime
+        // through the explicit handle and await the loop body there.
+        let runtime = std::sync::Arc::clone(runtime);
+        let shutdown = nc_code_orchestrator::new_shutdown_flag();
+        let stop_flag = std::sync::Arc::clone(&shutdown);
+        tauri::async_runtime::spawn(async move {
+            runtime.run_background(stop_flag).await;
+        });
+        // The loop runs for the whole app lifetime; the flag must outlive this scope.
+        std::mem::forget(shutdown);
+    }
     let options = ServerOptions {
         static_dir: Some(static_dir.clone()),
         spa_fallback: true,
@@ -83,15 +115,16 @@ pub fn start(app: &tauri::App) -> Result<BackendHandle, String> {
             backend.paths.home_dir().to_string_lossy().to_string(),
         )],
         remote: Some(Arc::clone(&backend.client.remotes)),
+        ncag: ncag_runtime,
     };
-    let listener = tauri::async_runtime::block_on(TcpListener::bind(("127.0.0.1", 0)))
-        .map_err(|error| format!("bind loopback listener failed: {error}"))?;
+    let listener = bind_listener()?;
     let address = listener
         .local_addr()
         .map_err(|error| format!("read listener address failed: {error}"))?;
     tauri::async_runtime::spawn(async move {
         if let Err(error) = nc_code_server::serve(listener, registry, options).await {
-            eprintln!("[nc-code-shell] backend server stopped: {error}");
+            ServiceLogger::new("nc-code-shell")
+                .error(None, format!("backend server stopped: {error}"));
         }
     });
     let origin = format!("http://{address}/");
@@ -101,12 +134,40 @@ pub fn start(app: &tauri::App) -> Result<BackendHandle, String> {
             .navigate(url)
             .map_err(|error| format!("navigate to backend failed: {error}"))?;
     }
-    eprintln!("[nc-code-shell] backend listening at {origin} (channels={channels})");
+    ServiceLogger::new("nc-code-shell").info(
+        None,
+        format!("backend listening at {origin} (channels={channels})"),
+    );
     Ok(BackendHandle {
         origin,
         channels,
         static_dir,
     })
+}
+
+/// Default loopback port. A stable origin is required for WebView2 localStorage
+/// (theme, provider-setup dismissal, UI preferences) to survive an app restart; the
+/// previous ephemeral `:0` gave every launch a new origin and silently wiped it.
+const DEFAULT_SHELL_PORT: u16 = 43117;
+
+fn bind_listener() -> Result<TcpListener, String> {
+    let preferred = std::env::var("ZCODE_SHELL_PORT")
+        .ok()
+        .and_then(|value| value.trim().parse::<u16>().ok())
+        .unwrap_or(DEFAULT_SHELL_PORT);
+    match tauri::async_runtime::block_on(TcpListener::bind(("127.0.0.1", preferred))) {
+        Ok(listener) => Ok(listener),
+        Err(error) => {
+            // Another NC-Code instance may own the default port. Falling back keeps the
+            // app usable, at the cost of a fresh storage origin for this run.
+            ServiceLogger::new("nc-code-shell").warn(
+                None,
+                format!("bind {preferred} failed ({error}); falling back to an ephemeral port"),
+            );
+            tauri::async_runtime::block_on(TcpListener::bind(("127.0.0.1", 0)))
+                .map_err(|fallback| format!("bind loopback listener failed: {fallback}"))
+        }
+    }
 }
 
 fn resolve_static_dir(app: &AppHandle) -> PathBuf {

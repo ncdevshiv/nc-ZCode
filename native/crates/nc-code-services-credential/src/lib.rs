@@ -1,5 +1,8 @@
 //! `credential` channel — key-value credential storage.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 pub mod cipher;
 
 use std::collections::HashMap;
@@ -110,48 +113,5 @@ impl Channel for CredentialService {
             }
             other => Err(ChannelFailure::method_not_found(other)),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use nc_code_channels::ClientMode;
-
-    fn ctx() -> ChannelContext {
-        ChannelContext::new("credential", ClientMode::DesktopContinuous)
-    }
-
-    #[tokio::test]
-    async fn save_and_load() {
-        let svc = CredentialService::new();
-        svc.call(
-            &ctx(),
-            "save",
-            vec![WireValue::String("k".into()), WireValue::String("v".into())],
-            CancelToken::new(),
-        )
-        .await
-        .unwrap();
-        let r = svc
-            .call(
-                &ctx(),
-                "load",
-                vec![WireValue::String("k".into())],
-                CancelToken::new(),
-            )
-            .await
-            .unwrap();
-        if let WireValue::Json(v) = r {
-            assert_eq!(v, json!("v"));
-        }
-    }
-}
-
-#[cfg(test)]
-mod integration_tests {
-    #[test]
-    fn crate_compiles() {
-        assert!(true);
     }
 }

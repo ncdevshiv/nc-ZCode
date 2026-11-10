@@ -8,6 +8,7 @@ publish.workspace = true
 description = "Channel RPC server runtime: registry, request/event dispatch, cancellation, event fan-out (port of packages/rpc ChannelServer)"
 
 [dependencies]
+serde.workspace = true
 async-trait = "0.1"
 serde_json.workspace = true
 tokio.workspace = true

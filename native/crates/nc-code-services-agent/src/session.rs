@@ -6,10 +6,11 @@
 //! (the AGENTS.md single-owner rule), with no second copy here.
 //!
 //! Unwired members of this channel (see `specs/rust-backend-replacement.md` §4.4.1):
-//! `readWorkspacePresentation` (needs the built-in slash-command set of `listProtocolSlashCommands`),
 //! `readSessionEvents` (host has no event-log subsystem), `promoteDeferredDraftSession` /
 //! `closeDeferredDraftSession` (the deferred draft registry is TS in-process state).
 //! They fall through to the default `Method not found` (fail-fast), instead of forging an empty result.
+//! `readWorkspacePresentation` is wired: the slash-command directory is injected by the
+//! composition root (`commands` channel) — one discovery path, no second scanner.
 
 use std::sync::Arc;
 
@@ -99,6 +100,12 @@ impl Channel for SessionService {
                     "processId": std::process::id(),
                     "workspaceKey": key,
                 })))
+            }
+            "readWorkspacePresentation" => {
+                let params = args.required_json(0, "params")?;
+                Ok(WireValue::Json(
+                    self.agent.read_workspace_presentation(&params).await?,
+                ))
             }
             "createSession" => {
                 let params = args.required_json(0, "params")?;
@@ -457,7 +464,6 @@ mod tests {
         let (service, root) = configured_service("fail-closed").await;
         let target = workspace(&root).await;
         for method in [
-            "readWorkspacePresentation",
             "readSessionEvents",
             "promoteDeferredDraftSession",
             "closeDeferredDraftSession",
@@ -478,5 +484,127 @@ mod tests {
                 "{method}: {error:?}",
             );
         }
+    }
+
+    /// `readWorkspacePresentation` — the protocol directory is the builtin set plus the custom
+    /// commands minus reserved names and `disable-noninteractive` entries; a workspace ref
+    /// without `workspaceKey` derives it from the path (AGENTS.md identity ?? path rule).
+    #[tokio::test]
+    async fn read_workspace_presentation_returns_the_protocol_directory() {
+        let (service, root) = configured_service("presentation").await;
+        let workspace_path = root.join("workspace");
+        std::fs::create_dir_all(workspace_path.join(".zcode").join("commands")).expect("dir");
+        // Reserved name: never reaches the protocol directory.
+        std::fs::write(
+            workspace_path
+                .join(".zcode")
+                .join("commands")
+                .join("goal.md"),
+            "---\ndescription: shadow goal\n---\n\nbody\n",
+        )
+        .expect("reserved command");
+        std::fs::write(
+            workspace_path
+                .join(".zcode")
+                .join("commands")
+                .join("standup.md"),
+            "---\ndescription: daily standup\nargument-hint: <topic>\n---\n\nbody\n",
+        )
+        .expect("custom command");
+        std::fs::write(
+            workspace_path
+                .join(".zcode")
+                .join("commands")
+                .join("headless.md"),
+            "---\ndescription: headless only\ndisable-noninteractive: true\n---\n\nbody\n",
+        )
+        .expect("non-interactive command");
+
+        struct Directory(std::path::PathBuf);
+        #[async_trait::async_trait]
+        impl crate::service::SlashCommandDirectory for Directory {
+            async fn protocol_slash_commands(
+                &self,
+                workspace_path: &str,
+            ) -> Result<Value, ServiceError> {
+                // Same implementation the composition root injects (the commands channel).
+                let service = nc_code_services_extensions::commands::CommandsService::new(
+                    nc_code_service_core::AppPaths::new(self.0.clone(), self.0.clone()),
+                );
+                service.protocol_slash_commands(workspace_path).await
+            }
+        }
+        service
+            .agent
+            .attach_slash_command_directory(Arc::new(Directory(root.clone())));
+
+        let result = service
+            .call(
+                &context(),
+                "readWorkspacePresentation",
+                vec![WireValue::Json(json!({
+                    "workspace": {
+                        "workspacePath": workspace_path.to_string_lossy(),
+                        "workspaceIdentity": workspace_path.to_string_lossy(),
+                    },
+                }))],
+                CancelToken::new(),
+            )
+            .await
+            .expect("presentation must be wired");
+        let value = match result {
+            WireValue::Json(value) => value,
+            other => panic!("expected JSON, got {other:?}"),
+        };
+        assert_eq!(value["mode"], json!("build"));
+        let directory = value["slashCommands"].as_array().expect("directory");
+        let names: Vec<&str> = directory
+            .iter()
+            .filter_map(|entry| entry["name"].as_str())
+            .collect();
+        for builtin in ["goal", "compact", "init", "plan"] {
+            assert!(names.contains(&builtin), "{} missing: {:?}", builtin, names);
+        }
+        assert!(
+            !names.contains(&"headless"),
+            "disable-noninteractive must be filtered: {names:?}"
+        );
+        let goal_entries: Vec<&Value> = directory
+            .iter()
+            .filter(|entry| entry["name"] == json!("goal"))
+            .collect();
+        assert_eq!(
+            goal_entries.len(),
+            1,
+            "reserved custom name must not duplicate: {names:?}"
+        );
+        assert_eq!(goal_entries[0]["source"], json!("builtin"));
+        let standup = directory
+            .iter()
+            .find(|entry| entry["name"] == json!("standup"))
+            .expect("custom command in directory");
+        assert_eq!(standup["source"], json!("custom"));
+        assert_eq!(standup["inputHint"], json!("/standup <topic>"));
+        // A ref without workspaceKey resolves it through the identity ?? path rule.
+        let derived = service
+            .call(
+                &context(),
+                "readWorkspacePresentation",
+                vec![WireValue::Json(json!({
+                    "workspace": {"workspacePath": workspace_path.to_string_lossy()},
+                }))],
+                CancelToken::new(),
+            )
+            .await
+            .expect("presentation without key");
+        let derived = match derived {
+            WireValue::Json(value) => value,
+            other => panic!("expected JSON, got {other:?}"),
+        };
+        assert_eq!(
+            derived["workspace"]["workspaceKey"],
+            json!(workspace_path.to_string_lossy())
+        );
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

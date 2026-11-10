@@ -6,6 +6,9 @@
 //! requires the TS `pluginSyncArchive` binary format is explicitly unsupported
 //! (honest failure) rather than returning fabricated data.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -96,14 +99,6 @@ impl PluginSyncService {
             }
         }
         (dirs, enabled)
-    }
-
-    fn normalize_plugin_id(id: &str) -> Result<String, ServiceError> {
-        let n = id.trim();
-        if n.is_empty() || n.contains('/') || n.contains('\\') {
-            return Err(ServiceError::new(format!("invalid plugin id: {id}")));
-        }
-        Ok(n.to_string())
     }
 
     fn candidate_id(plugin_id: &str, plugin_root: &str) -> String {

@@ -17,14 +17,6 @@ pub mod lease;
 pub mod permission;
 pub mod protocol;
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn crate_compiles() {
-        assert!(true);
-    }
-}
-
 pub use identity::{identity_key, js_trim};
 pub use inbox::{
     queue_item_id_for_command, Admitted, CancelOutcome, CommandInbox, Outcome, QueryItem,
@@ -46,3 +38,17 @@ pub use protocol::{
     REASON_ADMISSION_CANCELLED, REASON_INVALID_PAYLOAD, REASON_MISSING_BASE_REVISION,
     REASON_SESSION_NOT_FOUND, REASON_STALE_LOG_EPOCH, REASON_STALE_REVISION,
 };
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The crate's public contract: queue ids derive from the command id and the
+    /// identity key is the trimmed identity ?? path.
+    #[test]
+    fn public_helpers_keep_their_contract() {
+        assert_eq!(queue_item_id_for_command("cmd-1"), "queue_cmd-1");
+        assert_eq!(identity_key(Some(" id "), "/w"), "id");
+        assert_eq!(js_trim("  x  "), "x");
+    }
+}

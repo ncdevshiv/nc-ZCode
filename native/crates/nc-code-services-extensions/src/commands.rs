@@ -40,6 +40,45 @@ const ZCODE_COMMAND_AGENT_SOURCE: &str = "zcodeAgent";
 const ENABLE_OVERRIDE_KEY: &str = "enable";
 const COMMAND_FILE_EXTENSION: &str = ".md";
 
+// `BUILTIN_ZCODE_SLASH_COMMAND_HELP_ENTRIES` names + aliases +
+// `EXTRA_RESERVED_SLASH_COMMAND_NAMES` (`packages/shared/src/zcode-slash-command-help.ts`
+// and `apps/zcode-cli/packages/bootstrap/src/slash-command-surface.ts`). A custom command
+// with a reserved name never reaches the protocol directory.
+const RESERVED_SLASH_COMMAND_NAMES: &[&str] = &[
+    "help", "login", "logout", "compact", "init", "expert", "variant", "effort", "dwf", "fork",
+    "locale", "language", "mcp", "plugins", "plugin", "mode", "model", "new", "clear", "resume",
+    "continue", "rewind", "skill", "goal", "target", "compress", "plan",
+];
+
+/// `APP_PROTOCOL_VISIBLE_BUILTIN_SLASH_COMMAND_NAMES` (`goal`/`compact`/`init`) plus
+/// `APP_PROTOCOL_APP_ONLY_BUILTIN_SLASH_COMMANDS` (`plan`). Summary/usage strings mirror
+/// `BUILTIN_ZCODE_SLASH_COMMAND_HELP_ENTRIES`, the single help table.
+fn builtin_protocol_slash_commands() -> Vec<Value> {
+    let entry = |name: &str, description: &str, input_hint: &str| json!({"description": description, "inputHint": input_hint, "name": name, "source": "builtin"});
+    vec![
+        entry(
+            "goal",
+            "Show or set the current session goal.",
+            "/goal [pause|resume|clear|replace <objective>|<objective>]",
+        ),
+        entry(
+            "compact",
+            "Compact the current conversation with optional instructions.",
+            "/compact [instructions]",
+        ),
+        entry(
+            "init",
+            "Create or update workspace AGENTS.md instructions.",
+            "/init [notes]",
+        ),
+        entry(
+            "plan",
+            "Switch to Plan mode and optionally send a task.",
+            "/plan [task]",
+        ),
+    ]
+}
+
 /// `CommandAgentSourceDescriptor`. Only `zcodeAgent` exists in the contract today; the fields
 /// that the TypeScript descriptor varies per source (extension, namespace separator, argument
 /// hint support) are kept explicit so the port does not silently assume them.
@@ -105,6 +144,80 @@ impl CommandsService {
             root = root.join(segment);
         }
         root
+    }
+
+    /// Protocol slash-command directory (`listProtocolSlashCommands`): the protocol-visible
+    /// builtins (`goal`/`compact`/`init`), the composer-only `plan` entry, then the user and
+    /// plugin custom commands filtered by reserved-name and `disable-noninteractive`, mapped to
+    /// `{name, description, inputHint, source}` with `workflow` pinned right after `goal`.
+    pub async fn protocol_slash_commands(
+        &self,
+        workspace_path: &str,
+    ) -> Result<Value, ServiceError> {
+        let listed = self
+            .list(&ListParams {
+                agent_source: None,
+                workspace_path: Some(workspace_path.to_string()),
+            })
+            .await?;
+        let mut custom: Vec<Value> = listed
+            .get("commands")
+            .and_then(Value::as_array)
+            .map(|commands| {
+                commands
+                    .iter()
+                    .filter(|command| {
+                        !command.get("disableNonInteractive").and_then(Value::as_bool).unwrap_or(false)
+                    })
+                    .filter_map(|command| {
+                        let raw_name = command.get("name")?.as_str()?.trim_start_matches('/');
+                        let name = raw_name.to_string();
+                        if RESERVED_SLASH_COMMAND_NAMES.contains(&name.as_str()) {
+                            return None;
+                        }
+                        let argument_hint = command.get("argumentHint").and_then(Value::as_str).unwrap_or("");
+                        let input_hint = if argument_hint.is_empty() {
+                            format!("/{name}")
+                        } else {
+                            format!("/{name} {argument_hint}")
+                        };
+                        Some(json!({
+                            "description": command.get("description").and_then(Value::as_str).unwrap_or(""),
+                            "inputHint": input_hint,
+                            "name": name,
+                            "source": "custom",
+                        }))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        custom.sort_by(|a, b| {
+            a.get("name")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .cmp(b.get("name").and_then(Value::as_str).unwrap_or(""))
+        });
+        let mut directory = builtin_protocol_slash_commands();
+        directory.extend(custom.iter().cloned());
+        // `pinWorkflowAfterGoal`: the zcode-guide plugin's `workflow` command sits after `goal`.
+        if let Some(index) = directory
+            .iter()
+            .position(|entry| entry["name"] == json!("workflow"))
+        {
+            if let Some(goal_index) = directory
+                .iter()
+                .position(|entry| entry["name"] == json!("goal"))
+            {
+                let workflow = directory.remove(index);
+                let insert_at = if index < goal_index {
+                    goal_index
+                } else {
+                    goal_index + 1
+                };
+                directory.insert(insert_at, workflow);
+            }
+        }
+        Ok(Value::Array(directory))
     }
 
     async fn list(&self, params: &ListParams) -> Result<Value, ServiceError> {

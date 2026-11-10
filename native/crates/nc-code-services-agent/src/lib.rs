@@ -1,8 +1,12 @@
 //! `nc-code-agent` service channel: in-process nc-code-host runtime per workspace.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 pub mod automation_channel;
 pub mod automation_dispatch;
 pub mod automation_tool_port;
+pub mod claude_import;
 pub mod runtime;
 pub mod saved_workflows;
 pub mod service;
@@ -63,13 +67,5 @@ impl AgentServices {
         registry.register("zcode-session", self.sessions.clone())?;
         registry.register("zcode-task", self.tasks.clone())?;
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn crate_compiles() {
-        assert!(true);
     }
 }

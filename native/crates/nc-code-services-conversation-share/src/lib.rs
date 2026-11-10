@@ -3,6 +3,9 @@
 //! ZCode cloud share services were removed; this channel preserves the RPC contract
 //! with honest disabled/unavailable behavior (no fake data, no network calls).
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 use std::sync::Arc;
 
 use async_trait::async_trait;

@@ -19,6 +19,7 @@ import type {
   SettingsDirectorySource,
 } from "@zcode/shared";
 import type { IMcpSyncService } from "./mcpSync.js";
+import { createServiceLogger } from "#src/logger/serviceLogger.js";
 import { checkRemoteSyncDirectoryWriteAccess } from "../remote-sync/remoteSyncWriteAccess.js";
 
 type McpConfigKeyName = "mcp.servers" | "mcpServers";
@@ -63,6 +64,7 @@ const ENABLED_KEY = "enabled";
 // 一直是 enabled，导致同一条 server 出现两套口径、停用后仍被 agent 拉起。
 // 现在读写逻辑一律只认 enabled，这里只保留一次性迁移；存量配置清空后整块删除。
 const LEGACY_ENABLE_KEY = "enable";
+const logger = createServiceLogger("mcp-sync");
 const SECRET_CONFIG_FILE_MODE = 0o600;
 const DIRECTORY_MCP_DESCRIPTORS: readonly DirectoryMcpDescriptor[] = [
   ZCODE_MCP_DESCRIPTOR,
@@ -512,7 +514,7 @@ async function readServerMapWithLegacyMigration(
     const next = writeServerMapToJson(parsed, configKeyName, migration.servers);
     await writeTextAtomic(filePath, `${JSON.stringify(next, null, 2)}\n`);
   } catch (error) {
-    console.warn("[mcp-sync] legacy enable migration failed:", filePath, formatErrorMessage(error));
+    logger.warn(undefined, "legacy enable migration failed:", filePath, formatErrorMessage(error));
   }
   return migration.servers;
 }

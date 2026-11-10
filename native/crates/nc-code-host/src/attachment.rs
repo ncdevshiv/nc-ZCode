@@ -26,7 +26,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use nc_code_v4_wire::decode_wire_base64;
 use serde_json::{json, Value};
@@ -155,6 +155,38 @@ impl AttachmentStore {
                 "attachment bytes are not present in this session's store",
             )),
             Err(error) => Err(fault("readFailed", format!("read attachment: {error}"))),
+        }
+    }
+
+    /// Read one attachment for the model context: a committed content-addressed ref
+    /// (`zcode-artifact://<sha256>`) resolves inside this session's store, while a plain
+    /// absolute path resolves as a local file. The UI sends every desktop attachment as
+    /// `ref = localPath` (zero upload, `uploadComposerAttachment`), so refusing those here
+    /// would strand each image/file the user attaches on the desktop.
+    ///
+    /// Only an absolute, readable path is honoured; a relative ref is still a malformed
+    /// reference (it cannot be attributed to a session store key).
+    pub fn read_for_model(&self, session_id: &str, ref_value: &str) -> Result<Vec<u8>, RpcError> {
+        if ref_hex(ref_value).is_some() {
+            return self.read(session_id, ref_value);
+        }
+        let path = Path::new(ref_value);
+        if !path.is_absolute() || path.as_os_str().is_empty() {
+            return Err(fault(
+                "refMalformed",
+                "attachment is neither a committed ref nor an absolute local path",
+            ));
+        }
+        match fs::read(path) {
+            Ok(bytes) => Ok(bytes),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Err(fault(
+                "statNotFound",
+                "local attachment path is not readable",
+            )),
+            Err(error) => Err(fault(
+                "readFailed",
+                format!("read local attachment: {error}"),
+            )),
         }
     }
 
@@ -291,7 +323,7 @@ pub fn model_parts_for_attachments(
             .get("mime")
             .and_then(Value::as_str)
             .unwrap_or("application/octet-stream");
-        let bytes = match store.read(session_id, ref_value) {
+        let bytes = match store.read_for_model(session_id, ref_value) {
             Ok(bytes) => bytes,
             Err(_) => {
                 parts.push(placeholder_part(mime, "attachment_read_failed"));
@@ -1427,5 +1459,42 @@ mod model_parts_tests {
             text_of(&parts[0]),
             "[Attached image/png: attachment_read_failed]"
         );
+    }
+
+    /// The UI sends desktop attachments as `ref = <absolute local path>` (zero upload).
+    /// The model resolver must read that file, and must still reject a relative or missing
+    /// path instead of inventing content.
+    #[test]
+    fn local_path_refs_are_read_for_the_model_and_bad_paths_fail_closed() {
+        let store = store();
+        let file = std::env::temp_dir().join(format!(
+            "zcode-local-ref-{}-{}.txt",
+            std::process::id(),
+            now_ms()
+        ));
+        fs::write(&file, b"LOCAL-PATH-CONTENT").expect("write local file");
+        let path_ref = file.to_string_lossy().to_string();
+        let parts = model_parts_for_attachments(
+            &store,
+            "s-1",
+            &[attachment(&path_ref, "pasted.txt", "text/plain", 17)],
+        );
+        let text = text_of(&parts[0]);
+        assert!(
+            text.contains("LOCAL-PATH-CONTENT"),
+            "a local-path text attachment is inlined from the real file: {text}"
+        );
+        assert!(
+            store.read_for_model("s-1", "relative/path.txt").is_err(),
+            "a relative ref is not a store key and must fail closed"
+        );
+        let missing = std::env::temp_dir().join("zcode-does-not-exist-attachment.bin");
+        assert!(
+            store
+                .read_for_model("s-1", &missing.to_string_lossy())
+                .is_err(),
+            "a missing absolute path must fail closed"
+        );
+        let _ = fs::remove_file(&file);
     }
 }

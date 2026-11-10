@@ -165,11 +165,3 @@ fn fault_reason(fault: BranchFault) -> &'static str {
         BranchFault::EmptyInput => "正文与附件都为空",
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn basic_test() {
-        assert!(true);
-    }
-}

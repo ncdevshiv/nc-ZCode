@@ -20,6 +20,7 @@ import { Alert, AlertDescription } from "./components/ui/alert.js";
 import { Button } from "./components/ui/button.js";
 import { ZCodeAboutLogo } from "@/components/ui/ZCodeAboutLogo.js";
 import { useOAuth } from "./hooks/useOAuth.js";
+import { ZCODE_ACCOUNT_SERVICES_AVAILABLE } from "@/lib/productCapabilities.js";
 import { useZCodeIntl } from "./i18n/IntlProvider.js";
 import { LoginApiKeyForm } from "./login/LoginApiKeyForm.js";
 import { renderOAuthProviderIcon } from "./lib/oauthProviderIcon.js";
@@ -147,7 +148,7 @@ function LoginPanel({ active, onComplete }: LoginPanelProps) {
   const visibleProviders = useMemo(() => resolveVisibleLoginProviders(providers), [providers]);
 
   useEffect(() => {
-    if (active) {
+    if (active && ZCODE_ACCOUNT_SERVICES_AVAILABLE) {
       void refreshProviders();
     }
   }, [active, refreshProviders]);
@@ -245,7 +246,7 @@ function LoginPanel({ active, onComplete }: LoginPanelProps) {
   ]);
 
   const resetApiKeyForm = useCallback(() => {
-    setLoginMode("providers");
+    setLoginMode(ZCODE_ACCOUNT_SERVICES_AVAILABLE ? "providers" : "apiKey");
   }, []);
 
   useEffect(() => {
@@ -357,7 +358,13 @@ function LoginPanel({ active, onComplete }: LoginPanelProps) {
 
         {status === "idle" && loginMode === "apiKey" ? (
           <LoginApiKeyForm
-            onCancel={() => setLoginMode("providers")}
+            onCancel={() => {
+              if (!ZCODE_ACCOUNT_SERVICES_AVAILABLE) {
+                void onComplete("skip");
+                return;
+              }
+              setLoginMode("providers");
+            }}
             onSaved={() => {
               resetApiKeyForm();
               return onComplete("apiKey");
@@ -478,7 +485,7 @@ function LoginPanelLogo() {
     // 登录 logo 壳是固定深色底，边框不能跟随浅色主题 token，否则浅色主题下边框过重。
     <div
       className="relative mb-1 flex size-16 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#000000_0%,#151718_100%)] text-[#ffffff] shadow-lg/20 before:pointer-events-none before:absolute before:inset-0 before:rounded-2xl before:border before:border-[rgba(255,255,255,0.1)]"
-      aria-label="ZCode"
+      aria-label="NC-Code"
       role="img"
     >
       <ZCodeAboutLogo className="h-auto w-10" />

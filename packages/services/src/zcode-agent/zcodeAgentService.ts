@@ -20,7 +20,6 @@ import { completeNewModelSelection } from "@zcode/provider";
 import type { OffPeakClientConfig } from "#src/coding-plan-subscription/codingPlanSubscription.js";
 import {
   ZCODE_SESSION_RUNTIME_PREFERENCES_REQUEST_TIMEOUT_MS,
-  formatLogPrefix,
   resolveWorkspaceKey,
   type TraceId,
   ZCODE_AGENT_PROVIDER,
@@ -4843,8 +4842,8 @@ export function createZCodeAgentService(
             }
             if (attempt >= SESSION_SUBSCRIBE_MAX_ATTEMPTS - 1) {
               // 彻底失败时打 warn 让问题可观测，而不是无声失效。
-              console.warn(
-                formatLogPrefix("zcode-agent", process.pid),
+              logger.warn(
+                undefined,
                 "session 订阅建立失败，已达最大重试次数，放弃",
                 {
                   sessionId: params.sessionId,

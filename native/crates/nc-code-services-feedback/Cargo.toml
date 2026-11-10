@@ -8,8 +8,8 @@ publish.workspace = true
 description = "feedback service channel"
 
 [dependencies]
+serde.workspace = true
 async-trait = "0.1"
-serde = { workspace = true }
 serde_json.workspace = true
 tokio.workspace = true
 nc-code-channels = { path = "../nc-code-channels" }

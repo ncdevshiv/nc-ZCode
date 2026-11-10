@@ -106,14 +106,19 @@ export function CodingPlanUpgradeDialogProvider({ children }: { children: ReactN
   );
 }
 
+/**
+ * Coding-plan purchase UI is not mounted in the Rust product surface. Callers still use
+ * this hook from shared components, so return a no-op context instead of throwing; the
+ * remaining entry points are gated by `ZCODE_ACCOUNT_SERVICES_AVAILABLE`.
+ */
+const UNAVAILABLE_CODING_PLAN_CONTEXT: CodingPlanUpgradeDialogContextValue = {
+  inventory: { entryPlanList: "", status: "ready", retry: () => {} },
+  openCodingPlanUpgrade: () => false,
+};
+
 export function useCodingPlanUpgradeDialog() {
   const context = useContext(CodingPlanUpgradeDialogContext);
-  if (!context) {
-    throw new Error(
-      "useCodingPlanUpgradeDialog must be used within CodingPlanUpgradeDialogProvider",
-    );
-  }
-  return context;
+  return context ?? UNAVAILABLE_CODING_PLAN_CONTEXT;
 }
 
 /**

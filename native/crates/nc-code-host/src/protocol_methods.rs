@@ -739,3 +739,123 @@ fn decode_subagent_cursor(cursor: &str) -> Result<(u64, String), RpcError> {
     }
     Ok((ended_at, child_id.to_string()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn decode_subagent_cursor_round_trips() {
+        assert_eq!(
+            decode_subagent_cursor("1700000000000:child-1").expect("cursor"),
+            (1_700_000_000_000, "child-1".to_string())
+        );
+    }
+
+    #[test]
+    fn decode_subagent_cursor_rejects_malformed_values() {
+        for bad in ["", "no-colon", "notanumber:child", "123:", "123"] {
+            let error = decode_subagent_cursor(bad).expect_err(bad);
+            assert_eq!(error.code, CODE_INVALID_PARAMS, "{bad}");
+        }
+    }
+
+    #[test]
+    fn generate_messages_requires_a_prompt_or_messages() {
+        let error = generate_messages(&json!({})).expect_err("empty params");
+        assert_eq!(error.code, CODE_INVALID_PARAMS);
+        let messages = generate_messages(&json!({"prompt": "hello"})).expect("prompt");
+        assert_eq!(messages.len(), 1);
+    }
+
+    #[test]
+    fn generate_messages_rejects_unknown_roles() {
+        let error = generate_messages(&json!({
+            "messages": [{"role": "narrator", "content": "x"}]
+        }))
+        .expect_err("unknown role");
+        assert_eq!(error.code, CODE_INVALID_PARAMS);
+    }
+
+    #[test]
+    fn generate_messages_maps_roles_and_tool_calls() {
+        let messages = generate_messages(&json!({
+            "messages": [
+                {"role": "system", "content": "sys"},
+                {"role": "user", "content": "hi"},
+                {"role": "assistant", "content": "", "toolCalls": [{"id": "t1", "name": "Read", "input": {"file_path": "a"}}]},
+                {"role": "tool", "content": "ok", "toolCallId": "t1"}
+            ]
+        }))
+        .expect("messages");
+        assert_eq!(messages.len(), 4);
+        assert_eq!(messages[2].tool_calls.len(), 1);
+        assert_eq!(messages[3].tool_call_id.as_deref(), Some("t1"));
+    }
+
+    #[test]
+    fn generate_tools_validates_names_and_schemas() {
+        let error = generate_tools(&json!({"tools": [{"description": "no name"}]}))
+            .expect_err("missing name");
+        assert_eq!(error.code, CODE_INVALID_PARAMS);
+        let error = generate_tools(&json!({"tools": [{"name": "X", "inputSchema": "nope"}]}))
+            .expect_err("non-object schema");
+        assert_eq!(error.code, CODE_INVALID_PARAMS);
+        let tools = generate_tools(&json!({
+            "tools": [{"name": "Read", "description": "read", "inputSchema": {"type": "object"}}]
+        }))
+        .expect("tool");
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0].name, "Read");
+    }
+
+    #[test]
+    fn goal_summary_gives_a_hint_without_a_goal() {
+        assert!(goal_summary(None).contains("/goal"));
+        let goal = GoalRecord::new("t1", "ship the port");
+        let summary = goal_summary(Some(&goal));
+        assert!(summary.contains("ship the port"), "{summary}");
+        assert!(summary.contains("Goal active"), "{summary}");
+    }
+
+    #[test]
+    fn format_goal_changed_omits_zero_time() {
+        assert_eq!(
+            format_goal_changed("Goal active", "obj", 0),
+            "Goal active\nObjective: obj"
+        );
+        assert!(format_goal_changed("Goal active", "obj", 12).contains("Time: 12 seconds"));
+    }
+
+    #[test]
+    fn plan_note_is_only_appended_in_plan_mode() {
+        assert_eq!(append_plan_note_if(false, "x".to_string()), "x");
+        assert!(append_plan_note_if(true, "x".to_string()).contains("Plan mode"));
+    }
+
+    #[test]
+    fn subagent_ended_json_reports_unknown_status_as_lost() {
+        let run = crate::subagent::SubagentRun {
+            child_session_id: "c1".into(),
+            agent_id: "a1".into(),
+            tool_call_id: Some("tc1".into()),
+            subagent_type: "general-purpose".into(),
+            title: "title".into(),
+            summary: Some("summary".into()),
+            started_at: 10,
+            ended_at: Some(20),
+            status: "weird".into(),
+        };
+        let value = subagent_ended_json(&run);
+        assert_eq!(value["status"], "lost");
+        assert_eq!(value["endedAt"], 20);
+        assert_eq!(value["summary"], "summary");
+        assert_eq!(value["toolCallId"], "tc1");
+    }
+
+    #[test]
+    fn protocol_revision_codes_match_ts_error_numbers() {
+        assert_eq!(PROTOCOL_REVISION_MISMATCH, -32009);
+        assert_eq!(PROTOCOL_ACTIVE_TURN, -32010);
+    }
+}

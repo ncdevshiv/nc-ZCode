@@ -4,9 +4,9 @@
 //! Complements `tool_matrix_e2e.rs` (full host turn) by covering tools that are
 //! easy to validate deterministically at the tool boundary, including error cases.
 
-use nc_code_host::tools::{self, Authorization, Tool, ToolContext, ToolErrorCode, ToolRegistry};
+use nc_code_host::tools::{self, Authorization, ToolContext, ToolErrorCode, ToolRegistry};
 use serde_json::json;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
@@ -18,9 +18,9 @@ fn temp(name: &str) -> PathBuf {
     dir
 }
 
-fn ctx(root: &PathBuf, full_access: bool, interactive: bool) -> ToolContext {
+fn ctx(root: &Path, full_access: bool, interactive: bool) -> ToolContext {
     ToolContext {
-        workspace_root: root.clone(),
+        workspace_root: root.to_path_buf(),
         full_access,
         interactive,
         trace_id: "t".into(),

@@ -237,9 +237,17 @@ fn update_rejects_invalid_carrier_pairing() {
             &scope(),
         )
         .unwrap_err();
-    assert!(err
-        .to_string()
-        .contains("Submit at the same time or omit at the same time"));
+    // The carrier-pairing refusal must name both halves and the pairing rule; the
+    // prefix is the InvalidCarrier wrapper ("Illegal custom repeated input parameter").
+    let message = err.to_string();
+    assert!(
+        message.contains("intervalUnit") && message.contains("interval"),
+        "{message}"
+    );
+    assert!(
+        message.contains("the same time or omitted at the same time"),
+        "{message}"
+    );
 }
 
 #[test]

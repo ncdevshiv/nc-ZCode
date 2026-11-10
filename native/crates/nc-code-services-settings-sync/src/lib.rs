@@ -1,4 +1,4 @@
-//! `settings-sync` channel — contract-aligned, honest implementation.
+﻿//! `settings-sync` channel â€” contract-aligned, honest implementation.
 //!
 //! Full TS parity (`packages/services/src/settings-sync/*`) covers skills/commands/plugins/MCP
 //! discovery and import across many agents (large surface, many TS modules). This Rust
@@ -7,11 +7,18 @@
 //!   matching TS paths) with contract-correct shapes.
 //! - **Real** first-run prompt handled flag persisted locally (`~/.zcode/settings-sync-state.json`,
 //!   best-effort).
-//! - **Real (bounded)** skills discovery: scans known agent skill roots in home/workspace for
-//!   `SKILL.md` and returns contract-shaped `SettingsSyncDiscoveryResult`. Other categories and
-//!   full multi-agent/source parity remain partial.
-//! - **Honest** import: full import engines are not ported; `importSelected` returns per-selection
-//!   `skipped` results (never fabricates imported files).
+//! - **Real** discovery for skills/commands/plugins/mcpServers across the same agent roots the
+//!   TS scanner uses (`detect`), returning the same `SettingsSyncDiscoveryResult` shapes.
+//! - **Real** import engines (`importSelected`): skills/commands/plugins are copied into the
+//!   zcode target roots (`~/.zcode/{skills,commands,plugins}` or `<workspace>/.zcode/...`), MCP
+//!   servers are merged into `mcp.servers` of the target config, plugin directories are
+//!   registered in `plugins.dirs`, and an existing target is reported `skipped`/`targetExists`
+//!   instead of being overwritten.
+//! - **Recorded difference:** TS defaults `importMode` to `symlink`; this implementation copies
+//!   (a link that survives without elevation on all platforms). The wire shape is unchanged.
+
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -427,6 +434,26 @@ fn join_segments(base: &Path, segs: &[&str]) -> PathBuf {
     p
 }
 
+/// Scope of a source root as the wire uses it (`global` / `project`).
+fn normalized_scope(scope: &str) -> &'static str {
+    match scope {
+        "global" => "global",
+        _ => "project",
+    }
+}
+
+/// The skill directory for a discovered `SKILL.md` path: the parent directory, or the
+/// file itself when it is a one-file skill (`scan_skills_in_root` also reports a bare
+/// `SKILL.md`; a one-file skill imports as its containing directory).
+fn skill_directory(skill_md: &Path) -> PathBuf {
+    match skill_md.parent() {
+        Some(parent) if skill_md.file_name().and_then(|n| n.to_str()) == Some(SKILL_FILE_NAME) => {
+            parent.to_path_buf()
+        }
+        _ => skill_md.to_path_buf(),
+    }
+}
+
 fn scan_skills_in_root(
     root: &Path,
     depth: usize,
@@ -622,26 +649,6 @@ impl SettingsSyncService {
                     .collect()
             })
             .unwrap_or_default()
-    }
-
-    fn should_scan_skills(request: &Value) -> bool {
-        let cats = Self::requested_categories(request);
-        cats.is_empty() || cats.iter().any(|c| c == "skills")
-    }
-
-    fn should_scan_commands(request: &Value) -> bool {
-        let cats = Self::requested_categories(request);
-        !cats.is_empty() && cats.iter().any(|c| c == "commands")
-    }
-
-    fn should_scan_plugins(request: &Value) -> bool {
-        let cats = Self::requested_categories(request);
-        !cats.is_empty() && cats.iter().any(|c| c == "plugins")
-    }
-
-    fn should_scan_mcp(request: &Value) -> bool {
-        let cats = Self::requested_categories(request);
-        !cats.is_empty() && cats.iter().any(|c| c == "mcpServers")
     }
 
     fn detect_skills(&self, workspace_path: Option<&Path>) -> Value {
@@ -960,7 +967,194 @@ impl SettingsSyncService {
         json!({ "agents": [] })
     }
 
-    fn import_selected_result(&self, request: &Value) -> Value {
+    // â”€â”€ Import targets (TS `getUserZcode*Root` / `getWorkspaceZcode*Root`) â”€â”€
+
+    fn user_skill_root(&self) -> PathBuf {
+        self.home_dir.join(".zcode").join("skills")
+    }
+
+    fn workspace_skill_root(ws: &Path) -> PathBuf {
+        ws.join(".zcode").join("skills")
+    }
+
+    fn user_command_root(&self) -> PathBuf {
+        self.home_dir.join(".zcode").join("commands")
+    }
+
+    fn workspace_command_root(ws: &Path) -> PathBuf {
+        ws.join(".zcode").join("commands")
+    }
+
+    fn user_plugin_root(&self) -> PathBuf {
+        self.home_dir.join(".zcode").join("plugins")
+    }
+
+    fn workspace_plugin_root(ws: &Path) -> PathBuf {
+        ws.join(".zcode").join("plugins")
+    }
+
+    fn user_config_path(&self) -> PathBuf {
+        self.home_dir.join(".zcode").join("cli").join("config.json")
+    }
+
+    fn workspace_config_path(ws: &Path) -> PathBuf {
+        ws.join(".zcode").join("config.json")
+    }
+
+    /// Target root for a scope: `global` = user profile, otherwise the workspace.
+    /// A workspace scope without a workspace path has no target (`None` â‡’ skipped).
+    fn target_root(
+        user_root: PathBuf,
+        ws_root: impl Fn(&Path) -> PathBuf,
+        scope: &str,
+        workspace: Option<&Path>,
+    ) -> Option<PathBuf> {
+        match scope {
+            "global" => Some(user_root),
+            _ => workspace.map(ws_root),
+        }
+    }
+
+    fn selection_str<'a>(sel: &'a Value, key: &str) -> Option<&'a str> {
+        sel.get(key).and_then(Value::as_str)
+    }
+
+    /// Candidate list for one agent + category, from the same discovery scans the
+    /// `detect` method reports. `paths` (optional) filters to the selected sources.
+    ///
+    /// Skills are imported as **directories** (TS `candidate.sourcePath` is the skill
+    /// directory holding `SKILL.md`), so the pair reported here is `(name, directory)`.
+    fn skill_candidates(
+        &self,
+        agent: &str,
+        workspace: Option<&Path>,
+        scope_filter: Option<&str>,
+        paths: Option<&[String]>,
+    ) -> Vec<(String, String, PathBuf)> {
+        let mut out = Vec::new();
+        for src in supported_skill_sources() {
+            if src.agent != agent {
+                continue;
+            }
+            if scope_filter.is_none_or(|s| normalized_scope(s) == "global") {
+                let root = join_segments(&self.home_dir, &src.global);
+                let mut found = Vec::new();
+                scan_skills_in_root(&root, 0, &mut found, &mut HashSet::new());
+                for (name, path) in found {
+                    out.push((name, "global".to_string(), skill_directory(&path)));
+                }
+            }
+            if scope_filter.is_none_or(|s| normalized_scope(s) == "project") {
+                if let Some(ws) = workspace {
+                    let root = join_segments(ws, &src.project);
+                    let mut found = Vec::new();
+                    scan_skills_in_root(&root, 0, &mut found, &mut HashSet::new());
+                    for (name, path) in found {
+                        out.push((name, "project".to_string(), skill_directory(&path)));
+                    }
+                }
+            }
+        }
+        if let Some(paths) = paths {
+            // Callers select either the skill directory or its SKILL.md path; both
+            // identify the same candidate.
+            out.retain(|(_, _, dir)| {
+                paths.iter().any(|p| {
+                    let selected = Path::new(p);
+                    selected == dir || selected.parent() == Some(dir.as_path())
+                })
+            });
+        }
+        out
+    }
+
+    fn command_candidates(
+        &self,
+        agent: &str,
+        workspace: Option<&Path>,
+        scope_filter: Option<&str>,
+        paths: Option<&[String]>,
+    ) -> Vec<(String, String, PathBuf)> {
+        let mut out = Vec::new();
+        for src in supported_command_sources() {
+            if src.agent != agent {
+                continue;
+            }
+            if scope_filter.is_none_or(|s| normalized_scope(s) == "global") {
+                let root = join_segments(&self.home_dir, &src.global);
+                let mut found = Vec::new();
+                scan_commands_in_root(&root, 0, &mut found, &mut HashSet::new());
+                for (name, path) in found {
+                    out.push((name, "global".to_string(), path));
+                }
+            }
+            if scope_filter.is_none_or(|s| normalized_scope(s) == "project") {
+                if let Some(ws) = workspace {
+                    let root = join_segments(ws, &src.project);
+                    let mut found = Vec::new();
+                    scan_commands_in_root(&root, 0, &mut found, &mut HashSet::new());
+                    for (name, path) in found {
+                        out.push((name, "project".to_string(), path));
+                    }
+                }
+            }
+        }
+        if let Some(paths) = paths {
+            out.retain(|(_, _, path)| paths.iter().any(|p| Path::new(p) == path));
+        }
+        out
+    }
+
+    fn plugin_candidates(
+        &self,
+        agent: &str,
+        workspace: Option<&Path>,
+        scope_filter: Option<&str>,
+        paths: Option<&[String]>,
+    ) -> Vec<(String, String, PathBuf)> {
+        let mut out = Vec::new();
+        for src in supported_plugin_sources() {
+            if src.agent != agent {
+                continue;
+            }
+            if scope_filter.is_none_or(|s| normalized_scope(s) == "global") {
+                let root = join_segments(&self.home_dir, &src.global);
+                let mut found = Vec::new();
+                scan_plugins_in_root(&root, 0, &mut found, &mut HashSet::new());
+                for (name, path) in found {
+                    out.push((name, "global".to_string(), path));
+                }
+            }
+            if scope_filter.is_none_or(|s| normalized_scope(s) == "project") {
+                if let Some(ws) = workspace {
+                    let root = join_segments(ws, &src.project);
+                    let mut found = Vec::new();
+                    scan_plugins_in_root(&root, 0, &mut found, &mut HashSet::new());
+                    for (name, path) in found {
+                        out.push((name, "project".to_string(), path));
+                    }
+                }
+            }
+        }
+        if let Some(paths) = paths {
+            out.retain(|(_, _, path)| paths.iter().any(|p| Path::new(p) == path));
+        }
+        out
+    }
+
+    /// `importSelected` â€” real file imports for skills/commands/plugins/mcpServers.
+    ///
+    /// Each selection resolves the same candidates `detect` reports, then copies the
+    /// candidate into the zcode target root (`~/.zcode/{skills,commands,plugins}` or
+    /// `<workspace>/.zcode/...`). An existing target is reported `skipped` with
+    /// `targetExists`; a copy failure is `failed`. Nothing is fabricated: every
+    /// `imported` row names a file that now exists.
+    async fn import_selected_result(&self, request: &Value) -> Value {
+        let workspace = request
+            .get("workspacePath")
+            .and_then(Value::as_str)
+            .map(PathBuf::from);
+        let workspace = workspace.as_deref();
         let selections = request
             .get("selections")
             .and_then(|v| v.as_array())
@@ -968,25 +1162,521 @@ impl SettingsSyncService {
             .unwrap_or_default();
         let mut task_results = Vec::with_capacity(selections.len());
         for sel in &selections {
-            let agent = sel.get("agent").cloned().unwrap_or(Value::Null);
-            let category = sel.get("category").cloned().unwrap_or(Value::Null);
-            // Full import engines not ported: do not fabricate file imports.
-            task_results.push(json!({
-                "agent": agent,
-                "category": category,
-                "status": "skipped",
-                "importedCount": 0,
-                "skippedCount": 1,
-                "failedCount": 0
-            }));
+            let agent = Self::selection_str(sel, "agent").unwrap_or_default();
+            let category = Self::selection_str(sel, "category").unwrap_or_default();
+            // TS default import mode is `symlink`; a copy is used where a link cannot
+            // be created without elevation (recorded difference in the port log).
+            let source_scope = Self::selection_str(sel, "sourceScope");
+            let target_scope = Self::selection_str(sel, "targetScope");
+            let paths_key = match category {
+                "skills" => "skillPaths",
+                "commands" => "commandPaths",
+                "plugins" => "pluginPaths",
+                _ => "",
+            };
+            let paths: Option<Vec<String>> = if paths_key.is_empty() {
+                None
+            } else {
+                sel.get(paths_key).and_then(|v| v.as_array()).map(|items| {
+                    items
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(str::to_string)
+                        .collect()
+                })
+            };
+            let result = match category {
+                "skills" => {
+                    let candidates =
+                        self.skill_candidates(agent, workspace, source_scope, paths.as_deref());
+                    self.import_candidates(
+                        agent,
+                        category,
+                        "skillResults",
+                        candidates,
+                        target_scope,
+                        |item| {
+                            Self::target_root(
+                                self.user_skill_root(),
+                                Self::workspace_skill_root,
+                                item,
+                                workspace,
+                            )
+                        },
+                    )
+                }
+                "commands" => {
+                    let candidates =
+                        self.command_candidates(agent, workspace, source_scope, paths.as_deref());
+                    self.import_candidates(
+                        agent,
+                        category,
+                        "commandResults",
+                        candidates,
+                        target_scope,
+                        |item| {
+                            Self::target_root(
+                                self.user_command_root(),
+                                Self::workspace_command_root,
+                                item,
+                                workspace,
+                            )
+                        },
+                    )
+                }
+                "plugins" => {
+                    let candidates =
+                        self.plugin_candidates(agent, workspace, source_scope, paths.as_deref());
+                    let result = self.import_candidates(
+                        agent,
+                        category,
+                        "pluginResults",
+                        candidates,
+                        target_scope,
+                        |item| {
+                            Self::target_root(
+                                self.user_plugin_root(),
+                                Self::workspace_plugin_root,
+                                item,
+                                workspace,
+                            )
+                        },
+                    );
+                    // Register every imported plugin directory in the same config the
+                    // TS engine writes (`plugins.dirs`), so the plugin is actually
+                    // discoverable after the import. A failure to register is reported
+                    // by flipping the row to `failed` (never a silent success).
+                    Self::register_imported_plugins(
+                        result,
+                        self.user_config_path(),
+                        workspace,
+                        target_scope,
+                    )
+                }
+                "mcpServers" | "mcp" => {
+                    self.import_mcp_servers(agent, workspace, source_scope, target_scope, sel)
+                }
+                _ => json!({
+                    "agent": agent,
+                    "category": category,
+                    "status": "skipped",
+                    "importedCount": 0,
+                    "skippedCount": 1,
+                    "failedCount": 0
+                }),
+            };
+            task_results.push(result);
         }
+        let sum = |key: &str| -> u64 {
+            task_results
+                .iter()
+                .filter_map(|r| r.get(key).and_then(Value::as_u64))
+                .sum()
+        };
         json!({
-            "successCount": 0,
-            "skippedCount": selections.len(),
-            "failedCount": 0,
+            "successCount": sum("importedCount"),
+            "skippedCount": sum("skippedCount"),
+            "failedCount": sum("failedCount"),
             "taskResults": task_results
         })
     }
+
+    /// Shared copy loop for file/directory categories. `target_root_for(scope)`
+    /// resolves the destination root for a source scope.
+    fn import_candidates(
+        &self,
+        agent: &str,
+        category: &str,
+        results_key: &str,
+        candidates: Vec<(String, String, PathBuf)>,
+        target_scope: Option<&str>,
+        target_root_for: impl Fn(&str) -> Option<PathBuf>,
+    ) -> Value {
+        let mut imported = 0u64;
+        let mut skipped = 0u64;
+        let mut failed = 0u64;
+        let mut rows = Vec::with_capacity(candidates.len());
+        let mut claimed: HashSet<PathBuf> = HashSet::new();
+        for (name, source_scope, source_path) in candidates {
+            let scope = target_scope.unwrap_or(source_scope.as_str());
+            let Some(root) = target_root_for(scope) else {
+                skipped += 1;
+                rows.push(json!({
+                    "name": name,
+                    "path": source_path.to_string_lossy(),
+                    "sourceScope": source_scope,
+                    "status": "skipped",
+                    "skipReason": "targetExists",
+                }));
+                continue;
+            };
+            let Some(file_name) = source_path.file_name() else {
+                failed += 1;
+                rows.push(json!({
+                    "name": name,
+                    "path": source_path.to_string_lossy(),
+                    "sourceScope": source_scope,
+                    "status": "failed",
+                }));
+                continue;
+            };
+            let target_path = root.join(file_name);
+            // A duplicate inside one import run (same destination twice) is a name
+            // conflict; report it as skipped rather than overwriting a just-copied row.
+            if target_path.exists() || !claimed.insert(target_path.clone()) {
+                skipped += 1;
+                rows.push(json!({
+                    "name": name,
+                    "path": source_path.to_string_lossy(),
+                    "sourceScope": source_scope,
+                    "status": "skipped",
+                    "skipReason": "targetExists",
+                }));
+                continue;
+            }
+            let copy_result = if source_path.is_dir() {
+                copy_dir_all(&source_path, &target_path)
+            } else {
+                copy_file_with_parents(&source_path, &target_path)
+            };
+            match copy_result {
+                Ok(()) => {
+                    imported += 1;
+                    rows.push(json!({
+                        "name": name,
+                        "path": source_path.to_string_lossy(),
+                        "targetPath": target_path.to_string_lossy(),
+                        "sourceScope": source_scope,
+                        "status": "imported",
+                    }));
+                }
+                Err(_) => {
+                    failed += 1;
+                    rows.push(json!({
+                        "name": name,
+                        "path": source_path.to_string_lossy(),
+                        "sourceScope": source_scope,
+                        "status": "failed",
+                    }));
+                }
+            }
+        }
+        json!({
+            "agent": agent,
+            "category": category,
+            "status": if failed > 0 { "failed" } else if imported > 0 { "success" } else { "skipped" },
+            "importedCount": imported,
+            "skippedCount": skipped,
+            "failedCount": failed,
+            (results_key): rows,
+        })
+    }
+
+    /// Register each imported plugin directory in `plugins.dirs` of the target config
+    /// (TS `addPluginDirToConfig`). Registration failures flip the task's counts and
+    /// the row status to `failed`; a plugin is only reported `imported` when both the
+    /// copy and the registration succeeded.
+    fn register_imported_plugins(
+        mut result: Value,
+        user_config: PathBuf,
+        workspace: Option<&Path>,
+        target_scope: Option<&str>,
+    ) -> Value {
+        let config_path = match target_scope.unwrap_or("global") {
+            "global" => user_config,
+            _ => match workspace {
+                Some(ws) => Self::workspace_config_path(ws),
+                None => return result,
+            },
+        };
+        let Some(rows) = result
+            .get_mut("pluginResults")
+            .and_then(Value::as_array_mut)
+        else {
+            return result;
+        };
+        let mut failed_now = 0u64;
+        for row in rows.iter_mut() {
+            if row.get("status").and_then(Value::as_str) != Some("imported") {
+                continue;
+            }
+            let Some(target) = row
+                .get("targetPath")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+            else {
+                continue;
+            };
+            if add_plugin_dir_to_config(&config_path, Path::new(&target)).is_err() {
+                row["status"] = json!("failed");
+                failed_now += 1;
+            }
+        }
+        if failed_now > 0 {
+            let imported = result
+                .get("importedCount")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                .saturating_sub(failed_now);
+            let failed = result
+                .get("failedCount")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                .saturating_add(failed_now);
+            result["importedCount"] = json!(imported);
+            result["failedCount"] = json!(failed);
+            result["status"] = json!("failed");
+        }
+        result
+    }
+
+    /// MCP import: merge each selected server into `<config>.mcp.servers` exactly the
+    /// way the TS `addMcpServerToZcodeConfig` does (other keys preserved).
+    fn import_mcp_servers(
+        &self,
+        agent: &str,
+        workspace: Option<&Path>,
+        source_scope: Option<&str>,
+        target_scope: Option<&str>,
+        selection: &Value,
+    ) -> Value {
+        let paths: Option<Vec<String>> = selection
+            .get("mcpServerPaths")
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_string)
+                    .collect()
+            });
+        let mut imported = 0u64;
+        let mut skipped = 0u64;
+        let mut failed = 0u64;
+        let mut rows = Vec::new();
+
+        for src in supported_mcp_sources() {
+            if src.agent != agent {
+                continue;
+            }
+            let mut scopes: Vec<(&str, PathBuf)> = Vec::new();
+            if source_scope.is_none_or(|s| normalized_scope(s) == "global") {
+                for segs in &src.global_files {
+                    scopes.push(("global", join_segments(&self.home_dir, segs)));
+                }
+            }
+            if source_scope.is_none_or(|s| normalized_scope(s) == "project") {
+                if let Some(ws) = workspace {
+                    for segs in &src.project_files {
+                        scopes.push(("project", join_segments(ws, segs)));
+                    }
+                }
+            }
+            for (scope, source_path) in scopes {
+                if !source_path.is_file() {
+                    continue;
+                }
+                if let Some(paths) = &paths {
+                    if !paths.iter().any(|p| Path::new(p) == source_path) {
+                        continue;
+                    }
+                }
+                let text = std::fs::read_to_string(&source_path).unwrap_or_default();
+                let servers = mcp_server_map_from_json(&text);
+                if servers.is_empty() {
+                    continue;
+                }
+                let destination_scope = target_scope.unwrap_or(scope);
+                let config_path = match destination_scope {
+                    "global" => self.user_config_path(),
+                    _ => match workspace {
+                        Some(ws) => Self::workspace_config_path(ws),
+                        None => {
+                            for (name, _) in &servers {
+                                skipped += 1;
+                                rows.push(json!({
+                                    "name": name,
+                                    "path": source_path.to_string_lossy(),
+                                    "sourceScope": scope,
+                                    "status": "skipped",
+                                    "skipReason": "targetExists",
+                                }));
+                            }
+                            continue;
+                        }
+                    },
+                };
+                for (name, config) in servers {
+                    match merge_mcp_server_into_config(&config_path, &name, &config) {
+                        Ok(()) => {
+                            imported += 1;
+                            rows.push(json!({
+                                "name": name,
+                                "path": source_path.to_string_lossy(),
+                                "sourceScope": scope,
+                                "status": "imported",
+                            }));
+                        }
+                        Err(_) => {
+                            failed += 1;
+                            rows.push(json!({
+                                "name": name,
+                                "path": source_path.to_string_lossy(),
+                                "sourceScope": scope,
+                                "status": "failed",
+                            }));
+                        }
+                    }
+                }
+            }
+        }
+
+        json!({
+            "agent": agent,
+            "category": "mcpServers",
+            "status": if failed > 0 { "failed" } else if imported > 0 { "success" } else { "skipped" },
+            "importedCount": imported,
+            "skippedCount": skipped,
+            "failedCount": failed,
+            "mcpServerResults": rows,
+        })
+    }
+}
+
+/// Parse the MCP server map from an agent config file (same accepted shapes as
+/// the discovery scan: `mcpServers`, `mcp.servers`, `mcp_servers`, `servers`, or a
+/// flat map of `{command|url|type}` entries).
+fn mcp_server_map_from_json(text: &str) -> Vec<(String, Value)> {
+    let Ok(value) = serde_json::from_str::<Value>(text) else {
+        return Vec::new();
+    };
+    let servers = value
+        .get("mcpServers")
+        .or_else(|| value.get("mcp").and_then(|m| m.get("servers")))
+        .or_else(|| value.get("mcp_servers"))
+        .or_else(|| value.get("servers"));
+    if let Some(object) = servers.and_then(Value::as_object) {
+        return object.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+    }
+    let mut out = Vec::new();
+    if let Some(object) = value.as_object() {
+        for (name, entry) in object {
+            if entry.get("command").is_some()
+                || entry.get("url").is_some()
+                || entry.get("type").is_some()
+            {
+                out.push((name.clone(), entry.clone()));
+            }
+        }
+    }
+    out
+}
+
+/// Merge `{name: config}` into `<config>.mcp.servers`, preserving every other key
+/// (TS `addMcpServerToZcodeConfig`). Writes pretty JSON with a trailing newline and
+/// creates the parent directory.
+fn merge_mcp_server_into_config(
+    config_path: &Path,
+    name: &str,
+    config: &Value,
+) -> std::io::Result<()> {
+    let mut root = match std::fs::read_to_string(config_path) {
+        Ok(text) => serde_json::from_str::<Value>(&text).unwrap_or_else(|_| json!({})),
+        Err(_) => json!({}),
+    };
+    if !root.is_object() {
+        root = json!({});
+    }
+    let object = root.as_object_mut().expect("object");
+    let mcp_entry = object.entry("mcp".to_string()).or_insert_with(|| json!({}));
+    if !mcp_entry.is_object() {
+        *mcp_entry = json!({});
+    }
+    let mcp_object = mcp_entry.as_object_mut().expect("object");
+    let servers_entry = mcp_object
+        .entry("servers".to_string())
+        .or_insert_with(|| json!({}));
+    if !servers_entry.is_object() {
+        *servers_entry = json!({});
+    }
+    servers_entry
+        .as_object_mut()
+        .expect("object")
+        .insert(name.to_string(), config.clone());
+    if let Some(parent) = config_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let text = serde_json::to_string_pretty(&root)
+        .map_err(|error| std::io::Error::other(error.to_string()))?;
+    std::fs::write(config_path, format!("{text}\n"))
+}
+
+/// Merge a plugin directory into `<config>.plugins.dirs` (TS `addPluginDirToConfig`):
+/// absolute paths, de-duplicated, every other key preserved.
+fn add_plugin_dir_to_config(config_path: &Path, plugin_path: &Path) -> std::io::Result<()> {
+    let mut root = match std::fs::read_to_string(config_path) {
+        Ok(text) => serde_json::from_str::<Value>(&text).unwrap_or_else(|_| json!({})),
+        Err(_) => json!({}),
+    };
+    if !root.is_object() {
+        root = json!({});
+    }
+    let resolved = std::fs::canonicalize(plugin_path).unwrap_or_else(|_| plugin_path.to_path_buf());
+    let resolved_text = resolved.to_string_lossy().to_string();
+    let object = root.as_object_mut().expect("object");
+    let plugins_entry = object
+        .entry("plugins".to_string())
+        .or_insert_with(|| json!({}));
+    if !plugins_entry.is_object() {
+        *plugins_entry = json!({});
+    }
+    let plugins_object = plugins_entry.as_object_mut().expect("object");
+    let dirs_entry = plugins_object
+        .entry("dirs".to_string())
+        .or_insert_with(|| json!([]));
+    if !dirs_entry.is_array() {
+        *dirs_entry = json!([]);
+    }
+    let dirs = dirs_entry.as_array_mut().expect("array");
+    let already = dirs.iter().filter_map(Value::as_str).any(|item| {
+        std::fs::canonicalize(item)
+            .map(|candidate| candidate == resolved)
+            .unwrap_or_else(|_| item == resolved_text)
+    });
+    if !already {
+        dirs.push(json!(resolved_text));
+    }
+    if let Some(parent) = config_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let text = serde_json::to_string_pretty(&root)
+        .map_err(|error| std::io::Error::other(error.to_string()))?;
+    std::fs::write(config_path, format!("{text}\n"))
+}
+
+/// Recursive directory copy (TS `cp(..., {recursive: true})`). The destination must
+/// not exist; the caller has already decided that (a hit is reported as skipped).
+fn copy_dir_all(source: &Path, target: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(target)?;
+    for entry in std::fs::read_dir(source)? {
+        let entry = entry?;
+        let from = entry.path();
+        let to = target.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_dir_all(&from, &to)?;
+        } else {
+            std::fs::copy(&from, &to)?;
+        }
+    }
+    Ok(())
+}
+
+/// Single-file copy, creating the destination's parent directory first.
+fn copy_file_with_parents(source: &Path, target: &Path) -> std::io::Result<()> {
+    if let Some(parent) = target.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::copy(source, target).map(|_| ())
 }
 
 impl Default for SettingsSyncService {
@@ -1020,7 +1710,7 @@ impl Channel for SettingsSyncService {
                 self.copy_claude_agents(overwrite).await
             }
             "detect" => self.detect_result(&request),
-            "importSelected" => self.import_selected_result(&request),
+            "importSelected" => self.import_selected_result(&request).await,
             "getFirstRunPromptState" => json!({ "handled": self.get_first_run_handled().await }),
             "markFirstRunPromptHandled" => {
                 let _ = self.set_first_run_handled().await;
@@ -1377,11 +2067,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn import_selected_returns_honest_skipped_results() {
+    async fn import_selected_skips_an_unknown_category_without_inventing_work() {
         let tmp = TempDir::new().unwrap();
         let s = SettingsSyncService::with_home_dir(tmp.path().to_path_buf());
         let req = json!({
-            "selections": [{"agent":"claudeCode","category":"skills"}]
+            "selections": [{"agent":"claudeCode","category":"unknown"}]
         });
         let r = s
             .call(
@@ -1400,6 +2090,229 @@ mod tests {
         assert_eq!(v["failedCount"], 0);
         assert_eq!(v["taskResults"][0]["status"], "skipped");
         assert_eq!(v["taskResults"][0]["agent"], "claudeCode");
+    }
+
+    #[tokio::test]
+    async fn import_selected_copies_a_skill_then_reports_target_exists() {
+        let tmp = TempDir::new().unwrap();
+        let home = tmp.path();
+        let skill_dir = home.join(".claude").join("skills").join("my-skill");
+        fs::create_dir_all(&skill_dir).await.unwrap();
+        fs::write(skill_dir.join("SKILL.md"), "---\nname: my-skill\n---\nhi")
+            .await
+            .unwrap();
+        fs::write(skill_dir.join("notes.md"), "extra file")
+            .await
+            .unwrap();
+
+        let s = SettingsSyncService::with_home_dir(home.to_path_buf());
+        let req = json!({
+            "selections": [{"agent":"claudeCode","category":"skills"}]
+        });
+        let WireValue::Json(v) = s
+            .call(
+                &ctx(),
+                "importSelected",
+                vec![WireValue::Json(req.clone())],
+                CancelToken::new(),
+            )
+            .await
+            .unwrap()
+        else {
+            panic!("json")
+        };
+        assert_eq!(v["successCount"], 1, "{v}");
+        assert_eq!(v["skippedCount"], 0, "{v}");
+        let target = home.join(".zcode").join("skills").join("my-skill");
+        assert!(target.join("SKILL.md").is_file(), "skill copied");
+        assert!(target.join("notes.md").is_file(), "directory tree copied");
+        assert_eq!(v["taskResults"][0]["skillResults"][0]["status"], "imported");
+
+        // Second import: the destination exists, so it must be skipped â€” not overwritten.
+        let WireValue::Json(v2) = s
+            .call(
+                &ctx(),
+                "importSelected",
+                vec![WireValue::Json(req)],
+                CancelToken::new(),
+            )
+            .await
+            .unwrap()
+        else {
+            panic!("json")
+        };
+        assert_eq!(v2["successCount"], 0, "{v2}");
+        assert_eq!(v2["skippedCount"], 1, "{v2}");
+        assert_eq!(
+            v2["taskResults"][0]["skillResults"][0]["skipReason"],
+            "targetExists"
+        );
+    }
+
+    #[tokio::test]
+    async fn import_selected_copies_a_command_file() {
+        let tmp = TempDir::new().unwrap();
+        let home = tmp.path();
+        let cmd_dir = home.join(".claude").join("commands");
+        fs::create_dir_all(&cmd_dir).await.unwrap();
+        fs::write(cmd_dir.join("review.md"), "review code")
+            .await
+            .unwrap();
+
+        let s = SettingsSyncService::with_home_dir(home.to_path_buf());
+        let req = json!({
+            "selections": [{"agent":"claudeCode","category":"commands"}]
+        });
+        let WireValue::Json(v) = s
+            .call(
+                &ctx(),
+                "importSelected",
+                vec![WireValue::Json(req)],
+                CancelToken::new(),
+            )
+            .await
+            .unwrap()
+        else {
+            panic!("json")
+        };
+        assert_eq!(v["successCount"], 1, "{v}");
+        let target = home.join(".zcode").join("commands").join("review.md");
+        assert_eq!(
+            fs::read_to_string(&target).await.unwrap(),
+            "review code",
+            "command body copied verbatim"
+        );
+    }
+
+    #[tokio::test]
+    async fn import_selected_merges_mcp_servers_preserving_other_config_keys() {
+        let tmp = TempDir::new().unwrap();
+        let home = tmp.path();
+        let claude_dir = home.join(".claude");
+        fs::create_dir_all(&claude_dir).await.unwrap();
+        fs::write(
+            claude_dir.join("settings.json"),
+            r#"{"mcpServers":{"filesystem":{"command":"npx","args":["-y","fs"]}}}"#,
+        )
+        .await
+        .unwrap();
+        // Pre-existing zcode config with an unrelated key must survive the merge.
+        let config_dir = home.join(".zcode").join("cli");
+        fs::create_dir_all(&config_dir).await.unwrap();
+        fs::write(
+            config_dir.join("config.json"),
+            r#"{"theme":"dark","mcp":{"servers":{"existing":{"command":"x"}}}}"#,
+        )
+        .await
+        .unwrap();
+
+        let s = SettingsSyncService::with_home_dir(home.to_path_buf());
+        let req = json!({
+            "selections": [{"agent":"claudeCode","category":"mcpServers"}]
+        });
+        let WireValue::Json(v) = s
+            .call(
+                &ctx(),
+                "importSelected",
+                vec![WireValue::Json(req)],
+                CancelToken::new(),
+            )
+            .await
+            .unwrap()
+        else {
+            panic!("json")
+        };
+        assert_eq!(v["successCount"], 1, "{v}");
+        let text = fs::read_to_string(config_dir.join("config.json"))
+            .await
+            .unwrap();
+        let config: Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(config["theme"], "dark", "unrelated key preserved");
+        assert_eq!(config["mcp"]["servers"]["existing"]["command"], "x");
+        assert_eq!(
+            config["mcp"]["servers"]["filesystem"]["command"], "npx",
+            "imported server merged: {config}"
+        );
+    }
+
+    #[tokio::test]
+    async fn import_selected_copies_a_plugin_and_registers_its_directory() {
+        let tmp = TempDir::new().unwrap();
+        let home = tmp.path();
+        let plugin_dir = home.join(".claude").join("plugins").join("my-plugin");
+        fs::create_dir_all(&plugin_dir).await.unwrap();
+        fs::write(plugin_dir.join("plugin.json"), r#"{"name":"my-plugin"}"#)
+            .await
+            .unwrap();
+
+        let s = SettingsSyncService::with_home_dir(home.to_path_buf());
+        let req = json!({
+            "selections": [{"agent":"claudeCode","category":"plugins"}]
+        });
+        let WireValue::Json(v) = s
+            .call(
+                &ctx(),
+                "importSelected",
+                vec![WireValue::Json(req)],
+                CancelToken::new(),
+            )
+            .await
+            .unwrap()
+        else {
+            panic!("json")
+        };
+        assert_eq!(v["successCount"], 1, "{v}");
+        let target = home.join(".zcode").join("plugins").join("my-plugin");
+        assert!(target.join("plugin.json").is_file());
+        let config_text = fs::read_to_string(home.join(".zcode").join("cli").join("config.json"))
+            .await
+            .unwrap();
+        let config: Value = serde_json::from_str(&config_text).unwrap();
+        let dirs = config["plugins"]["dirs"].as_array().expect("dirs array");
+        assert_eq!(dirs.len(), 1, "{config}");
+        assert!(dirs[0].as_str().unwrap().ends_with("my-plugin"), "{config}");
+    }
+
+    #[tokio::test]
+    async fn import_selected_filters_by_selected_source_paths() {
+        let tmp = TempDir::new().unwrap();
+        let home = tmp.path();
+        let skills_root = home.join(".claude").join("skills");
+        for name in ["one", "two"] {
+            let dir = skills_root.join(name);
+            fs::create_dir_all(&dir).await.unwrap();
+            fs::write(dir.join("SKILL.md"), format!("name: {name}"))
+                .await
+                .unwrap();
+        }
+        let selected = skills_root.join("one").join("SKILL.md");
+
+        let s = SettingsSyncService::with_home_dir(home.to_path_buf());
+        let req = json!({
+            "selections": [{
+                "agent":"claudeCode",
+                "category":"skills",
+                "skillPaths": [selected.to_string_lossy()],
+            }]
+        });
+        let WireValue::Json(v) = s
+            .call(
+                &ctx(),
+                "importSelected",
+                vec![WireValue::Json(req)],
+                CancelToken::new(),
+            )
+            .await
+            .unwrap()
+        else {
+            panic!("json")
+        };
+        assert_eq!(v["successCount"], 1, "{v}");
+        assert!(home.join(".zcode").join("skills").join("one").is_dir());
+        assert!(
+            !home.join(".zcode").join("skills").join("two").exists(),
+            "unselected skill must not be imported"
+        );
     }
 
     #[tokio::test]

@@ -9,10 +9,10 @@
 use std::sync::Arc;
 
 use nc_code_provider::request::Message;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::file_ledger::FileChangeRecord;
-use crate::rpc::{RpcError, CODE_INTERNAL};
+use crate::rpc::{RpcError, CODE_INTERNAL, CODE_INVALID_PARAMS};
 use crate::session::{Session, SessionInit};
 use crate::store::{is_safe_session_id, now_ms, SessionMeta};
 use crate::HostServer;
@@ -21,6 +21,11 @@ use crate::HostServer;
 pub struct SessionSeed {
     pub title: String,
     pub title_source: String,
+    /// Creation timestamp (ms). Imported sessions keep their source time; `None` = now.
+    pub created_at: Option<i64>,
+    /// Last-activity timestamp (ms). Imported sessions keep the source's last visible
+    /// message time so the task list orders them by real activity; `None` = `created_at`.
+    pub updated_at: Option<i64>,
     pub followup_mode: String,
     pub collaboration_mode: String,
     pub provider: String,
@@ -42,6 +47,8 @@ impl SessionSeed {
     /// 空会话（`createSession` 的缺省形态）。
     pub fn blank() -> Self {
         Self {
+            created_at: None,
+            updated_at: None,
             title: String::new(),
             title_source: "default".to_string(),
             followup_mode: "queue".to_string(),
@@ -77,12 +84,31 @@ impl HostServer {
     /// 落盘 → 构造 → 注册（挂 frame sink + 派生 flush ticker）的唯一序列。
     pub fn open_session(&self, seed: SessionSeed) -> Result<Arc<Session>, RpcError> {
         let session_id = self.next_id("session");
+        self.open_session_with_id(session_id, seed)
+    }
+
+    /// Same sequence with a caller-chosen id (session import). The id is validated here
+    /// because it arrives from a client, and a colliding id is refused rather than
+    /// silently overwriting an existing session's transcript.
+    pub fn open_session_with_id(
+        &self,
+        session_id: String,
+        seed: SessionSeed,
+    ) -> Result<Arc<Session>, RpcError> {
         if !is_safe_session_id(&session_id) {
             return Err(RpcError::new(
                 CODE_INTERNAL,
                 "generated session id failed safety check",
             ));
         }
+        if self.store.load_meta(&session_id).is_ok() {
+            return Err(RpcError::new(
+                CODE_INVALID_PARAMS,
+                format!("session already exists: {session_id}"),
+            )
+            .with_data(json!({ "reason": "session_exists", "sessionId": session_id })));
+        }
+        let created_at = seed.created_at.unwrap_or_else(now_ms);
         let meta = SessionMeta {
             session_id: session_id.clone(),
             title: seed.title.clone(),
@@ -90,8 +116,8 @@ impl HostServer {
             log_epoch: self.next_id("epoch"),
             revision: 0,
             workspace_identity: self.workspace_identity.clone(),
-            created_at: now_ms(),
-            updated_at: now_ms(),
+            created_at,
+            updated_at: seed.updated_at.unwrap_or(created_at).max(created_at),
             task_type: seed.task_type.clone(),
             parent_session_id: seed.parent_session_id.clone(),
             followup_mode: seed.followup_mode.clone(),
@@ -134,6 +160,7 @@ impl HostServer {
             workspace_root: self.workspace.clone(),
             workspace_identity: self.workspace_identity.clone(),
             created_at: meta.created_at,
+            updated_at: meta.updated_at,
             task_type: meta.task_type.clone(),
             parent_session_id: meta.parent_session_id.clone(),
             log_epoch: meta.log_epoch,
@@ -177,5 +204,92 @@ impl HostServer {
         }
         self.register_session(Arc::clone(&session));
         Ok(session)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::rpc::CODE_INVALID_PARAMS;
+
+    fn server(tag: &str) -> Arc<HostServer> {
+        let base = std::env::temp_dir().join(format!(
+            "zcode-host-sessions-{tag}-{}-{}",
+            std::process::id(),
+            now_ms()
+        ));
+        std::fs::create_dir_all(base.join("workspace")).expect("workspace");
+        std::fs::create_dir_all(base.join("data")).expect("data");
+        HostServer::new(
+            base.join("workspace"),
+            base.join("data"),
+            None,
+            true,
+            Vec::new(),
+        )
+        .expect("host")
+        .0
+    }
+
+    #[test]
+    fn blank_seed_has_the_ts_defaults() {
+        let seed = SessionSeed::blank();
+        assert_eq!(seed.title, "");
+        assert_eq!(seed.title_source, "default");
+        assert_eq!(seed.followup_mode, "queue");
+        assert_eq!(seed.collaboration_mode, "build");
+        assert!(seed.rows.is_empty());
+        assert!(seed.history.is_empty());
+        assert!(seed.goal.is_none());
+        assert!(seed.task_type.is_none());
+        assert!(seed.created_at.is_none());
+        assert!(seed.updated_at.is_none());
+    }
+
+    #[test]
+    fn open_session_with_id_rejects_unsafe_ids() {
+        let server = server("unsafe");
+        let error = match server.open_session_with_id("../escape".to_string(), SessionSeed::blank())
+        {
+            Ok(_) => panic!("unsafe id must be refused"),
+            Err(error) => error,
+        };
+        assert_eq!(error.code, CODE_INTERNAL);
+        assert!(error.message.contains("safety check"), "{}", error.message);
+    }
+
+    #[tokio::test]
+    async fn open_session_with_id_refuses_an_existing_id() {
+        let server = server("dup");
+        server
+            .open_session_with_id("s-dup".to_string(), SessionSeed::blank())
+            .expect("first");
+        let error = match server.open_session_with_id("s-dup".to_string(), SessionSeed::blank()) {
+            Ok(_) => panic!("duplicate must be refused"),
+            Err(error) => error,
+        };
+        assert_eq!(error.code, CODE_INVALID_PARAMS);
+        assert!(
+            error.message.contains("already exists"),
+            "{}",
+            error.message
+        );
+    }
+
+    #[tokio::test]
+    async fn created_at_and_updated_at_are_monotonic() {
+        let server = server("times");
+        let mut seed = SessionSeed::blank();
+        seed.created_at = Some(1_000);
+        seed.updated_at = Some(500); // earlier than created → clamped up
+        let session = server
+            .open_session_with_id("s-time".to_string(), seed)
+            .expect("session");
+        assert_eq!(session.created_at(), 1_000);
+        assert_eq!(
+            session.updated_at(),
+            1_000,
+            "updated_at never before created_at"
+        );
     }
 }

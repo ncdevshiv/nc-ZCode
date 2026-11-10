@@ -20,6 +20,7 @@ use nc_code_rpc::WireValue;
 use nc_code_service_core::{AppPaths, ServiceArgs, ServiceError};
 use serde_json::{json, Value};
 
+use crate::claude_import;
 use crate::service::AgentService;
 use crate::task_snapshot;
 use crate::task_store::{
@@ -35,6 +36,22 @@ pub struct TaskService {
     events: EventBus,
     connection_id: String,
     sequence: AtomicU64,
+}
+
+/// One requested Claude session lands in exactly one bucket of the import result.
+enum ClaudeImportOutcome {
+    Imported {
+        task_id: String,
+        workspace_path: String,
+    },
+    Skipped {
+        reason: &'static str,
+        workspace_path: Option<String>,
+    },
+    Failed {
+        reason: String,
+        workspace_path: Option<String>,
+    },
 }
 
 impl TaskService {
@@ -317,23 +334,189 @@ impl TaskService {
         Ok(result)
     }
 
+    /// Claude Code native history → real ZCode sessions (`specs/claude-session-import.md`).
+    /// Source policy lives in `claude_import`, the transcript in the host, membership here.
+    /// Every requested id lands in exactly one bucket; one bad session never aborts the batch.
+    async fn import_claude_sessions(&self, params: &Value) -> Result<Value, ServiceError> {
+        let requested = params
+            .get("sessionIds")
+            .and_then(Value::as_array)
+            .ok_or_else(|| ServiceError::invalid_params("sessionIds is required"))?;
+        let mut session_ids: Vec<String> = Vec::new();
+        for value in requested {
+            let Some(id) = value.as_str().map(str::trim).filter(|id| !id.is_empty()) else {
+                continue;
+            };
+            if !session_ids.iter().any(|existing| existing == id) {
+                session_ids.push(id.to_string());
+            }
+        }
+        let workspace_filter = optional_str(params, "workspacePath");
+        let identity = optional_str(params, "workspaceIdentity");
+        let mut imported = Vec::new();
+        let mut skipped = Vec::new();
+        let mut failed = Vec::new();
+        for session_id in session_ids {
+            match self
+                .import_one_claude_session(&session_id, workspace_filter, identity)
+                .await
+            {
+                ClaudeImportOutcome::Imported {
+                    task_id,
+                    workspace_path,
+                } => imported.push(json!({
+                    "provider": claude_import::PROVIDER,
+                    "sessionId": session_id,
+                    "taskId": task_id,
+                    "workspacePath": workspace_path,
+                })),
+                ClaudeImportOutcome::Skipped {
+                    reason,
+                    workspace_path,
+                } => {
+                    let mut item = json!({
+                        "provider": claude_import::PROVIDER,
+                        "sessionId": session_id,
+                        "reason": reason,
+                    });
+                    if let Some(path) = workspace_path {
+                        item["workspacePath"] = json!(path);
+                    }
+                    skipped.push(item);
+                }
+                ClaudeImportOutcome::Failed {
+                    reason,
+                    workspace_path,
+                } => {
+                    let mut item = json!({
+                        "provider": claude_import::PROVIDER,
+                        "sessionId": session_id,
+                        "reason": reason,
+                    });
+                    if let Some(path) = workspace_path {
+                        item["workspacePath"] = json!(path);
+                    }
+                    failed.push(item);
+                }
+            }
+        }
+        Ok(json!({ "imported": imported, "skipped": skipped, "failed": failed }))
+    }
+
+    async fn import_one_claude_session(
+        &self,
+        session_id: &str,
+        workspace_filter: Option<&str>,
+        identity: Option<&str>,
+    ) -> ClaudeImportOutcome {
+        let Some(candidate) = claude_import::find(&self.paths, workspace_filter, session_id) else {
+            return ClaudeImportOutcome::Skipped {
+                reason: "session_not_found_or_workspace_mismatch",
+                workspace_path: workspace_filter.map(str::to_string),
+            };
+        };
+        if !std::path::Path::new(&candidate.workspace_path).exists() {
+            return ClaudeImportOutcome::Skipped {
+                reason: "workspace_path_missing",
+                workspace_path: Some(candidate.workspace_path.clone()),
+            };
+        }
+        if let Some(filter) = workspace_filter {
+            if claude_import::normalize_path(&candidate.workspace_path)
+                != claude_import::normalize_path(filter)
+            {
+                return ClaudeImportOutcome::Skipped {
+                    reason: "session_not_found_or_workspace_mismatch",
+                    workspace_path: Some(candidate.workspace_path.clone()),
+                };
+            }
+        }
+        let parsed = match claude_import::parse_session(
+            &candidate,
+            created_ms(&candidate.source_path),
+            Some(candidate.updated_at),
+        ) {
+            Ok(parsed) => parsed,
+            Err(reason) => {
+                return ClaudeImportOutcome::Failed {
+                    reason,
+                    workspace_path: Some(candidate.workspace_path.clone()),
+                }
+            }
+        };
+        let task_id = claude_import::imported_task_id(&parsed.workspace_path, session_id);
+        // identity 只在按 workspace 过滤导入时写入：否则会把当前 tab 的 identity 套到别的
+        // 路径上（TS persistImportedClaudeTask 的同一条注释）。
+        let row_identity = if workspace_filter.is_some() {
+            identity
+        } else {
+            None
+        };
+        let mut host_params = parsed.host_payload(&task_id);
+        host_params["workspacePath"] = json!(parsed.workspace_path);
+        if let Some(identity) = row_identity {
+            host_params["workspaceIdentity"] = json!(identity);
+        }
+        match self.agent.import_session(&host_params).await {
+            Ok(_) => {}
+            Err(error) => {
+                return ClaudeImportOutcome::Failed {
+                    reason: error.message,
+                    workspace_path: Some(parsed.workspace_path.clone()),
+                }
+            }
+        }
+        let workspace = workspace_key(&parsed.workspace_path, row_identity);
+        let updated_at = parsed.updated_at;
+        let workspace_path = parsed.workspace_path.clone();
+        let membership = self
+            .index
+            .mutate(|index| {
+                let row = index
+                    .tasks
+                    .entry(task_id.clone())
+                    .or_insert_with(|| TaskRow {
+                        task_id: task_id.clone(),
+                        workspace_path: workspace_path.clone(),
+                        workspace_identity: row_identity.map(str::to_string),
+                        updated_at,
+                        ..TaskRow::default()
+                    });
+                row.migration_source = Some(claude_import::MIGRATION_SOURCE.to_string());
+                row.archived = false;
+                row.archived_at = None;
+                row.deleted_at = None;
+                row.updated_at = updated_at;
+                push_top_level_task(index, &workspace, &task_id);
+                Ok(())
+            })
+            .await;
+        if let Err(error) = membership {
+            return ClaudeImportOutcome::Failed {
+                reason: error,
+                workspace_path: Some(parsed.workspace_path.clone()),
+            };
+        }
+        let row = match self.index.snapshot().await {
+            Ok(index) => index.tasks.get(&task_id).cloned(),
+            Err(_) => None,
+        };
+        if let Some(row) = row {
+            self.emit_task_event(&row, "task_created").await;
+        }
+        ClaudeImportOutcome::Imported {
+            task_id,
+            workspace_path: parsed.workspace_path,
+        }
+    }
+
     async fn send_prompt(&self, params: &Value) -> Result<Value, ServiceError> {
         let task_id = required_str(params, "taskId")?;
         let content = required_str(params, "content")?;
         let (row, _) = self.require_task(task_id).await?;
-        if params
-            .get("attachments")
-            .and_then(Value::as_array)
-            .map(|items| !items.is_empty())
-            .unwrap_or(false)
-        {
-            // the host's v4 sendText is not wired to the attachment transaction yet (attachment/* is explicitly
-            // unimplemented in the method inventory). Silently dropping an attachment would change the semantics of the user's input, so fail closed here.
-            return Err(ServiceError::named(
-                "AttachmentsUnavailable",
-                "attachment prompts are not available in this host increment",
-            ));
-        }
+        // The attachment command surface is wired end to end now: AgentService::send_prompt
+        // uploads inline bytes through v4/attachment/{begin,chunk,commit} and forwards the
+        // resulting AttachmentRefs with sendText; the host resolves them into model parts.
         let mut send = json!({
             "workspacePath": row.workspace_path,
             "sessionId": task_id,
@@ -344,6 +527,13 @@ impl TaskService {
         }
         if let Some(trace) = params.get("traceId").and_then(Value::as_str) {
             send["inputId"] = json!(trace);
+        }
+        if let Some(items) = params
+            .get("attachments")
+            .and_then(Value::as_array)
+            .filter(|items| !items.is_empty())
+        {
+            send["attachments"] = json!(items);
         }
         if let Some(model_execution) = params.get("modelExecution") {
             send["modelExecution"] = model_execution.clone();
@@ -1974,22 +2164,23 @@ impl TaskService {
             }
             "scanImportableClaudeSessions" => {
                 let params = args.json(0)?.unwrap_or_else(|| json!({}));
-                let candidates = scan_claude_sessions(
-                    self.paths.home_dir(),
-                    params.get("workspacePath").and_then(Value::as_str),
+                let candidates = crate::claude_import::scan(
+                    &self.paths,
+                    optional_str(&params, "workspacePath"),
                     params.get("modifiedSince").and_then(Value::as_i64),
                     params
                         .get("limit")
                         .and_then(Value::as_u64)
                         .map(|value| value as usize),
                 );
-                json!(candidates)
+                json!(candidates
+                    .iter()
+                    .map(crate::claude_import::Candidate::to_json)
+                    .collect::<Vec<_>>())
             }
             "importClaudeSessions" => {
-                return Err(ServiceError::named(
-                    "ClaudeImportUnavailable",
-                    "Claude session import is not wired in this host increment",
-                ))
+                self.import_claude_sessions(&args.required_json(0, "params")?)
+                    .await?
             }
             other => return Err(ServiceError::message(format!("Method not found: {other}"))),
         };
@@ -2174,149 +2365,14 @@ fn now_ms() -> i64 {
         .unwrap_or(0)
 }
 
-/// Scan the Claude Code native sessions (`~/.claude/projects/**/*.jsonl`) and parse each file's
-/// `sessionId` / `cwd` / timestamps to produce the real import candidates (no network access at all).
-fn scan_claude_sessions(
-    home_dir: &std::path::Path,
-    workspace_path: Option<&str>,
-    modified_since: Option<i64>,
-    limit: Option<usize>,
-) -> Vec<Value> {
-    let root = home_dir.join(".claude").join("projects");
-    let mut candidates = Vec::new();
-    collect_claude_files(&root, &mut candidates);
-    let mut items: Vec<Value> = Vec::new();
-    for (path, updated_at) in candidates {
-        if let Some(since) = modified_since {
-            if updated_at < since {
-                continue;
-            }
-        }
-        let Ok(text) = std::fs::read_to_string(&path) else {
-            continue;
-        };
-        let mut session_id: Option<String> = None;
-        let mut cwd: Option<String> = None;
-        let mut created_at: Option<i64> = None;
-        let mut preview: Option<String> = None;
-        for line in text.lines().take(400) {
-            let Ok(entry) = serde_json::from_str::<Value>(line) else {
-                continue;
-            };
-            if session_id.is_none() {
-                session_id = entry
-                    .get("sessionId")
-                    .and_then(Value::as_str)
-                    .map(str::to_string);
-            }
-            if cwd.is_none() {
-                cwd = entry.get("cwd").and_then(Value::as_str).map(str::to_string);
-            }
-            if created_at.is_none() {
-                created_at = entry
-                    .get("timestamp")
-                    .and_then(Value::as_str)
-                    .and_then(parse_rfc3339_ms);
-            }
-            if preview.is_none() {
-                preview = entry
-                    .get("message")
-                    .and_then(|message| message.get("content"))
-                    .and_then(Value::as_str)
-                    .filter(|text| !text.trim().is_empty())
-                    .map(|text| text.chars().take(80).collect());
-            }
-        }
-        let Some(session_id) = session_id else {
-            continue;
-        };
-        let Some(cwd) = cwd else {
-            continue;
-        };
-        if let Some(expected) = workspace_path {
-            if !same_path(&cwd, expected) {
-                continue;
-            }
-        }
-        let mut candidate = json!({
-            "provider": "claude",
-            "sessionId": session_id,
-            "workspacePath": cwd,
-            "sourcePath": path.to_string_lossy(),
-            "updatedAt": updated_at,
-        });
-        if let Some(created_at) = created_at {
-            candidate["createdAt"] = json!(created_at);
-        }
-        if let Some(preview) = preview {
-            candidate["previewTitle"] = json!(preview);
-        }
-        items.push(candidate);
-    }
-    items.sort_by_key(|item| {
-        std::cmp::Reverse(item.get("updatedAt").and_then(Value::as_i64).unwrap_or(0))
-    });
-    if let Some(limit) = limit {
-        items.truncate(limit);
-    }
-    items
-}
-
-fn collect_claude_files(dir: &std::path::Path, out: &mut Vec<(std::path::PathBuf, i64)>) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            collect_claude_files(&path, out);
-        } else if path.extension().and_then(|value| value.to_str()) == Some("jsonl") {
-            let updated_at = entry
-                .metadata()
-                .ok()
-                .and_then(|metadata| metadata.modified().ok())
-                .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
-                .map(|duration| duration.as_millis() as i64)
-                .unwrap_or(0);
-            out.push((path, updated_at));
-        }
-    }
-}
-
-fn same_path(left: &str, right: &str) -> bool {
-    left.trim_end_matches(['/', '\\']) == right.trim_end_matches(['/', '\\'])
-}
-
-/// Parse a timestamp of the `2026-01-01T00:00:00.000Z` form (the timestamp field of Claude JSONL).
-fn parse_rfc3339_ms(value: &str) -> Option<i64> {
-    let bytes = value.as_bytes();
-    if bytes.len() < 20 {
-        return None;
-    }
-    let year: i64 = value.get(0..4)?.parse().ok()?;
-    let month: i64 = value.get(5..7)?.parse().ok()?;
-    let day: i64 = value.get(8..10)?.parse().ok()?;
-    let hour: i64 = value.get(11..13)?.parse().ok()?;
-    let minute: i64 = value.get(14..16)?.parse().ok()?;
-    let second: i64 = value.get(17..19)?.parse().ok()?;
-    let millis: i64 = value
-        .get(20..23)
-        .filter(|_| value.get(19..20) == Some("."))
-        .and_then(|fraction| fraction.parse().ok())
-        .unwrap_or(0);
-    let days = days_from_civil(year, month, day);
-    Some(days * 86_400_000 + hour * 3_600_000 + minute * 60_000 + second * 1_000 + millis)
-}
-
-/// Howard Hinnant's days-from-civil (UTC).
-fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
-    let year = if month <= 2 { year - 1 } else { year };
-    let era = if year >= 0 { year } else { year - 399 } / 400;
-    let year_of_era = year - era * 400;
-    let month_prime = (month + 9) % 12;
-    let day_of_year = (153 * month_prime + 2) / 5 + day - 1;
-    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
-    era * 146_097 + day_of_era - 719_468
+/// File birthtime, the fallback when no visible message carries a timestamp. Platforms
+/// without a creation time fall back to mtime rather than inventing one.
+fn created_ms(path: &std::path::Path) -> Option<i64> {
+    let metadata = std::fs::metadata(path).ok()?;
+    let time = metadata.created().or_else(|_| metadata.modified()).ok()?;
+    time.duration_since(UNIX_EPOCH)
+        .ok()
+        .map(|duration| duration.as_millis() as i64)
 }
 
 #[cfg(test)]
@@ -2547,14 +2603,5 @@ mod tests {
         assert_eq!(nodes[0]["tasks"].as_array().unwrap().len(), 1);
         assert_eq!(nodes[1]["type"], json!("task"));
         std::fs::remove_dir_all(root).ok();
-    }
-
-    #[test]
-    fn rfc3339_parser_matches_unix_ms() {
-        assert_eq!(parse_rfc3339_ms("1970-01-01T00:00:00.000Z"), Some(0));
-        assert_eq!(
-            parse_rfc3339_ms("2024-01-02T03:04:05.678Z"),
-            Some(1_704_164_645_678)
-        );
     }
 }

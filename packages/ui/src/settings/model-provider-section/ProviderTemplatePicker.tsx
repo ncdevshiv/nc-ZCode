@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button.js";
 import { ControlHintTooltip } from "@/ControlHintTooltip.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { logger } from "@/logger.js";
+import { ZCODE_CODING_PLAN_AVAILABLE } from "@/lib/productCapabilities.js";
 import { ProviderLogo } from "./ProviderLogo.js";
 import { useProviderDetailFeedback } from "./ProviderDetailFeedback.js";
 
@@ -35,16 +36,23 @@ export function ProviderTemplatePicker({
   const { dismissFeedback, showFeedback } = useProviderDetailFeedback();
   const customLabel = intl.formatMessage({ id: "settings.modelProvider.newProviderName" });
   const zhipuIds = ["bigmodel-api", "zai-api", "bigmodel-standard-api", "zai-standard-api"];
+  const visibleTemplates = ZCODE_CODING_PLAN_AVAILABLE
+    ? templates
+    : templates.filter((template) =>
+        "access" in template.config
+          ? template.config.access?.type !== "zhipu-coding-plan-api-key"
+          : true,
+      );
   const groups = [
     {
       id: "zhipu",
       templates: zhipuIds.flatMap((id) =>
-        templates.filter((template) => template.templateId === id),
+        visibleTemplates.filter((template) => template.templateId === id),
       ),
     },
     {
       id: "other",
-      templates: templates.filter((template) => !zhipuIds.includes(template.templateId)),
+      templates: visibleTemplates.filter((template) => !zhipuIds.includes(template.templateId)),
     },
   ] as const;
   const createWithFeedback = async (create: () => Promise<void>) => {

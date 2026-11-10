@@ -4,6 +4,9 @@
 //! archive shape, and honest "unsupported" for remote-only operations. Uses
 //! `AppPaths` for home directory resolution.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -364,12 +367,7 @@ impl Channel for SkillSyncService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nc_code_channels::ClientMode;
     use tempfile::TempDir;
-
-    fn ctx() -> ChannelContext {
-        ChannelContext::new("skill-sync", ClientMode::DesktopContinuous)
-    }
 
     #[tokio::test]
     async fn lists_skill_dirs_with_frontmatter() {

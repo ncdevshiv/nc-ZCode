@@ -2,13 +2,13 @@ import { Buffer } from "node:buffer";
 import {
   ApiError,
   type ApiClient,
-  formatLogPrefix,
   ZAI_PROVIDER_ID,
   type OAuthCallbackParams,
   type OAuthProviderMeta,
   type OAuthTokenSet,
   type OAuthUserProfile,
 } from "@zcode/shared";
+import { createServiceLogger } from "#src/logger/serviceLogger.js";
 import { readApiJson } from "../../providers/api/apiJson.js";
 import { ZaiBusinessTokenResolver } from "../../providers/zaiBusinessTokenResolver.js";
 import { parseOAuthLoginAttribution } from "../callbackAttribution.js";
@@ -56,7 +56,8 @@ interface ZaiUserInfoPayload {
 /** OAuth 启动恢复允许的最长等待时间（1 分钟） */
 const OAUTH_USERINFO_TIMEOUT_MS = 60_000;
 const ZAI_BUSINESS_TOKEN_TIMEOUT_MS = 10_000;
-const log = (...args: unknown[]) => console.log(formatLogPrefix("zaiOAuth", process.pid), ...args);
+const logger = createServiceLogger("zaiOAuth");
+const log = (...args: unknown[]) => logger.info(undefined, ...args);
 
 function normalizeExpiresIn(raw: number | undefined, now: () => number): number | undefined {
   if (!raw || !Number.isFinite(raw)) {

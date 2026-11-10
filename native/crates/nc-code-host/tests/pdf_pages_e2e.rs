@@ -126,7 +126,10 @@ fn read_pages_with_real_pdf() {
             assert_eq!(parts["numParts"], 1);
             assert_eq!(parts["pages"][0]["pageNumber"], 1);
             assert_eq!(parts["pages"][0]["mimeType"], "image/jpeg");
-            assert!(parts["pages"][0]["base64"].as_str().unwrap_or("").len() > 0);
+            assert!(!parts["pages"][0]["base64"]
+                .as_str()
+                .unwrap_or("")
+                .is_empty());
             assert!(poppler_present(), "rendered but poppler probe says absent");
         }
         Err(error) => {

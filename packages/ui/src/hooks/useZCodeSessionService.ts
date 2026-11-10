@@ -1,5 +1,4 @@
 import type { IZCodeSessionService } from "@zcode/services";
-import { useServices } from "@/hooks/useServices.js";
 import { useWorkspaceServices } from "@/hooks/useWorkspaceServices.js";
 
 export function useZCodeSessionService(
@@ -7,8 +6,10 @@ export function useZCodeSessionService(
   preferredRemoteSessionId?: string | null,
   workspaceIdentity?: string | null,
 ): IZCodeSessionService {
-  const services = workspacePath
-    ? useWorkspaceServices(workspacePath, preferredRemoteSessionId, workspaceIdentity)
-    : useServices();
+  // Always call the same hooks. `workspacePath` flips from undefined to a value after the
+  // initial workspace boot; conditionally calling `useWorkspaceServices` changed hook order
+  // and surfaced as "Cannot read properties of undefined (reading 'length')" inside React.
+  // `useWorkspaceServices` already falls back to the current/base services when no path is set.
+  const services = useWorkspaceServices(workspacePath, preferredRemoteSessionId, workspaceIdentity);
   return services.zcodeSessionService;
 }

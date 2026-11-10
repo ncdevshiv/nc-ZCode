@@ -101,6 +101,12 @@ export const ServiceChannels = {
   ConversationShare: "conversation-share",
   /** 文件系统监视服务 */
   FileWatcher: "file-watcher",
+  /** OAuth 认证服务（legacy TS surface; not registered by the Rust backend） */
+  OAuth: "oauth",
+  /** Usage stats 服务（legacy TS surface; not registered by the Rust backend） */
+  UsageStats: "usage-stats",
+  /** Coding Plan 订阅服务（legacy TS surface; not registered by the Rust backend） */
+  CodingPlanSubscription: "coding-plan-subscription",
   /** 新 Provider Config 的设置读写 Facade */
   ProviderSettings: "provider-settings",
   /** 新 Provider Registry 的模型选择 Facade */

@@ -17,3 +17,36 @@ serde = { version = "1", features = ["derive"] }
 # Dev/test only: serializer-parity checks against golden vectors.
 serde_json = { version = "1", features = ["preserve_order"] }
 tokio = { version = "1", features = ["full"] }
+
+# Profiles are the primary defence against target/ growth. Measured baseline
+# (2026-11-08, docs/engineering/resource-budget.md): 797 `.pdb` files / 63.7 GB and
+# 51 GB of incremental sessions under `native/target/debug`, driven by the
+# defaults below being unset (`debug = 2` + unbounded incremental).
+[profile.dev]
+# `1` = line tables only. Backtraces and `rust-gdb` still work; the full type
+# info that `debug = 2` embeds is what made each test binary's PDB ~500 MB.
+debug = 1
+# Pack debug info into one `.pdb` next to the binary instead of leaving
+# per-object debug sections in the rlibs/exes.
+split-debuginfo = "packed"
+
+[profile.dev.package."*"]
+# Third-party dependencies do not need debug info while developing. This alone
+# removes most of the remaining per-crate PDB volume.
+debug = false
+
+[profile.test]
+debug = 1
+split-debuginfo = "packed"
+
+[profile.release]
+debug = false
+strip = "symbols"
+# Thin LTO keeps link times bounded while still allowing cross-crate inlining.
+lto = "thin"
+codegen-units = 16
+incremental = false
+
+[profile.bench]
+inherits = "release"
+debug = false

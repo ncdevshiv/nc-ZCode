@@ -272,7 +272,7 @@ struct Labels {
 fn labels(locale: &str) -> Labels {
     if locale == "zh-CN" {
         Labels {
-            app: "ZCode",
+            app: "NC-Code",
             file: "文件",
             edit: "编辑",
             view: "视图",
@@ -293,17 +293,17 @@ fn labels(locale: &str) -> Labels {
             zoom_out: "缩小",
             actual_size: "实际大小",
             minimize: "最小化",
-            about: "关于 ZCode",
+            about: "关于 NC-Code",
             feedback: "问题上报",
             export_logs: "导出日志",
             clear_data: "清除所有数据",
             resource_manager: "资源管理器",
             devtools: "切换开发者工具",
-            quit: "退出 ZCode",
+            quit: "退出 NC-Code",
         }
     } else {
         Labels {
-            app: "ZCode",
+            app: "NC-Code",
             file: "File",
             edit: "Edit",
             view: "View",
@@ -324,13 +324,13 @@ fn labels(locale: &str) -> Labels {
             zoom_out: "Zoom out",
             actual_size: "Actual size",
             minimize: "Minimize",
-            about: "About ZCode",
+            about: "About NC-Code",
             feedback: "Feedback",
             export_logs: "Export logs",
             clear_data: "Clear all data",
             resource_manager: "Resource manager",
             devtools: "Toggle developer tools",
-            quit: "Quit ZCode",
+            quit: "Quit NC-Code",
         }
     }
 }
@@ -547,11 +547,11 @@ pub fn handle_menu_event(app: &AppHandle, id: &str) {
         Some(MenuAction::About) => {
             app.dialog()
                 .message(format!(
-                    "ZCode {} ({})",
+                    "NC-Code {} ({})",
                     env!("CARGO_PKG_VERSION"),
                     std::env::consts::OS
                 ))
-                .title("About ZCode")
+                .title("About NC-Code")
                 .kind(MessageDialogKind::Info)
                 .show(|_| {});
         }

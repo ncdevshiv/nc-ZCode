@@ -437,8 +437,16 @@ fn grant_of(record: &LeaseRecord, state: LeaseGrantState) -> LeaseGrant {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    /// The manual clock is the lease tests' single time source; advancing it must
+    /// change the observed value (otherwise expiry tests are silently time-independent).
     #[test]
-    fn basic_test() {
-        assert!(true);
+    fn manual_clock_advances_the_observed_time() {
+        let clock = ManualClock::new(1000);
+        assert_eq!(clock.now(), 1000);
+        clock.advance_ms(500);
+        assert_eq!(clock.now(), 1500);
+        clock.set_ms(42);
+        assert_eq!(clock.now(), 42);
     }
 }

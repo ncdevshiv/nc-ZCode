@@ -456,8 +456,16 @@ pub trait CommandInboxHost: Send + Sync {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    /// The CAS and row-targeting tables gate dispatch; a wrong membership lets a
+    /// stale client mutate state without a base revision.
     #[test]
-    fn basic_test() {
-        assert!(true);
+    fn command_classification_matches_the_v4_tables() {
+        assert!(is_known_command_type("sendText"));
+        assert!(!is_known_command_type("notACommand"));
+        assert!(requires_base_revision("switchModelConfig"));
+        assert!(!requires_base_revision("sendText"));
+        assert!(is_row_targeting("editUserQuery"));
+        assert!(!is_row_targeting("sendText"));
     }
 }

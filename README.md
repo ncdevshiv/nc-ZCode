@@ -15,7 +15,7 @@ ZCode is an AI programming workbench that provides desktop applications, browser
 
 | Entrance | Purpose | Development Command |
 | -------------------- | -------------------------------------------------------------- | ------------------------------ |
-| Desktop | Electron desktop application | `bun run dev:desktop` |
+| Desktop | Tauri desktop application (Electron fallback) | `bun run dev:desktop` (→ `dev:tauri`) |
 | Web / ZCode command line version | Terminal and browser workbench; assembles TUI, Web, backend and Agent into independent running packages | `bun run dev:web` |
 | Agent CLI | Use `zcode` in the terminal, also provides Agent runtime for Desktop and Web | `bun run --filter @zcode/cli dev` |
 
@@ -54,7 +54,7 @@ bun run dev:desktop
 bun run dev:desktop:test
 ```
 
-`bun run dev:desktop` defaults to `bun run dev:desktop:prod`, using the production service configuration. The startup script will prepare local running resources, build the desktop agent, and then start Electron and source code monitoring.
+`bun run dev:desktop` aliases `bun run dev:tauri` (`package.json:15`): it builds `@zcode/web` and runs `cargo run --manifest-path native/Cargo.toml -p nc-code-shell` (Tauri shell + embedded Rust backend). Electron is the fallback via `bun run dev:desktop:prod` / `dev:desktop:test` (`scripts/dev-desktop-env.mjs`), which prepare runtime assets, build the desktop agent, and start Electron with source watchers.
 
 When you need to develop the data directory independently, you can set `ZCODE_DATA_BASE_DIR`. For example in macOS/Linux:
 
@@ -207,7 +207,7 @@ Open `http://127.0.0.1:3030` in the browser to verify the complete link of the w
 
 | Table of Contents | Responsibilities |
 | ---------------------------------------------------- | ------------------------------------------ |
-| `packages/desktop` | Electron Main, Host, Renderer and desktop packaging |
+| `packages/desktop` | Tauri shell (Electron fallback) Main, Host, Renderer and desktop packaging |
 | `packages/web` | Web client |
 | `packages/server` | HTTP/WebSocket services and remote connections |
 | `packages/zcode-server-cli` | Independent Server startup and process management |

@@ -8,6 +8,9 @@ publish.workspace = true
 description = "Composition root for the Rust backend: paths, service registry assembly"
 
 [dependencies]
+async-trait = "0.1"
+serde.workspace = true
+serde_json.workspace = true
 tokio.workspace = true
 nc-code-channels = { path = "../nc-code-channels" }
 nc-code-host = { path = "../nc-code-host" }
@@ -23,20 +26,14 @@ nc-code-services-plugins = { path = "../nc-code-services-plugins" }
 nc-code-services-provider = { path = "../nc-code-services-provider" }
 nc-code-services-terminal = { path = "../nc-code-services-terminal" }
 nc-code-services-workspace = { path = "../nc-code-services-workspace" }
-nc-code-services-window-controller = { path = "../nc-code-services-window-controller" }
 nc-code-services-prompt-attachment-transfer = { path = "../nc-code-services-prompt-attachment-transfer" }
-nc-code-services-system = { path = "../nc-code-services-system" }
 nc-code-services-conversation-share = { path = "../nc-code-services-conversation-share" }
-nc-code-services-subagents = { path = "../nc-code-services-subagents" }
 nc-code-services-settings-sync = { path = "../nc-code-services-settings-sync" }
 nc-code-services-feedback = { path = "../nc-code-services-feedback" }
-nc-code-services-memory = { path = "../nc-code-services-memory" }
-nc-code-services-hooks = { path = "../nc-code-services-hooks" }
-nc-code-services-commands = { path = "../nc-code-services-commands" }
 nc-code-services-usage-stats = { path = "../nc-code-services-usage-stats" }
 nc-code-services-mcp-sync = { path = "../nc-code-services-mcp-sync" }
 nc-code-services-plugin-sync = { path = "../nc-code-services-plugin-sync" }
 nc-code-services-skill-sync = { path = "../nc-code-services-skill-sync" }
-nc-code-services-file-watcher = { path = "../nc-code-services-file-watcher" }
-nc-code-services-file = { path = "../nc-code-services-file" }
-nc-code-services-media-preview = { path = "../nc-code-services-media-preview" }
+
+[dev-dependencies]
+nc-code-rpc = { path = "../nc-code-rpc" }

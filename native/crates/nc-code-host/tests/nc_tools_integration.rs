@@ -44,7 +44,11 @@ fn ctx(root: &std::path::Path) -> ToolContext {
     }
 }
 fn find(tools: &[Arc<nc_tools::NcTool>], name: &str) -> Option<Arc<nc_tools::NcTool>> {
-    tools.iter().find(|tool| tool.tool_name() == name).cloned()
+    // 断言按 kernel 的点号名（能力面锚点）；模型面拿到的安全名另测。
+    tools
+        .iter()
+        .find(|tool| tool.kernel_name() == name)
+        .cloned()
 }
 #[test]
 fn kernel_exposes_the_full_typed_tool_surface() {
@@ -52,8 +56,20 @@ fn kernel_exposes_the_full_typed_tool_surface() {
     let tools = nc_tools::build_nc_tools(&root).expect("kernel must build");
     let names: Vec<String> = tools
         .iter()
-        .map(|tool| tool.tool_name().to_string())
+        .map(|tool| tool.kernel_name().to_string())
         .collect();
+    // 模型面名必须是网关可接受的安全名：OpenAI 兼容网关对 function.name 只收
+    // `[A-Za-z0-9_-]`（点号会直接 400 upstream_error，2026-11-08 实测）。
+    for tool in &tools {
+        let model_name = tool.tool_name();
+        assert!(
+            model_name
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-'),
+            "model-facing tool name is not gateway-safe: {model_name} (kernel: {})",
+            tool.kernel_name()
+        );
+    }
     // SDK 声称 89 个工具；家族锚点逐个在场（不是数数量，是点名关键工具）。
     for expected in [
         "fs.read",

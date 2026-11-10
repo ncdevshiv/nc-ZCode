@@ -49,6 +49,7 @@ pub struct StoreSnapshot {
     pub provider_order: Vec<String>,
     #[serde(
         rename = "defaultModelSelection",
+        default,
         skip_serializing_if = "Option::is_none"
     )]
     pub default_model_selection: Option<Value>,
@@ -100,6 +101,12 @@ impl ProviderStore {
             snapshot: Mutex::new(None),
             changes: EventBus::default(),
         })
+    }
+
+    /// Absolute path of the persisted store (tests write the fixture here, operators
+    /// inspect it when a provider is misconfigured).
+    pub fn app_config_path(&self) -> std::path::PathBuf {
+        self.file()
     }
 
     fn file(&self) -> std::path::PathBuf {

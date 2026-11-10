@@ -471,7 +471,7 @@ mod tests {
         let parsed: serde_json::Value = serde_json::from_str(&out).expect("json payload");
         assert_eq!(parsed["type"], "pdf");
         assert_eq!(parsed["originalSize"], pdf_bytes.len());
-        assert!(parsed["base64"].as_str().unwrap_or("").len() > 0);
+        assert!(!parsed["base64"].as_str().unwrap_or("").is_empty());
         // `pages` now attempts a real poppler render: a fake PDF fails as
         // corrupted / process_failed when poppler is present, or as the
         // poppler-missing configuration error when it is absent — never as the

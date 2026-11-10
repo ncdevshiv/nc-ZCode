@@ -113,6 +113,7 @@ import {
   type UserActionTrigger,
 } from "@/lib/userActionTelemetry.js";
 import type { SettingsUserActionFeatureId } from "@/lib/userActionTraceCatalog.js";
+import { logger } from "@/logger.js";
 
 function runSettingsActionAsync<T>(options: {
   featureId: SettingsUserActionFeatureId;
@@ -935,7 +936,7 @@ export function SettingsPage({
           await onboardingRecordService
             ?.updateRecordPreferences({ memoryEnabled: enabled })
             .catch((cause: unknown) => {
-              console.warn("[settings] 回写引导记录失败", String(cause));
+              logger.warn("[settings] 回写引导记录失败", String(cause));
             });
         },
         completed: {

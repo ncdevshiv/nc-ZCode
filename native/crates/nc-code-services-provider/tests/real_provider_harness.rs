@@ -1,4 +1,6 @@
 //! The real provider harness emits all smoke (skipped by default, explicit environment variables are required).
+//! 本文件的 println! 是测试脚手架输出（cargo test -- --nocapture 捕获），
+//! 不是生产日志通道，故意保留；生产日志请走 nc-code-service-core logger。
 //!
 //! Purpose: Use **product's own** directory to capture + detect code to create real endpoint and verify
 //! Acceptance of `specs/model-catalog-and-tps.md` §4.3:

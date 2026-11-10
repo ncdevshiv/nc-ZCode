@@ -233,11 +233,3 @@ impl HostServer {
         settle_admitted(&parent, admitted, final_, Vec::new(), &self.outbox);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn basic_test() {
-        assert!(true);
-    }
-}

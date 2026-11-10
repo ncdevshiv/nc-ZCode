@@ -22,3 +22,9 @@ nc-code-rpc = { path = "../nc-code-rpc" }
 nc-code-service-core = { path = "../nc-code-service-core" }
 nc-code-services-automation = { path = "../nc-code-services-automation" }
 nc-code-services-provider = { path = "../nc-code-services-provider" }
+# Attachment upload transaction framing (base64 decode) shares the v4 wire crate.
+nc-code-v4-wire = { path = "../nc-code-v4-wire" }
+
+[dev-dependencies]
+# The readWorkspacePresentation test asserts against the real commands-channel projection.
+nc-code-services-extensions = { path = "../nc-code-services-extensions" }

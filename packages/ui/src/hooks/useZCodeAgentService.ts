@@ -1,5 +1,4 @@
 import type { IZCodeAgentService } from "@zcode/services";
-import { useServices } from "@/hooks/useServices.js";
 import { useWorkspaceServices } from "@/hooks/useWorkspaceServices.js";
 
 export function useZCodeAgentService(
@@ -7,8 +6,7 @@ export function useZCodeAgentService(
   preferredRemoteSessionId?: string | null,
   workspaceIdentity?: string | null,
 ): IZCodeAgentService {
-  const services = workspacePath
-    ? useWorkspaceServices(workspacePath, preferredRemoteSessionId, workspaceIdentity)
-    : useServices();
+  // Keep the hook order stable when the initial workspace path arrives after first render.
+  const services = useWorkspaceServices(workspacePath, preferredRemoteSessionId, workspaceIdentity);
   return services.zcodeAgentService;
 }

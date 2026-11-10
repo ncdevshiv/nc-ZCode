@@ -95,7 +95,7 @@ async fn system_info_and_task_call_over_tunneled_ws() {
     assert!(
         nc_code_services_client::remote_ws_facade::probe_tunnel_health(tunnel_addr).await,
         "/healthz through the tunnel must return the ok marker"
-    );    // WS facade through the tunnel: system.info is a real remote round-trip.
+    ); // WS facade through the tunnel: system.info is a real remote round-trip.
     let facade = WsTaskService::connect(&format!("ws://{tunnel_addr}/ws"))
         .await
         .expect("ws facade connect");
@@ -108,7 +108,9 @@ async fn system_info_and_task_call_over_tunneled_ws() {
         panic!("system.info must return Json, got: {info:?}");
     };
     assert!(
-        info.get("homedir").and_then(|v| v.as_str()).is_some_and(|s| !s.is_empty()),
+        info.get("homedir")
+            .and_then(|v| v.as_str())
+            .is_some_and(|s| !s.is_empty()),
         "system.info homedir must be real, got: {info}"
     );
     assert!(
@@ -131,7 +133,10 @@ async fn system_info_and_task_call_over_tunneled_ws() {
     let WireValue::Json(rows) = listed else {
         panic!("listTasks must return Json, got: {listed:?}");
     };
-    assert!(rows.is_array(), "listTasks must return an array, got: {rows}");
+    assert!(
+        rows.is_array(),
+        "listTasks must return an array, got: {rows}"
+    );
 
     facade.client().close().await;
     forwarder.stop();

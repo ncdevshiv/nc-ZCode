@@ -16,8 +16,8 @@ use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use http_body_util::BodyExt;
 use nc_code_channels::ChannelRegistry;
-use nc_code_services_client::RemoteConnectionRegistry;
 use nc_code_server::{build_channel_router, ServerOptions};
+use nc_code_services_client::RemoteConnectionRegistry;
 use serde_json::{json, Value};
 use tower::ServiceExt;
 
@@ -41,7 +41,13 @@ async fn post(app: axum::Router, path: &str, body: Value) -> (StatusCode, Value)
 
 async fn get(app: axum::Router, path: &str) -> (StatusCode, Value) {
     let response = app
-        .oneshot(Request::builder().method(Method::GET).uri(path).body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .method(Method::GET)
+                .uri(path)
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     let status = response.status();
@@ -89,7 +95,10 @@ async fn connect_validation_fails_closed() {
     )
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(body["error"].as_str().unwrap_or("").contains("remotePort"), "ssh without remotePort must say so, got {body}");
+    assert!(
+        body["error"].as_str().unwrap_or("").contains("remotePort"),
+        "ssh without remotePort must say so, got {body}"
+    );
 
     // wsl kind: bind-based, not an HTTP connect target
     let (status, body) = post(
@@ -99,7 +108,10 @@ async fn connect_validation_fails_closed() {
     )
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(body["error"].as_str().unwrap_or("").contains("wsl"), "wsl kind must be explicit, got {body}");
+    assert!(
+        body["error"].as_str().unwrap_or("").contains("wsl"),
+        "wsl kind must be explicit, got {body}"
+    );
 
     // missing workspacePath
     let (status, body) = post(
@@ -109,7 +121,13 @@ async fn connect_validation_fails_closed() {
     )
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(body["error"].as_str().unwrap_or("").contains("workspacePath"), "missing workspacePath must say so");
+    assert!(
+        body["error"]
+            .as_str()
+            .unwrap_or("")
+            .contains("workspacePath"),
+        "missing workspacePath must say so"
+    );
 
     // unreachable ws endpoint: 502, no session registered
     let (router2, remotes2) = router_with_remote();
@@ -124,8 +142,14 @@ async fn connect_validation_fails_closed() {
     )
     .await;
     assert_eq!(status, StatusCode::BAD_GATEWAY);
-    assert!(!body.get("remoteSessionId").is_some_and(|v| !v.is_null()), "unreachable ws must not mint a session");
-    assert!(remotes2.list_sessions().is_empty(), "failed connect must leave the registry empty");
+    assert!(
+        !body.get("remoteSessionId").is_some_and(|v| !v.is_null()),
+        "unreachable ws must not mint a session"
+    );
+    assert!(
+        remotes2.list_sessions().is_empty(),
+        "failed connect must leave the registry empty"
+    );
     let _ = router;
 }
 
@@ -142,11 +166,15 @@ async fn ws_connect_bind_sessions_dispose_round_trip() {
         remote: None,
         ..ServerOptions::default()
     };
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind live server");
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind live server");
     let addr = listener.local_addr().expect("live addr");
     let live_registry = Arc::clone(&registry);
     tokio::spawn(async move {
-        nc_code_server::serve(listener, live_registry, live_options).await.expect("live serve");
+        nc_code_server::serve(listener, live_registry, live_options)
+            .await
+            .expect("live serve");
     });
     // Wait for /healthz so the WS handshake is real, not racy.
     let mut ready = false;
@@ -171,8 +199,15 @@ async fn ws_connect_bind_sessions_dispose_round_trip() {
         }),
     )
     .await;
-    assert_eq!(status, StatusCode::OK, "ws connect must succeed, got {body}");
-    let session_id = body["remoteSessionId"].as_str().expect("remoteSessionId").to_string();
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "ws connect must succeed, got {body}"
+    );
+    let session_id = body["remoteSessionId"]
+        .as_str()
+        .expect("remoteSessionId")
+        .to_string();
     assert_eq!(body["generation"], json!(1));
 
     // The descriptor resolves in the same window registry.
@@ -221,6 +256,38 @@ async fn ws_connect_bind_sessions_dispose_round_trip() {
 }
 
 #[tokio::test]
+async fn ssh_transport_port_is_validated() {
+    let (router, remotes) = router_with_remote();
+    // 0 / out-of-range are rejected before any process spawn.
+    for bad_port in [0u64, 70000u64] {
+        let (status, body) = post(
+            router.clone(),
+            "/api/remote/connect",
+            json!({
+                "target": {
+                    "kind": "ssh",
+                    "host": "build.example.com",
+                    "username": "dev",
+                    "port": bad_port,
+                    "remotePort": 43117
+                },
+                "workspacePath": "/ws",
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+        assert!(
+            body["error"].as_str().unwrap_or("").contains("target.port"),
+            "invalid ssh port must name the field, got {body}"
+        );
+    }
+    assert!(
+        remotes.list_sessions().is_empty(),
+        "no session may be minted for an invalid port"
+    );
+}
+
+#[tokio::test]
 async fn bind_unknown_session_is_404() {
     let (router, _remotes) = router_with_remote();
     let (status, body) = post(
@@ -234,5 +301,8 @@ async fn bind_unknown_session_is_404() {
     )
     .await;
     assert_eq!(status, StatusCode::NOT_FOUND);
-    assert!(body["error"].as_str().unwrap_or("").contains("not found"), "unknown bind must name it, got {body}");
+    assert!(
+        body["error"].as_str().unwrap_or("").contains("not found"),
+        "unknown bind must name it, got {body}"
+    );
 }

@@ -71,3 +71,15 @@ packages/desktop/.e2e-artifacts/
 packages/desktop/.e2e-cache/
 packages/desktop/.e2e-network-capture/
 .zcode-runtime/
+# Local-only caches and scratch: regenerable, never repository content.
+/.bun-cache/
+/.ncag/
+/.dev-scratch/
+/.bench-out/
+# local tool state / caches / runtime state (nested, not just root)
+.commandcode/
+**/.bun-cache/
+**/.ncag/
+# recorder/test logs (may contain secrets)
+recorder.log
+*.log

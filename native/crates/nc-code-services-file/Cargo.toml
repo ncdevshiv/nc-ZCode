@@ -8,8 +8,8 @@ publish.workspace = true
 description = "file service channel"
 
 [dependencies]
+serde.workspace = true
 async-trait = "0.1"
-serde = { workspace = true }
 serde_json.workspace = true
 tokio = { workspace = true, features = ["fs", "io-util"] }
 base64 = "0.22"

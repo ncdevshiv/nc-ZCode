@@ -15,7 +15,7 @@
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::sync::atomic::{AtomicU32, AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -40,7 +40,10 @@ pub struct WsChannelClient {
 
 impl std::fmt::Debug for WsChannelClient {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_struct("WsChannelClient").field("url", &self.url).finish()
+        formatter
+            .debug_struct("WsChannelClient")
+            .field("url", &self.url)
+            .finish()
     }
 }
 
@@ -93,7 +96,7 @@ impl WsChannelClient {
                     Some(bytes) => {
                         if write_half
                             .send(tokio_tungstenite::tungstenite::protocol::Message::Binary(
-                                bytes.into(),
+                                bytes,
                             ))
                             .await
                             .is_err()
@@ -113,33 +116,25 @@ impl WsChannelClient {
             let mut read_half = read_half;
             let mut decoder = FrameDecoder::default();
             while reader_control.load(Ordering::SeqCst) {
-                match tokio::time::timeout(
-                    std::time::Duration::from_millis(200),
-                    read_half.next(),
-                )
-                .await
+                match tokio::time::timeout(std::time::Duration::from_millis(200), read_half.next())
+                    .await
                 {
-                    Ok(Some(Ok(
-                        tokio_tungstenite::tungstenite::protocol::Message::Binary(bytes),
-                    ))) => {
-                        match decoder.push(&bytes) {
-                            Ok(frames) => {
-                                for frame in frames {
-                                    let Ok(message) =
-                                        ChannelMessage::decode(&frame.payload)
-                                    else {
-                                        continue;
-                                    };
-                                    route_message(message, &pending_reader, &events_reader)
-                                        .await;
-                                }
+                    Ok(Some(Ok(tokio_tungstenite::tungstenite::protocol::Message::Binary(
+                        bytes,
+                    )))) => match decoder.push(&bytes) {
+                        Ok(frames) => {
+                            for frame in frames {
+                                let Ok(message) = ChannelMessage::decode(&frame.payload) else {
+                                    continue;
+                                };
+                                route_message(message, &pending_reader, &events_reader).await;
                             }
-                            Err(_) => break,
                         }
+                        Err(_) => break,
+                    },
+                    Ok(Some(Ok(tokio_tungstenite::tungstenite::protocol::Message::Close(_)))) => {
+                        break
                     }
-                    Ok(Some(Ok(
-                        tokio_tungstenite::tungstenite::protocol::Message::Close(_),
-                    ))) => break,
                     Ok(Some(Ok(_))) => {}
                     Ok(Some(Err(_))) => break,
                     Ok(None) => break,
@@ -184,7 +179,9 @@ impl WsChannelClient {
             .await
             .map_err(|_| ChannelFailure::error(format!("ws invoke timed out: {channel}/{method}")))
             .and_then(|result| {
-                result.map_err(|_| ChannelFailure::error(format!("ws channel closed: {channel}/{method}")))
+                result.map_err(|_| {
+                    ChannelFailure::error(format!("ws channel closed: {channel}/{method}"))
+                })
             })?;
         match response {
             ChannelMessage::PromiseSuccess { id: rid, data } if rid == id => Ok(data),
@@ -343,17 +340,18 @@ impl TcpForwarder {
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
             .map_err(|error| ServiceError::message(format!("tunnel bind failed: {error}")))?;
-        let addr = listener.local_addr().map_err(|error| {
-            ServiceError::message(format!("tunnel addr failed: {error}"))
-        })?;
+        let addr = listener
+            .local_addr()
+            .map_err(|error| ServiceError::message(format!("tunnel addr failed: {error}")))?;
         let stop = Arc::new(AtomicBool::new(false));
         let stop_thread = Arc::clone(&stop);
-        let handle = std::thread::spawn(move || {
-            let runtime = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("tunnel runtime");
-            runtime.block_on(async move {
+        let handle =
+            std::thread::spawn(move || {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("tunnel runtime");
+                runtime.block_on(async move {
                 loop {
                     if stop_thread.load(Ordering::SeqCst) {
                         break;
@@ -387,7 +385,7 @@ impl TcpForwarder {
                     });
                 }
             });
-        });
+            });
         Ok(Self {
             addr,
             stop,
@@ -426,9 +424,7 @@ pub async fn probe_tunnel_health(addr: SocketAddr) -> bool {
     else {
         return false;
     };
-    let request = format!(
-        "GET /healthz HTTP/1.0\r\nHost: {addr}\r\nConnection: close\r\n\r\n"
-    );
+    let request = format!("GET /healthz HTTP/1.0\r\nHost: {addr}\r\nConnection: close\r\n\r\n");
     if stream.write_all(request.as_bytes()).await.is_err() {
         return false;
     }

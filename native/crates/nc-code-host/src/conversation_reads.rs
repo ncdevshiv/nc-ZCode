@@ -270,7 +270,10 @@ impl HostServer {
         Ok(json!({ "runs": runs }))
     }
 
-    /// `v4/usage/stats` - app-level usage snapshot (honest empty; no durable cross-session store in Rust host).
+    /// `v4/usage/stats` — app-level usage snapshot aggregated from this host's own
+    /// durable transcripts (`<data-dir>/sessions/<id>/transcript.jsonl`). The host is
+    /// the single writer of those files, so there is no second store to reconcile; a
+    /// transcript that cannot be read is counted and logged, never zero-filled silently.
     pub(crate) fn usage_stats(&self, params: &Value) -> Result<Value, RpcError> {
         let range = params
             .get("range")
@@ -282,25 +285,31 @@ impl HostServer {
             .and_then(Value::as_str)
             .filter(|s| !s.trim().is_empty())
             .unwrap_or("UTC");
-        let generated_at = crate::store::now_ms();
-        Ok(json!({
-            "range": range,
-            "generatedAt": generated_at,
-            "timeZone": time_zone,
-            "source": "agent-db",
-            "summary": {
-                "totalTokens": 0, "inputTokens": 0, "outputTokens": 0,
-                "reasoningTokens": 0, "cacheCreationTokens": 0, "cacheReadTokens": 0,
-                "cacheHitRate": 0.0, "totalSessions": 0, "totalTurns": 0,
-                "toolCallCount": 0, "toolErrorRate": 0.0, "modelErrorRate": 0.0,
-                "activeDays": 0, "currentStreakDays": 0, "longestSessionMs": 0,
-                "longestStreakDays": 0, "peakDayTokens": 0,
-                "avgTimeToFirstTokenMs": Value::Null, "avgTurnDurationMs": Value::Null,
-                "favoriteModel": Value::Null
-            },
-            "heatmap": { "maxTokens": 0, "weeks": [], "startDate": Value::Null, "endDate": Value::Null },
-            "dailyModelUsage": [], "models": [], "tools": []
-        }))
+        let now = crate::store::now_ms();
+        let since = match range {
+            "7d" => now.saturating_sub(7 * 86_400_000),
+            "30d" => now.saturating_sub(30 * 86_400_000),
+            _ => 0,
+        };
+        let scan = nc_code_service_core::scan_agent_usage(&self.data_dir);
+        if scan.skipped_files > 0 || scan.skipped_lines > 0 {
+            nc_code_service_core::logger::ServiceLogger::new("zcode-host").warn(
+                None,
+                format!(
+                    "usage scan skipped {} file(s) / {} line(s) under {}",
+                    scan.skipped_files,
+                    scan.skipped_lines,
+                    self.data_dir.display()
+                ),
+            );
+        }
+        Ok(nc_code_service_core::build_app_usage_snapshot(
+            &scan.facts,
+            range,
+            time_zone,
+            since,
+            now,
+        ))
     }
 }
 

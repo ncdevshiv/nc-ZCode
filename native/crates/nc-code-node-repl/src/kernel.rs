@@ -26,6 +26,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use nc_code_service_core::logger::ServiceLogger;
 use serde::Serialize;
 use serde_json::Value;
 
@@ -35,6 +36,45 @@ use crate::protocol::{
     parse_inbound, AddModuleDirFrame, CancelFrame, CancelReason, EvaluateFrame, InboundFrame,
     KernelOutput, ReadyEvent, SimpleFrame, KERNEL_PROTOCOL,
 };
+
+/// Kernel error message 脱敏：错误帧 message 可能回显用户输入（可能含 secret）。
+/// 截断 + 含敏感关键字/长不透明 token 时整段 [REDACTED]，避免原样落盘。
+fn redact_kernel_error_message(message: &str) -> String {
+    const LIMIT: usize = 500;
+    let clipped = if message.len() > LIMIT {
+        &message[..LIMIT]
+    } else {
+        message
+    };
+    let lower = clipped.to_ascii_lowercase();
+    const SENSITIVE: &[&str] = &[
+        "token",
+        "secret",
+        "password",
+        "passwd",
+        "api_key",
+        "api-key",
+        "apikey",
+        "authorization",
+        "bearer",
+        "cookie",
+        "private_key",
+        "access_key",
+        "client_secret",
+    ];
+    let has_keyword = SENSITIVE.iter().any(|word| lower.contains(word));
+    let has_long_token = clipped
+        .split(|c: char| !c.is_ascii_alphanumeric() && c != '_' && c != '-' && c != '.')
+        .any(|tok| tok.len() >= 32);
+    if has_keyword || has_long_token {
+        format!(
+            "[REDACTED] (kernel message truncated len={})",
+            clipped.len()
+        )
+    } else {
+        clipped.to_string()
+    }
+}
 
 /// The grace period to wait for driver settlement frame after cancel is issued (TS node-repl.ts:403
 /// `timeout.cleanupGraceMs = 2_000`: Cleanup window after timeout/cancellation).
@@ -648,9 +688,14 @@ fn reader_thread(
             }
             InboundFrame::Error { id: None, error } => {
                 // Error frame without id: kernel response to bad input parameters, no waiting parties; record diagnosis.
-                eprintln!(
-                    "zcode-node-repl: kernel reported {}: {}",
-                    error.name, error.message
+                // message 可能回显用户输入，禁止原样落盘；只记脱敏截断后的 diagnosis。
+                ServiceLogger::new("zcode-node-repl").warn(
+                    None,
+                    format!(
+                        "kernel reported {}: {}",
+                        error.name,
+                        redact_kernel_error_message(&error.message)
+                    ),
                 );
             }
             InboundFrame::Result { id, output } => {

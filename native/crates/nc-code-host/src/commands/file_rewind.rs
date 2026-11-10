@@ -192,11 +192,3 @@ impl HostServer {
         settle_admitted(&session, admitted, final_, lines, &self.outbox);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn basic_test() {
-        assert!(true);
-    }
-}

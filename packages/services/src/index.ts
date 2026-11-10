@@ -212,6 +212,18 @@ export type { SessionRealtimePort } from "./session/sessionRealtimePort.js";
 // FileWatcher service — IFileWatcherService is both a type (interface) and value (descriptor)
 export { IFileWatcherService } from "./fileWatcher/fileWatcher.js";
 
+// OAuth service (legacy TS surface; Rust backend does not register the channel).
+export { IOAuthService } from "./oauth/oauth.js";
+
+// UsageStats service (legacy TS surface; Rust backend does not register the channel).
+export { IUsageStatsService } from "./usage-stats/usageStats.js";
+
+// CodingPlanSubscription service (legacy TS surface; Rust backend does not register the channel).
+export {
+  ICodingPlanSubscriptionService,
+  type OffPeakClientConfig,
+} from "./coding-plan-subscription/codingPlanSubscription.js";
+
 // Storage（资源管理器「存储」tab）：数据类型在 @zcode/shared；这里只导出服务接口与卷分组纯函数
 export type { IStorageService } from "./storage/contract.js";
 export {

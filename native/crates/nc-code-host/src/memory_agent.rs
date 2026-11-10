@@ -173,7 +173,7 @@ pub fn is_allowed_memory_bash(command: &str, memory_root: &Path, _working_dir: &
         || trimmed.contains("&&")
         || trimmed.contains("`")
         || trimmed.contains("$(");
-    if read_only_prefixes.iter().any(|p| *p == first) && !has_write_metachar {
+    if read_only_prefixes.contains(&first) && !has_write_metachar {
         return true;
     }
     // Allow `rm <path>` only for a safe markdown file under memory root.
@@ -205,10 +205,9 @@ impl MemoryExtractionCursor {
         if matches!(
             status,
             MemoryExtractionStatus::Success | MemoryExtractionStatus::NoOp
-        ) {
-            if boundary.is_some() {
-                self.last_boundary_message_id = boundary;
-            }
+        ) && boundary.is_some()
+        {
+            self.last_boundary_message_id = boundary;
         }
         self.last_status = Some(status);
         self.runs = self.runs.saturating_add(1);

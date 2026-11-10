@@ -280,7 +280,7 @@ mod tests {
             .expect("read image");
         let v: serde_json::Value = serde_json::from_str(&out).expect("json");
         assert_eq!(v["mimeType"], "image/png");
-        assert!(v["data"].as_str().unwrap_or("").len() > 0);
+        assert!(!v["data"].as_str().unwrap_or("").is_empty());
         assert!(v["sizeBytes"].as_u64().unwrap_or(0) > 0);
         let _ = std::fs::remove_dir_all(&root);
     }

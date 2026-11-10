@@ -1,5 +1,3 @@
-//! nc-code-diff executable entry: `ready` → serve loop → return the exit code according to the shutdown reason.
-
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
@@ -8,8 +6,20 @@ fn main() -> ExitCode {
 
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
+    /// The binary's dispatch entry produces a real unified diff for two texts.
     #[test]
-    fn basic_test() {
-        assert!(true);
+    fn handle_builds_a_real_unified_diff() {
+        let result = nc_code_diff::handle(
+            "diff.unified",
+            &json!({"old": "a\nb\n", "new": "a\nc\n", "path": "p.txt"}),
+        )
+        .expect("diff");
+        let rendered = serde_json::to_string(&result).expect("json");
+        assert!(
+            rendered.contains("-b") || rendered.contains("+c"),
+            "{rendered}"
+        );
     }
 }

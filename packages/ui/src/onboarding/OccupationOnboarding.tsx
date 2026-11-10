@@ -38,6 +38,7 @@ export function OccupationOnboarding({
   showChildrenWhileLoading = false,
   isMacDesktop,
   isWindowsDesktop,
+  autoTrigger = true,
 }: {
   children: ReactNode;
   /** Windows/Linux 自绘窗控：引导全屏覆盖主界面（含标题栏），需在此补最小化/最大化/关闭。 */
@@ -46,6 +47,8 @@ export function OccupationOnboarding({
   showChildrenWhileLoading?: boolean;
   isMacDesktop?: boolean;
   isWindowsDesktop?: boolean;
+  /** Rust product surface: only the explicit Settings → Onboard entry may open it. */
+  autoTrigger?: boolean;
 }) {
   const { settings, update } = useSettings();
   const platform = usePlatform();
@@ -79,7 +82,7 @@ export function OccupationOnboarding({
     hasStoredOccupation: Boolean(settings?.onboardingOccupation),
     update,
   });
-  const onboardingVisible = requested || (needsOnboarding === true && !dismissed);
+  const onboardingVisible = requested || (autoTrigger && needsOnboarding === true && !dismissed);
   const captureEnd = useOnboardingTelemetry({
     platform,
     visible:
@@ -205,11 +208,15 @@ export function OccupationOnboarding({
     applyLatestEntry();
     // eslint-disable-line react-hooks/exhaustive-deps
   }, [latestEntry]);
-  if (!settings) return showChildrenWhileLoading ? <>{children}</> : null;
+  if (!settings) return showChildrenWhileLoading || !autoTrigger ? <>{children}</> : null;
   // 判定进行中先不渲染，避免引导闪现后立即消失（判定为需引导）或先闪引导再进主界面。
   // 只有疑似首跑（settings 里也没有职业）才等待记录判定；存量用户（已有
   // onboardingOccupation）不等 RPC 直接进主界面，杜绝黑屏。
-  if (!requested && needsOnboarding === null && !settings.onboardingOccupation) return null;
+  // Rust product surface (`autoTrigger=false`) never waits: the workspace must render even
+  // when the onboarding-record probe is slow, otherwise a hung RPC leaves an empty window.
+  if (!requested && needsOnboarding === null && !settings.onboardingOccupation) {
+    return autoTrigger ? null : <>{children}</>;
+  }
   if (!onboardingVisible) return <>{children}</>;
   const save = async (skip = false) => {
     if (savingRef.current) return;

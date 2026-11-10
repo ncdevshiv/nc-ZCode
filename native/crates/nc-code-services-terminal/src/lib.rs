@@ -5,6 +5,9 @@
 //! `nc-code-service-core`, `nc-code-rpc` plus the PTY/profile helpers below. Settings are read
 //! from the file the `setting` channel owns; this crate never writes it.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 pub mod profile;
 pub mod profile_macos;
 pub mod pty;
@@ -45,13 +48,5 @@ impl TerminalServices {
     /// process, mirroring the `disposeAll()` entry point of the TypeScript service.
     pub fn dispose_all(&self) {
         self.terminal.dispose_all();
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn crate_compiles() {
-        assert!(true);
     }
 }

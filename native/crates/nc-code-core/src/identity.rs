@@ -51,6 +51,8 @@ pub fn identity_key(workspace_identity: Option<&str>, workspace_path: &str) -> S
 mod tests {
     #[test]
     fn identity_test() {
-        assert!(true);
+        assert_eq!(super::identity_key(Some(" abc "), "/w"), "abc");
+        assert_eq!(super::identity_key(Some("  "), "/w"), "/w");
+        assert_eq!(super::identity_key(None, "/w"), "/w");
     }
 }

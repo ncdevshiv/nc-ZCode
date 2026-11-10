@@ -5,9 +5,13 @@
 //! channel is registered only when its implementation is complete — the registry is
 //! never populated with placeholders.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 use std::sync::Arc;
 
 use nc_code_channels::{ChannelRegistry, DuplicateChannel};
+use nc_code_service_core::logger::ServiceLogger;
 use nc_code_service_core::AppPaths;
 use nc_code_services_agent::automation_dispatch::AutomationDispatcher;
 use nc_code_services_agent::{AgentService, AgentServices};
@@ -53,13 +57,17 @@ pub async fn run_automation_scheduler(agent: Arc<AgentService>) {
         let dispatcher = AutomationDispatcher::new(&agent);
         match dispatcher.tick_once(now_ms()).await {
             Ok(report) if report.claimed > 0 || report.skipped > 0 || report.failed > 0 => {
-                eprintln!(
-                    "[nc-code-automation] claimed={} dispatched={} skipped={} failed={}",
-                    report.claimed, report.dispatched, report.skipped, report.failed
+                ServiceLogger::new("nc-code-automation").info(
+                    None,
+                    format!(
+                        "claimed={} dispatched={} skipped={} failed={}",
+                        report.claimed, report.dispatched, report.skipped, report.failed
+                    ),
                 );
             }
             Ok(_) => {}
-            Err(error) => eprintln!("[nc-code-automation] tick failed: {error}"),
+            Err(error) => ServiceLogger::new("nc-code-automation")
+                .error(None, format!("tick failed: {error}")),
         }
     }
 }
@@ -128,6 +136,23 @@ pub fn build_with_ports(
     registry.register("plugins", nc_code_services_plugins::PluginsService::new())?;
     let extensions = ExtensionsServices::new(paths.clone());
     extensions.register(&registry)?;
+    // The protocol slash-command directory is owned by the `commands` channel; the agent's
+    // `readWorkspacePresentation` consumes it through this port (one discovery path).
+    struct CommandsSlashDirectory(Arc<nc_code_services_extensions::commands::CommandsService>);
+    #[async_trait::async_trait]
+    impl nc_code_services_agent::service::SlashCommandDirectory for CommandsSlashDirectory {
+        async fn protocol_slash_commands(
+            &self,
+            workspace_path: &str,
+        ) -> Result<serde_json::Value, nc_code_service_core::ServiceError> {
+            self.0.protocol_slash_commands(workspace_path).await
+        }
+    }
+    agent
+        .service
+        .attach_slash_command_directory(Arc::new(CommandsSlashDirectory(Arc::clone(
+            &extensions.commands,
+        ))));
     // plugin-management: the plugin-management protocol surface (install/market/enable-disable/reference catalog). The skill-reference catalog
     // reuses the same process's skills channel (the single owner of skill discovery), so it must be constructed after extensions.
     let plugin_management = PluginManagementService::new(paths.clone(), extensions.skills.clone());
@@ -186,8 +211,40 @@ pub fn build_with_ports(
 
 #[cfg(test)]
 mod tests {
+    /// The composition root must assemble the live channel families: a missing
+    /// registration here is a dead frontend surface, not a compile error.
     #[test]
-    fn basic_test() {
-        assert!(true);
+    fn build_assembles_the_channel_families() {
+        let root = std::env::temp_dir().join(format!("zcode-app-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).expect("data dir");
+        let backend = super::build(nc_code_service_core::AppPaths::new(
+            root.clone(),
+            root.clone(),
+        ))
+        .expect("build");
+        for channel in [
+            "zcode-agent",
+            "zcode-session",
+            "zcode-task",
+            "file",
+            "file-watcher",
+            "media-preview",
+            "terminal",
+            "commands",
+            "hooks",
+            "memory",
+            "skills",
+            "plugins",
+            "git",
+            "provider-settings",
+            "model-selection",
+        ] {
+            assert!(
+                backend.registry.get(channel).is_some(),
+                "channel {channel} must be registered"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

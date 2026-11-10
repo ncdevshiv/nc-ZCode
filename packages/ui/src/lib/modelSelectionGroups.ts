@@ -1,5 +1,4 @@
 import {
-  isZCodeAgentProvider,
   resolveModelProviderFamilySpecByProviderId,
   zcodeProviderAccountAccessSchema,
   type ZCodeProviderAccountAccess,
@@ -21,25 +20,17 @@ export interface ModelProviderGroupLabelOptions {
   teamPlanFallbackLabel?: string;
 }
 
-function supportsRegistryApiFormat(
-  selectedProvider: ZCodeProvider,
-  apiFormat: string | null | undefined,
-): boolean {
-  if (!apiFormat) return false;
-  // 仅剩 glm（ZCode Agent）provider；三方 CLI 的 api format 差异已随 provider 下线。
-  return isZCodeAgentProvider(selectedProvider);
-}
-
 export function buildRegistryModelSelectGroups(
-  selectedProvider: ZCodeProvider,
+  // Kept for call-site compatibility: the candidate list is no longer narrowed by the
+  // selected provider. The Rust product surface only has personal API-key providers and
+  // the previous "glm-only" filter left the composer and every subagent picker empty for
+  // the only providers that exist (observed live: "Choose model" with just
+  // "New provider"/"Manage models", so no prompt could be sent).
+  _selectedProvider: ZCodeProvider,
   view: ModelSelectionView,
   labels: ModelProviderGroupLabelOptions = {},
 ): ModelSelectGroup[] {
   return view.providers.flatMap((provider) => {
-    if (!supportsRegistryApiFormat(selectedProvider, provider.config.api?.type)) {
-      return [];
-    }
-
     const accountAccess = zcodeProviderAccountAccessSchema.safeParse(provider.config.access);
     const accountPresentation = accountAccess.success
       ? getRegistryAccountProviderGroupPresentation(provider.providerId, accountAccess.data, labels)

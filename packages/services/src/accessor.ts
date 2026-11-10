@@ -13,6 +13,9 @@ import type { IZCodeAgentService } from "./zcode-agent/zcodeAgent.js";
 import type { IZCodeSessionService } from "./zcode-session/zcodeSession.js";
 import type { ICuaPermissionService } from "./cua-permission-broker/cuaPermissionService.js";
 import type { IFileWatcherService } from "./fileWatcher/fileWatcher.js";
+import type { IOAuthService } from "./oauth/oauth.js";
+import type { IUsageStatsService } from "./usage-stats/usageStats.js";
+import type { ICodingPlanSubscriptionService } from "./coding-plan-subscription/codingPlanSubscription.js";
 import type {
   IModelSelectionService,
   IProviderSettingsService,
@@ -58,10 +61,11 @@ export interface IServiceAccessor {
   readonly cuaPermissionService?: ICuaPermissionService;
   readonly conversationShareService: IConversationShareService;
   readonly fileWatcherService: IFileWatcherService;
-  /** å½“å‰ Environment çš„ Provider é…ç½®ä¸Žè®¾ç½®è§†å›¾ã€‚ */
+  readonly oauthService: IOAuthService;
   readonly providerSettingsService: IProviderSettingsService;
-  /** å½“å‰ Environment Registry å‘å¸ƒçš„å”¯ä¸€æ¨¡åž‹é€‰æ‹© Viewã€‚ */
   readonly modelSelectionService: IModelSelectionService;
+  readonly usageStatsService: IUsageStatsService;
+  readonly codingPlanSubscriptionService: ICodingPlanSubscriptionService;
   readonly clientConfigService: IClientConfigService;
   readonly clientScenesService: IClientScenesService;
   /** é—²æ—¶ä»»åŠ¡ç®¡ç†ï¼ˆç‹¬ç«‹æœåŠ¡é¢ï¼‰ã€‚ */

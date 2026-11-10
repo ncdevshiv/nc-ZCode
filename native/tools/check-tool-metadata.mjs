@@ -15,7 +15,7 @@
 // Get the **runtime truth** on both sides:
 // - TS: `builtInTools`, `metadata` + `resultBudget` of `core/dist/tool/handlers/index.js`
 // (Tools without resultBudget take effect according to TS's `DEFAULT_RESULT_BUDGET`);
-// - Rust: `cargo run -p zcode-host --bin tool_contracts` (produces registry declarations for each contract;
+// - Rust: `cargo run -p nc-code-host --bin tool_contracts` (produces registry declarations for each contract;
 // Both synchronized tables and asynchronous tables must be dumped, otherwise Agent/AskUserQuestion/ExitPlanMode/SendMessage will be silently skipped).
 // Differences should either be repaired in this round, or registered with reasons in `tool-metadata.baseline.json` (and pin the current values on both sides,
 // If the value changes but the registration does not follow the change, it is considered a failure - anti-corrosion). TS Skip this item when a field is not declared (`undefined`).
@@ -97,7 +97,7 @@ async function tsMetadata() {
 function rustMetadata() {
   const stdout = execFileSync(
     "cargo",
-    ["run", "-q", "-p", "zcode-host", "--bin", "tool_contracts"],
+    ["run", "-q", "-p", "nc-code-host", "--bin", "tool_contracts"],
     { cwd: join(root, "native"), encoding: "utf8", maxBuffer: 32 * 1024 * 1024 },
   );
   const line = stdout

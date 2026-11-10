@@ -7,6 +7,9 @@
 //! Layering has the same discipline as nc-code-host::workspace_hooks: parsing/normalization are pure functions (can be tested individually and shared by multiple entries),
 //! Disk and network orchestration are in the Fetcher/store layer, not in pure functions.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 pub mod app_config;
 pub mod archive;
 pub mod channel;
@@ -60,11 +63,3 @@ pub use types::{
     InstalledPlugin, KnownMarketplace, DEFAULT_VERSION, INSTALLED_PLUGINS_FILE,
     KNOWN_MARKETPLACES_FILE, MARKETPLACE_FILE, OFFICIAL_MARKETPLACE_ID,
 };
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn crate_compiles() {
-        assert!(true);
-    }
-}

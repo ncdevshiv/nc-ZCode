@@ -1,6 +1,14 @@
 # old.back — 已被 Rust 替代的 TS 实现的暂存区
 
-> 本目录当前**没有代码文件**——这是有意的，见下。
+> 本目录的第一次真实移动发生在 2026-11-09（见下），此前的"零移动"备注保留为历史。
+> <!-- trace:2026-11-06 docs sync — S1 默认面已从 diff-only 变为 4-on，与下方四条件规则不冲突（默认开 ≠ 已零引用）。 -->
+
+## 已移入的模块
+
+| 日期 | 原路径 | 为什么可以移动（四条件） |
+| ---- | ------ | ------------------------ |
+| 2026-11-09 | `apps/zcode-cli/packages/swift-bridge/` | ① 无产品面使用：全仓 `isSwiftAvailable` / `detectSwiftVersion` / `@zcode/swift-bridge` 零 importer（macOS 原生能力已由 `nc-code-shell` 的 Rust 命令承担：keychain 导入、print-to-pdf、窗口控制）；② N/A（无对等运行时）；③ N/A（无流量可切）；④ `typecheck` + `knip`/全仓 grep 证明零引用。该包本身是带 `TODO` 的占位实现，违反 P-1 反占位门禁，保留的害处更大。 |
+
 
 ## 这是什么
 
@@ -32,10 +40,11 @@
 6. **CLI/SEA** — `zcode` 原生二进制；删除 `build:sea`/postject 脚本。
 7. **S6 退出** — parity soak 窗口后删除本目录；Node 离开打包链。
 
-## 当前状态（2026-09-22，ENTRY 010）
+## 当前状态（2026-11-06 刷新，ENTRY 010 之后）
 
-S1 的 **diff island 已接线**（`@zcode/sidecar` + `ZCODE_NATIVE_SIDECARS=diff`，
-88/88 fixture 与真实 jsdiff 逐字节一致），jsdiff 运行时依赖已从 core/bootstrap
-**移除**（收敛进 adapter）。但 flag 默认关 = 尚无生产流量走 Rust，按规则 3
-**本轮不移动任何文件**。第一个 `git mv` 预计发生在 S1 islands 全部接线并翻转
-默认值之后。
+S1 五岛已全部接线：`@zcode/sidecar` 桥 NDJSON stdio，`DEFAULT_ON_ISLANDS`
+=`["diff","image","scan","watch"]` 4-on（`apps/zcode-cli/packages/sidecar/src/config.ts:44`），
+`proc` 默认关（MCP stdio 生命周期 soak）。diff 88/88 fixture 与真实 jsdiff 逐字节一致；
+image 语义 parity（用户 2026-09-22 决定翻默认）；scan/watch 语义镜像 TS。
+默认开 ≠ 已可移动：四条件仍全未满足（TS 调用点仍是双路 facade，knip 仍有引用），
+按规则 3 **本轮仍不移动任何文件**。第一个 `git mv` 需等零引用证明后才发生。

@@ -1,16 +1,9 @@
 # Spec: TypeScript 只存在于前端（language boundary ratchet）
 
-> 状态：2026-09-28 生效。
-> 日期口径：`.architecture-ts-baseline.json` 的 `generatedAt` / `bootstrappedAt` 与
-> 逃生舱的 `expires` 比较**一律用 UTC**（`toISOString()`）；本文的散文日期是本地日期。
-> 两者可能差一天，读基线时按 UTC 理解。
-> **强制范围**：「机器强制」目前 = `bun run architecture:check` +
-> `bun run verify:pre-push`。本仓库**没有 CI workflow 跑架构门禁**（`.github/` 里没有
-> 这一步），所以绕过 `verify:pre-push` 的提交不会被本门禁拦住。这是已知的执行缺口，
-> 不代表没有门禁。
-> 本 spec 是 `architecture-policy.yaml` 中 `languageBoundary` 段的**规范来源**；
-> 两者冲突时以本 spec 为准，policy 是它的可执行投影。
-> 执行入口：`bun run architecture:check`（即 `scripts/architecture/architecture-check.mjs`）。
+> 状态：2026-09-28 生效；2026-11-04 再基线（见 §9）。
+> 日期口径：基线 `generatedAt`/`bootstrappedAt` 与逃生舱 `expires` 比较**一律用 UTC**；本文散文日期是本地日期，两者可能差一天，读基线按 UTC 理解。
+> **强制范围**：「机器强制」= `bun run architecture:check` + `bun run verify:pre-push`；本仓库**没有 CI workflow 跑架构门禁**（绕过 `verify:pre-push` 不会被拦，已知执行缺口）。
+> 本 spec 是 `languageBoundary` 段的**规范来源**（冲突以本 spec 为准，policy 为可执行投影）；执行入口 `bun run architecture:check`。
 
 ## 0. 不变量
 
@@ -396,17 +389,9 @@ owner：`main` / 用户。
 一行修法（本轮**不应用**）：`git config core.autocrlf false`，或在 `.gitattributes`
 加一条兜底 `* text=auto eol=lf`。owner：仓库维护者。
 
-## 9. 当前数字（2026-09-28，生成器实测）
+## 9. 当前数字（2026-09-28 初版；2026-11-04 再基线）
 
-| 桶                    |    文件数 |        行数 |
-| --------------------- | --------: | ----------: |
-| frontend（allowlist） |     1,518 |     330,326 |
-| dev-tooling           |        86 |       7,655 |
-| dev-tooling config    |        30 |       1,815 |
-| dev-tooling entry     |         1 |          59 |
-| **迁移债（基线）**    | **2,282** | **510,755** |
-| 合计                  |     3,917 |     850,610 |
-
-行数口径见 §3（`split(/\r?\n/).length`，含文件尾换行带来的 +1/文件）。
-与 `RUST-PORT-MATRIX.md` 的 487,949 loc 口径不同（它按模块枚举口径统计），
-两者指向同一结论：非前端 TS 是 Rust 的 17 倍以上。
+迁移债：**2,282 文件 / 510,956 行**（`.architecture-ts-baseline.json:4` `generatedAt: 2026-11-04`；初版 510,755 行 **+201 行** approved growth，文件数不变）。
+再基线含 8 条 2026-11-04 `acceptedGrowth`（Bun runtime / Tauri file-drop / lint comments 等），ratchet 仍只收不增。
+前端 allowlist 1,518 / 330,326 行；合计 3,917 / 850,610 行（初版口径，行数口径见 §3）。
+与 `RUST-PORT-MATRIX.md` 的 487,949 loc 口径不同（模块枚举口径），两者结论一致：非前端 TS 是 Rust 的 17 倍以上。

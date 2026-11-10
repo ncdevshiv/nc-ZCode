@@ -1,18 +1,19 @@
 # Tauri Migration Plan: Remove Electron, Use Tauri + Rust Backend Exclusively
 
-**Date:** 2026-11-05  
+**Date:** 2026-11-05 (updated 2026-11-06)  
 **Author:** SD-002 (System Designer)  
-**Status:** Planning (No implementation yet)  
+**Status:** In progress (Tauri live; Rust backend ~55–65% code-only)
+<!-- trace:2026-11-06 docs sync — replaces stale Planning/6% claims. dev:desktop→dev:tauri live (package.json:15,21); embedded backend real (nc-code-shell/src/backend.rs:66 build + :93 serve). % is code-only estimate. -->
 **Goal:** Remove Electron entirely and use only Tauri with Rust backend exclusively. Keep plugins/skills intact. Keep model/provider agnostic.
 
 ## Executive Summary
 
 This plan outlines the migration from the current dual/hybrid setup (Electron + Tauri) to a pure Tauri + Rust backend architecture. Currently:
-- `dev:desktop` points to `dev:tauri` at root level
-- Tauri shell (`native/crates/nc-code-shell/`) embeds Rust backend (`nc-code-app`/`nc-code-server`) and serves `packages/web` build
+- `dev:desktop` points to `dev:tauri` at root level (`package.json:15` `dev:desktop` → `dev:tauri`; `package.json:21` builds `packages/web` then `cargo run -p nc-code-shell`) — **live on disk 2026-11-06**
+- Tauri shell (`native/crates/nc-code-shell/`, 32 `.rs` files) embeds Rust backend: `src/backend.rs:66` `nc-code-app::build_with_ports` assembles the real channel registry, `:93` `nc_code_server::serve` serves it on `127.0.0.1:0`; frontend is `packages/web` build
 - Electron codebase still exists in `packages/desktop/` with full main/host/preload/renderer infrastructure
 - Two different frontend builds: Electron uses `packages/desktop/src/renderer` (MessagePort transport), Tauri uses `packages/web` (WebSocket transport)
-- Backend: Electron spawns Node host processes running TS services; Tauri uses embedded Rust backend (only ~6% of services ported per RUST-PORT-MATRIX)
+- Backend: Electron spawns Node host processes running TS services; Tauri uses embedded Rust backend (**~55–65% code-only**, 54 `nc-code-*` crates glob-counted 2026-11-06; the ~6% figure was the 2026-09-23 snapshot, see `RUST-PORT-MATRIX.md` 2026-11-06 update)
 
 ## Current Architecture Comparison
 
@@ -93,7 +94,7 @@ This plan outlines the migration from the current dual/hybrid setup (Electron + 
 ### Phase 1: Rust Backend Completion
 **Priority:** Critical - Rust backend must be feature-complete
 
-The RUST-PORT-MATRIX shows only ~6% ported. We need to ensure the Rust backend can handle everything the TS host/services do.
+The RUST-PORT-MATRIX shows only ~6% ported **at the 2026-09-23 snapshot**; the 2026-11-06 refresh counts ~55–65% code-only (54 crates, `native/Cargo.toml:7`). We still need to ensure the Rust backend handles everything the TS host/services do before Electron removal.
 
 **Tasks:**
 1. **Audit service coverage**
@@ -276,7 +277,7 @@ The RUST-PORT-MATRIX shows only ~6% ported. We need to ensure the Rust backend c
 ## Risk Assessment
 
 ### High Risk
-1. **Rust backend incompleteness** - RUST-PORT-MATRIX shows only 6% ported. Many services may be missing or incomplete. This is the biggest risk.
+1. **Rust backend incompleteness** - RUST-PORT-MATRIX dated 2026-09-23 shows only 6% ported (snapshot); 2026-11-06 refresh is ~55–65% code-only. Residual host wiring / long-tail parity remains the biggest risk, not "nothing ported".
 2. **Feature parity** - Electron has years of features, Tauri/Rust may be missing some
 3. **Host process functionality** - Complex logic in host processes may not be ported
 4. **Embedded browser differences** - Different implementations between Electron and Tauri

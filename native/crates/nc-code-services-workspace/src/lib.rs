@@ -1,5 +1,8 @@
 //! Workspace service channels (system, file, …). Each module owns one channel.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 pub mod file;
 pub mod media_preview;
 pub mod system;
@@ -43,8 +46,22 @@ impl WorkspaceServices {
 
 #[cfg(test)]
 mod tests {
+    /// The workspace family owns the file/system/watcher/media-preview channels and
+    /// registers each of them exactly once.
     #[test]
-    fn crate_compiles() {
-        assert!(true);
+    fn workspace_channels_register_into_a_fresh_registry() {
+        let paths = nc_code_service_core::AppPaths::new(
+            std::env::temp_dir().join("zcode-workspace-test-home"),
+            std::env::temp_dir().join("zcode-workspace-test-data"),
+        );
+        let registry = nc_code_channels::ChannelRegistry::new();
+        let services = super::WorkspaceServices::new(paths);
+        services.register(&registry).expect("register");
+        for channel in ["file", "system", "file-watcher", "media-preview"] {
+            assert!(
+                registry.get(channel).is_some(),
+                "{channel} must be registered"
+            );
+        }
     }
 }

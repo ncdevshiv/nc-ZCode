@@ -18,8 +18,10 @@ export function collectV4MethodBoundary({ rpcSource, factSource, citationExists 
       "v4 method access: Unable to parse V4_METHODS from transport.ts, fact source shape changed",
     );
   }
+  // 空表（全部接线）是一行 `= &[];`，非空表是多行 `&[\n (...),\n];`——两种形状都要认，
+  // 否则"全部接线"这一完成状态反而会让门禁报"常量不存在"（假红）。
   const table = rpcSource.match(
-    /V4_METHODS_UNIMPLEMENTED:\s*&\[\(&str,\s*&str\)\]\s*=\s*&\[([\s\S]*?)\n\];/,
+    /V4_METHODS_UNIMPLEMENTED:\s*&\[\(&str,\s*&str\)\]\s*=\s*&\[([\s\S]*?)\];/,
   );
   if (!table) {
     localErrors.push(

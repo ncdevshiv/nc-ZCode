@@ -23,6 +23,7 @@ import {
   refreshRestoredOAuthProviderFamilyAfterStartup,
 } from "@/root/oauthProviderFamilySelectionRefresh.js";
 import { applyCachedOAuthSessionRestoreResult } from "@/root/oauthCachedSessionRestore.js";
+import { ZCODE_ACCOUNT_SERVICES_AVAILABLE } from "@/lib/productCapabilities.js";
 import { markZcodeJwtInvalidRestart } from "@/root/zcodeJwtInvalidRestartMarker.js";
 import { shouldApplyOAuthPollingFailure } from "@/root/oauthLoginAttemptGuard.js";
 import { useAccountConnectionLossNotification } from "@/root/useAccountConnectionLossNotification.js";
@@ -126,6 +127,12 @@ export function useRootOAuthEffects({
   const oauthLoginSuccessOwnerRef = useRef<"polling" | "deep-link" | null>(null);
 
   useEffect(() => {
+    if (!ZCODE_ACCOUNT_SERVICES_AVAILABLE) {
+      // The embedded Rust backend has no oauth channel. Keep the "restoring" gate open
+      // so the first paint is not blocked by an RPC that can only fail.
+      setIsRestoringOAuthSession(false);
+      return;
+    }
     let disposed = false;
     async function restoreOAuthSessionInBackground() {
       logger.info("[Root] 后台启动 OAuth 本地会话恢复");

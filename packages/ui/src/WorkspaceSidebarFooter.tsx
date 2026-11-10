@@ -43,6 +43,10 @@ import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import { useShortcutCommandLabel } from "@/shortcuts/useShortcutBindings.js";
 import { useZCodeStore } from "@/store/StoreProvider.js";
 import { normalizeInterfaceMode } from "@/lib/interfaceMode.js";
+import {
+  NC_CODE_PRODUCT_NAME,
+  ZCODE_ACCOUNT_SERVICES_AVAILABLE,
+} from "@/lib/productCapabilities.js";
 import type { Theme } from "@/useTheme.js";
 import {
   WorkspaceSidebarFooterPlanBadge,
@@ -64,7 +68,7 @@ function getSidebarProfileName(user?: UserInfo | null): string {
     return username;
   }
 
-  return "ZCode";
+  return NC_CODE_PRODUCT_NAME;
 }
 
 function getSidebarProfileBadge(
@@ -75,12 +79,16 @@ function getSidebarProfileBadge(
     return getSidebarProfileName(user);
   }
 
+  if (!ZCODE_ACCOUNT_SERVICES_AVAILABLE) {
+    return NC_CODE_PRODUCT_NAME;
+  }
+
   return formatMessage({ id: "sidebar.profile.notLoggedIn" });
 }
 
 function getAvatarFallbackText(user: UserInfo | null | undefined): string {
-  const source = user?.displayName?.trim() || user?.username?.trim() || "Z";
-  return source[0]?.toUpperCase() ?? "Z";
+  const source = user?.displayName?.trim() || user?.username?.trim() || "N";
+  return source[0]?.toUpperCase() ?? "N";
 }
 
 export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterComponent({
@@ -135,7 +143,7 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
   const avatarKey = user?.avatarUrl ?? user?.id ?? "guest";
   const showAuthRestoreLoading = !user && isRestoringOAuthSession;
   const usageSummaryState = useWorkspaceSidebarFooterUsageSummaryState({
-    enabled: true,
+    enabled: ZCODE_ACCOUNT_SERVICES_AVAILABLE,
     workspaceIdentity,
     workspacePath,
   });
@@ -164,7 +172,9 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
           <span className="min-w-0 truncate text-ui-base font-semibold text-foreground">
             {profileBadge}
           </span>
-          {user ? <WorkspaceSidebarFooterPlanBadge state={usageSummaryState} /> : null}
+          {ZCODE_ACCOUNT_SERVICES_AVAILABLE && user ? (
+            <WorkspaceSidebarFooterPlanBadge state={usageSummaryState} />
+          ) : null}
         </div>
       </div>
     </>
@@ -343,12 +353,14 @@ export const WorkspaceSidebarFooter = memo(function WorkspaceSidebarFooterCompon
               </DropdownMenuSub>
             ) : null}
             {/* 升级入口状态不再以菜单开关为生命周期边界。*/}
-            <WorkspaceSidebarFooterUsageSummaryContent
-              state={usageSummaryState}
-              onUsageClick={usageButtonClick}
-              onUpgradeClick={onUpgradeClick}
-            />
-            {onLogin && !user ? (
+            {ZCODE_ACCOUNT_SERVICES_AVAILABLE ? (
+              <WorkspaceSidebarFooterUsageSummaryContent
+                state={usageSummaryState}
+                onUsageClick={usageButtonClick}
+                onUpgradeClick={onUpgradeClick}
+              />
+            ) : null}
+            {ZCODE_ACCOUNT_SERVICES_AVAILABLE && onLogin && !user ? (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={onLogin} data-testid={TID_LOGIN_MENU_ITEM}>

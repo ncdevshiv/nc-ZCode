@@ -13,6 +13,7 @@ import {
   ZAI_PROVIDER_ID,
 } from "@zcode/shared";
 import { reportAppTelemetryEvent } from "@/lib/appTelemetry.js";
+import { ZCODE_ACCOUNT_SERVICES_AVAILABLE } from "@/lib/productCapabilities.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
 import type { LoginEntryPurpose } from "@/store/index.js";
 import { useZCodeStore } from "@/store/StoreProvider.js";
@@ -30,12 +31,20 @@ export function useOAuth() {
   const [error, setError] = useState<string | null>(null);
   const [providers, setProviders] = useState<OAuthProviderMeta[]>([]);
   const [activeProvider, setActiveProvider] = useState<OAuthProviderId | null>(null);
-  const [loadingProviders, setLoadingProviders] = useState(true);
+  const [loadingProviders, setLoadingProviders] = useState(ZCODE_ACCOUNT_SERVICES_AVAILABLE);
   const [pendingProvider, setPendingProvider] = useState<OAuthProviderId | null>(null);
   const loginAttemptRef = useRef(0);
   const setOAuthPollingActive = useZCodeStore((state) => state.setOAuthPollingActive);
 
   const refreshProviders = useCallback(async () => {
+    // The Rust backend does not register the oauth channel. Calling it would surface
+    // "Unknown channel" on every mount and turn the welcome screen into a dead end.
+    if (!ZCODE_ACCOUNT_SERVICES_AVAILABLE) {
+      setProviders([]);
+      setActiveProvider(null);
+      setLoadingProviders(false);
+      return;
+    }
     try {
       setLoadingProviders(true);
       const providerList = await oauthService.getProviders();
@@ -65,11 +74,18 @@ export function useOAuth() {
   }, [oauthService]);
 
   useEffect(() => {
+    if (!ZCODE_ACCOUNT_SERVICES_AVAILABLE) {
+      return;
+    }
     void refreshProviders();
   }, [refreshProviders]);
 
   const startLogin = useCallback(
     async (provider: OAuthProviderId, options: { purpose?: LoginEntryPurpose } = {}) => {
+      if (!ZCODE_ACCOUNT_SERVICES_AVAILABLE) {
+        setError(intl.formatMessage({ id: "login.oauth.noProviders" }));
+        return;
+      }
       const loginAttempt = ++loginAttemptRef.current;
       try {
         setStatus("waiting");

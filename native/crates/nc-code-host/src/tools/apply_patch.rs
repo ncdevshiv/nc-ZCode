@@ -476,10 +476,8 @@ fn apply_hunks(
         }
     }
     let mut out = src.join("\n");
-    if had_trailing_newline || !out.is_empty() {
-        if !out.ends_with('\n') {
-            out.push('\n');
-        }
+    if (had_trailing_newline || !out.is_empty()) && !out.ends_with('\n') {
+        out.push('\n');
     }
     if original.is_empty() {
         out = new_from_hunks(hunks);

@@ -8,10 +8,10 @@ publish.workspace = true
 description = "credential service channel"
 
 [dependencies]
+serde.workspace = true
 async-trait = "0.1"
 base64 = "0.22"
 ring = "0.17"
-serde = { workspace = true }
 serde_json.workspace = true
 sha2 = "0.10"
 tokio = { workspace = true, features = ["fs"] }

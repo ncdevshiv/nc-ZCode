@@ -1,4 +1,6 @@
-# zcode-host
+# nc-code-host (binary `zcode-host`)
+
+<!-- trace:2026-11-06 docs sync — replaces stale 6-tool / 11-of-33 claims. Host advertises 43 tools (32 sync + 11 async, src/tools/mod.rs:258-369); V4_METHODS_UNIMPLEMENTED empty (src/rpc.rs:56), all 31 wired; workflow wired (lib.rs:906-955). Prior zcode-* names are legacy aliases for nc-code-*. -->
 
 S3 Rust agent host（specs/rust-native-crates.md crate map）。stdio NDJSON RPC 服务，
 把 `zcode-v4-wire`（帧编解码）、`zcode-core`（串行 admission / identity）、
@@ -38,11 +40,22 @@ workspace hook 评审/信任——发现、摘要、台账、评审 flow 与命�
 其余命令 fail-closed `fault.command.unsupported:*`（清单与缺失子系统在
 `commands::UNROUTED_COMMANDS`，同步进 ack `message`，并由
 `commands::tests::command_inventory_is_the_exact_complement_of_the_v4_surface`
-钉成 v4 命令全集的精确补集）且 `availability` 如实标为不允许）、
+钉成 v4 命令全集的精确补集；当前仅 `discardSharedContext` 真正不可达，
+4 条 workflow 命令经 `commands/workflow_commands.rs` `run_*` 接线）且
+`availability` 如实标为不允许）、
 `v4/commands/query`（命令幂等查询面）、
 `v4/conversation/frame` 通知、两套 delivery
 profile、冷恢复 resume。**多回合 agent 循环**：模型回合与工具回合交替直到模型
-给出无工具调用的终态文本；工具集 Bash/Read/Write/Edit/Glob/Grep（契约含
+给出无工具调用的终态文本；工具集 **43 个**（`src/tools/mod.rs:258-369`：
+32 同步 Bash/Read/Write/Edit/ApplyPatch/Glob/Grep/Todo*/WebFetch/WebSearch/
+ListModels/ReadImage/Skill/ReadSessionContext/TaskOutput/TaskStop/
+EnterPlanMode/js/Cron{Create,List,Update,Delete}/ListWorkflowRuns/
+GetWorkflowRun/ResolveWorkflowQuestion/ListSavedWorkflows/OffPeak{Create,List}/
+RespondToCoordinator/submit_result/escalate + 11 异步 AskUser/ExitPlanMode/
+Agent(Task)/SendMessage/CreateWorkflow/AmendWorkflow/SaveWorkflow/
+EvalWorkflowSnippet/ResumeWorkflowRun/Browser/Computer；另叠加 nc-tools kernel
+89 typed 适配器 `src/nc_tools.rs:1`，经 `nct-mcp`/`nct-core` 注入
+`nc-code-host/Cargo.toml:59-60`；契约含
 readOnly/destructive/concurrentSafe/sideEffectScope/timeout/maxOutput）；
 toolCall 行投影（running → success/error/cancelled）；permission 交互（非只读工具在
 有订阅者时打开 pendingInteraction，allowOnce/deny/fullAccess 三态，headless 或取消
@@ -52,7 +65,10 @@ response 与帧共用会话唯一 FIFO）；context 装配（系统提示 +
 AGENTS.md/CLAUDE.md 发现 + 环境事实）；机械 microcompact（阈值 120k 字符，压最早
 的工具结果）。**跨 turn 会话记忆**（ENTRY 027）：模型历史由 `Session` 独占并落进
 `transcript.jsonl`（`t:"history"`），turn 只追加不重建——第 N 轮的请求体带着前 N-1
-轮的全部问答，重启后回放同一份历史。其余 v4 方法返回 `-32601`（不静默吞掉）。
+轮的全部问答，重启后回放同一份历史。V4 接线 31/31：`src/rpc.rs:56`
+`V4_METHODS_UNIMPLEMENTED = &[]` —— 已接线 31 个请求方法（`V4_METHODS_ALL`
+31 条，见 `is_implemented_method`），通知另见 `NOTIFICATION_*` 常量，
+无 `-32601` 兜底。
 
 ## 原生 Browser 工具（`BrowserControlPort`）
 
@@ -123,8 +139,10 @@ node_repl `agent.browsers` 提供；Rust host 没有 JS 插件运行时，因此
 11. **`createSession` 没有幂等重提去重**：同一 commandId 重复提交仍会再建一个
     session。这是本 increment 之前就存在的缺口，本轮**不修**；`v4/commands/query`
     如实报告已落定事实（第二次提交会拿到新的 ack）。
-12. 工具集是六工具核心集；TS 的 ~114 个 handler（bash 只读分类全量表、workflow
-    家族、skills、node-repl、webfetch/websearch……）未移植。
+12. 工具集已是 **43 个**（32 同步 + 11 异步，`src/tools/mod.rs:258-369`，
+    另叠加 nc-tools kernel 89 typed 适配器 `src/nc_tools.rs:1`，经
+    `nc-code-host/Cargo.toml:59-60` 的 `nct-mcp`/`nct-core` 注入）；TS 的
+    长尾 handler（bash 只读分类全量表等）仍未移植，列为 OPEN。
 13. bash 用 shell 语义（与 TS 一致：Windows `cmd /D /C`，Unix `sh -c`）；只读
     分类是**保守**首词 + 静态 argv 分类（TS 的 argv 级分类器未移植）；超时杀树用
     `zcode-proc::kill_tree`。
@@ -275,20 +293,18 @@ node_repl `agent.browsers` 提供；Rust host 没有 JS 插件运行时，因此
     （那是 CLI 侧 session 库里 `input_baseline` 的事实），空对象表示"没有基线"而不是
     "有基线但丢了"。`modelRequestCount` 按 HTTP 请求计（executor 内部 attempt 重试算
     同一次），`totalTokens = inputTokens + outputTokens`。
-41. **workflow 引擎边界是已记录的产品决策**（`specs/workflow-capability-boundary.md`）：
-    host 是会话运行时（turn/tool/hooks/goal/文件/队列/读模型），workflow 引擎留在 TS
-    侧——它依赖 TS compiler API，重写等于换产品格式。4 条命令与 7 个 run 读取方法
-    因此保持 fail-closed 并逐条登记；若未来上 sidecar，契约是"host 拥有 runId ≡
-    workId、幂等代理命令、只从 journal 事件投影运行态"。
-    **v4 方法清单的剩余缺口是"子系统/产品决策"，不是待办遗漏**：
-    `rpc::V4_METHODS_ALL` 列出协议全部 33 个方法，已接线 11 个（10 请求 +
-    `v4/conversation/frame` 通知），`V4_METHODS_UNIMPLEMENTED` 的 22 条每条写明缺什么（附件事务、后台 bash 会话、plan 工具、workflow run 引擎、usage 聚合库、
-    telemetry、controller 别名），并有与命令清单同款的精确补集测试。
-    其中 **dynamic workflow（4 条命令 + 8 个 run 读取方法）需要一个依赖 TS compiler API
-    的引擎**（约 2 万行）——是"是否用 Rust 重写引擎"的产品决策（同 `RUST-PORT-MATRIX.md`
-    里 BrowserView 的定位），本 host 在此之前不接线、不伪造运行态。
-    `discardSharedContext` 同理：本 host 没有 shared-context 生产者，接一条只会拒绝的
-    命令等于假面，故保留在 `UNROUTED_COMMANDS`。
+41. **workflow 已接线（2026-11-06 刷新）**：引擎核心已移植 Rust
+    （`nc-code-workflow` + `src/workflow_service/`），7 个 run 读取方法在
+    `src/lib.rs:906-955` 派发（`v4_workflow_runs`/`v4_workflow_run_events`/
+    `v4_workflow_run_artifacts`/`v4_workflow_run_artifact_data`/
+    `v4_workflow_run_artifact_read`/`v4_workflow_run_workspace`/
+    `v4_workflow_run_node_result`），journal 枚举面见
+    `workflow_service/service.rs:1076`、孤儿对账见 `service.rs:1356`；
+    4 条 workflow 命令经 `commands/workflow_commands.rs` `run_*` 接线
+    （payload 解析、会话归属、ACK settle）。`rpc::V4_METHODS_ALL` 共 31 条，
+    `V4_METHODS_UNIMPLEMENTED` 为空（`src/rpc.rs:56`）——已接线 31/31，
+    无 `-32601` 兜底；仅 `discardSharedContext` 无 shared-context 生产者，
+    保留 fail-closed（接一条只会拒绝的命令等于假面）。
 
 ## 验证
 
@@ -347,14 +363,16 @@ SSE provider；产品代码里没有测试替身）：
 
 `mcp_e2e` / `mcp_tools` 的用例需要 PATH 上有 `node`（用 `node -e` 起脚本化 MCP
 server）；缺 node 的机器上这三条会失败，其余全绿。这是环境依赖，不是产品路径的
-mock。
+mock。HTTP 传输不依赖 node：`mcp_http_e2e` 用测试内建的 HTTP/1.1 服务验证
+streamable HTTP（`POST` JSON 回复 + `Mcp-Session-Id` 回传）与 legacy HTTP+SSE
+（`endpoint` 事件 → 向该端点 `POST`，回复走同一条流），以及不可达端点的 fail-closed。
 
-基准：`cargo bench -p zcode-host --bench transcript_replay`（冷恢复回放、分支截断后
+基准：`cargo bench -p nc-code-host --bench transcript_replay`（冷恢复回放、分支截断后
 回放、append/upsert/snapshot 投影）、
-`cargo bench -p zcode-host --bench file_rewind`（台账归并、200 路径的分桶预览、
-台账汇总查询）、`cargo bench -p zcode-host --bench goal_domain`（裁判落账与保留上限、
+`cargo bench -p nc-code-host --bench file_rewind`（台账归并、200 路径的分桶预览、
+台账汇总查询）、`cargo bench -p nc-code-host --bench goal_domain`（裁判落账与保留上限、
 满账本投影、4000 字符提示词、裁判文本解析）与
-`cargo bench -p zcode-provider --bench sse_streaming`。
+`cargo bench -p nc-code-provider --bench sse_streaming`。
 
 启动：`zcode-host --workspace <path> --data-dir <path> [--provider-config <file>]
-[--full-access]`。
+[--full-access]`（包名 `nc-code-host`，二进制名保持 `zcode-host`）。

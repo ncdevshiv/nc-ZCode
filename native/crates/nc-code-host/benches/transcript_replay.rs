@@ -64,6 +64,7 @@ fn make_session(root: &PathBuf, session_id: &str, seeded_rows: usize) -> std::sy
         hooks: bench_hook_admission("bench-seed"),
         store,
         created_at: 0,
+        updated_at: 0,
         task_type: None,
         parent_session_id: None,
     })

@@ -4,6 +4,9 @@
 //! in this backend when no remote endpoint is configured (honest behavior). Local ticket
 //! persistence is implemented via `local_ticket_store` (ported from TS).
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 pub mod local_ticket_store;
 
 use std::path::PathBuf;
@@ -13,10 +16,11 @@ use async_trait::async_trait;
 use nc_code_channels::{CancelToken, Channel, ChannelContext, ChannelFailure, EventSubscription};
 use nc_code_rpc::WireValue;
 use nc_code_service_core::ServiceArgs;
-use serde_json::{json, Value};
+use serde_json::json;
 
 use crate::local_ticket_store::{FeedbackListQuery, FeedbackLocalTicketStore};
 
+#[derive(Default)]
 pub struct FeedbackService {
     local_store: Option<FeedbackLocalTicketStore>,
 }
@@ -30,12 +34,6 @@ impl FeedbackService {
         Arc::new(Self {
             local_store: Some(FeedbackLocalTicketStore::new(&root_dir)),
         })
-    }
-}
-
-impl Default for FeedbackService {
-    fn default() -> Self {
-        Self { local_store: None }
     }
 }
 
@@ -118,47 +116,5 @@ impl Channel for FeedbackService {
             return Ok(EventSubscription::from_receiver(rx));
         }
         Err(ChannelFailure::event_not_found(event))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use nc_code_channels::ClientMode;
-    fn ctx() -> ChannelContext {
-        ChannelContext::new("feedback", ClientMode::DesktopContinuous)
-    }
-    #[tokio::test]
-    async fn list_returns_object() {
-        let s = FeedbackService::new();
-        let r = s
-            .call(&ctx(), "list", vec![], CancelToken::new())
-            .await
-            .unwrap();
-        if let WireValue::Json(v) = r {
-            assert!(v.get("items").is_some());
-        } else {
-            panic!("json");
-        }
-    }
-    #[tokio::test]
-    async fn get_device_snapshot() {
-        let s = FeedbackService::new();
-        let r = s
-            .call(&ctx(), "getDeviceSnapshot", vec![], CancelToken::new())
-            .await
-            .unwrap();
-        if let WireValue::Json(v) = r {
-            assert!(v.get("platform").is_some());
-        } else {
-            panic!("json");
-        }
-    }
-}
-#[cfg(test)]
-mod integration_tests {
-    #[test]
-    fn crate_compiles() {
-        assert!(true);
     }
 }

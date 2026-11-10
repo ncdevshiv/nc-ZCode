@@ -60,12 +60,14 @@ fn make_workspace(tag: &str) -> (PathBuf, PathBuf, PathBuf) {
     std::fs::create_dir_all(workspace.join(".zcode")).expect("workspace");
     std::fs::create_dir_all(&data_dir).expect("data dir");
     std::fs::write(workspace.join(".zcode").join("config.json"), HOOKS_CONFIG).expect("config");
-    let config_path = base.join("provider.json");
-    provider_config(9, &config_path);
     (base, workspace, data_dir)
 }
 
+/// 每次 spawn 重写 handover 文件：host 启动后按一次性密钥契约删除
+/// provider-config 参数文件，重启（mutation 恢复场景）必须重新落盘，否则后续轮次
+/// fail-closed 成 providerNotConfigured。生产侧桌面同样每次 spawn 新写一份。
 fn start(workspace: &Path, data_dir: &Path, config_path: &Path) -> (HostProcess, Client) {
+    provider_config(9, config_path);
     let mut process = HostProcess::spawn(workspace, data_dir, config_path, false);
     let client = Client {
         id_counter: 0,

@@ -217,6 +217,32 @@ async fn list_plugins_sees_configured_plugin_dir() {
 }
 
 #[tokio::test]
+async fn list_plugins_accepts_flat_channel_params() {
+    // The product channel client (`ProxyChannel.toService`) sends a flat params object.
+    // Regression: the Tauri settings page showed
+    // "params.workspace.workspacePath must be a non-empty string" because only the
+    // legacy nested CLI shape was decoded.
+    let fixture = Fixture::new();
+    let plugin_dir = fixture.plugin_dir("demo");
+    fixture.configure_plugin_dirs(&[&plugin_dir]);
+    let service = fixture.service();
+
+    let result = call(
+        &service,
+        "listPlugins",
+        json!({
+            "workspacePath": fixture.workspace.to_string_lossy(),
+            "configScope": "user",
+        }),
+    )
+    .await
+    .expect("flat listPlugins");
+    let plugins = result["plugins"].as_array().expect("plugins array");
+    assert_eq!(plugins.len(), 1, "{plugins:?}");
+    assert_eq!(plugins[0]["id"], json!("demo@inline"));
+}
+
+#[tokio::test]
 async fn list_plugins_includes_configured_but_missing_rows() {
     let fixture = Fixture::new();
     fixture.write_user_config(json!({

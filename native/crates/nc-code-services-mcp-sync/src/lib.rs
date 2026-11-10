@@ -6,6 +6,9 @@
 //! and honest failures for runtime-dependent operations
 //! (`listWorkspaceMcpServerStatuses` requires agent runtime).
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -158,7 +161,7 @@ impl McpSyncService {
         mut servers: BTreeMap<String, Map<String, Value>>,
     ) -> (BTreeMap<String, Map<String, Value>>, bool) {
         let mut changed = false;
-        for (_name, config) in servers.iter_mut() {
+        for config in servers.values_mut() {
             if config.contains_key(LEGACY_ENABLE_KEY) {
                 let disabled = config.get(LEGACY_ENABLE_KEY) == Some(&Value::Bool(false))
                     || config.get(ENABLED_KEY) == Some(&Value::Bool(false));

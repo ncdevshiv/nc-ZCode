@@ -6,6 +6,9 @@
 //! - `send`: publishes a `BroadcastMessage` to in-process listeners (EventBus).
 //! - `listen(onMessage)`: subscribes to broadcast messages.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};

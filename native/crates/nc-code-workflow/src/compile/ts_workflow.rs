@@ -45,7 +45,6 @@ fn to_script_loc(source: &str, offset: u32) -> ScriptLoc {
 
 #[derive(Clone, Debug)]
 struct SiteHit {
-    kind: &'static str,
     id: String,
     order: usize,
     call_start: u32,
@@ -56,7 +55,6 @@ struct SiteHit {
 
 #[derive(Clone, Debug)]
 enum SiteExtra {
-    None,
     Ask {
         receiver_start: u32,
         receiver_end: u32,
@@ -65,7 +63,6 @@ enum SiteExtra {
         instr_end: Option<u32>,
     },
     Actor {
-        name: Option<String>,
         args: Vec<(u32, u32)>,
     },
     WorldRead {
@@ -78,7 +75,6 @@ enum SiteExtra {
     },
     Artifact {
         op: String,
-        artifact_id: Option<String>,
         args: Vec<(u32, u32)>,
     },
     Phase {
@@ -345,7 +341,6 @@ impl SiteCollector {
                     .and_then(|a| a.as_expression())
                     .map(|e| (e.span().start, e.span().end));
                 self.asks.push(SiteHit {
-                    kind: "ask",
                     id: format!("ask#{}", self.ask_n),
                     order,
                     call_start: span.start,
@@ -367,7 +362,6 @@ impl SiteCollector {
                     let order = self.order;
                     self.order += 1;
                     self.world_reads.push(SiteHit {
-                        kind: "world-read",
                         id: format!("world-read#{}", self.world_read_n),
                         order,
                         call_start: span.start,
@@ -391,7 +385,6 @@ impl SiteCollector {
                         _ => method,
                     };
                     self.world_reads.push(SiteHit {
-                        kind: "world-read",
                         id: format!("world-read#{}", self.world_read_n),
                         order,
                         call_start: span.start,
@@ -408,7 +401,6 @@ impl SiteCollector {
                     let order = self.order;
                     self.order += 1;
                     self.world_reads.push(SiteHit {
-                        kind: "world-read",
                         id: format!("world-read#{}", self.world_read_n),
                         order,
                         call_start: span.start,
@@ -424,20 +416,14 @@ impl SiteCollector {
                     self.artifact_n += 1;
                     let order = self.order;
                     self.order += 1;
-                    let artifact_id = call
-                        .arguments
-                        .first()
-                        .and_then(|a| a.as_expression())
-                        .and_then(literal_string);
+
                     self.artifacts.push(SiteHit {
-                        kind: "artifact",
                         id: format!("artifact#{}", self.artifact_n),
                         order,
                         call_start: span.start,
                         call_end: span.end,
                         extra: SiteExtra::Artifact {
                             op: method.to_string(),
-                            artifact_id,
                             args: arg_spans(call),
                         },
                     });
@@ -453,19 +439,12 @@ impl SiteCollector {
                     self.actor_n += 1;
                     let order = self.order;
                     self.order += 1;
-                    let aname = call
-                        .arguments
-                        .first()
-                        .and_then(|a| a.as_expression())
-                        .and_then(literal_string);
                     self.actors.push(SiteHit {
-                        kind: "actor",
                         id: format!("actor#{}", self.actor_n),
                         order,
                         call_start: span.start,
                         call_end: span.end,
                         extra: SiteExtra::Actor {
-                            name: aname,
                             args: arg_spans(call),
                         },
                     });
@@ -485,7 +464,6 @@ impl SiteCollector {
                         .and_then(|a| a.as_expression())
                         .and_then(literal_string);
                     self.reports.push(SiteHit {
-                        kind: "report",
                         id: format!("report#{}", self.report_n),
                         order,
                         call_start: span.start,
@@ -502,7 +480,6 @@ impl SiteCollector {
                         .and_then(|a| a.as_expression())
                         .and_then(literal_string);
                     self.phases.push(SiteHit {
-                        kind: "phase",
                         id: String::new(),
                         order,
                         call_start: span.start,
@@ -559,6 +536,30 @@ fn literal_string<'a>(expr: &Expression<'a>) -> Option<String> {
         }
         _ => None,
     }
+}
+
+/// Collect the authored phase names in source order ( calls).
+/// The launch event carries this roster; a synthetic/unphased stop is not an authored phase,
+/// so unnamed calls are skipped (same rule as the flow projection).
+pub fn collect_phase_names(script_text: &str) -> Vec<String> {
+    let wrapped = format!("{}{}{}", SCRIPT_PRELUDE, script_text, SCRIPT_EPILOGUE);
+    let allocator = Allocator::default();
+    let source_type = SourceType::from_path(SCRIPT_FILE_NAME).unwrap_or_else(|_| SourceType::ts());
+    let ret = Parser::new(&allocator, &wrapped, source_type).parse();
+    if !ret.errors.is_empty() {
+        return Vec::new();
+    }
+    let mut collector = SiteCollector::default();
+    collector.collect(&ret.program, &wrapped);
+    let mut names = Vec::new();
+    for phase in &collector.phases {
+        if let SiteExtra::Phase { name: Some(name) } = &phase.extra {
+            if !name.is_empty() && !names.iter().any(|existing| existing == name) {
+                names.push(name.clone());
+            }
+        }
+    }
+    names
 }
 
 /// Collect declared artifacts [{id, kind}] from a script (for analyze output).
@@ -1117,7 +1118,7 @@ fn lower_workflow(
     // (This is imperfect but handles common cases; full implementation needs symbol resolution)
 
     // Sort descending and apply
-    replacements.sort_by(|a, b| b.0.cmp(&a.0));
+    replacements.sort_by_key(|a| std::cmp::Reverse(a.0));
     for (s, e, r) in replacements {
         if (s as usize) <= code.len() && (e as usize) <= code.len() {
             code.replace_range(s as usize..e as usize, &r);

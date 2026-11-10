@@ -1,5 +1,5 @@
 /* eslint-disable max-lines -- Root 当前集中编排启动和 workspace shell wiring，先保持入口收口避免跨层状态拆散。 */
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LucideProvider, RefreshCw } from "lucide-react";
 import {
   APP_RUNTIME_PREFERENCES_CHANGED_BROADCAST_CHANNEL,
@@ -37,13 +37,19 @@ import { StoreProvider, useZCodeStore } from "@/store/StoreProvider.js";
 import { setMcpStorePlatform } from "@/store/mcpStore.js";
 import { useZCodeSessionStore } from "@/store/zcodeSessionStore.js";
 import { TabStoreProvider, useTabStore, useTabStoreApi } from "@/store/TabStoreProvider.js";
-import { isSettingsTab, isWorkspaceTab, type WorkspaceTabState } from "@/store/tabStore.js";
+import { isSettingsTab, isWorkspaceTab } from "@/store/tabStore.js";
 import { logger } from "@/logger.js";
 import { RootShell } from "@/root/RootShell.js";
 import { RootWorkspaceContent } from "@/root/RootWorkspaceContent.js";
 import { resolveRootWorkspaceShellTarget } from "@/root/rootWorkspaceShellTarget.js";
 import { OccupationOnboarding } from "@/onboarding/OccupationOnboarding.js";
 import { OnboardingDialog } from "@/onboarding/OnboardingDialog.js";
+import { ProviderSetupDialog } from "@/onboarding/ProviderSetupDialog.js";
+import {
+  PROVIDER_SETUP_DISMISSED_STORAGE_KEY,
+  ZCODE_ACCOUNT_SERVICES_AVAILABLE,
+} from "@/lib/productCapabilities.js";
+import { setPendingSettingsSection } from "@/lib/settingsNavigation.js";
 import { useRemoteWorkspaceHistory } from "@/root/useRemoteWorkspaceHistory.js";
 import { useRemoteWorkspaceTabLifecycle } from "@/root/useRemoteWorkspaceTabLifecycle.js";
 import { useRootProviderStateRefresh } from "@/root/useRootProviderStateRefresh.js";
@@ -55,7 +61,6 @@ import { useRootWorkspaceActions } from "@/root/useRootWorkspaceActions.js";
 import { registerBaseWorkspaceServices } from "@/store/remoteWorkspaceSessionStore.js";
 import type { RootProps } from "@/root/types.js";
 import { DiffsWorkerPoolProvider } from "@/root/DiffsWorkerPoolProvider.js";
-import { useGlobalTaskList } from "@/hooks/useGlobalTaskList.js";
 import { ScopedErrorBoundary } from "@/ErrorBoundary.js";
 import { useRemoteConnectionLogs } from "@/hooks/useRemoteConnectionLogs.js";
 import {
@@ -117,7 +122,7 @@ export function Root(props: RootProps) {
           <PlatformProvider platform={props.platform}>
             <StoreProvider
               broadcastService={props.services.broadcastService}
-              initialIsRestoringOAuthSession
+              initialIsRestoringOAuthSession={ZCODE_ACCOUNT_SERVICES_AVAILABLE}
             >
               <TabStoreProvider>
                 <DiffsWorkerPoolProvider>
@@ -187,11 +192,7 @@ function RootInner({
   const user = useZCodeStore((state) => state.user);
   const isRestoringOAuthSession = useZCodeStore((state) => state.isRestoringOAuthSession);
   const setUser = useZCodeStore((state) => state.setUser);
-  const setIsRestoringOAuthSession = useZCodeStore((state) => state.setIsRestoringOAuthSession);
   const setOAuthError = useZCodeStore((state) => state.setOAuthError);
-  const oauthPollingActive = useZCodeStore((state) => state.oauthPollingActive);
-  const setOAuthPollingActive = useZCodeStore((state) => state.setOAuthPollingActive);
-  const markOAuthSuccess = useZCodeStore((state) => state.markOAuthSuccess);
   const {
     settings: appSettings,
     refresh: refreshAppSettings,
@@ -199,6 +200,15 @@ function RootInner({
   } = useSettings();
   const [welcomeScreenOpenReason, setWelcomeScreenOpenReason] =
     useState<WelcomeScreenOpenReason | null>(null);
+  const [providerSetupDismissed, setProviderSetupDismissed] = useState(() => {
+    try {
+      return window.localStorage.getItem(PROVIDER_SETUP_DISMISSED_STORAGE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [providerSetupOpen, setProviderSetupOpen] = useState(false);
+  const openSettingsTab = useTabStore((state) => state.openSettingsTab);
   const [providerFamilyDomainMigrationComplete, setProviderFamilyDomainMigrationComplete] =
     useState(false);
   const loginEntryRequest = useZCodeStore((state) => state.loginEntryRequest);
@@ -404,7 +414,7 @@ function RootInner({
       rootProviderAvailability.hydrated || rootModelSelectionRead.state.status === "error",
   });
   const providerAvailabilityLoginEntryGuardEnabled =
-    shouldEnableProviderAvailabilityLoginEntryGuard();
+    ZCODE_ACCOUNT_SERVICES_AVAILABLE && shouldEnableProviderAvailabilityLoginEntryGuard();
   const { startupCheckCompleted: providerAvailabilityStartupCheckCompleted } =
     useProviderAvailabilityLoginEntryGuard({
       enabled: providerAvailabilityLoginEntryGuardEnabled,
@@ -455,9 +465,6 @@ function RootInner({
   }, []);
   const handleOpenDirectoryBrowser = useCallback(() => {
     setDirectoryBrowserOpen(true);
-  }, []);
-  const handleReauthenticationRequired = useCallback(() => {
-    setWelcomeScreenOpenReason("session-expired");
   }, []);
   const {
     setWorkspaceActionError,
@@ -614,6 +621,38 @@ function RootInner({
       sessionId: `launch-${timings.marks.createdAt}`,
     });
   }, [isStartupRenderBlocked, welcomeScreenOpenReason]);
+
+  useEffect(() => {
+    if (isStartupRenderBlocked) return;
+    if (ZCODE_ACCOUNT_SERVICES_AVAILABLE) return;
+    if (providerSetupDismissed) return;
+    if (welcomeScreenOpenReason) return;
+    if (!rootProviderAvailability.hydrated) return;
+    if (rootProviderAvailability.hasUsableProvider) return;
+    setProviderSetupOpen(true);
+  }, [
+    isStartupRenderBlocked,
+    providerSetupDismissed,
+    rootProviderAvailability.hasUsableProvider,
+    rootProviderAvailability.hydrated,
+    welcomeScreenOpenReason,
+  ]);
+
+  const handleDismissProviderSetup = useCallback(() => {
+    setProviderSetupOpen(false);
+    setProviderSetupDismissed(true);
+    try {
+      window.localStorage.setItem(PROVIDER_SETUP_DISMISSED_STORAGE_KEY, "1");
+    } catch {
+      // localStorage may be unavailable in hardened webviews; the prompt is optional.
+    }
+  }, []);
+
+  const handleOpenProviderSettings = useCallback(() => {
+    handleDismissProviderSetup();
+    setPendingSettingsSection("modelProvider");
+    openSettingsTab();
+  }, [handleDismissProviderSetup, openSettingsTab]);
 
   useRootPlatformEffects({
     initialWorkspaceAbsPath,
@@ -818,12 +857,20 @@ function RootInner({
     if (!loginEntryRequest) {
       return;
     }
+    if (!ZCODE_ACCOUNT_SERVICES_AVAILABLE) {
+      return;
+    }
     // 登录入口已从模态弹窗收敛为 WelcomeScreen。
     // provider 连接请求仍要先退出首次启动引导语义，避免连接完成后误创建默认 workspace。
     setWelcomeScreenOpenReason("provider-request");
   }, [loginEntryRequest]);
 
   const handleOpenLoginEntry = () => {
+    if (!ZCODE_ACCOUNT_SERVICES_AVAILABLE) {
+      setPendingSettingsSection("modelProvider");
+      openSettingsTab();
+      return;
+    }
     setWelcomeScreenOpenReason("manual-login");
   };
   const handleWelcomeScreenComplete = useCallback(
@@ -915,7 +962,7 @@ function RootInner({
     onCreateTask: handleCreateTask,
     onOpenWorkspace: handleOpenWorkspace,
     allowOpenWorkspace,
-    onLogin: !user ? handleOpenLoginEntry : undefined,
+    onLogin: ZCODE_ACCOUNT_SERVICES_AVAILABLE && !user ? handleOpenLoginEntry : undefined,
     onLogout: user ? handleLogout : undefined,
     user,
   };
@@ -968,7 +1015,16 @@ function RootInner({
       {rootModelSelectionErrorNode}
       {remoteConnectionDialog}
       {directoryBrowserDialog}
+      <ProviderSetupDialog
+        open={providerSetupOpen}
+        onOpenChange={(open) => {
+          if (open) setProviderSetupOpen(true);
+          else handleDismissProviderSetup();
+        }}
+        onOpenModelSettings={handleOpenProviderSettings}
+      />
       <OccupationOnboarding
+        autoTrigger={ZCODE_ACCOUNT_SERVICES_AVAILABLE}
         showWindowControls={Boolean(isWindowsDesktop || (isDesktop && !isMacDesktop))}
         showChildrenWhileLoading={!workspaceShellPath && isSettingsTabActive}
         isMacDesktop={isMacDesktop}
@@ -1013,7 +1069,7 @@ function RootInner({
             allowRemoteWorkspace={allowRemoteWorkspace}
             handleBackFromSettings={handleBackFromSettings}
             handleLogout={user ? handleLogout : undefined}
-            onLogin={!user ? handleOpenLoginEntry : undefined}
+            onLogin={ZCODE_ACCOUNT_SERVICES_AVAILABLE && !user ? handleOpenLoginEntry : undefined}
             user={user}
             reconnectingRemoteWorkspaceKeys={reconnectingRemoteWorkspaceKeys}
             remoteWorkspaceErrorByWorkspaceKey={remoteWorkspaceErrorByWorkspaceKey}

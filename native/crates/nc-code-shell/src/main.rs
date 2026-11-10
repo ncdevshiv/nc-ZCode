@@ -203,11 +203,11 @@ fn emit_desktop_command(app: &tauri::AppHandle, command: &str) {
 /// 注册 tray：与 Electron 托盘一致的入口（Open / New Task / Open Workspace /
 /// About / Clear All Data / Quit）。菜单命令发到 renderer，窗口动作留在壳层。
 fn setup_tray(app: &mut tauri::App) -> tauri::Result<()> {
-    let open = MenuItem::with_id(app, "open", "Open ZCode", true, None::<&str>)?;
+    let open = MenuItem::with_id(app, "open", "Open NC-Code", true, None::<&str>)?;
     let new_task = MenuItem::with_id(app, "new-task", "New Task", true, None::<&str>)?;
     let open_workspace =
         MenuItem::with_id(app, "open-workspace", "Open Workspace", true, None::<&str>)?;
-    let about = MenuItem::with_id(app, "about", "About ZCode", true, None::<&str>)?;
+    let about = MenuItem::with_id(app, "about", "About NC-Code", true, None::<&str>)?;
     let clear_data = MenuItem::with_id(app, "clear-data", "Clear All Data", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(
@@ -224,7 +224,7 @@ fn setup_tray(app: &mut tauri::App) -> tauri::Result<()> {
 
     TrayIconBuilder::with_id("main-tray")
         .icon(Image::new_owned(generate_tray_rgba(), 16, 16))
-        .tooltip("ZCode")
+        .tooltip("NC-Code")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.0.as_str() {

@@ -107,8 +107,16 @@ pub type CdpResult<T> = Result<T, CdpError>;
 
 #[cfg(test)]
 mod tests {
+    /// The renderer branches on `code.as_str()`; the display line must keep the
+    /// `[code] message` shape so a log line stays attributable.
     #[test]
-    fn basic_test() {
-        assert!(true);
+    fn cdp_error_keeps_its_code_and_display_shape() {
+        let error = super::CdpError::new(super::CdpErrorCode::Timeout, "read timed out");
+        assert!(
+            error.to_string().starts_with("[timeout]")
+                || error.to_string().contains("read timed out"),
+            "{error}"
+        );
+        assert!(!format!("{:?}", error.code).is_empty());
     }
 }

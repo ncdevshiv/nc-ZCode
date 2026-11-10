@@ -13,3 +13,4 @@ serde_json.workspace = true
 # Process tree recycling and reuse nc-code-proc (Windows Job / killpg semantics have been implemented and verified in this island),
 # Do not reimplement taskkill /T /F in this crate. After being exposed and exported, the host only needs to rely on this crate.
 nc-code-proc = { path = "../nc-code-proc" }
+nc-code-service-core = { path = "../nc-code-service-core" }

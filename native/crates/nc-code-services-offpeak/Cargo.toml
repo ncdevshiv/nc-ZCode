@@ -8,6 +8,7 @@ publish.workspace = true
 description = "Off-Peak (idle-window coding plan) task repository: off_peak_tasks sqlite schema, terminal-irreversible state machine and single-flight claim"
 
 [dependencies]
+serde.workspace = true
 serde_json.workspace = true
 async-trait = "0.1"
 nc-code-channels = { path = "../nc-code-channels" }

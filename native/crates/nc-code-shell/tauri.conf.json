@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "ZCode",
+  "productName": "NC-Code",
   "version": "3.14.0",
   "identifier": "dev.zcode.app",
   "build": {
@@ -10,7 +10,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "ZCode",
+        "title": "NC-Code",
         "width": 1280,
         "height": 840,
         "minWidth": 960,

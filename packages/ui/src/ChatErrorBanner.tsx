@@ -28,6 +28,7 @@ import { cn } from "./components/lib/utils.js";
 import { toast } from "./components/ui/toast.js";
 import { useFeedbackStore } from "@/feedback/feedbackStore.js";
 import { getProviderBusinessErrorMessageId } from "@/lib/providerBusinessError.js";
+import { ZCODE_ACCOUNT_SERVICES_AVAILABLE } from "@/lib/productCapabilities.js";
 import { buildErrorFeedbackDescription } from "@/lib/errorFeedbackDraft.js";
 import {
   isSuspiciousEmptyModelResultMessage,
@@ -208,22 +209,24 @@ export function ChatErrorBanner({
 
         {modelConfigMissing ? (
           <>
-            <CodingPlanEntryButton
-              type="button"
-              variant="default"
-              size="sm"
-              onClick={onOpenUpgrade}
-              className={cn(
-                actionButtonClassName,
-                "button-gradient gap-1.5 text-white hover:bg-transparent hover:opacity-90 dark:bg-[#484A58] dark:hover:bg-[#484A58]",
-              )}
-              aria-label={intl.formatMessage({
-                id: "chat.quota.action.upgrade",
-              })}
-            >
-              <RocketIcon className="size-3.5" />
-              {intl.formatMessage({ id: "chat.quota.action.upgrade" })}
-            </CodingPlanEntryButton>
+            {ZCODE_ACCOUNT_SERVICES_AVAILABLE ? (
+              <CodingPlanEntryButton
+                type="button"
+                variant="default"
+                size="sm"
+                onClick={onOpenUpgrade}
+                className={cn(
+                  actionButtonClassName,
+                  "button-gradient gap-1.5 text-white hover:bg-transparent hover:opacity-90 dark:bg-[#484A58] dark:hover:bg-[#484A58]",
+                )}
+                aria-label={intl.formatMessage({
+                  id: "chat.quota.action.upgrade",
+                })}
+              >
+                <RocketIcon className="size-3.5" />
+                {intl.formatMessage({ id: "chat.quota.action.upgrade" })}
+              </CodingPlanEntryButton>
+            ) : null}
             <Button
               type="button"
               variant="outline"

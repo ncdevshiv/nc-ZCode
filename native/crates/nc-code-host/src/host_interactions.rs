@@ -568,8 +568,85 @@ impl HostServer {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
-    fn basic_test() {
-        assert!(true);
+    fn normalize_answer_trims_and_drops_empties() {
+        assert_eq!(
+            normalize_answer_value(Some(&json!("  hi  "))),
+            Some("hi".to_string())
+        );
+        assert_eq!(normalize_answer_value(Some(&json!("   "))), None);
+        assert_eq!(normalize_answer_value(None), None);
+        assert_eq!(normalize_answer_value(Some(&json!(null))), None);
+    }
+
+    #[test]
+    fn normalize_answer_joins_arrays_like_ts() {
+        let joined = normalize_answer_value(Some(&json!([" a ", "", "b", "  "])));
+        assert_eq!(joined, Some("a, b".to_string()));
+        let empty = normalize_answer_value(Some(&json!(["", " "])));
+        assert_eq!(empty, None);
+    }
+
+    #[test]
+    fn normalized_questions_fallback_value_to_label() {
+        let input = json!({
+            "questions": [{
+                "question": "Q?",
+                "header": "H",
+                "options": [
+                    {"label": "Opt A"},
+                    {"label": "Opt B", "value": "b", "preview": "prev"},
+                ],
+                "multiSelect": true,
+            }]
+        });
+        let normalized = normalized_questions(&input);
+        let q = &normalized[0];
+        assert_eq!(q["question"], "Q?");
+        assert_eq!(q["options"][0]["value"], "Opt A");
+        assert_eq!(q["options"][1]["value"], "b");
+        assert_eq!(q["options"][1]["preview"], "prev");
+        assert_eq!(q["multiSelect"], true);
+        // multiSelect omitted when false
+        let input2 = json!({
+            "questions": [{ "question": "Q", "header": "H", "options": [{"label": "X"}], "multiSelect": false }]
+        });
+        let n2 = normalized_questions(&input2);
+        assert!(n2[0].get("multiSelect").is_none());
+    }
+
+    #[test]
+    fn permission_and_plan_outcomes_are_distinct() {
+        assert_ne!(PermissionOutcome::Allowed, PermissionOutcome::Denied);
+        assert_ne!(PermissionOutcome::Denied, PermissionOutcome::Cancelled);
+        assert_eq!(format!("{:?}", PlanApproval::Approved), "Approved");
+        assert_eq!(
+            format!("{:?}", PlanApproval::Feedback("x".into())),
+            "Feedback(\"x\")"
+        );
+    }
+
+    #[test]
+    fn approval_outcome_only_approve_is_pass() {
+        let question = crate::tools::plan::PLAN_APPROVAL_QUESTION;
+        let approve = json!({
+            "content": {
+                "answers": { (question): "approve" }
+            }
+        });
+        assert_eq!(approval_outcome(&approve), PlanApproval::Approved);
+        let feedback = json!({
+            "content": {
+                "answers": { (question): "needs more" }
+            }
+        });
+        assert_eq!(
+            approval_outcome(&feedback),
+            PlanApproval::Feedback("needs more".to_string())
+        );
+        let empty = json!({});
+        assert_eq!(approval_outcome(&empty), PlanApproval::Declined);
     }
 }

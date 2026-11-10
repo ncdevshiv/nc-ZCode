@@ -14,7 +14,7 @@
 
 3. Service member count:
    - 471 total members = 437 RPC + 6 events + 28 dynamic events.
-   - 325 dispatch-evidenced + 146 boundary-removed = 471. Consistent.
+   - 325 dispatch-evidenced + 146 boundary-removed = 471 (historical ledger). Superseded by `AUDIT-NOTES.md:19-22`: 26/26 channels registered, 301/301 members with evidence.
 
 4. Removed members:
    - 11 channels and 146 members are removed by documented boundaries.
@@ -143,4 +143,4 @@ Do not begin production desktop cutover until F1, F5, F7, and persistence verifi
 - Behavioral parity verified: 2 features
 - Production integration completed: 0
 - Remaining known gaps: 11 features
-- Remaining unverified functionality: 325 service members
+- Channel coverage (2026-11-05, `AUDIT-NOTES.md:19-22`): 26/26 channels registered, 301/301 members with dispatch/boundary evidence

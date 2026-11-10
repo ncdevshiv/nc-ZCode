@@ -337,7 +337,7 @@ fn commands_query_rejects_invalid_params_with_a_jsonrpc_error() {
     );
     let ack = &response["result"]["ack"];
     assert_eq!(ack["mode"], json!("snapshot"));
-    assert!(ack["subscriptionId"].as_str().unwrap_or("").len() > 0);
+    assert!(!ack["subscriptionId"].as_str().unwrap_or("").is_empty());
     // The snapshot frame is read from the pending queue (post-response notification).
     // Drain one notification line and check its shape.
     let frame = client.next_notification();

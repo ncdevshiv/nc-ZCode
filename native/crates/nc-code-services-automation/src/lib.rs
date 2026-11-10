@@ -12,6 +12,9 @@
 //! The warehouse only performs storage and atomic state migration, and is not aware of cron semantics; the scheduling loop (polling claimDue dispatch) is
 //! Host/scheduler driver, this crate provides its persistence API.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 pub mod cron;
 pub mod repo;
 pub mod service;

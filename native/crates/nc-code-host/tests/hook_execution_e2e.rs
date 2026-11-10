@@ -50,7 +50,7 @@ setTimeout(() => {
 }, 20);
 "#;
 
-fn make_workspace(tag: &str, port: u16) -> (PathBuf, PathBuf, PathBuf) {
+fn make_workspace(tag: &str) -> (PathBuf, PathBuf, PathBuf) {
     let base =
         std::env::temp_dir().join(format!("zcode-host-hook-exec-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&base);
@@ -78,12 +78,19 @@ fn make_workspace(tag: &str, port: u16) -> (PathBuf, PathBuf, PathBuf) {
 "#,
     )
     .expect("config");
-    let config_path = base.join("provider.json");
-    provider_config(port, &config_path);
     (base, workspace, data_dir)
 }
 
-fn start(workspace: &Path, data_dir: &Path, config_path: &Path) -> (HostProcess, Client) {
+/// 每次 spawn 都重新落一份 handover 文件：host 按"一次性密钥文件"契约在启动后
+/// 删除 `--provider-config`（`main.rs` `remove_file`），重启复用同一路径会拿到
+/// `provider=unconfigured`。生产侧桌面也是每次 spawn 新写一份，测试照同一语义。
+fn start(
+    workspace: &Path,
+    data_dir: &Path,
+    config_path: &Path,
+    port: u16,
+) -> (HostProcess, Client) {
+    provider_config(port, config_path);
     let mut process = HostProcess::spawn(workspace, data_dir, config_path, false);
     let client = Client {
         id_counter: 0,
@@ -203,9 +210,9 @@ fn trust_all_hooks(client: &mut Client, session_id: &str) {
 #[test]
 fn a_trusted_pre_tool_use_hook_can_block_a_tool_and_inject_context() {
     let (provider, port) = ScriptedProvider::spawn();
-    let (base, workspace, data_dir) = make_workspace("deny", port);
+    let (base, workspace, data_dir) = make_workspace("deny");
     let config_path = base.join("provider.json");
-    let (process, mut client) = start(&workspace, &data_dir, &config_path);
+    let (process, mut client) = start(&workspace, &data_dir, &config_path, port);
 
     let id = client.send(
         "v4/command",
@@ -279,7 +286,7 @@ fn a_trusted_pre_tool_use_hook_can_block_a_tool_and_inject_context() {
     // 重启后 SessionStart hook（此时已受信任）把上下文注入下一次用户轮。
     drop(process);
     drop(client);
-    let (_process2, mut restarted) = start(&workspace, &data_dir, &config_path);
+    let (_process2, mut restarted) = start(&workspace, &data_dir, &config_path, port);
     let snapshot = snapshot_state(&mut restarted, &session_id);
     let session_rows = snapshot["rows"]["window"]
         .as_array()
@@ -339,8 +346,7 @@ fn a_stop_hook_can_request_one_controlled_continuation() {
     )
     .expect("config");
     let config_path = base.join("provider.json");
-    provider_config(port, &config_path);
-    let (process, mut client) = start(&workspace, &data_dir, &config_path);
+    let (process, mut client) = start(&workspace, &data_dir, &config_path, port);
 
     let id = client.send(
         "v4/command",
@@ -440,8 +446,7 @@ fn a_permission_request_hook_can_deny_instead_of_asking_the_user() {
     )
     .expect("config");
     let config_path = base.join("provider.json");
-    provider_config(port, &config_path);
-    let (process, mut client) = start(&workspace, &data_dir, &config_path);
+    let (process, mut client) = start(&workspace, &data_dir, &config_path, port);
 
     let id = client.send(
         "v4/command",

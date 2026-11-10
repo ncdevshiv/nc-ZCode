@@ -1,8 +1,9 @@
 ﻿# Spec: Native crate map, sidecar protocol, stage acceptance
 
 Owner: pending (architecture)
-Status: S0–S5 executed 2026-09-22 (crate layer built, gates green — evidence in RUST-PORT-LOG.md ENTRY 005); S3 host integration executing 2026-09-22 (zcode-host increment, acceptance above); S5 host wiring and S4 R4 BrowserView gate remain OPEN; S6 not started
-Date: 2026-09-22
+Status: **updated 2026-11-06** — S0–S5 executed 2026-09-22 (evidence RUST-PORT-LOG ENTRY 005 as of that date); S3 host now `nc-code-host` (198 files, 43 tools, V4 31/31); S5 server live via `nc-code-app` + `channel_router` (8 routes) + `nc-code-shell/src/backend.rs`; S6 in progress (Tauri live, `dev:desktop`→`dev:tauri`). Prior "S6 not started / 12 zcode-* crates" wording superseded; legacy `zcode-*` names are aliases for `nc-code-*`.
+Date: 2026-09-22 (doc sync 2026-11-06)
+<!-- trace:2026-11-06 docs sync — workspace `members=["crates/nc-code-*"]` native/Cargo.toml:7 (glob-counted 54 crates). Host deps nc-code-host/Cargo.toml:50-60; shell deps nc-code-shell/Cargo.toml:33-44. RUST-PORT-MATRIX dated 2026-09-23 snapshot retained as history below. -->
 
 Governing specs: `specs/rust-pure-native-roadmap.md` (stage definitions, §7 R1–R4),
 `specs/rust-cli-provider-boundary.md` (S2 seam/event order), `specs/rust-serialization-ffi-boundary.md`
@@ -13,30 +14,26 @@ sidecar stdio protocol, cross-crate dependency direction, and per-stage acceptan
 
 | Stage | Crate (`native/crates/`) | Kind        | Mirrors / replaces                                                         |
 | ----- | ------------------------ | ----------- | -------------------------------------------------------------------------- |
-| S1    | `zcode-sidecar-proto`    | lib         | NDJSON sidecar framing shared by all islands                               |
-| S1    | `zcode-watch`            | lib + bin   | `packages/services/src/fileWatcher/fileWatcherService.ts`                  |
-| S1    | `zcode-scan`             | lib + bin   | `packages/services/src/storage/adapters/fsWalker.ts`                       |
-| S1    | `zcode-proc`             | lib + bin   | `taskkill /T /F` + scraped process lists (Job Objects)                     |
-| S1    | `zcode-image`            | lib + bin   | `jimp` hot path in `apps/zcode-cli/.../adapters`                           |
-| S1    | `zcode-diff`             | lib + bin   | npm `diff@9` (jsdiff) usage in `core` + `bootstrap`                        |
-| S2    | `zcode-provider`         | lib         | `adapters/src/model/**` (`ModelExecutor` semantics)                        |
-| S3    | `zcode-core`             | lib         | `command-inbox.ts` admission + owner/lease + identity key                  |
-| S3    | `zcode-host`             | lib + bin   | TS Agent Host: stdio v4 RPC surface + session/projection/delivery profiles |
-| S4    | `zcode-shell`            | bin (Tauri) | Electron main → Tauri shell, `IPlatformService` adapter                    |
-| S5    | `zcode-server`           | lib + bin   | `packages/server` → axum (static UI + host port)                           |
-| S0    | `zcode-v4-wire`          | lib         | v4 wire binary pure functions (already delivered)                          |
+| S0–S1 | `nc-code-v4-wire`, `nc-code-core`, `nc-code-rpc`, `nc-code-channels`, `nc-code-cdp` | libs | V4 wire codec, admission/lease, channel RPC wire + registry                |
+| S1    | `nc-code-sidecar-proto` + `nc-code-watch/scan/proc/image/diff` | libs + bins | 5 islands: NDJSON framing + fileWatcher/fsWalker/taskkill/jimp/jsdiff     |
+| S2    | `nc-code-provider` | lib | `adapters/src/model/**` (ModelExecutor semantics)                          |
+| S3    | `nc-code-host` | lib + bin (`zcode-host`) | 198 `.rs` files / 83,922 lines; 43 tools (32 sync + 11 async, `src/tools/mod.rs:258-369`), V4 31/31 (`src/rpc.rs:56`) |
+| S3–S5 | `nc-code-workflow`, `nc-code-services-*` (35 crates), `nc-code-service-core`, `nc-code-node-repl` | libs | run journal/project-driver, per-domain services, node_repl host-edge       |
+| S4–S5 | `nc-code-app`, `nc-code-server`, `nc-code-shell` | libs + bins | composition root (registry) + axum `channel_router` (8 routes) + Tauri shell w/ real backend (`src/backend.rs:66,93`) |
+Full member list: glob `crates/nc-code-*` (54 crates counted 2026-11-06). |
 
 Dependency direction (enforced by review; no exceptions without updating this spec):
 
-- Island bins (`watch`/`scan`/`proc`/`image`/`diff`) → `zcode-sidecar-proto` only.
-- `zcode-provider`, `zcode-server`, `zcode-shell`, `zcode-v4-wire`:
-  **no cross-crate edges yet** — integration edges arrive with the S3/S5 strangler
-  cutover and must be added here first. No cycles possible until then.
-- `zcode-host` (S3, first integration crate) may depend **only** on
-  `zcode-v4-wire`, `zcode-core`, and `zcode-provider`. No other crate may depend on
-  `zcode-host`. All later host edges (storage, terminal, MCP, frame routing) must be
-  added here first.
-- Workspace deps (`native/Cargo.toml`): `serde`, `serde_json`, `tokio`. Crate-specific
+- Island bins (`watch`/`scan`/`proc`/`image`/`diff`) → `nc-code-sidecar-proto` only.
+- `nc-code-host` deps (actual, `nc-code-host/Cargo.toml:50-60`): `nc-code-core`,
+  `nc-code-v4-wire`, `nc-code-provider`, `nc-code-scan`, `nc-code-proc`,
+  `nc-code-workflow`, `nc-code-node-repl`, plus `nct-mcp`/`nct-core` (external
+  `G:/nc-sdk/nc-tools` kernel, 89 typed adapters, `src/nc_tools.rs:1`).
+- `nc-code-shell` deps (actual, `nc-code-shell/Cargo.toml:33-44`): `nc-code-cdp`,
+  `nc-code-host`, `nc-code-app`, `nc-code-server`, `nc-code-service-core`, plus
+  browser/computer platform crates. Composition root `nc-code-app` assembles all
+  real channels (no placeholders).
+- Workspace deps (`native/Cargo.toml:10-15`): `serde`, `serde_json`, `tokio`. Crate-specific
   deps (notify, image, windows, axum, reqwest, tauri, …) live in the crate's own
   `Cargo.toml`.
 
@@ -88,32 +85,25 @@ Rules:
 - **S3**: `CommandInbox` semantics (serial admission, monotonic `admissionSeq`,
   idempotent resubmit, cancel) and owner/lease rules (acquire/renew/steal, stale-run
   guard) pass concurrency tests with an injected clock — no wall-clock sleeps in tests.
-- **S3 `zcode-host` (this increment)**: the Rust host binary speaks the existing v4
-  stdio NDJSON RPC surface (method names and envelope shapes mirror
+- **S3 `nc-code-host` (updated 2026-11-06; supersedes six-tool wording)**: the Rust host binary
+  speaks the existing v4 stdio NDJSON RPC surface (method names and envelope shapes mirror
   `V4_METHODS`/`V4_NOTIFICATIONS` in `packages/shared/src/zcode-protocol-v4/transport.ts`),
-  integrating `zcode-v4-wire` (frame codec), `zcode-core` (command admission via
-  `CommandInbox`/`CommandInboxHost`, identity key), and `zcode-provider` (model
-  roundtrip executor) **in-process** — no sidecar hop. Command surface in this
-  increment: `v4/connection/flow`, `v4/conversation/subscribe|resync|unsubscribe`,
-  `v4/conversation/rowsRange`, `v4/command` (`createSession`, `sendText`, `stop`,
-  `renameSession`, `deleteSession`); notifications: `v4/conversation/frame`.
-  Both delivery profiles (`continuous`/`replayable`) are implemented from the shared
-  profile parameters, and **both profiles' terminal states must be byte-identical**
-  (the golden invariant from `profiles.ts`). Cutover seam: which binary the outer
-  host spawns per workspace (flag off = TS host, unchanged; flag on = `zcode-host`).
-  Acceptance: conformance via golden vectors + e2e stdio tests, plus one real
-  workspace session end to end (create → prompt → stop → resync identical →
-  restart → resume). Explicitly **OPEN** (not simulated): tool execution beyond
-  the six-tool core, MCP, subagents, context building beyond AGENTS.md
-  discovery, compaction (LLM summarization), sqlite single-writer storage
-  (JSONL transcript only in this increment), the runner-debug live golden-request
-  corpus, `generateText` parity, Linux runtime, interactive GUI. The live
-  provider path is verified for both wire shapes (RUST-PORT-LOG ENTRY 008/009).
-- **S4**: `zcode-shell` compiles (`cargo check`/`cargo build` verified) and maps an
-  `IPlatformService`-shaped command surface; interactive window verification and the
-  R4 BrowserView design gate remain **open** (product decision, per roadmap §7).
-- **S5**: axum app serves static UI assets with SPA fallback + health endpoints,
-  behind a `HostPort` trait; wiring to a real host is S3/S5 integration (open).
+  integrating wire codec + admission + provider executor **in-process** — no sidecar hop.
+  Current state: **43 tools** (32 sync + 11 async, `src/tools/mod.rs:258-369`) stacked on
+  nc-tools kernel 89 typed adapters (`src/nc_tools.rs:1`), **V4 31/31 wired**
+  (`src/rpc.rs:56` empty), workflow 7 reads dispatched (`src/lib.rs:906-955`) + 4 commands
+  via `commands/workflow_commands.rs`. Both delivery profiles (`continuous`/`replayable`)
+  implemented from shared parameters; terminal states byte-identical.
+  Acceptance status: host 198 files, e2e stdio + tool-loop + lifecycle suites green
+  (see host README 验证). Explicitly **OPEN**: runner-debug live golden corpus,
+  `generateText` parity, Linux/macOS CUA/CDP where shipped `capability_unsupported`
+  (honest named error), sqlite single-writer parity gaps per host README diffs 13–41.
+- **S4**: `nc-code-shell` (32 `.rs` files) live — Tauri commands + embedded backend
+  (`src/backend.rs:66` build + `:93` serve on `127.0.0.1:0`). Interactive window
+  verification and the R4 BrowserView gate remain governing OPEN items per roadmap §7.
+- **S5**: axum `channel_router` live — 8 routes (4 base + 4 `/api/remote/*`) behind real
+  `nc-code-app` registry; `ProcessLivenessHost` honesty default retained for the
+  unmanaged session-host seam only. `/ws` channel RPC is live (`src/lib.rs:286`).
 
 ## Cutover order and `old.back/` staging (S3→S6, updated 2026-09-22 ENTRY 010)
 
@@ -152,10 +142,11 @@ Staged order (each stage ends with its own `old.back/` move or an explicit
 built), and preserves each moved module's original path under it so parity
 diffs and rollbacks stay one `git mv` away.
 
-### Stage status (2026-09-22)
+### Stage status (2026-11-06; 2026-09-22 history retained)
 
-- **Stage 1 (agent host + loop): landed.** `zcode-host` runs the multi-round
-  agent loop with the six-tool core set; both provider wire shapes live-verified.
+- **Stage 1 (agent host + loop): landed + expanded.** `nc-code-host` (binary
+  `zcode-host`) runs the multi-round agent loop with **43 tools** (32 sync + 11
+  async) + nc-tools 89 adapters; both provider wire shapes live-verified (ENTRY 008/009).
 - **Stage 3 first island (diff): wired, flag-gated.** TS package
   `apps/zcode-cli/packages/sidecar` (`@zcode/sidecar`) bridges the NDJSON stdio
   protocol (ready handshake, request/response, pool with idle reaping and
@@ -172,12 +163,16 @@ diffs and rollbacks stay one `git mv` away.
   app) and injects `ZCODE_SIDECAR_DIR`. `ZCODE_NATIVE_SIDECARS_OFF=1` is the
   global kill switch. Verified: the default-on path (flag unset) resolves the
   staged **release** binary and returns jsdiff-identical results.
-- **Stage 3 all five islands: wired (ENTRY 012).** proc / scan / watch / image
-  facades sit behind the same bridge with TS fallbacks; image is default-ON
-  (user decision, measured semantic parity: dimension decisions, decodable
-  non-blank output, correct jpeg/webp containers). diff + image are the two
-  islands that execute in production today; proc/scan/watch default off pending
-  divergence audits and soak.
+- **Stage 3 all five islands: wired (ENTRY 012), 4-on since scan/watch flip.**
+  proc / scan / watch / image facades sit behind the same bridge with TS fallbacks;
+  image default-ON (measured semantic parity). Current default
+  `DEFAULT_ON_ISLANDS=["diff","image","scan","watch"]` (`sidecar/src/config.ts:44`);
+  `proc` default-off (MCP stdio soak). diff 88/88 byte parity retained.
+- **S6 status (2026-11-06): in progress, not "not started".** Tauri is live
+  (`dev:desktop`→`dev:tauri`, `package.json:15`), embedded Rust backend real
+  (`nc-code-shell/src/backend.rs:66,93`), `old.back/` still zero-move (four
+  conditions unmet — no deletion yet). S6 exit (delete `old.back/`, Node leaves
+  packaging) remains gated on parity soak + zero-reference proof.
 
 ## Third-party notice rule for cargo
 

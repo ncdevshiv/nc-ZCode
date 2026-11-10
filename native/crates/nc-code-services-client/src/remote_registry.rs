@@ -119,13 +119,33 @@ impl RemoteConnectionRegistry {
         workspace_path: impl Into<String>,
         workspace_identity: impl Into<String>,
     ) -> Result<RemoteSessionSnapshot, ServiceError> {
+        self.connect_ssh_tunnel_ws_with_port(
+            host,
+            None,
+            remote_port,
+            workspace_path,
+            workspace_identity,
+        )
+        .await
+    }
+
+    /// Same as [`Self::connect_ssh_tunnel_ws`] with an explicit SSH transport port
+    /// (`ssh -p`). `None` keeps the OpenSSH default (22).
+    pub async fn connect_ssh_tunnel_ws_with_port(
+        &self,
+        host: &str,
+        ssh_port: Option<u16>,
+        remote_port: u16,
+        workspace_path: impl Into<String>,
+        workspace_identity: impl Into<String>,
+    ) -> Result<RemoteSessionSnapshot, ServiceError> {
         let host = host.trim();
         if host.is_empty() {
             return Err(ServiceError::invalid_params("ssh host is required"));
         }
         let ssh_bin = std::env::var("ZCODE_SSH_BIN").unwrap_or_else(|_| "ssh".to_string());
         let (tunnel, local_port) = self
-            .ssh_tunnel_with_port(&ssh_bin, host, remote_port)
+            .ssh_tunnel_with_port(&ssh_bin, host, ssh_port, remote_port)
             .map_err(|reason| {
                 ServiceError::named(
                     "RemoteSourceUnavailable",
@@ -250,33 +270,22 @@ impl RemoteConnectionRegistry {
         host: &str,
         remote_port: u16,
     ) -> Result<std::process::Child, String> {
-        Ok(self.ssh_tunnel_with_port(ssh_bin, host, remote_port)?.0)
+        Ok(self
+            .ssh_tunnel_with_port(ssh_bin, host, None, remote_port)?
+            .0)
     }
 
     fn ssh_tunnel_with_port(
         &self,
         ssh_bin: &str,
         host: &str,
+        ssh_port: Option<u16>,
         remote_port: u16,
     ) -> Result<(std::process::Child, u16), String> {
         let local_port = free_tcp_port().ok_or_else(|| "cannot bind a local port".to_string())?;
-        // Forward to `127.0.0.1` on the remote side (the server listens on
-        // loopback), not the SSH hostname — so `host` may carry
-        // `user@host` as the SSH destination without breaking `-L`.
-        let forward = format!("{local_port}:127.0.0.1:{remote_port}");
+        let args = ssh_tunnel_args(host, ssh_port, remote_port, local_port);
         let mut child = std::process::Command::new(ssh_bin)
-            .args([
-                "-N",
-                "-o",
-                "BatchMode=yes",
-                "-o",
-                "ConnectTimeout=10",
-                "-o",
-                "StrictHostKeyChecking=accept-new",
-                "-L",
-                &forward,
-                host,
-            ])
+            .args(&args)
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::piped())
@@ -507,6 +516,36 @@ fn free_tcp_port() -> Option<u16> {
         .map(|addr| addr.port())
 }
 
+/// SSH tunnel argv (no shell). Forwards a free local port to the remote
+/// `zcode-server` on loopback — the SSH destination may be `user@host`, and
+/// `ssh_port` (when present) is passed as `-p`. Pure so the argv shape is pinned
+/// by a unit test rather than only by a live ssh run.
+fn ssh_tunnel_args(
+    destination: &str,
+    ssh_port: Option<u16>,
+    remote_port: u16,
+    local_port: u16,
+) -> Vec<String> {
+    let mut args: Vec<String> = Vec::new();
+    if let Some(port) = ssh_port {
+        args.push("-p".to_string());
+        args.push(port.to_string());
+    }
+    args.extend([
+        "-N".to_string(),
+        "-o".to_string(),
+        "BatchMode=yes".to_string(),
+        "-o".to_string(),
+        "ConnectTimeout=10".to_string(),
+        "-o".to_string(),
+        "StrictHostKeyChecking=accept-new".to_string(),
+        "-L".to_string(),
+        format!("{local_port}:127.0.0.1:{remote_port}"),
+        destination.to_string(),
+    ]);
+    args
+}
+
 fn tcp_probe_health(local_port: u16) -> bool {
     use std::io::{Read, Write};
     let Ok(mut stream) = std::net::TcpStream::connect(("127.0.0.1", local_port)) else {
@@ -566,6 +605,38 @@ mod tests {
         let agent = AgentServices::new(paths.clone(), ProviderStore::new(paths.clone()));
         let tasks = agent.tasks.clone();
         (tasks, dir)
+    }
+
+    #[test]
+    fn ssh_tunnel_args_pin_the_transport_shape() {
+        // Default SSH port: no `-p`, forward local → remote loopback.
+        let args = ssh_tunnel_args("dev@build.example.com", None, 43117, 5000);
+        assert_eq!(
+            args,
+            vec![
+                "-N",
+                "-o",
+                "BatchMode=yes",
+                "-o",
+                "ConnectTimeout=10",
+                "-o",
+                "StrictHostKeyChecking=accept-new",
+                "-L",
+                "5000:127.0.0.1:43117",
+                "dev@build.example.com",
+            ]
+        );
+        // Explicit transport port: `-p` precedes the destination options.
+        let args = ssh_tunnel_args("dev@build.example.com", Some(2222), 43117, 5001);
+        assert_eq!(args[0], "-p");
+        assert_eq!(args[1], "2222");
+        assert!(args.iter().any(|a| a == "5001:127.0.0.1:43117"));
+        assert_eq!(
+            args.last().map(String::as_str),
+            Some("dev@build.example.com")
+        );
+        // The forward target is always the remote loopback, never the SSH hostname.
+        assert!(args.iter().all(|a| !a.contains("build.example.com:43117")));
     }
 
     #[test]
@@ -772,6 +843,9 @@ mod tests {
             }
             std::thread::sleep(std::time::Duration::from_millis(50));
         };
-        assert!(reaped, "tunnel child pid {pid} must be reaped after dispose");
+        assert!(
+            reaped,
+            "tunnel child pid {pid} must be reaped after dispose"
+        );
     }
 }

@@ -1,0 +1,23 @@
+{
+  "workspaceRoot": ".",
+  "dataDir": "",
+  "model": { "providerId": "", "modelId": "", "contextWindow": null },
+  "budgets": {
+    "projectUsd": 25.0,
+    "taskTokens": 250000,
+    "concurrency": 4,
+    "maxAgentsPerTask": 3,
+    "maxRetries": 2,
+    "maxReviewCycles": 2,
+    "maxTaskMinutes": 60
+  },
+  "policy": {
+    "requirePlanApproval": false,
+    "requireMaterialApproval": true,
+    "stallAfterSecs": 300,
+    "heartbeatTimeoutSecs": 90,
+    "leaseTtlSecs": 900,
+    "defaultDecisionClass": "technical_recommendation"
+  },
+  "apiToken": ""
+}

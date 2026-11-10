@@ -121,6 +121,7 @@ fn bench_ledger_query(c: &mut Criterion) {
         workspace_root: root.clone(),
         workspace_identity: "/tmp/ws".to_string(),
         created_at: 0,
+        updated_at: 0,
         task_type: None,
         parent_session_id: None,
         log_epoch: "epoch".to_string(),

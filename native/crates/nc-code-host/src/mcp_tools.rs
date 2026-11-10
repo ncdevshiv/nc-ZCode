@@ -41,11 +41,7 @@ impl Tool for McpToolProxy {
             read_only,
             destructive,
             concurrent_safe: self.descriptor.idempotent_hint.unwrap_or(true),
-            side_effect_scope: if read_only {
-                crate::tools::SCOPE_SYSTEM
-            } else {
-                crate::tools::SCOPE_SYSTEM
-            },
+            side_effect_scope: crate::tools::SCOPE_SYSTEM,
             timeout_ms: 120_000,
             max_output_bytes: 1024 * 1024,
             max_model_bytes: 256 * 1024,

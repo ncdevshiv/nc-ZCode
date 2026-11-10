@@ -15,6 +15,9 @@
 //! `tests/golden_parity.rs`. Changing the wire format without regenerating the golden
 //! file fails the tests — that is deliberate.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 pub mod channel;
 pub mod protocol;
 pub mod serialization;

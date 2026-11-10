@@ -56,8 +56,16 @@ pub use transport::{CdpConnection, CdpEvent, EventReceiver, DEFAULT_COMMAND_TIME
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    /// `modifier_mask` maps the protocol's modifier names to CDP's bit field; an
+    /// unknown name must contribute nothing rather than a wrong bit.
     #[test]
-    fn crate_compiles() {
-        assert!(true);
+    fn modifier_mask_maps_names_to_bits() {
+        let mask = modifier_mask(Some(&serde_json::json!(["Alt", "Shift"])));
+        assert_ne!(mask, 0);
+        let none = modifier_mask(Some(&serde_json::json!(["Bogus"])));
+        assert_eq!(none, 0);
+        assert_eq!(modifier_mask(None), 0);
     }
 }

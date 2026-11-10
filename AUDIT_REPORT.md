@@ -1,6 +1,6 @@
 # End-to-End Audit Report: TS Backend → Rust Port Status
 
-**Date:** 2025-11-05  
+**Date:** 2026-11-06  
 **Auditor:** AI Agent (zero-trust verification)  
 **Repository:** G:\ZCode-main (branch: feat/rust-native-host)
 
@@ -19,14 +19,14 @@ This audit was conducted with zero trust on existing documentation and logs. The
 
 ### Root Cause
 According to `specs/nc-code-rename-plan.md`, the rename from `zcode` to `nc-code` was attempted but done incompletely and incorrectly:
-- **Class A (internal identifiers)**: Crates renamed from `zcode-*` to `nc-code-*` (32 crates) - this was done
+- **Class A (internal identifiers)**: Crates renamed from `zcode-*` to `nc-code-*` (53 crates) - this was done
 - **Class B (on-disk state)**: `.zcode/` directories, data dirs, provider configs - **NOT renamed** (correctly avoided to prevent data loss)
 - **Class C (wire/env vars)**: `ZCODE_*` env vars, wire protocol names, artifact URIs - **NOT fully renamed** (intentionally kept for compatibility)
 
 ### Observations
 - **Package.json** still uses `"name": "zcode"` (line 2 in package.json)
 - **Rust workspace** in `native/Cargo.toml` uses `members = ["crates/nc-code-*"]` glob
-- **Empty directory remains**: `native/crates/zcode-host/` exists but is empty (0 files) - leftover from rename
+- **Empty directory remains**: `native/crates/zcode-host/` exists but is empty (0 files) - leftover from rename. The real host is `nc-code-host/` (100+ files).
 - **Mixed references**: Many files still reference `zcode` (env vars like `ZCODE_NATIVE_HOST`, binary names, paths like `.zcode/`, etc.)
 - **Crate naming**: All active crates are now `nc-code-*` except possibly some remnants
 
@@ -39,14 +39,14 @@ According to `specs/nc-code-rename-plan.md`, the rename from `zcode` to `nc-code
 ## 2. Rust Port Status Assessment
 
 ### Native Crates Inventory
-Found 31 crates in `native/crates/`:
+Found 53 `nc-code-*` crates in `native/crates/` (workspace `members = ["crates/nc-code-*"]` in `native/Cargo.toml:7`):
 - **Core infrastructure**: `nc-code-core`, `nc-code-rpc`, `nc-code-channels`, `nc-code-v4-wire`, `nc-code-service-core`
 - **Host/runtime**: `nc-code-host`, `nc-code-app`, `nc-code-server`, `nc-code-shell`
 - **Services**: `nc-code-services-*` (agent, automation, client, config, extensions, git, git-checkpoint, offpeak, plugins, provider, terminal, workspace, zai)
 - **Sidecars/tools**: `nc-code-diff`, `nc-code-scan`, `nc-code-watch`, `nc-code-proc`, `nc-code-image`, `nc-code-sidecar-proto`
 - **Specialized**: `nc-code-node-repl`, `nc-code-provider`, `nc-code-workflow`, `nc-code-cdp`
 
-Plus empty `zcode-host/` directory.
+Plus empty `zcode-host/` leftover directory (0 files); the real `nc-code-host/` crate holds the host implementation.
 
 ### Test Status (Native Rust)
 Ran full native test suite (`cargo test --workspace` in native/):
@@ -67,7 +67,7 @@ According to `native/tools/check-channel-coverage.mjs`:
 This suggests the channel-based backend replacement is **functionally complete** in terms of registration and coverage. The Rust server (`nc-code-server`) exists with HTTP/WS/static serving capabilities.
 
 ### Host/Agent Runtime
-`nc-code-host` is well-developed based on RUST-PORT-LOG entries:
+`nc-code-host` is well-developed (100+ files under `native/crates/nc-code-host/`) based on RUST-PORT-LOG entries:
 - Full v4 protocol support
 - Tool execution framework
 - MCP integration (both native and external)

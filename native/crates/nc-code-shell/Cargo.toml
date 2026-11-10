@@ -41,6 +41,7 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 tokio.workspace = true
 nc-code-app = { path = "../nc-code-app" }
 nc-code-server = { path = "../nc-code-server" }
+nc-code-orchestrator = { path = "../nc-code-orchestrator" }
 nc-code-service-core = { path = "../nc-code-service-core" }
 
 [build-dependencies]

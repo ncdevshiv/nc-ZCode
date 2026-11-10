@@ -3,6 +3,9 @@
 //! Each module owns one channel and can be registered independently; [`ConfigServices`]
 //! is the composition used by `nc-code-app`. No module contains another channel's logic.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 pub mod broadcast;
 pub mod credential;
 pub mod cua_permission;

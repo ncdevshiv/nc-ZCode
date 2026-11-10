@@ -25,6 +25,7 @@ use nc_code_provider::request::{
 };
 use nc_code_provider::transport::{RealClock, TransportRequest};
 use nc_code_provider::{AdapterError, ModelErrorCode, ModelStreamEvent, ModelToolCall, ModelUsage};
+use nc_code_service_core::logger::ServiceLogger;
 use serde_json::{json, Value};
 
 use crate::provider_config::ProviderConfig;
@@ -316,6 +317,9 @@ async fn run_turn_request(
     session.set_phase("running");
     session.set_active_command(Some(source_command_id.to_string()));
     session.set_eager_frames(true);
+    // Usage fact window starts here: request/error deltas and the first-content
+    // timestamp below are the per-turn facts the app-usage aggregate reads.
+    session.begin_turn_usage();
     lines.extend(session.project_turn_started(turn_id, source_command_id, origin));
     if let Some((text, client_id, attachments)) = &user_row {
         lines.extend(session.project_user_input_with_origin(
@@ -406,9 +410,12 @@ async fn run_turn_request(
         Err(error) => {
             // 与中途/压缩写失败同样要**出声**：typed fault 会走协议，但诊断也要有，
             // 否则运维只能从用户报的「答非所问」往回推。
-            eprintln!(
-                "[zcode-host] {FAULT_HISTORY_NOT_PERSISTED} ({source_command_id}): \
-                 user input could not be persisted: {error}"
+            ServiceLogger::new("zcode-host").error(
+                None,
+                format!(
+                    "{FAULT_HISTORY_NOT_PERSISTED} session={} turn={turn_id} command={source_command_id}: user input could not be persisted: {error}",
+                    session.id
+                ),
             );
             false
         }
@@ -424,7 +431,15 @@ async fn run_turn_request(
             let history = match session.history_snapshot() {
                 Ok(history) => history,
                 Err(error) => {
-                    eprintln!("[zcode-host] {FAULT_HISTORY_NOT_PERSISTED}: {error}");
+                    // 已走 fail_history_turn typed fault（协议侧可见），这里补
+                    // session/turn/command 上下文让运维日志能定位到具体轮次。
+                    ServiceLogger::new("zcode-host").error(
+                        None,
+                        format!(
+                            "{FAULT_HISTORY_NOT_PERSISTED} session={} turn={turn_id} command={source_command_id}: {error}",
+                            session.id
+                        ),
+                    );
                     return fail_history_turn(
                         &session,
                         admitted,
@@ -575,6 +590,7 @@ async fn run_turn_request(
         source_command_id,
         header_state,
         turn_phase,
+        model_label,
         &mut lines,
     );
     if let Some(admitted) = admitted {
@@ -675,6 +691,7 @@ fn fail_history_turn(
         source_command_id,
         "failed",
         "error",
+        model_label,
         &mut lines,
     );
     if let Some(admitted) = admitted {
@@ -1592,14 +1609,132 @@ pub fn auth_headers(api_key: &str, auth_style: &str) -> Vec<(String, String)> {
     }
 }
 
+/// 落盘本轮用量事实（`v4/usage/stats` 的唯一 durable 写路径）。
+///
+/// 事实来源是会话自身的累计器与投影行：token 累计来自每一轮 `Finish`（多轮 tool
+/// loop 相加），工具调用/错误数来自本轮 toolCall 行的稳定状态，模型来自会话配置，
+/// 起止时间来自 turnHeader。**只写已有事实**：没有 usage 的轮次（例如被 hook 拒绝
+/// 后立即失败的轮）照样落一条，token 记 0——读面因此能区分"没有用量"与"缺事实"。
+fn persist_usage_fact(
+    session: &Arc<Session>,
+    turn_id: &str,
+    source_command_id: &str,
+    header_state: &str,
+    model_label: Option<&str>,
+) {
+    let usage = session.usage();
+    let cumulative = usage
+        .get("cumulative")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let field = |name: &str| cumulative.get(name).and_then(Value::as_u64).unwrap_or(0);
+    let rows = session.rows_snapshot();
+    let header = rows.iter().find(|row| {
+        row.get("kind").and_then(Value::as_str) == Some("turnHeader")
+            && row.get("sourceCommandId").and_then(Value::as_str) == Some(source_command_id)
+    });
+    let started_at = header
+        .and_then(|row| row.get("startedAt").and_then(Value::as_i64))
+        .unwrap_or_else(now_ms);
+    let ended_at = header
+        .and_then(|row| row.get("endedAt").and_then(Value::as_i64))
+        .unwrap_or_else(now_ms)
+        .max(started_at);
+    let tool_rows: Vec<&Value> = rows
+        .iter()
+        .filter(|row| {
+            row.get("kind").and_then(Value::as_str) == Some("toolCall")
+                && row.get("turnId").and_then(Value::as_str) == Some(turn_id)
+        })
+        .collect();
+    let tool_call_count = tool_rows.len() as u64;
+    let tool_error_count = tool_rows
+        .iter()
+        .filter(|row| {
+            row.get("status")
+                .and_then(Value::as_str)
+                .is_some_and(|status| status == "error" || status == "cancelled")
+        })
+        .count() as u64;
+    // 工具总耗时：只有终态行带 startedAt/endedAt，缺失的按 0 计（不猜）。
+    let tool_total_ms: i64 = tool_rows
+        .iter()
+        .map(|row| {
+            let start = row.get("startedAt").and_then(Value::as_i64).unwrap_or(0);
+            let end = row.get("endedAt").and_then(Value::as_i64).unwrap_or(start);
+            (end - start).max(0)
+        })
+        .sum();
+    let model = session.model();
+    let provider = session.provider();
+    // The session's own model config is only populated by a `switchModelConfig` command;
+    // a fresh session runs on the host provider config, which is the model actually
+    // billed, so prefer the label the turn was executed with.
+    let model = if model.is_empty() {
+        model_label.unwrap_or_default().to_string()
+    } else {
+        model
+    };
+    // Per-tool rows: the aggregate ranks by name without re-scanning the transcript.
+    // Built outside `json!` because the duration is a statement (a block is not a value).
+    let tool_facts: Vec<Value> = tool_rows
+        .iter()
+        .map(|row| {
+            let start = row.get("startedAt").and_then(Value::as_i64).unwrap_or(0);
+            let end = row.get("endedAt").and_then(Value::as_i64).unwrap_or(start);
+            json!({
+                "name": row.get("toolName").and_then(Value::as_str).unwrap_or(""),
+                "error": row
+                    .get("status")
+                    .and_then(Value::as_str)
+                    .is_some_and(|status| status == "error" || status == "cancelled"),
+                "durationMs": (end - start).max(0) as u64,
+            })
+        })
+        .collect();
+    let fact = json!({
+        "turnId": turn_id,
+        "sessionId": session.id,
+        "state": header_state,
+        "startedAt": started_at,
+        "endedAt": ended_at,
+        "durationMs": (ended_at - started_at).max(0),
+        "modelId": if model.is_empty() { Value::Null } else { json!(model) },
+        "providerId": if provider.is_empty() { Value::Null } else { json!(provider) },
+        "inputTokens": field("inputTokens"),
+        "outputTokens": field("outputTokens"),
+        "reasoningTokens": field("reasoningTokens"),
+        "cacheReadTokens": field("cacheReadTokens"),
+        "cacheCreationTokens": field("cacheWriteTokens"),
+        "toolCallCount": tool_call_count,
+        "toolErrorCount": tool_error_count,
+        "toolTotalMs": tool_total_ms,
+        "modelRequestCount": session.turn_model_request_count(),
+        "modelErrorCount": session.turn_model_error_count(),
+        "tools": tool_facts,
+    });
+    if let Err(error) = session.append_usage_fact(&fact) {
+        // durable 写失败不能让本轮失败，但必须出声：静默丢事实会让聚合读面少一段。
+        eprintln!("[zcode-host] usage fact persistence failed ({turn_id}): {error}");
+    }
+}
+
 fn finish_turn(
     session: &Arc<Session>,
     turn_id: &str,
     source_command_id: &str,
     header_state: &str,
     turn_phase: &str,
+    model_label: Option<&str>,
     lines: &mut Vec<String>,
 ) {
+    persist_usage_fact(
+        session,
+        turn_id,
+        source_command_id,
+        header_state,
+        model_label,
+    );
     lines.extend(session.project_turn_finished(turn_id, source_command_id, header_state));
     session.set_phase(turn_phase);
     // 队列暂停语义（TS queueState.pauseReason）：stop → stopped 且暂停队列；

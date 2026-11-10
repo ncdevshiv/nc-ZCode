@@ -10,6 +10,8 @@ description = "Shared service-layer kit for the Rust backend: positional argumen
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+chrono-tz = "0.10"
 sha2 = "0.10"
 regex = "1"
 tokio.workspace = true

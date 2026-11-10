@@ -1,7 +1,7 @@
 {
   "generator": "native/tools/inventory-service-channels.mjs",
   "typescriptVersion": "6.0.2",
-  "generatedAt": "2026-11-05",
+  "generatedAt": "2026-11-08",
   "note": "Generated from the TypeScript checker. Do not hand-edit; regenerate after changing any service interface.",
   "declaredChannels": {
     "File": "file",
@@ -21,6 +21,9 @@
     "ZCodeSession": "zcode-session",
     "ConversationShare": "conversation-share",
     "FileWatcher": "file-watcher",
+    "OAuth": "oauth",
+    "UsageStats": "usage-stats",
+    "CodingPlanSubscription": "coding-plan-subscription",
     "ProviderSettings": "provider-settings",
     "ModelSelection": "model-selection",
     "ProviderProvisioningTarget": "provider-provisioning-target",
@@ -44,8 +47,146 @@
   },
   "services": [
     {
+      "descriptor": "IBroadcastService",
+      "channelName": "broadcast",
+      "interfaceName": "IBroadcastService",
+      "source": "packages/services/src/broadcast/broadcast.ts",
+      "methods": [
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "acquireClaim",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "key",
+              "optional": false,
+              "type": "string"
+            }
+          ],
+          "returnType": "Promise<BroadcastClaimAcquireResult>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "commitClaim",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "lease",
+              "optional": false,
+              "type": "BroadcastClaimLease"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "kind": "method",
+          "role": "event",
+          "name": "onMessage",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "listener",
+              "optional": false,
+              "type": "(e: BroadcastMessage) => void"
+            }
+          ],
+          "returnType": "IDisposable"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "releaseClaim",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "lease",
+              "optional": false,
+              "type": "BroadcastClaimLease"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "send",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "message",
+              "optional": false,
+              "type": "BroadcastMessage"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "tryClaim",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "key",
+              "optional": false,
+              "type": "string"
+            }
+          ],
+          "returnType": "Promise<boolean>"
+        }
+      ]
+    },
+    {
+      "descriptor": "IClientConfigService",
+      "channelName": "client-config",
+      "interfaceName": "IClientConfigService",
+      "source": "packages/services/src/client-config/clientConfig.ts",
+      "methods": [
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "getSnapshot",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "options",
+              "optional": false,
+              "type": "{ forceRefresh?: boolean; }"
+            }
+          ],
+          "returnType": "Promise<ClientConfigSnapshot>"
+        }
+      ]
+    },
+    {
+      "descriptor": "IClientScenesService",
+      "channelName": "client-scenes",
+      "interfaceName": "IClientScenesService",
+      "source": "packages/services/src/client-scenes/clientScenes.ts",
+      "methods": [
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "list",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [],
+          "returnType": "Promise<ClientScenesResponse>"
+        }
+      ]
+    },
+    {
       "descriptor": "ICodingPlanSubscriptionService",
-      "channelName": null,
+      "channelName": "coding-plan-subscription",
       "interfaceName": "ICodingPlanSubscriptionService",
       "source": "packages/services/src/coding-plan-subscription/codingPlanSubscription.ts",
       "methods": [
@@ -441,433 +582,6 @@
             }
           ],
           "returnType": "Promise<CodingPlanAgreementResponse>"
-        }
-      ]
-    },
-    {
-      "descriptor": "IOAuthService",
-      "channelName": null,
-      "interfaceName": "IOAuthService",
-      "source": "packages/services/src/oauth/oauth.ts",
-      "methods": [
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "cancelPending",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "provider",
-              "optional": false,
-              "type": "OAuthProviderId"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "getActiveProvider",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [],
-          "returnType": "Promise<OAuthProviderId>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "getProviders",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [],
-          "returnType": "Promise<OAuthProviderMeta[]>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "handleCallback",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "url",
-              "optional": false,
-              "type": "string"
-            }
-          ],
-          "returnType": "Promise<OAuthCallbackResult>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "logout",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "provider",
-              "optional": false,
-              "type": "OAuthProviderId"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "logoutAll",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [],
-          "returnType": "Promise<void>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "pollPendingOAuth",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [],
-          "returnType": "Promise<OAuthCallbackResult>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "refreshToken",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "provider",
-              "optional": false,
-              "type": "OAuthProviderId"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "restoreCachedSession",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [],
-          "returnType": "Promise<UserInfo>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "restoreCachedSessionState",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [],
-          "returnType": "Promise<OAuthCachedSessionRestoreResult>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "restoreSession",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [],
-          "returnType": "Promise<UserInfo>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "startOAuth",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "provider",
-              "optional": false,
-              "type": "OAuthProviderId"
-            }
-          ],
-          "returnType": "Promise<OAuthStartResponse>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "startOAuthWithPolling",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "provider",
-              "optional": false,
-              "type": "OAuthProviderId"
-            }
-          ],
-          "returnType": "Promise<OAuthStartResponse>"
-        }
-      ]
-    },
-    {
-      "descriptor": "IUsageStatsService",
-      "channelName": null,
-      "interfaceName": "IUsageStatsService",
-      "source": "packages/services/src/usage-stats/usageStats.ts",
-      "methods": [
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "getAppUsageSnapshot",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "request",
-              "optional": false,
-              "type": "AppUsageRequest"
-            }
-          ],
-          "returnType": "Promise<{ range: \"all\" | \"7d\" | \"30d\"; generatedAt: number; timeZone: string; source: \"agent-db\"; summary: { totalTokens: number; inputTokens: number; outputTokens: number; reasoningTokens: number; cacheCreationTokens: number; cacheReadTokens: number; cacheHitRate: number; totalSessions: number; totalTurns: number; toolCallCount: number; toolErrorRate: number; modelErrorRate: number; activeDays: number; currentStreakDays: number; longestSessionMs: number; longestStreakDays: number; peakDayTokens: number; avgTimeToFirstTokenMs?: number; avgTurnDurationMs?: number; favoriteModel?: { totalTokens: number; share: number; modelId?: string; }; }; heatmap: { maxTokens: number; weeks: { weekIndex: number; days: { date: string; totalTokens: number; turnCount: number; toolCallCount: number; level?: 0 | 1 | 4 | 2 | 3; }[]; }[]; startDate?: string; endDate?: string; }; dailyModelUsage: { date: string; models: { totalTokens: number; modelId?: string; }[]; }[]; models: { totalTokens: number; inputTokens: number; outputTokens: number; requestCount: number; share: number; modelId?: string; }[]; tools: { toolName: string; callCount: number; errorCount: number; errorRate: number; avgDurationMs?: number; }[]; }>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "getCodingPlanResetStatus",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "request",
-              "optional": false,
-              "type": "CodingPlanResetScopeRequest"
-            }
-          ],
-          "returnType": "Promise<CodingPlanResetStatusSnapshot>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "getCodingPlanUsageSnapshot",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "request",
-              "optional": false,
-              "type": "CodingPlanUsageRequest"
-            }
-          ],
-          "returnType": "Promise<CodingPlanUsageSnapshot>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "getEntitlementSnapshot",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "request",
-              "optional": false,
-              "type": "UsageEntitlementRequest"
-            }
-          ],
-          "returnType": "Promise<UsageEntitlementSnapshot>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "getSnapshot",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "request",
-              "optional": false,
-              "type": "UsageStatsRequest"
-            }
-          ],
-          "returnType": "Promise<UsageStatsSnapshot>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "markCodingPlanResetHistoryRead",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "request",
-              "optional": false,
-              "type": "CodingPlanResetScopeRequest"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "requestCodingPlanResetOpportunity",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "request",
-              "optional": false,
-              "type": "CodingPlanResetOpportunityRequest"
-            }
-          ],
-          "returnType": "Promise<CodingPlanResetOpportunityResult>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "useCodingPlanReset",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "request",
-              "optional": false,
-              "type": "CodingPlanResetUseRequest"
-            }
-          ],
-          "returnType": "Promise<CodingPlanResetUseResult>"
-        }
-      ]
-    },
-    {
-      "descriptor": "IBroadcastService",
-      "channelName": "broadcast",
-      "interfaceName": "IBroadcastService",
-      "source": "packages/services/src/broadcast/broadcast.ts",
-      "methods": [
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "acquireClaim",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "key",
-              "optional": false,
-              "type": "string"
-            }
-          ],
-          "returnType": "Promise<BroadcastClaimAcquireResult>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "commitClaim",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "lease",
-              "optional": false,
-              "type": "BroadcastClaimLease"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "kind": "method",
-          "role": "event",
-          "name": "onMessage",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "listener",
-              "optional": false,
-              "type": "(e: BroadcastMessage) => void"
-            }
-          ],
-          "returnType": "IDisposable"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "releaseClaim",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "lease",
-              "optional": false,
-              "type": "BroadcastClaimLease"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "send",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "message",
-              "optional": false,
-              "type": "BroadcastMessage"
-            }
-          ],
-          "returnType": "Promise<void>"
-        },
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "tryClaim",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "key",
-              "optional": false,
-              "type": "string"
-            }
-          ],
-          "returnType": "Promise<boolean>"
-        }
-      ]
-    },
-    {
-      "descriptor": "IClientConfigService",
-      "channelName": "client-config",
-      "interfaceName": "IClientConfigService",
-      "source": "packages/services/src/client-config/clientConfig.ts",
-      "methods": [
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "getSnapshot",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [
-            {
-              "name": "options",
-              "optional": false,
-              "type": "{ forceRefresh?: boolean; }"
-            }
-          ],
-          "returnType": "Promise<ClientConfigSnapshot>"
-        }
-      ]
-    },
-    {
-      "descriptor": "IClientScenesService",
-      "channelName": "client-scenes",
-      "interfaceName": "IClientScenesService",
-      "source": "packages/services/src/client-scenes/clientScenes.ts",
-      "methods": [
-        {
-          "kind": "method",
-          "role": "rpc",
-          "name": "list",
-          "optional": false,
-          "typeParameters": [],
-          "parameters": [],
-          "returnType": "Promise<ClientScenesResponse>"
         }
       ]
     },
@@ -2508,6 +2222,167 @@
       ]
     },
     {
+      "descriptor": "IOAuthService",
+      "channelName": "oauth",
+      "interfaceName": "IOAuthService",
+      "source": "packages/services/src/oauth/oauth.ts",
+      "methods": [
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "cancelPending",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "provider",
+              "optional": false,
+              "type": "OAuthProviderId"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "getActiveProvider",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [],
+          "returnType": "Promise<OAuthProviderId>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "getProviders",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [],
+          "returnType": "Promise<OAuthProviderMeta[]>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "handleCallback",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "url",
+              "optional": false,
+              "type": "string"
+            }
+          ],
+          "returnType": "Promise<OAuthCallbackResult>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "logout",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "provider",
+              "optional": false,
+              "type": "OAuthProviderId"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "logoutAll",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [],
+          "returnType": "Promise<void>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "pollPendingOAuth",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [],
+          "returnType": "Promise<OAuthCallbackResult>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "refreshToken",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "provider",
+              "optional": false,
+              "type": "OAuthProviderId"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "restoreCachedSession",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [],
+          "returnType": "Promise<UserInfo>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "restoreCachedSessionState",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [],
+          "returnType": "Promise<OAuthCachedSessionRestoreResult>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "restoreSession",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [],
+          "returnType": "Promise<UserInfo>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "startOAuth",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "provider",
+              "optional": false,
+              "type": "OAuthProviderId"
+            }
+          ],
+          "returnType": "Promise<OAuthStartResponse>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "startOAuthWithPolling",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "provider",
+              "optional": false,
+              "type": "OAuthProviderId"
+            }
+          ],
+          "returnType": "Promise<OAuthStartResponse>"
+        }
+      ]
+    },
+    {
       "descriptor": "IOffPeakTaskService",
       "channelName": "off-peak-task",
       "interfaceName": "IOffPeakTaskService",
@@ -3355,7 +3230,7 @@
             {
               "name": "envelope",
               "optional": false,
-              "type": "{ schemaVersion: 1; syncId: string; personalConfig: { providerConfigRules: { providerRules: unknown[]; }; modelConfigRules: { providerModelRules: unknown[]; manualProviderModelRules: unknown[]; }; providerOrder?: string[]; defaultModelSelection?: { providerId: string; modelId: string; options?: { reasoningLevel?: string; }; }; }; accountSettings: { providerFamilyConnectionSelections: { zai?: { kind: \"start-plan\"; } | { kind: \"individual-coding-plan\"; } | { kind: \"team-coding-plan\"; productId: string; organizationId: string; projectId: string; }; bigmodel?: { kind: \"start-plan\"; } | { kind: \"individual-coding-plan\"; } | { kind: \"team-coding-plan\"; productId: string; organizationId: string; projectId: string; }; }; providerFamilyDomain?: \"zai\" | \"bigmodel\"; }; credentials: { scope: \"oauth-session\" | \"account-provider\"; key: string; value: string; }[]; }"
+              "type": "{ schemaVersion: 1; syncId: string; personalConfig: { providerConfigRules: { providerRules: unknown[]; }; modelConfigRules: { providerModelRules: unknown[]; manualProviderModelRules: unknown[]; }; providerOrder?: string[]; defaultModelSelection?: { providerId: string; modelId: string; options?: { reasoningLevel?: string; }; }; }; accountSettings: { providerFamilyConnectionSelections: { zai?: { kind: \"start-plan\"; } | { kind: \"individual-coding-plan\"; } | { kind: \"team-coding-plan\"; productId: string; organizationId: string; projectId: string; }; bigmodel?: { kind: \"start-plan\"; } | { kind: \"individual-coding-plan\"; } | { kind: \"team-coding-plan\"; productId: string; organizationId: string; projectId: string; }; }; providerFamilyDomain?: \"bigmodel\" | \"zai\"; }; credentials: { scope: \"oauth-session\" | \"account-provider\"; key: string; value: string; }[]; }"
             }
           ],
           "returnType": "Promise<{ syncId: string; status: \"failed\" | \"unsupported\" | \"applied\" | \"already-applied\" | \"rollback_failed\"; personalProviderCount: number; credentialCount: number; rolledBack: boolean; configRevision?: string; errorMessage?: string; }>"
@@ -3408,7 +3283,7 @@
             {
               "name": "input",
               "optional": false,
-              "type": "{ readonly templateId?: string; readonly providerName?: string; readonly locale?: \"zh-CN\" | \"en-US\"; readonly initialConfig?: Readonly<{ group?: \"standard-personal\" | \"zai-family\" | \"bigmodel-family\"; logo?: { type: \"builtin\"; key: string; }; access?: { type: \"api-key\" | \"zhipu-coding-plan-api-key\"; apiKey?: string; apiKeyManagementUrl?: string; } | { type: \"zhipu-account\"; accountType?: \"zai\" | \"bigmodel\"; mode?: \"start-plan\" | \"individual-coding-plan\" | \"team-coding-plan\" | \"off-peak\"; entitled?: boolean; }; api?: { baseUrl?: string; type?: \"anthropic-messages\" | \"openai-chat-completions\" | \"openai-responses\"; headers?: Readonly<Record<string, string>>; }; builtinModelIds?: readonly string[]; personalModelIds?: readonly string[]; modelOrder?: readonly string[]; visibility?: \"visible\" | \"hidden\"; }>; }"
+              "type": "{ readonly templateId?: string; readonly providerName?: string; readonly locale?: \"zh-CN\" | \"en-US\"; readonly initialConfig?: Readonly<{ group?: \"standard-personal\" | \"zai-family\" | \"bigmodel-family\"; logo?: { type: \"builtin\"; key: string; }; access?: { type: \"api-key\" | \"zhipu-coding-plan-api-key\"; apiKey?: string; apiKeyManagementUrl?: string; } | { type: \"zhipu-account\"; accountType?: \"bigmodel\" | \"zai\"; mode?: \"start-plan\" | \"individual-coding-plan\" | \"team-coding-plan\" | \"off-peak\"; entitled?: boolean; }; api?: { baseUrl?: string; type?: \"anthropic-messages\" | \"openai-chat-completions\" | \"openai-responses\"; headers?: Readonly<Record<string, string>>; }; builtinModelIds?: readonly string[]; personalModelIds?: readonly string[]; modelOrder?: readonly string[]; visibility?: \"visible\" | \"hidden\"; }>; }"
             }
           ],
           "returnType": "Promise<ProviderSettingsCreationResult>"
@@ -3592,12 +3467,12 @@
             {
               "name": "config",
               "optional": false,
-              "type": "Readonly<{ group?: \"standard-personal\" | \"zai-family\" | \"bigmodel-family\"; logo?: { type: \"builtin\"; key: string; }; access?: { type: \"api-key\" | \"zhipu-coding-plan-api-key\"; apiKey?: string; apiKeyManagementUrl?: string; } | { type: \"zhipu-account\"; accountType?: \"zai\" | \"bigmodel\"; mode?: \"start-plan\" | \"individual-coding-plan\" | \"team-coding-plan\" | \"off-peak\"; entitled?: boolean; }; api?: { baseUrl?: string; type?: \"anthropic-messages\" | \"openai-chat-completions\" | \"openai-responses\"; headers?: Readonly<Record<string, string>>; }; builtinModelIds?: readonly string[]; personalModelIds?: readonly string[]; modelOrder?: readonly string[]; visibility?: \"visible\" | \"hidden\"; }>"
+              "type": "Readonly<{ group?: \"standard-personal\" | \"zai-family\" | \"bigmodel-family\"; logo?: { type: \"builtin\"; key: string; }; access?: { type: \"api-key\" | \"zhipu-coding-plan-api-key\"; apiKey?: string; apiKeyManagementUrl?: string; } | { type: \"zhipu-account\"; accountType?: \"bigmodel\" | \"zai\"; mode?: \"start-plan\" | \"individual-coding-plan\" | \"team-coding-plan\" | \"off-peak\"; entitled?: boolean; }; api?: { baseUrl?: string; type?: \"anthropic-messages\" | \"openai-chat-completions\" | \"openai-responses\"; headers?: Readonly<Record<string, string>>; }; builtinModelIds?: readonly string[]; personalModelIds?: readonly string[]; modelOrder?: readonly string[]; visibility?: \"visible\" | \"hidden\"; }>"
             },
             {
               "name": "metadata",
               "optional": false,
-              "type": "Pick<Readonly<Omit<{ providerId: string; config: { group?: \"standard-personal\" | \"zai-family\" | \"bigmodel-family\"; logo?: { type: \"builtin\"; key: string; }; access?: { type: \"api-key\" | \"zhipu-coding-plan-api-key\"; apiKey?: string; apiKeyManagementUrl?: string; } | { type: \"zhipu-account\"; accountType?: \"zai\" | \"bigmodel\"; mode?: \"start-plan\" | \"individual-coding-plan\" | \"team-coding-plan\" | \"off-peak\"; entitled?: boolean; }; api?: { baseUrl?: string; type?: \"anthropic-messages\" | \"openai-chat-completions\" | \"openai-responses\"; headers?: Readonly<Record<string, string>>; }; builtinModelIds?: readonly string[]; personalModelIds?: readonly string[]; modelOrder?: readonly string[]; visibility?: \"visible\" | \"hidden\"; }; templateId?: string; providerName?: string; enabled?: boolean; }, \"config\"> & { config: ProviderConfig; }>, \"enabled\" | \"templateId\" | \"providerName\">"
+              "type": "Pick<Readonly<Omit<{ providerId: string; config: { group?: \"standard-personal\" | \"zai-family\" | \"bigmodel-family\"; logo?: { type: \"builtin\"; key: string; }; access?: { type: \"api-key\" | \"zhipu-coding-plan-api-key\"; apiKey?: string; apiKeyManagementUrl?: string; } | { type: \"zhipu-account\"; accountType?: \"bigmodel\" | \"zai\"; mode?: \"start-plan\" | \"individual-coding-plan\" | \"team-coding-plan\" | \"off-peak\"; entitled?: boolean; }; api?: { baseUrl?: string; type?: \"anthropic-messages\" | \"openai-chat-completions\" | \"openai-responses\"; headers?: Readonly<Record<string, string>>; }; builtinModelIds?: readonly string[]; personalModelIds?: readonly string[]; modelOrder?: readonly string[]; visibility?: \"visible\" | \"hidden\"; }; templateId?: string; providerName?: string; enabled?: boolean; }, \"config\"> & { config: ProviderConfig; }>, \"enabled\" | \"templateId\" | \"providerName\">"
             }
           ],
           "returnType": "Promise<ProviderSettingsView>"
@@ -4230,6 +4105,134 @@
             }
           ],
           "returnType": "Promise<void>"
+        }
+      ]
+    },
+    {
+      "descriptor": "IUsageStatsService",
+      "channelName": "usage-stats",
+      "interfaceName": "IUsageStatsService",
+      "source": "packages/services/src/usage-stats/usageStats.ts",
+      "methods": [
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "getAppUsageSnapshot",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "request",
+              "optional": false,
+              "type": "AppUsageRequest"
+            }
+          ],
+          "returnType": "Promise<{ range: \"all\" | \"7d\" | \"30d\"; generatedAt: number; timeZone: string; source: \"agent-db\"; summary: { totalTokens: number; inputTokens: number; outputTokens: number; reasoningTokens: number; cacheCreationTokens: number; cacheReadTokens: number; cacheHitRate: number; totalSessions: number; totalTurns: number; toolCallCount: number; toolErrorRate: number; modelErrorRate: number; activeDays: number; currentStreakDays: number; longestSessionMs: number; longestStreakDays: number; peakDayTokens: number; avgTimeToFirstTokenMs?: number; avgTurnDurationMs?: number; favoriteModel?: { totalTokens: number; share: number; modelId?: string; }; }; heatmap: { maxTokens: number; weeks: { weekIndex: number; days: { date: string; totalTokens: number; turnCount: number; toolCallCount: number; level?: 0 | 1 | 4 | 2 | 3; }[]; }[]; startDate?: string; endDate?: string; }; dailyModelUsage: { date: string; models: { totalTokens: number; modelId?: string; }[]; }[]; models: { totalTokens: number; inputTokens: number; outputTokens: number; requestCount: number; share: number; modelId?: string; }[]; tools: { toolName: string; callCount: number; errorCount: number; errorRate: number; avgDurationMs?: number; }[]; }>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "getCodingPlanResetStatus",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "request",
+              "optional": false,
+              "type": "CodingPlanResetScopeRequest"
+            }
+          ],
+          "returnType": "Promise<CodingPlanResetStatusSnapshot>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "getCodingPlanUsageSnapshot",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "request",
+              "optional": false,
+              "type": "CodingPlanUsageRequest"
+            }
+          ],
+          "returnType": "Promise<CodingPlanUsageSnapshot>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "getEntitlementSnapshot",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "request",
+              "optional": false,
+              "type": "UsageEntitlementRequest"
+            }
+          ],
+          "returnType": "Promise<UsageEntitlementSnapshot>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "getSnapshot",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "request",
+              "optional": false,
+              "type": "UsageStatsRequest"
+            }
+          ],
+          "returnType": "Promise<UsageStatsSnapshot>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "markCodingPlanResetHistoryRead",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "request",
+              "optional": false,
+              "type": "CodingPlanResetScopeRequest"
+            }
+          ],
+          "returnType": "Promise<void>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "requestCodingPlanResetOpportunity",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "request",
+              "optional": false,
+              "type": "CodingPlanResetOpportunityRequest"
+            }
+          ],
+          "returnType": "Promise<CodingPlanResetOpportunityResult>"
+        },
+        {
+          "kind": "method",
+          "role": "rpc",
+          "name": "useCodingPlanReset",
+          "optional": false,
+          "typeParameters": [],
+          "parameters": [
+            {
+              "name": "request",
+              "optional": false,
+              "type": "CodingPlanResetUseRequest"
+            }
+          ],
+          "returnType": "Promise<CodingPlanResetUseResult>"
         }
       ]
     },
@@ -7262,9 +7265,5 @@
     "dynamicEvents": 28,
     "properties": 0
   },
-  "problems": [
-    "ICodingPlanSubscriptionService: ServiceChannels.CodingPlanSubscription is not declared",
-    "IOAuthService: ServiceChannels.OAuth is not declared",
-    "IUsageStatsService: ServiceChannels.UsageStats is not declared"
-  ]
+  "problems": []
 }

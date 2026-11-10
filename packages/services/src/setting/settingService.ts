@@ -9,13 +9,11 @@ import type {
 import {
   appSettingsPatchSchema,
   appSettingsSchema,
-  formatLogPrefix,
   formatZodError,
 } from "@zcode/shared";
 import type { ISettingService } from "./setting.js";
 import { normalizeSettingsPatch } from "#src/setting/normalizeSettingsPatch.js";
 import { copyDataDirectory, getDataBaseDir, validateDataBaseDirTarget } from "../paths.js";
-import { isEffectiveDevelopmentNodeEnv } from "../runtime-tools/nodeEnv.js";
 import { maybeThrowInjectedFsFault } from "../fs/fsFaultInjection.js";
 import { atomicWriteText } from "../fs/atomicFileUtils.js";
 import { withSettingsWriteQueueTimeout } from "./settingsWriteQueue.js";
@@ -27,20 +25,15 @@ import {
   retainLegacyAccountConnectionFields,
   type LegacyTeamConnection,
 } from "#src/setting/legacyAccountConnectionSettings.js";
+import { createServiceLogger } from "#src/logger/serviceLogger.js";
 const MAX_RECENT_PROJECTS = 10;
 const DEFAULT_PROJECT_NAME = "ZCodeProject";
 const SETTINGS_PARSE_RETRY_DELAY_MS = 300;
 const SETTINGS_PARSE_RETRY_COUNT = 3;
 
-const log = (...args: unknown[]) =>
-  console.log(formatLogPrefix("settingService", process.pid), ...args);
-const debugLog = (...args: unknown[]) => {
-  // NODE_ENV 来自用户 shell 时会误导服务层 debug 开关；统一使用 ZCODE_RUNTIME_ENV。
-  if (!isEffectiveDevelopmentNodeEnv()) {
-    return;
-  }
-  console.debug(formatLogPrefix("settingService", process.pid), ...args);
-};
+const logger = createServiceLogger("settingService");
+const log = (...args: unknown[]) => logger.info(undefined, ...args);
+const debugLog = (...args: unknown[]) => logger.debug(undefined, ...args);
 
 function resolveUserHomeDir() {
   // 独立桌面 Dev 实例已设置自己的 home，设置服务却仍写真实 HOME，

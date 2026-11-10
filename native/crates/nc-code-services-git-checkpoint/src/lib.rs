@@ -12,6 +12,9 @@
 //! repository; changing the verification to a filter-aware hash would be a deliberate deviation from TS,
 //! so it was not changed on our own.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 pub mod gitcmd;
 pub mod helpers;
 pub mod repo;
@@ -43,8 +46,16 @@ impl GitCheckpointServices {
 
 #[cfg(test)]
 mod tests {
+    /// The git-checkpoint channels register exactly once into a fresh registry.
     #[test]
-    fn crate_compiles() {
-        assert!(true);
+    fn channels_register_into_a_fresh_registry() {
+        let paths = nc_code_service_core::AppPaths::new(
+            std::env::temp_dir().join("zcode-git-checkpoint-test-home"),
+            std::env::temp_dir().join("zcode-git-checkpoint-test-data"),
+        );
+        let registry = nc_code_channels::ChannelRegistry::new();
+        let services = super::GitCheckpointServices::new(paths);
+        services.register(&registry).expect("register");
+        assert!(!registry.is_empty());
     }
 }

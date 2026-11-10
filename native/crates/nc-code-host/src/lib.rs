@@ -62,6 +62,7 @@ pub mod rpc;
 pub mod runtime_core;
 pub mod session;
 pub mod session_debug;
+pub mod session_import;
 pub mod session_ttft;
 pub mod sessions;
 pub mod sessions_index;
@@ -108,13 +109,37 @@ use crate::store::{generate_id, is_safe_session_id, now_ms, SessionMeta, Transcr
 use crate::tools::ToolRegistry;
 use crate::turn::TurnDeps;
 
-/// 解析 `--mcp-server Name=command[:arg,arg]`。
-/// 返回 `(server 名, 可执行文件, 参数)`；形状不合法返回 None。
-fn parse_mcp_spec(spec: &str) -> Option<(String, String, Vec<String>)> {
+/// 解析 `--mcp-server Name=command[:arg,arg]` 或 `--mcp-server Name=https://host/mcp`。
+/// 返回 `(server 名, 目标)`；`Ok(None)` 表示目标是 URL（HTTP 传输），
+/// `Err` 表示形状不合法。
+pub(crate) enum McpSpec {
+    Stdio {
+        name: String,
+        command: String,
+        args: Vec<String>,
+    },
+    Http {
+        name: String,
+        url: String,
+    },
+}
+
+pub(crate) fn parse_mcp_spec(spec: &str) -> Option<McpSpec> {
     let (name, rest) = spec.split_once('=')?;
     let name = name.trim();
     if name.is_empty() {
         return None;
+    }
+    let rest = rest.trim();
+    if rest.is_empty() {
+        return None;
+    }
+    // HTTP / SSE transport: the value is the endpoint URL (no command parsing).
+    if rest.starts_with("http://") || rest.starts_with("https://") {
+        return Some(McpSpec::Http {
+            name: name.to_string(),
+            url: rest.to_string(),
+        });
     }
     let mut parts = rest.splitn(2, ':');
     let command = parts.next()?.trim().to_string();
@@ -131,7 +156,11 @@ fn parse_mcp_spec(spec: &str) -> Option<(String, String, Vec<String>)> {
                 .collect()
         })
         .unwrap_or_default();
-    Some((name.to_string(), command, args))
+    Some(McpSpec::Stdio {
+        name: name.to_string(),
+        command,
+        args,
+    })
 }
 
 pub struct HostServer {
@@ -209,19 +238,31 @@ impl HostServer {
                 .join(crate::workspace_hooks::TRUST_STORE_FILE),
         ));
 
-        // MCP servers（可选，stdio 形态）：`--mcp-server Name=command[:arg,arg]` 可重复。
+        // MCP servers（可选）：`--mcp-server Name=command[:arg,arg]` 为 stdio，
+        // `--mcp-server Name=https://host/mcp` 为 HTTP/SSE；可重复。
         // 连接失败不阻断启动——MCP 是可选能力面，不是 host 的生存依赖。
         let mcp_pool = Arc::new(McpPool::new());
         for spec in &mcp_servers {
-            let Some((name, command, args)) = parse_mcp_spec(spec) else {
+            let Some(parsed) = parse_mcp_spec(spec) else {
                 eprintln!(
-                    "[zcode-host] invalid --mcp-server spec (expected Name=command[:arg,arg]): {spec}"
+                    "[zcode-host] invalid --mcp-server spec (expected Name=command[:arg,arg] or Name=https://host/mcp): {spec}"
                 );
                 continue;
             };
-            match mcp_pool.connect_stdio(&name, &command, &args) {
-                Ok(count) => eprintln!("[zcode-host] mcp {name}: {count} tools"),
-                Err(error) => eprintln!("[zcode-host] mcp {name} unavailable: {error}"),
+            match parsed {
+                McpSpec::Stdio {
+                    name,
+                    command,
+                    args,
+                } => match mcp_pool.connect_stdio(&name, &command, &args) {
+                    Ok(count) => eprintln!("[zcode-host] mcp {name}: {count} tools"),
+                    Err(error) => eprintln!("[zcode-host] mcp {name} unavailable: {error}"),
+                },
+                McpSpec::Http { name, url } => match mcp_pool.connect_http(&name, &url, Vec::new())
+                {
+                    Ok(count) => eprintln!("[zcode-host] mcp {name}: {count} tools (http)"),
+                    Err(error) => eprintln!("[zcode-host] mcp {name} unavailable: {error}"),
+                },
             }
         }
 
@@ -452,6 +493,7 @@ impl HostServer {
             workspace_root: self.workspace.clone(),
             workspace_identity: meta.workspace_identity.clone(),
             created_at: meta.created_at,
+            updated_at: meta.updated_at,
             task_type: meta.task_type.clone(),
             parent_session_id: meta.parent_session_id.clone(),
             log_epoch: meta.log_epoch,
@@ -475,6 +517,22 @@ impl HostServer {
         });
         if !plan_previous_mode.is_empty() {
             session.set_plan_previous_mode(&plan_previous_mode);
+        }
+        // 冷恢复的 phase 必须来自 transcript 的最后一个 turnHeader。否则每个历史会话都以
+        // draft 注册，任务列表把 draft 映射成 running，早已结束的会话看起来像在途轮次。
+        // 非终态 header 说明上一个进程死在轮中：本进程没有任何轮在执行，如实记为 interrupted。
+        let restored_phase = session
+            .rows_snapshot()
+            .iter()
+            .rev()
+            .find(|row| row.get("kind").and_then(Value::as_str) == Some("turnHeader"))
+            .and_then(|row| row.get("state").and_then(Value::as_str))
+            .map(|state| match state {
+                "completedSuccess" | "completedInterrupted" | "error" => state.to_string(),
+                _ => "completedInterrupted".to_string(),
+            });
+        if let Some(phase) = restored_phase {
+            session.set_phase(&phase);
         }
         session.ensure_hook_review(now_ms());
         session.run_session_start_hooks("resume");
@@ -963,6 +1021,9 @@ impl HostServer {
                 )
                 .map(RequestOutcome::empty),
             "v4/usage/stats" => self.usage_stats(&request.params).map(RequestOutcome::empty),
+            "session/import" => self
+                .import_session(&request.params)
+                .map(RequestOutcome::empty),
             "v4/conversation/backgroundBashOutput" => self
                 .background_bash_output(&request.params)
                 .map(RequestOutcome::empty),
@@ -1706,6 +1767,7 @@ impl HostServer {
                 workspace_root: self.workspace.clone(),
                 workspace_identity: meta.workspace_identity.clone(),
                 created_at: meta.created_at,
+                updated_at: meta.updated_at,
                 task_type: meta.task_type.clone(),
                 parent_session_id: meta.parent_session_id.clone(),
                 log_epoch: meta.log_epoch,
@@ -1788,6 +1850,57 @@ fn session_not_found(session_id: &str) -> RpcError {
         format!("session not found: {session_id}"),
     )
     .with_data(json!({"reasonCode": "proto.sessionNotFound"}))
+}
+
+#[cfg(test)]
+mod mcp_spec_tests {
+    use super::{parse_mcp_spec, McpSpec};
+
+    #[test]
+    fn stdio_spec_parses_command_and_comma_args() {
+        match parse_mcp_spec("github=npx:-y server, --flag").expect("spec") {
+            McpSpec::Stdio {
+                name,
+                command,
+                args,
+            } => {
+                assert_eq!(name, "github");
+                assert_eq!(command, "npx");
+                assert_eq!(args, vec!["-y server".to_string(), "--flag".to_string()]);
+            }
+            _ => panic!("expected stdio"),
+        }
+        // No colon = command only, no args.
+        match parse_mcp_spec("plain=command").expect("spec") {
+            McpSpec::Stdio { args, command, .. } => {
+                assert_eq!(command, "command");
+                assert!(args.is_empty());
+            }
+            _ => panic!("expected stdio"),
+        }
+    }
+
+    #[test]
+    fn http_specs_are_urls_not_commands() {
+        match parse_mcp_spec("remote=https://api.example.com/mcp").expect("spec") {
+            McpSpec::Http { name, url } => {
+                assert_eq!(name, "remote");
+                assert_eq!(url, "https://api.example.com/mcp");
+            }
+            _ => panic!("expected http"),
+        }
+        match parse_mcp_spec("local=http://127.0.0.1:9000/sse").expect("spec") {
+            McpSpec::Http { url, .. } => assert_eq!(url, "http://127.0.0.1:9000/sse"),
+            _ => panic!("expected http"),
+        }
+    }
+
+    #[test]
+    fn malformed_specs_are_rejected_instead_of_guessed() {
+        for bad in ["", "no-equals", "=empty-name", "name=", "name=:args-only"] {
+            assert!(parse_mcp_spec(bad).is_none(), "{bad:?} must not parse");
+        }
+    }
 }
 
 #[cfg(test)]

@@ -43,7 +43,11 @@ fn error(status: StatusCode, message: impl Into<String>) -> (StatusCode, Json<Va
 }
 
 fn str_field<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
-    value.get(key).and_then(Value::as_str).map(str::trim).filter(|v| !v.is_empty())
+    value
+        .get(key)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
 }
 
 /// Register the remote endpoints onto a router that already carries
@@ -70,8 +74,9 @@ async fn remote_connect(
         Some(path) => path.to_string(),
         None => return error(StatusCode::BAD_REQUEST, "workspacePath is required"),
     };
-    let workspace_identity =
-        str_field(&body, "workspaceIdentity").unwrap_or(&workspace_path).to_string();
+    let workspace_identity = str_field(&body, "workspaceIdentity")
+        .unwrap_or(&workspace_path)
+        .to_string();
     let target = match body.get("target") {
         Some(target) if target.is_object() => target.clone(),
         _ => return error(StatusCode::BAD_REQUEST, "target is required"),
@@ -100,6 +105,18 @@ async fn remote_connect(
                     )
                 }
             };
+            // `target.port` is the SSH transport port (`ssh -p`); OpenSSH's default (22)
+            // applies when the client omits it.
+            let ssh_port = match target.get("port").and_then(Value::as_u64) {
+                Some(port) if (1..=u16::MAX as u64).contains(&port) => Some(port as u16),
+                Some(_) => {
+                    return error(
+                        StatusCode::BAD_REQUEST,
+                        "target.port must be a valid SSH port (1-65535)",
+                    )
+                }
+                None => None,
+            };
             let registry = registry.clone();
             let workspace_path = workspace_path.clone();
             let workspace_identity = workspace_identity.clone();
@@ -109,8 +126,9 @@ async fn remote_connect(
                     .enable_all()
                     .build()
                     .expect("current-thread runtime for ssh tunnel connect");
-                runtime.block_on(registry.connect_ssh_tunnel_ws(
+                runtime.block_on(registry.connect_ssh_tunnel_ws_with_port(
                     destination.as_str(),
+                    ssh_port,
                     remote_port,
                     workspace_path,
                     workspace_identity,

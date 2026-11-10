@@ -8,4 +8,8 @@ publish.workspace = true
 description = "Disabled Z.ai service (ZCode services removed)"
 
 [dependencies]
+serde_json = { workspace = true }
+serde = { workspace = true }
 nc-code-channels = { path = "../nc-code-channels" }
+[dev-dependencies]
+nc-code-rpc = { path = "../nc-code-rpc" }

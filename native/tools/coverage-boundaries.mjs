@@ -33,7 +33,6 @@ export const MEMBER_BOUNDARY = {
   "zcode-agent": [
     ["attachment*", "specs/zai-claim-boundary.md (attachment upload/handling surface removal)"],
     ["conversationAttachment*", "specs/zai-claim-boundary.md (Attachment reading/statistics are removed from the upload page)"],
-    ["conversationWorkflowRun*", "specs/workflow-capability-boundary.md (workflow engine stays in TS)"],
     [
       "listSavedWorkflowRuns",
       "specs/workflow-capability-boundary.md (run records are written by the TS workflow engine)",
@@ -119,17 +118,10 @@ export const MEMBER_BOUNDARY = {
       "onDynamicSessionEvent",
       "specs/rust-backend-replacement.md §4.5 (TS side @deprecated; session facts are carried by v4 conversation frames, this host does not have a second event source)",
     ],
-    [
-      "readWorkspacePresentation",
-      "specs/rust-backend-replacement.md §4.4.1 (built-in slash command set not ported)",
-    ],
+
   ],
-  // zcode-session: Wiring 11, the missing items of the four F members are written in the table in §4.4.1.
+  // zcode-session: Wiring 11, the missing items of the three F members are written in the table in §4.4.1.
   "zcode-session": [
-    [
-      "readWorkspacePresentation",
-      "specs/rust-backend-replacement.md §4.4.1 (built-in slash command set not ported)",
-    ],
     ["readSessionEvents", "specs/rust-backend-replacement.md §4.4.1 (host has no event logging subsystem)"],
     [
       "promoteDeferredDraftSession",

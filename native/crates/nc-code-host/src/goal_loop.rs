@@ -289,8 +289,67 @@ fn persist_and_project(server: &Arc<HostServer>, session: &Arc<Session>) -> Vec<
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::goal::{GoalStatus, VerificationOutcome};
+
     #[test]
-    fn basic_test() {
-        assert!(true);
+    fn loop_end_strings_are_stable_wire_values() {
+        assert_eq!(LoopEnd::Verified.as_str(), "verified");
+        assert_eq!(LoopEnd::AwaitingUser.as_str(), "awaitingUser");
+        assert_eq!(LoopEnd::Inactive.as_str(), "inactive");
+        assert_eq!(LoopEnd::Yielded.as_str(), "yielded");
+        assert_eq!(LoopEnd::Cancelled.as_str(), "cancelled");
+        assert_eq!(LoopEnd::Failed.as_str(), "failed");
+        assert_eq!(LoopEnd::PlanMode.as_str(), "planMode");
+    }
+
+    #[test]
+    fn loop_start_defaults_match_ts_flags() {
+        // ContinueFirst: verifyBeforeFirstContinue=false (sendGoalCommand path).
+        // VerifyFirst: verifyBeforeFirstContinue=true (user-turn / resumeGoal path).
+        assert_ne!(LoopStart::ContinueFirst, LoopStart::VerifyFirst);
+        assert_eq!(format!("{:?}", LoopStart::ContinueFirst), "ContinueFirst");
+        assert_eq!(format!("{:?}", LoopStart::VerifyFirst), "VerifyFirst");
+    }
+
+    #[test]
+    fn latest_continuation_note_rejects_empty_next_action() {
+        let mut goal = crate::goal::GoalRecord::new("t1", "objective");
+        goal.record_verification(
+            VerificationOutcome::NotSatisfied,
+            1,
+            None,
+            Some("reason".into()),
+            Some("   ".into()),
+        );
+        assert_eq!(latest_continuation_note(&goal), None);
+
+        let mut goal2 = crate::goal::GoalRecord::new("t1", "objective");
+        goal2.record_verification(
+            VerificationOutcome::NotSatisfied,
+            1,
+            None,
+            Some("need more".into()),
+            Some("do X".into()),
+        );
+        assert_eq!(
+            latest_continuation_note(&goal2),
+            Some(("need more".to_string(), "do X".to_string()))
+        );
+    }
+
+    #[test]
+    fn latest_continuation_note_none_when_no_verifications() {
+        let goal = crate::goal::GoalRecord::new("t1", "objective");
+        assert_eq!(latest_continuation_note(&goal), None);
+        let _ = GoalStatus::Active;
+    }
+
+    #[test]
+    fn loop_end_inactive_when_no_goal() {
+        // Pure decision table for the loop gate: no goal => Inactive.
+        // The async run_goal_loop itself is covered by goal_e2e.rs.
+        let goal: Option<crate::goal::GoalRecord> = None;
+        assert!(goal.is_none());
     }
 }

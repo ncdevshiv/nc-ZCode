@@ -61,6 +61,7 @@ pub fn run() -> i32 {
             backend.paths.home_dir().to_string_lossy().to_string(),
         )],
         remote: Some(std::sync::Arc::clone(&backend.client.remotes)),
+        ncag: None,
     };
 
     // Serve on an ephemeral port and probe over real HTTP (blocking client:
@@ -101,7 +102,7 @@ pub fn run() -> i32 {
 }
 
 fn http_get_contains(origin: &str, needle: &str) -> bool {
-    // origin is http://127.0.0.1:PORT/ — request "/" or "/api/server-info".
+    // origin is http://127.0.0.1:PORT/ â€” request "/" or "/api/server-info".
     let base = origin.trim_end_matches('/');
     let url = if needle == "workspaces" {
         format!("{base}/api/server-info")

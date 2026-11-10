@@ -49,7 +49,7 @@ export async function isNativeStale(configuration) {
 }
 
 export async function buildBackend(configuration) {
-  const args = ["build", "--manifest-path", join(repoRoot, "native", "Cargo.toml"), "-p", "zcode-server"];
+  const args = ["build", "--manifest-path", join(repoRoot, "native", "Cargo.toml"), "-p", "nc-code-server"];
   if (configuration === "release") args.push("--release");
   const exitCode = await run("cargo", args, repoRoot);
   if (exitCode !== 0) throw new Error(`cargo build (${configuration}) failed with exit code ${exitCode}`);

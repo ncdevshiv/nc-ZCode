@@ -14,6 +14,7 @@ use std::sync::{Arc, Mutex};
 
 use nc_code_core::inbox::{CommandInbox, SharedCommandInbox};
 use nc_code_core::protocol::{CommandAck, CommandInboxHost, CommandKey};
+use nc_code_service_core::logger::ServiceLogger;
 use serde_json::{json, Value};
 
 use crate::frame::{self, TopicFrameInput, DELIVERY_KIND_ONLINE};
@@ -166,6 +167,11 @@ pub struct Session {
     /// 模型请求/失败计数（`v4/conversation/usage` 的事实源；重试轮按一次请求计）。
     model_request_count: AtomicU64,
     model_error_count: AtomicU64,
+    /// 本轮（自 `begin_turn_usage` 起）的模型请求/失败计数。`v4/usage/stats` 的
+    /// 按轮事实需要**本轮增量**，会话累计值跨轮不可用；两者在同一个记录点自增，
+    /// 唯一所有者仍是本会话。
+    turn_model_request_count: AtomicU64,
+    turn_model_error_count: AtomicU64,
     /// SessionStart hook 的 additionalContext（只注入本会话第一条用户消息）。
     hook_session_context: Mutex<Option<String>>,
     /// Background bash/agent work owned by this session (TaskOutput/TaskStop).
@@ -198,6 +204,9 @@ pub struct SessionInit {
     /// Creation timestamp (ms). Callers restoring from disk pass the persisted value;
     /// new sessions pass `now_ms()`.
     pub created_at: i64,
+    /// Last-activity timestamp (ms). Restoring callers pass the persisted value so a cold
+    /// session does not report `updatedAt == createdAt`; new sessions pass `created_at`.
+    pub updated_at: i64,
     pub task_type: Option<String>,
     pub parent_session_id: Option<String>,
     pub log_epoch: String,
@@ -272,7 +281,7 @@ impl Session {
             workspace_root: init.workspace_root,
             workspace_identity: init.workspace_identity,
             created_at: init.created_at,
-            updated_at: AtomicI64::new(init.created_at),
+            updated_at: AtomicI64::new(init.updated_at.max(init.created_at)),
             task_type: init.task_type,
             parent_session_id: init.parent_session_id,
             title: Mutex::new((init.title, init.title_source)),
@@ -320,6 +329,8 @@ impl Session {
             hook_review_generation: AtomicU32::new(0),
             model_request_count: AtomicU64::new(0),
             model_error_count: AtomicU64::new(0),
+            turn_model_request_count: AtomicU64::new(0),
+            turn_model_error_count: AtomicU64::new(0),
             hook_session_context: Mutex::new(None),
             history: Mutex::new(init.history),
             store: init.store,
@@ -1247,6 +1258,28 @@ impl Session {
         Some(next)
     }
 
+    /// Durable usage-fact sink (the `v4/usage/stats` write path). The store is the
+    /// same append-only transcript the session itself uses, so a usage fact lands in
+    /// the session's own file and is replayed on resume.
+    pub fn append_usage_fact(&self, fact: &Value) -> Result<(), crate::store::StoreError> {
+        self.store.append_usage_fact(&self.id, fact)
+    }
+
+    /// Turn boundary for the per-turn usage fact: reset the incremental counters.
+    /// Session-lifetime counters stay untouched (they own `v4/conversation/usage`).
+    pub fn begin_turn_usage(&self) {
+        self.turn_model_request_count.store(0, Ordering::SeqCst);
+        self.turn_model_error_count.store(0, Ordering::SeqCst);
+    }
+
+    pub fn turn_model_request_count(&self) -> u64 {
+        self.turn_model_request_count.load(Ordering::SeqCst)
+    }
+
+    pub fn turn_model_error_count(&self) -> u64 {
+        self.turn_model_error_count.load(Ordering::SeqCst)
+    }
+
     pub fn usage(&self) -> Value {
         self.usage
             .lock()
@@ -1288,10 +1321,12 @@ impl Session {
     /// `modelRequestCount` 语义一致：按 request 而不是按 attempt 计）。
     pub fn record_model_request(&self) {
         self.model_request_count.fetch_add(1, Ordering::SeqCst);
+        self.turn_model_request_count.fetch_add(1, Ordering::SeqCst);
     }
 
     pub fn record_model_error(&self) {
         self.model_error_count.fetch_add(1, Ordering::SeqCst);
+        self.turn_model_error_count.fetch_add(1, Ordering::SeqCst);
     }
 
     /// `v4/conversation/usage` 的结果（`v4ConversationUsageResultSchema`）。
@@ -1484,7 +1519,15 @@ impl Session {
         // 落盘优先于投影：内存是磁盘的投影，磁盘写失败时**不**更新内存，
         // 否则重启后内存里多出一行、磁盘里没有， projection 与 durable 事实分叉。
         if let Err(error) = self.store.append_row(&self.id, &row) {
-            eprintln!("[zcode-host] append_row failed for {}: {error}", self.id);
+            // 磁盘写失败时内存投影跳过（fail-closed），该行不会出现在 UI，可观测性
+            // 靠这里的 error 级日志带 session/rowId 上下文，而不是靠幻影行提示用户。
+            ServiceLogger::new("zcode-host").error(
+                None,
+                format!(
+                    "append_row failed session={} rowId={row_id}: {error}",
+                    self.id
+                ),
+            );
             return row_id;
         }
         if let Ok(mut guard) = self.rows.lock() {
@@ -1497,7 +1540,15 @@ impl Session {
     pub fn upsert_row(&self, row: Value) -> u64 {
         let row_id = row.get("rowId").and_then(Value::as_u64).unwrap_or(0);
         if let Err(error) = self.store.append_upsert(&self.id, &row) {
-            eprintln!("[zcode-host] append_upsert failed for {}: {error}", self.id);
+            // 同 append_row：磁盘失败跳过内存投影（fail-closed），error 级日志带
+            // session/rowId 上下文供运维定位，避免静默丢更新。
+            ServiceLogger::new("zcode-host").error(
+                None,
+                format!(
+                    "append_upsert failed session={} rowId={row_id}: {error}",
+                    self.id
+                ),
+            );
             return row_id;
         }
         if let Ok(mut guard) = self.rows.lock() {
@@ -2709,6 +2760,7 @@ mod tests {
             workspace_root: std::env::temp_dir().join(format!("ws-{id}")),
             workspace_identity: format!("/ws/{id}"),
             created_at: 0,
+            updated_at: 0,
             task_type: None,
             parent_session_id: None,
             log_epoch: "epoch-1".to_string(),
@@ -2955,6 +3007,7 @@ mod tests {
             workspace_root: session.workspace_root.clone(),
             workspace_identity: session.workspace_identity.clone(),
             created_at: session.created_at(),
+            updated_at: session.updated_at(),
             task_type: session.task_type(),
             parent_session_id: session.parent_session_id(),
             log_epoch: session.log_epoch(),

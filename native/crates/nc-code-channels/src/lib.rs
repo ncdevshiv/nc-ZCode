@@ -13,6 +13,9 @@
 //! them in 13-byte frames. Keeping framing out of this crate lets tests drive the
 //! exact bytes the TypeScript client sends without opening sockets.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 pub mod connection;
 pub mod error;
 pub mod events;
@@ -25,8 +28,32 @@ pub use registry::{Channel, ChannelContext, ChannelRegistry, ClientMode, Duplica
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    /// A duplicate registration is a protocol error (two owners for one channel
+    /// would split dispatch); the second `register` must fail.
     #[test]
-    fn basic_test() {
-        assert!(true);
+    fn duplicate_channel_registration_fails() {
+        struct Noop;
+        #[async_trait::async_trait]
+        impl Channel for Noop {
+            async fn call(
+                &self,
+                _ctx: &ChannelContext,
+                _command: &str,
+                _args: Vec<nc_code_rpc::WireValue>,
+                _cancel: CancelToken,
+            ) -> Result<nc_code_rpc::WireValue, ChannelFailure> {
+                Ok(nc_code_rpc::WireValue::Undefined)
+            }
+        }
+        let registry = ChannelRegistry::new();
+        let channel: std::sync::Arc<dyn Channel> = std::sync::Arc::new(Noop);
+        registry.register("dup", channel.clone()).expect("first");
+        assert!(registry.get("dup").is_some());
+        assert!(
+            registry.register("dup", channel).is_err(),
+            "second must fail"
+        );
     }
 }

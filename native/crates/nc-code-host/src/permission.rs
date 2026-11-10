@@ -83,7 +83,7 @@ struct ResolvedCapability {
     permission_name: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PermissionServiceConfig {
     pub allowed_tools: BTreeSet<String>,
     pub disallowed_tools: BTreeSet<String>,
@@ -92,17 +92,6 @@ pub struct PermissionServiceConfig {
     /// true and tool is WebFetch with a URL, host may still require explicit
     /// allowlisting. Kept explicit (no hidden network trust).
     pub allow_webfetch_without_prompt: bool,
-}
-
-impl Default for PermissionServiceConfig {
-    fn default() -> Self {
-        Self {
-            allowed_tools: BTreeSet::new(),
-            disallowed_tools: BTreeSet::new(),
-            auto_approve_high_risk: false,
-            allow_webfetch_without_prompt: false,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Default)]

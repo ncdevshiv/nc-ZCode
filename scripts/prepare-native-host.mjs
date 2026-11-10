@@ -31,7 +31,7 @@ function fail(message, hint) {
 }
 
 function runCargoBuild({ release }) {
-  const args = ["build", "-p", "zcode-host", "--bin", "zcode-host"];
+  const args = ["build", "-p", "nc-code-host", "--bin", "zcode-host"];
   if (release) {
     args.push("--release");
   }

@@ -8,6 +8,7 @@ publish.workspace = true
 description = "conversation-share service channel"
 
 [dependencies]
+serde.workspace = true
 async-trait = "0.1"
 serde_json.workspace = true
 tokio.workspace = true

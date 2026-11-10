@@ -4,14 +4,14 @@
 mod common;
 
 use common::*;
-use serde_json::{json, Value};
-use std::path::PathBuf;
+use serde_json::json;
+use std::path::{Path, PathBuf};
 
 fn root(name: &str) -> PathBuf {
     std::env::temp_dir().join(format!("zcode-host-protocol-comp-{name}"))
 }
 
-fn write_provider_config(base: &PathBuf, port: u16) -> PathBuf {
+fn write_provider_config(base: &Path, port: u16) -> PathBuf {
     let path = base.join("provider.json");
     std::fs::write(
         &path,

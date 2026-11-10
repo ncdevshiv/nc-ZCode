@@ -8,6 +8,7 @@ publish.workspace = true
 description = "file-watcher service channel: real filesystem watching via notify"
 
 [dependencies]
+serde.workspace = true
 async-trait = "0.1"
 notify = "8"
 serde_json.workspace = true

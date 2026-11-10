@@ -8,7 +8,7 @@ use nc_code_server::{serve, ServerOptions, WorkspaceInfo};
 use nc_code_service_core::AppPaths;
 use tokio::net::TcpListener;
 
-/// ZCode axum server（S5）：静态 UI + 健康探测；host 接线为开放集成项。
+/// ZCode axum server（S5）：静态 UI + 健康探测 + 通道 RPC + NC-AG。
 #[derive(Parser, Debug)]
 #[command(name = "zcode-server", about = "ZCode axum server (S5)")]
 struct Args {
@@ -47,6 +47,18 @@ async fn main() -> std::io::Result<()> {
     }
     let backend = nc_code_app::build(paths)
         .map_err(|error| std::io::Error::other(format!("channel registration failed: {error}")))?;
+
+    // NC-AG orchestration runtime (specs/nc-ag-orchestration.md): its routes mount on
+    // the same router; a config error fails startup rather than silently serving 404.
+    let ncag_config =
+        nc_code_orchestrator::NcagConfig::from_env().map_err(std::io::Error::other)?;
+    let ncag_paths = AppPaths::from_env();
+    let ncag = nc_code_orchestrator::main_support::runtime_from_config(ncag_config, &ncag_paths)
+        .map_err(|error| {
+            std::io::Error::other(format!("NC-AG startup failed: {}", error.message))
+        })?;
+    let _ncag_shutdown = ncag.spawn_background();
+
     let options = ServerOptions {
         static_dir: args.static_dir,
         spa_fallback: true,
@@ -55,10 +67,13 @@ async fn main() -> std::io::Result<()> {
         auth_token: None,
         workspaces: vec![WorkspaceInfo::new(workspace.to_string_lossy().to_string())],
         remote: Some(std::sync::Arc::clone(&backend.client.remotes)),
+        ncag: Some(std::sync::Arc::new(ncag)),
     };
+
     let listener = TcpListener::bind((args.host.as_str(), args.port)).await?;
     let addr: SocketAddr = listener.local_addr()?;
     // e2e 依赖这一行精确格式解析实际绑定地址（--port 0 时端口是动态的）。
+    // 格式为 `LISTENING <addr>`；不得改用 logger/tracing（会改变流与前缀）。
     println!("LISTENING {addr}");
     serve(listener, backend.registry, options).await?;
     Ok(())

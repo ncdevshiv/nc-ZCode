@@ -221,11 +221,3 @@ fn request(session: &Arc<Session>, payload: &Value) -> (CommandFinal, Vec<String
     };
     (final_, lines)
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn basic_test() {
-        assert!(true);
-    }
-}

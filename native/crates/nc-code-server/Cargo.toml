@@ -26,12 +26,15 @@ tower-http = { version = "0.6", features = ["fs"] }
 rand = "0.8"
 percent-encoding = "2"
 nc-code-app = { path = "../nc-code-app" }
+nc-code-orchestrator = { path = "../nc-code-orchestrator" }
 nc-code-service-core = { path = "../nc-code-service-core" }
 nc-code-channels = { path = "../nc-code-channels" }
 nc-code-rpc = { path = "../nc-code-rpc" }
 nc-code-services-client = { path = "../nc-code-services-client" }
 
 [dev-dependencies]
+nc-code-orchestrator = { path = "../nc-code-orchestrator" }
+tempfile = "3"
 http-body-util = "0.1"
 futures = "0.3"
 tokio-tungstenite = "0.24"

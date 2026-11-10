@@ -219,11 +219,7 @@ pub fn classify_render_error(
 /// `Corrupted` (empty page tree); unknown count → generic `Corrupted`
 /// (never a fake success). `classify_render_error` stays the stderr
 /// classifier for callers that capture process output.
-fn empty_render_error(
-    pdf_path: &Path,
-    range: PageRange,
-    cancelled: &Arc<AtomicBool>,
-) -> PdfError {
+fn empty_render_error(pdf_path: &Path, range: PageRange, cancelled: &Arc<AtomicBool>) -> PdfError {
     match pdf_page_count(pdf_path, cancelled) {
         Some(0) => PdfError::Corrupted(
             "PDF reports 0 pages (empty page tree). The PDF may be invalid.".to_string(),

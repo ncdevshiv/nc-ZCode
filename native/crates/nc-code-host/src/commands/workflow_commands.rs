@@ -741,11 +741,3 @@ fn bounded_compile_diagnostics(
     }
     body
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn basic_test() {
-        assert!(true);
-    }
-}

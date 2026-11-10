@@ -33,6 +33,12 @@ impl Session {
         }
     }
 
+    /// The session limits this session was created with (timeout/output caps are
+    /// enforced by the kernel; the session only carries them for inspection).
+    pub fn config(&self) -> &SessionConfig {
+        &self.config
+    }
+
     pub fn is_disposed(&self) -> bool {
         self.disposed
     }

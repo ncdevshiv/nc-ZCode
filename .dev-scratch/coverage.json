@@ -2,25 +2,77 @@
   "factSource": "native/fixtures/service-channels.json",
   "channels": {
     "total": 40,
-    "boundaryRemoved": 11,
+    "boundaryRemoved": 14,
     "expectedToRegister": 29,
-    "registered": 29
+    "registered": 26
   },
   "members": {
     "total": 471,
-    "boundaryRemoved": 146,
-    "expectedToPort": 325,
-    "ported": 325,
-    "percent": 100
+    "boundaryRemoved": 120,
+    "expectedToPort": 326,
+    "ported": 301,
+    "percent": 92.3
   },
   "additionalChannels": {
-    "zai-claim": "specs/rust-backend-replacement.md ┬º4.1 / specs/zai-claim-boundary.md"
+    "zai-claim": "specs/rust-backend-replacement.md §4.1 / specs/zai-claim-boundary.md"
   },
-  "gaps": [],
+  "gaps": [
+    {
+      "channel": null,
+      "registered": false,
+      "missingCount": 4,
+      "missing": [
+        "getDynamicWorkflowClientConfig",
+        "getForceUpdateConfig",
+        "getModelContextBudgetStrategy",
+        "getOffPeakClientConfig"
+      ]
+    },
+    {
+      "channel": null,
+      "registered": false,
+      "missingCount": 13,
+      "missing": [
+        "cancelPending",
+        "getActiveProvider",
+        "getProviders",
+        "handleCallback",
+        "logout",
+        "logoutAll",
+        "pollPendingOAuth",
+        "refreshToken",
+        "restoreCachedSession",
+        "restoreCachedSessionState",
+        "restoreSession",
+        "startOAuth",
+        "startOAuthWithPolling"
+      ]
+    },
+    {
+      "channel": null,
+      "registered": false,
+      "missingCount": 8,
+      "missing": [
+        "getAppUsageSnapshot",
+        "getCodingPlanResetStatus",
+        "getCodingPlanUsageSnapshot",
+        "getEntitlementSnapshot",
+        "getSnapshot",
+        "markCodingPlanResetHistoryRead",
+        "requestCodingPlanResetOpportunity",
+        "useCodingPlanReset"
+      ]
+    }
+  ],
   "v4Methods": {
-    "boundary": 14,
+    "boundary": 0,
     "factSource": 35
   },
-  "errors": []
+  "errors": [
+    "Rust registered a channel that is not in the TS list and has no source: usage-stats",
+    "Rust registered a channel that is not in the TS list and has no source: coding-plan-subscription",
+    "null: These members were explicitly removed in the code, but the bounds manifest did not reference spec: batchPreview, bindStripeCard, calculateEnterpriseOrder, cancelEnterpriseOrder, checkEnterpriseOrderStatus, checkPayment, checkPaypalSupport, checkPendingOrders, continueEnterpriseOrderPayment, createEnterpriseOrder, createPaypalSetupToken, createSign, getEnterpriseBalance, getEnterprisePendingOrders, getEnterprisePricing, getStartPlanPreview, getStaticProducts, getStaticTeamProducts, payStripe, preview, productInfo, queryStripeCards, subscribePaypal, unbindStripeCard, updateSign",
+    "v4 method access: V4_METHODS_UNIMPLEMENTED constant not found, manifest fact source moved"
+  ]
 }
-[coverage] All transplantable channels have been registered, members have distribution point evidence, and all boundaries have spec sources
+[coverage] Not completed: Still channel/member gaps or inconsistent boundaries

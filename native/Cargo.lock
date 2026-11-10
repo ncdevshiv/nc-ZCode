@@ -938,6 +938,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "chrono-tz"
+version = "0.10.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a6139a8597ed92cf816dfb33f5dd6cf0bb93a6adc938f11039f371bc5bcd26c3"
+dependencies = [
+ "chrono",
+ "phf 0.12.1",
+]
+
+[[package]]
 name = "ciborium"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4123,24 +4133,20 @@ checksum = "743fb55ba31b18fb1ecef6bdc9aa2743314978ac084044301a7eee33fb99a20d"
 name = "nc-code-app"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "nc-code-channels",
  "nc-code-host",
+ "nc-code-rpc",
  "nc-code-service-core",
  "nc-code-services-agent",
  "nc-code-services-client",
- "nc-code-services-commands",
  "nc-code-services-config",
  "nc-code-services-conversation-share",
  "nc-code-services-extensions",
  "nc-code-services-feedback",
- "nc-code-services-file",
- "nc-code-services-file-watcher",
  "nc-code-services-git",
  "nc-code-services-git-checkpoint",
- "nc-code-services-hooks",
  "nc-code-services-mcp-sync",
- "nc-code-services-media-preview",
- "nc-code-services-memory",
  "nc-code-services-offpeak",
  "nc-code-services-plugin-sync",
  "nc-code-services-plugins",
@@ -4148,12 +4154,11 @@ dependencies = [
  "nc-code-services-provider",
  "nc-code-services-settings-sync",
  "nc-code-services-skill-sync",
- "nc-code-services-subagents",
- "nc-code-services-system",
  "nc-code-services-terminal",
  "nc-code-services-usage-stats",
- "nc-code-services-window-controller",
  "nc-code-services-workspace",
+ "serde",
+ "serde_json",
  "tokio",
 ]
 
@@ -4176,6 +4181,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "nc-code-rpc",
+ "serde",
  "serde_json",
  "tokio",
 ]
@@ -4211,6 +4217,7 @@ dependencies = [
  "nc-code-proc",
  "nc-code-provider",
  "nc-code-scan",
+ "nc-code-service-core",
  "nc-code-v4-wire",
  "nc-code-workflow",
  "nct-core",
@@ -4241,8 +4248,34 @@ name = "nc-code-node-repl"
 version = "0.1.0"
 dependencies = [
  "nc-code-proc",
+ "nc-code-service-core",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "nc-code-orchestrator"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "chrono",
+ "clap",
+ "futures-util",
+ "hex",
+ "http-body-util",
+ "nc-code-provider",
+ "nc-code-service-core",
+ "nc-code-services-provider",
+ "regex",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "tokio",
+ "tower",
+ "uuid",
 ]
 
 [[package]]
@@ -4296,6 +4329,7 @@ dependencies = [
  "http-body-util",
  "nc-code-app",
  "nc-code-channels",
+ "nc-code-orchestrator",
  "nc-code-rpc",
  "nc-code-service-core",
  "nc-code-services-client",
@@ -4303,6 +4337,7 @@ dependencies = [
  "rand 0.8.8",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "tokio-tungstenite 0.24.0",
  "tower",
@@ -4313,6 +4348,8 @@ dependencies = [
 name = "nc-code-service-core"
 version = "0.1.0"
 dependencies = [
+ "chrono",
+ "chrono-tz",
  "nc-code-channels",
  "nc-code-rpc",
  "regex",
@@ -4335,7 +4372,9 @@ dependencies = [
  "nc-code-rpc",
  "nc-code-service-core",
  "nc-code-services-automation",
+ "nc-code-services-extensions",
  "nc-code-services-provider",
+ "nc-code-v4-wire",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -4367,6 +4406,7 @@ dependencies = [
  "nc-code-channels",
  "nc-code-rpc",
  "nc-code-service-core",
+ "serde",
  "serde_json",
  "tokio",
 ]
@@ -4383,6 +4423,7 @@ dependencies = [
  "nc-code-service-core",
  "nc-code-services-agent",
  "nc-code-services-provider",
+ "serde",
  "serde_json",
  "tokio",
  "tokio-tungstenite 0.24.0",
@@ -4396,18 +4437,7 @@ dependencies = [
  "nc-code-channels",
  "nc-code-rpc",
  "nc-code-service-core",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "nc-code-services-commands"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "nc-code-channels",
- "nc-code-rpc",
- "nc-code-service-core",
+ "serde",
  "serde_json",
  "tokio",
 ]
@@ -4439,6 +4469,7 @@ dependencies = [
  "nc-code-channels",
  "nc-code-rpc",
  "nc-code-service-core",
+ "serde",
  "serde_json",
  "tokio",
 ]
@@ -4513,6 +4544,7 @@ dependencies = [
  "nc-code-rpc",
  "nc-code-service-core",
  "notify",
+ "serde",
  "serde_json",
  "tempfile",
  "tokio",
@@ -4529,6 +4561,7 @@ dependencies = [
  "nc-code-rpc",
  "nc-code-service-core",
  "nc-code-services-provider",
+ "serde",
  "serde_json",
  "tempfile",
  "tokio",
@@ -4557,6 +4590,7 @@ dependencies = [
  "nc-code-channels",
  "nc-code-rpc",
  "nc-code-service-core",
+ "serde",
  "serde_json",
  "tokio",
 ]
@@ -4569,22 +4603,9 @@ dependencies = [
  "nc-code-channels",
  "nc-code-rpc",
  "nc-code-service-core",
+ "serde",
  "serde_json",
  "sha2 0.10.9",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "nc-code-services-media-preview"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64 0.22.1",
- "nc-code-channels",
- "nc-code-rpc",
- "nc-code-service-core",
- "serde_json",
  "tempfile",
  "tokio",
 ]
@@ -4597,6 +4618,7 @@ dependencies = [
  "nc-code-channels",
  "nc-code-rpc",
  "nc-code-service-core",
+ "serde",
  "serde_json",
  "tokio",
 ]
@@ -4609,6 +4631,7 @@ dependencies = [
  "nc-code-channels",
  "nc-code-rpc",
  "nc-code-service-core",
+ "serde",
  "serde_json",
  "tokio",
 ]
@@ -4621,6 +4644,7 @@ dependencies = [
  "nc-code-channels",
  "nc-code-rpc",
  "nc-code-service-core",
+ "serde",
  "serde_json",
  "tokio",
 ]
@@ -4632,6 +4656,7 @@ dependencies = [
  "async-trait",
  "nc-code-channels",
  "nc-code-rpc",
+ "serde",
  "serde_json",
  "tokio",
 ]
@@ -4644,6 +4669,7 @@ dependencies = [
  "nc-code-channels",
  "nc-code-rpc",
  "nc-code-service-core",
+ "serde",
  "serde_json",
  "sha2 0.10.9",
  "tempfile",
@@ -4709,6 +4735,7 @@ dependencies = [
  "nc-code-channels",
  "nc-code-rpc",
  "nc-code-service-core",
+ "serde",
  "serde_json",
  "tempfile",
  "tokio",
@@ -4723,6 +4750,7 @@ dependencies = [
  "nc-code-channels",
  "nc-code-rpc",
  "nc-code-service-core",
+ "serde",
  "serde_json",
  "sha2 0.10.9",
  "tempfile",
@@ -4737,6 +4765,7 @@ dependencies = [
  "nc-code-channels",
  "nc-code-rpc",
  "nc-code-service-core",
+ "serde",
  "serde_json",
  "tokio",
 ]
@@ -4749,6 +4778,7 @@ dependencies = [
  "nc-code-channels",
  "nc-code-rpc",
  "nc-code-service-core",
+ "serde",
  "serde_json",
  "tokio",
 ]
@@ -4779,6 +4809,7 @@ dependencies = [
  "nc-code-channels",
  "nc-code-rpc",
  "nc-code-service-core",
+ "serde",
  "serde_json",
  "tokio",
 ]
@@ -4817,6 +4848,9 @@ name = "nc-code-services-zai"
 version = "3.14.0"
 dependencies = [
  "nc-code-channels",
+ "nc-code-rpc",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -4837,6 +4871,7 @@ dependencies = [
  "nc-code-app",
  "nc-code-cdp",
  "nc-code-host",
+ "nc-code-orchestrator",
  "nc-code-server",
  "nc-code-service-core",
  "objc2",
@@ -5988,6 +6023,15 @@ dependencies = [
 
 [[package]]
 name = "phf"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "913273894cec178f401a31ec4b656318d95473527be05c0752cc41cdc32be8b7"
+dependencies = [
+ "phf_shared 0.12.1",
+]
+
+[[package]]
+name = "phf"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1562dc717473dbaa4c1f85a36410e03c047b2e7df7f45ee938fbef64ae7fadf"
@@ -6097,6 +6141,15 @@ name = "phf_shared"
 version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67eabc2ef2a60eb7faa00097bd1ffdb5bd28e62bf39990626a582201b7a754e5"
+dependencies = [
+ "siphasher 1.0.3",
+]
+
+[[package]]
+name = "phf_shared"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06005508882fb681fd97892ecff4b7fd0fee13ef1aa569f8695dae7ab9099981"
 dependencies = [
  "siphasher 1.0.3",
 ]

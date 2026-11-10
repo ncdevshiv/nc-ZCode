@@ -9,7 +9,6 @@
 pub mod analysis;
 mod kernel;
 mod native_impl;
-mod parser;
 pub mod ts_workflow;
 
 pub use kernel::{

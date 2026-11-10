@@ -4,15 +4,15 @@
 mod common;
 
 use common::*;
-use serde_json::{json, Value};
-use std::path::PathBuf;
+use serde_json::json;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 fn root(name: &str) -> PathBuf {
     std::env::temp_dir().join(format!("zcode-host-session-mgmt-{name}"))
 }
 
-fn write_provider_config(base: &PathBuf, port: u16) -> PathBuf {
+fn write_provider_config(base: &Path, port: u16) -> PathBuf {
     let path = base.join("provider.json");
     std::fs::write(
         &path,
@@ -228,6 +228,13 @@ fn stop_on_idle_session_is_noop_and_resync_returns_snapshot() {
     let response = client.response(id);
     assert_eq!(response["result"]["status"], json!("noop"), "{response}");
 
+    // resync 的对象是**已存在**的订阅：先 subscribe（host 用     // 作为订阅 id），再 resync。未订阅就 resync 会被 notOwned 拒绝且不产生任何帧，
+    // 这里再读帧就会永久阻塞（此前本用例正是如此挂住）。
+    let id = client.send(
+        "v4/conversation/subscribe",
+        json!({"sessionId": session_id, "connectionId": "conn-1", "clientMode": "desktop-continuous"}),
+    );
+    let _ = client.response(id);
     let id = client.send(
         "v4/conversation/resync",
         json!({"sessionId": session_id, "connectionId": "conn-1"}),

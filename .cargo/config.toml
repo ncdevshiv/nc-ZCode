@@ -1,0 +1,52 @@
+# Repository-wide Cargo configuration.
+#
+# Discovery: cargo reads `.cargo/config.toml` from the current directory and each
+# ancestor. Every entry point in this repo invokes cargo from the repository root
+# (`cargo --manifest-path native/Cargo.toml ...`), so this file covers the native
+# workspace. `scripts/prepare-native-host.mjs` runs cargo with `cwd: native/`, which
+# still resolves up to this file.
+#
+# Profiles live in `native/Cargo.toml` (Cargo only accepts `[profile]` there).
+# This file holds build behaviour that is not profile-shaped.
+
+[build]
+# Incremental compilation is a local-development accelerator: it reuses the
+# per-crate query cache so a one-line edit rebuilds only that crate. It is also
+# the single largest source of unbounded `target/` growth (measured 51 GB across
+# hundreds of stale sessions on 2026-11-08).
+#
+# Policy:
+#   - local dev / `cargo run` / `cargo test -p <crate>`  -> incremental ON (default)
+#   - CI, release builds, `cargo clean` flows            -> CARGO_INCREMENTAL=0
+# Enforcing the second is the caller's job; `scripts/native-cache.mjs sweep`
+# reclaims the sessions that leak in between.
+incremental = true
+
+# `pipelining` lets cargo start building a dependent crate as soon as the
+# dependency's metadata is ready, instead of waiting for codegen to finish.
+# It is a no-op when the compiler version does not support it.
+pipelining = true
+
+# Keep the linker's temporary files inside target/ (default) but do not let the
+# build scripts write into the source tree. `native/target` is gitignored and is
+# the only writable build location.
+#
+# `target-dir` is intentionally NOT set here: `scripts/rust-backend.mjs` and
+# `scripts/prepare-native-host.mjs` resolve `native/target/<profile>/<bin>` by
+# path, and the desktop's bundled-tools staging depends on it.
+
+# --- Linking ---------------------------------------------------------------
+# Windows ships no lld by default, so the linker is not forced here. To opt in
+# after installing lld (or `cargo install cargo-lld`), set:
+#   CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=lld-link
+# or add the matching `[target.x86_64-pc-windows-msvc] linker = "lld-link"` table.
+
+# --- Network ---------------------------------------------------------------
+[net]
+# The workspace has one external path dependency (`G:/nc-sdk/nc-tools`, see
+# docs/engineering/resource-budget.md). Fetch git dependencies through the git
+# CLI so they honour the user's git configuration instead of libgit2's defaults.
+git-fetch-with-cli = true
+
+# The registry cache stays in the shared `~/.cargo/registry`; nothing is vendored
+# into the repository.

@@ -4,18 +4,13 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SupportedLocale {
+    #[default]
     #[serde(rename = "en-US")]
     EnUs,
     #[serde(rename = "zh-CN")]
     ZhCn,
-}
-
-impl Default for SupportedLocale {
-    fn default() -> Self {
-        SupportedLocale::EnUs
-    }
 }
 
 impl SupportedLocale {

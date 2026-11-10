@@ -43,7 +43,7 @@ export {
   createRemoteWorkspaceDisconnectedError,
 } from "./lib/remoteWorkspaceServiceError.js";
 
-// Hooks —— 统一的服务和平台操作访问层
+// Hooks Ã¢â‚¬â€Ã¢â‚¬â€ Ã§Â»Å¸Ã¤Â¸â‚¬Ã§Å¡â€žÃ¦Å“ÂÃ¥Å Â¡Ã¥â€™Å’Ã¥Â¹Â³Ã¥ÂÂ°Ã¦â€œÂÃ¤Â½Å“Ã¨Â®Â¿Ã©â€”Â®Ã¥Â±â€š
 export {
   ServiceProvider,
   useServices,
@@ -100,6 +100,12 @@ export {
   USER_ACTION_CATALOG,
 } from "./lib/userActionTraceCatalog.js";
 export { setReactErrorArmsReporter } from "./lib/reactErrorArmsTelemetry.js";
+export {
+  NC_CODE_PRODUCT_NAME,
+  PROVIDER_SETUP_DISMISSED_STORAGE_KEY,
+  ZCODE_ACCOUNT_SERVICES_AVAILABLE,
+  ZCODE_CODING_PLAN_AVAILABLE,
+} from "./lib/productCapabilities.js";
 export { recordArmsCustomEventForE2E } from "./lib/armsCustomEventObservability.js";
 export { generateMobileDeviceFingerprint, setStreamClientId } from "./lib/streamClientId.js";
 export {
@@ -110,3 +116,8 @@ export {
 export { GlobalDatabaseStartupLoading } from "./root/GlobalDatabaseStartupLoading.js";
 
 export { LocalTtftObserver, setLocalTtftObserver } from "@/v4/telemetry/localTtftObserver.js";
+
+export { NcagApp } from "./nc-ag/NcagApp.js";
+export { NcagDagView } from "./nc-ag/NcagDagView.js";
+export { ncagApi, subscribeNcagEvents } from "./nc-ag/client.js";
+export * as NcagTypes from "./nc-ag/types.js";

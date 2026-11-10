@@ -15,7 +15,7 @@ ZCode is an AI coding workspace with desktop, browser, and terminal interfaces. 
 
 | Interface                    | Purpose                                                                                   | Development command            |
 | ---------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------ |
-| Desktop                      | Electron desktop application                                                              | `bun run dev:desktop`             |
+| Desktop                      | Tauri desktop application (Electron fallback) | `bun run dev:desktop` (→ `dev:tauri`) |
 | Web / ZCode CLI distribution | Terminal and browser workspace; packages the TUI, Web client, backend, and Agent together | `bun run dev:web`                 |
 | Agent CLI                    | The `zcode` terminal interface, which also provides the Agent runtime for Desktop and Web | `bun run --filter @zcode/cli dev` |
 
@@ -54,7 +54,7 @@ bun run dev:desktop
 bun run dev:desktop:test
 ```
 
-`bun run dev:desktop` defaults to `bun run dev:desktop:prod` and uses production service configuration. The startup script prepares local runtime assets, builds the desktop Agent, then starts Electron and source watchers.
+`bun run dev:desktop` aliases `bun run dev:tauri` (`package.json:15`): it builds `@zcode/web` and runs `cargo run --manifest-path native/Cargo.toml -p nc-code-shell` (Tauri shell + embedded Rust backend). Electron is the fallback via `bun run dev:desktop:prod` / `dev:desktop:test` (`scripts/dev-desktop-env.mjs`), which prepare runtime assets, build the desktop Agent, then start Electron and source watchers.
 
 Set `ZCODE_DATA_BASE_DIR` to use a separate development data directory. For example, on macOS / Linux:
 
@@ -197,7 +197,7 @@ Open `http://127.0.0.1:3030` to validate the complete flow, with one backend ser
 
 | Directory                                            | Responsibility                                                                          |
 | ---------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `packages/desktop`                                   | Electron Main, Host, Renderer, and desktop packaging                                    |
+| `packages/desktop`                                   | Tauri shell (Electron fallback) Main, Host, Renderer, and desktop packaging                    |
 | `packages/web`                                       | Web client                                                                              |
 | `packages/server`                                    | HTTP / WebSocket services and remote connections                                        |
 | `packages/zcode-server-cli`                          | Standalone server startup and process management                                        |

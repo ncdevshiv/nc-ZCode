@@ -78,8 +78,23 @@ impl std::error::Error for ChannelFailure {}
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    /// Each constructor carries the wire `name` the renderer switches on; a wrong
+    /// name turns a protocol fact into an anonymous "Error".
     #[test]
-    fn basic_test() {
-        assert!(true);
+    fn failure_constructors_keep_the_wire_names() {
+        let missing = ChannelFailure::unknown_channel("git");
+        assert_eq!(
+            missing.payload().map(|p| p.name.as_str()),
+            Some("Unknown channel")
+        );
+        let method = ChannelFailure::method_not_found("list");
+        assert!(
+            method.to_string().contains("Method not found: list"),
+            "{method}"
+        );
+        let named = ChannelFailure::error_named("ZodError", "params.x is required");
+        assert_eq!(named.payload().map(|p| p.name.as_str()), Some("ZodError"));
     }
 }

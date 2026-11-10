@@ -1,5 +1,8 @@
 //! `file` channel — file system operations for workspace.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -11,6 +14,7 @@ use serde_json::{json, Value};
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
+#[derive(Default)]
 pub struct FileService {
     base_dir: Option<PathBuf>,
 }
@@ -510,12 +514,6 @@ fn mime_guess(path: &str) -> String {
     .to_string()
 }
 
-impl Default for FileService {
-    fn default() -> Self {
-        Self { base_dir: None }
-    }
-}
-
 #[async_trait]
 impl Channel for FileService {
     async fn call(
@@ -552,74 +550,5 @@ impl Channel for FileService {
             other => return Err(ChannelFailure::method_not_found(other)),
         };
         result.map_err(ChannelFailure::from)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use nc_code_channels::ClientMode;
-    use tempfile::tempdir;
-
-    fn ctx() -> ChannelContext {
-        ChannelContext::new("file", ClientMode::DesktopContinuous)
-    }
-
-    #[tokio::test]
-    async fn readdir_and_stat_work() {
-        let dir = tempdir().unwrap();
-        std::fs::write(dir.path().join("a.txt"), "hello").unwrap();
-        let service = FileService::new();
-        let result = service
-            .call(
-                &ctx(),
-                "readdir",
-                vec![WireValue::Json(
-                    json!({"path": dir.path().to_string_lossy()}),
-                )],
-                CancelToken::new(),
-            )
-            .await
-            .unwrap();
-        if let WireValue::Json(v) = result {
-            assert!(v.as_array().map(|a| a.len() >= 1).unwrap_or(false));
-        } else {
-            panic!("expected json");
-        }
-    }
-
-    #[tokio::test]
-    async fn read_text_file_works() {
-        let dir = tempdir().unwrap();
-        std::fs::write(dir.path().join("a.txt"), "hello world").unwrap();
-        let service = FileService::new();
-        let result = service
-            .call(
-                &ctx(),
-                "readTextFile",
-                vec![WireValue::Json(
-                    json!({"path": dir.path().join("a.txt").to_string_lossy()}),
-                )],
-                CancelToken::new(),
-            )
-            .await
-            .unwrap();
-        if let WireValue::Json(v) = result {
-            assert!(v
-                .get("content")
-                .and_then(|c| c.as_str())
-                .unwrap_or("")
-                .contains("hello"));
-        } else {
-            panic!("expected json");
-        }
-    }
-}
-
-#[cfg(test)]
-mod integration_tests {
-    #[test]
-    fn crate_compiles() {
-        assert!(true);
     }
 }

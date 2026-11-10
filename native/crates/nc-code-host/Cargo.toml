@@ -54,6 +54,7 @@ nc-code-scan = { path = "../nc-code-scan" }
 nc-code-proc = { path = "../nc-code-proc" }
 nc-code-workflow = { path = "../nc-code-workflow" }
 nc-code-node-repl = { path = "../nc-code-node-repl" }
+nc-code-service-core = { path = "../nc-code-service-core" }
 # nc-tools：以 crate 形式**进程内直接链接**（不是 MCP server、不是 sidecar）。
 # 它的 89 个 typed 工具通过 Kernel 注册表进入 host 的工具面。
 nct-mcp = { path = "G:/nc-sdk/nc-tools/crates/nct-mcp" }

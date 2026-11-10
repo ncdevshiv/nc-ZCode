@@ -11,6 +11,9 @@
 //! the three channel names. A channel is registered only when its implementation is real —
 //! there are no placeholder handlers in this crate.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 pub mod client_config;
 pub mod client_scenes;
 pub mod controller_projection;
@@ -56,13 +59,5 @@ impl ClientServices {
         registry.register("client-scenes", self.client_scenes.clone())?;
         registry.register("window-controller", self.window_controller.clone())?;
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn crate_compiles() {
-        assert!(true);
     }
 }

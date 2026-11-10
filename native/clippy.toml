@@ -1,0 +1,14 @@
+# Clippy configuration for the native workspace (cargo looks for this next to
+# the workspace root, i.e. native/clippy.toml).
+#
+# This is workspace-wide and needs no per-crate `[lints]` opt-in, unlike a
+# `[workspace.lints]` table which would have to be mirrored into all 56 crates.
+
+# Must match `rust-version` in native/Cargo.toml.
+msrv = "1.97"
+
+# Test code legitimately uses `expect`/`unwrap` to assert invariants; production
+# code must not. This keeps `clippy -- -D warnings` meaningful without a blanket
+# `allow` attribute.
+allow-expect-in-tests = true
+allow-unwrap-in-tests = true

@@ -19,6 +19,14 @@ use nc_code_host::provider_config::ProviderConfig;
 use nc_code_rpc::WireValue;
 use nc_code_service_core::{AppPaths, ServiceArgs, ServiceError};
 use nc_code_services_automation::AutomationService;
+
+/// The protocol slash-command directory (`listProtocolSlashCommands`) is owned by the
+/// `commands` channel (single discovery/write path). `zcode-session.readWorkspacePresentation`
+/// consumes it through this port instead of re-scanning the same roots.
+#[async_trait::async_trait]
+pub trait SlashCommandDirectory: Send + Sync {
+    async fn protocol_slash_commands(&self, workspace_path: &str) -> Result<Value, ServiceError>;
+}
 use nc_code_services_provider::store::{
     model_effective_config, provider_effective_config, provider_issues, provider_order,
     ProviderStore,
@@ -41,12 +49,13 @@ pub struct AgentService {
     sequence: AtomicU64,
     /// The plugin-management channel is injected by the composition root: one implementation, two dispatch points (plugin-management and nc-code-agent).
     plugin_management: OnceLock<Arc<dyn Channel>>,
-    /// Native browser-control port injected by the composition root (the Tauri
+    /// The protocol slash-command directory port injected by the composition root.
     /// shell's child-webview CDP bridge). `None` = `Browser` tool fails closed.
     browser_port: Option<Arc<dyn nc_code_host::tools::browser::BrowserControlPort>>,
     /// Native computer-use port injected by the composition root. `None` =
     /// `Computer` tool fails closed.
     computer_port: Option<Arc<dyn nc_code_host::tools::computer::ComputerControlPort>>,
+    slash_directory: OnceLock<Arc<dyn SlashCommandDirectory>>,
 }
 
 impl AgentService {
@@ -88,6 +97,7 @@ impl AgentService {
             plugin_management: OnceLock::new(),
             browser_port,
             computer_port,
+            slash_directory: OnceLock::new(),
         })
     }
 
@@ -105,6 +115,107 @@ impl AgentService {
     /// sharing the same implementation as `plugin-management`, so no second write path is opened.
     pub fn attach_plugin_management(&self, channel: Arc<dyn Channel>) {
         let _ = self.plugin_management.set(channel);
+    }
+
+    pub fn attach_slash_command_directory(&self, directory: Arc<dyn SlashCommandDirectory>) {
+        let _ = self.slash_directory.set(directory);
+    }
+
+    pub(crate) fn slash_directory(&self) -> Option<Arc<dyn SlashCommandDirectory>> {
+        self.slash_directory.get().cloned()
+    }
+
+    /// `readWorkspacePresentation`: `{workspace, mode, slashCommands}` over the injected
+    /// protocol directory. Both `zcode-session` and the `zcode-agent` mirror dispatch here,
+    /// so there is exactly one projection.
+    pub(crate) async fn read_workspace_presentation(
+        &self,
+        params: &Value,
+    ) -> Result<Value, ServiceError> {
+        let workspace = Self::workspace_ref_value(params)?;
+        let workspace_path = workspace
+            .get("workspacePath")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                ServiceError::invalid_params("params.workspace.workspacePath is required")
+            })?
+            .to_string();
+        let directory = self.slash_directory().ok_or_else(|| {
+            ServiceError::new(
+                "workspace presentation unavailable: slash-command directory not attached",
+            )
+        })?;
+        let slash_commands = directory.protocol_slash_commands(&workspace_path).await?;
+        Ok(json!({
+            "workspace": workspace,
+            "mode": "build",
+            "slashCommands": slash_commands,
+        }))
+    }
+
+    /// `zcodeWorkspaceRefSchema` (strict): only the declared keys survive parsing.
+    ///
+    /// Two entry shapes reach this function: the service-channel call passes the flat
+    /// `ZCodeWorkspaceTarget` (`workspacePath`/`workspaceIdentity` at the top level), and the
+    /// internal agent protocol call nests the ref under `workspace`. Both are accepted;
+    /// unknown extra keys are dropped, never echoed (the schema is strict).
+    fn workspace_ref_value(params: &Value) -> Result<Value, ServiceError> {
+        let workspace = match params.get("workspace") {
+            Some(workspace) => {
+                if !workspace.is_object() {
+                    return Err(ServiceError::invalid_params(
+                        "params.workspace must be an object",
+                    ));
+                }
+                workspace
+            }
+            None => params,
+        };
+        let workspace_path = workspace
+            .get("workspacePath")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| {
+                ServiceError::invalid_params("params.workspace.workspacePath is required")
+            })?;
+        let workspace_key = workspace
+            .get("workspaceKey")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .or_else(|| {
+                workspace
+                    .get("workspaceIdentity")
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+            })
+            .unwrap_or(workspace_path);
+        let identity = workspace
+            .get("workspaceIdentity")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        let mut object = serde_json::Map::new();
+        object.insert("workspacePath".to_string(), json!(workspace_path));
+        if let Some(identity) = identity {
+            object.insert("workspaceIdentity".to_string(), json!(identity));
+        }
+        object.insert("workspaceKey".to_string(), json!(workspace_key));
+        Ok(Value::Object(object))
+    }
+
+    /// `{connectionId}:conversation/{sessionId}` → (`connectionId`, `sessionId`).
+    /// Returns None for any other topic family (sessions-index, controller, …) so a
+    /// malformed id fails closed instead of borrowing another route.
+    fn parse_conversation_subscription_id(value: &str) -> Option<(String, String)> {
+        let (connection, topic) = value.split_once(':')?;
+        let session = topic.strip_prefix("conversation/")?;
+        if connection.is_empty() || session.is_empty() {
+            return None;
+        }
+        Some((connection.to_string(), session.to_string()))
     }
 
     pub(crate) fn workspace_of(params: &Value) -> Result<(String, String), ServiceError> {
@@ -272,6 +383,55 @@ impl AgentService {
         self.build_snapshot(&snapshot_params, None).await
     }
 
+    /// Create a session from another client's already-parsed transcript. The host owns the
+    /// rows/history/durability; this only routes to the right workspace runtime and
+    /// subscribes the same way `create_session` does, so the imported session is a live
+    /// conversation the UI can open and continue.
+    pub(crate) async fn import_session(&self, params: &Value) -> Result<Value, ServiceError> {
+        let runtime = self.ensure_runtime(params).await?;
+        let mut host_params = params.clone();
+        if let Some(object) = host_params.as_object_mut() {
+            object.remove("workspacePath");
+            object.remove("workspaceIdentity");
+        }
+        let result = match runtime.request("session/import", host_params).await {
+            Ok(response) => response.result,
+            // 同一个源第二次导入命中确定性 id：host 拒绝覆盖已有 transcript。这里不是失败，
+            // 而是把磁盘上的会话重新注册回 runtime（deleteTask 只 close，历史仍在），
+            // 下面的 subscribe 因此能照常完成。
+            Err(error) if is_session_exists(&error) => {
+                let session_id = error
+                    .data
+                    .as_deref()
+                    .and_then(|data| data.get("sessionId"))
+                    .and_then(Value::as_str)
+                    .or_else(|| params.get("sessionId").and_then(Value::as_str))
+                    .ok_or_else(|| {
+                        ServiceError::new("session exists but no sessionId was reported")
+                    })?
+                    .to_string();
+                runtime.ensure_loaded(&session_id);
+                json!({"sessionId": session_id, "resumed": true})
+            }
+            Err(error) => return Err(error),
+        };
+        let session_id = result
+            .get("sessionId")
+            .and_then(Value::as_str)
+            .ok_or_else(|| ServiceError::new("session/import result missing sessionId"))?;
+        runtime
+            .request(
+                "v4/conversation/subscribe",
+                json!({
+                    "sessionId": session_id,
+                    "connectionId": self.connection_id,
+                    "clientMode": "desktop-continuous",
+                }),
+            )
+            .await?;
+        Ok(result)
+    }
+
     pub(crate) async fn send_prompt(&self, params: &Value) -> Result<Value, ServiceError> {
         let runtime = self.ensure_runtime(params).await?;
         let session_id = params
@@ -289,6 +449,18 @@ impl AgentService {
         if let Some(model_execution) = params.get("modelExecution") {
             payload["modelExecution"] = model_execution.clone();
         }
+        if let Some(items) = params
+            .get("attachments")
+            .and_then(Value::as_array)
+            .filter(|items| !items.is_empty())
+        {
+            let refs = self
+                .prompt_attachment_refs(&runtime, session_id, items)
+                .await?;
+            if !refs.is_empty() {
+                payload["attachments"] = json!(refs);
+            }
+        }
         let envelope = self.command_envelope(Some(session_id), "sendText", payload);
         let ack = self.v4_command(&runtime, envelope).await?;
         Ok(json!({
@@ -298,6 +470,155 @@ impl AgentService {
         }))
     }
 
+    /// Map the composer's prompt attachments to v4 `AttachmentRef`s (the reference model
+    /// the command surface carries). Dual rule, identical to the TS
+    /// `uploadComposerAttachment`:
+    ///
+    /// - `localPath` → `ref = <absolute path>`, zero upload (the host reads the file when
+    ///   it builds the model request);
+    /// - `dataBase64` / `textContent` → the real upload transaction
+    ///   (`v4/attachment/{begin,chunk,commit}`) and `ref = zcode-artifact://<sha256>`;
+    /// - nothing to send → the item is dropped **and counted**, never fabricated.
+    ///
+    /// An item that already carries a `ref` is an `AttachmentRef` and passes through.
+    async fn prompt_attachment_refs(
+        &self,
+        runtime: &Arc<AgentRuntime>,
+        session_id: &str,
+        attachments: &[Value],
+    ) -> Result<Vec<Value>, ServiceError> {
+        // TS streams in 384KiB chunks so every non-final base64 piece is padding-free.
+        const CHUNK_BYTES: usize = 384 * 1024;
+        let mut refs = Vec::with_capacity(attachments.len());
+        for atlas in attachments {
+            if atlas.get("ref").and_then(Value::as_str).is_some() {
+                refs.push(atlas.clone());
+                continue;
+            }
+            let file_name = atlas
+                .get("filename")
+                .and_then(Value::as_str)
+                .unwrap_or("attachment");
+            let mime = atlas
+                .get("mimeType")
+                .and_then(Value::as_str)
+                .unwrap_or("application/octet-stream");
+            let declared_bytes = atlas.get("sizeBytes").and_then(Value::as_u64);
+            if let Some(path) = atlas
+                .get("localPath")
+                .and_then(Value::as_str)
+                .filter(|value| !value.is_empty())
+            {
+                refs.push(json!({
+                    "ref": path,
+                    "fileName": file_name,
+                    "mime": mime,
+                    "bytes": declared_bytes.unwrap_or(0),
+                }));
+                continue;
+            }
+            let data_base64 = atlas
+                .get("dataBase64")
+                .and_then(Value::as_str)
+                .filter(|value| !value.is_empty())
+                .map(str::to_string)
+                .or_else(|| {
+                    atlas
+                        .get("textContent")
+                        .and_then(Value::as_str)
+                        .map(|text| nc_code_host::tools::read_image::base64_encode(text.as_bytes()))
+                });
+            let Some(data_base64) = data_base64 else {
+                // No bytes and no path: there is nothing to attach (the TS composer logs
+                // and drops the same item). Dropping silently here is what the count is for.
+                continue;
+            };
+            let bytes = nc_code_v4_wire::decode_wire_base64(&data_base64).ok_or_else(|| {
+                ServiceError::invalid_params("attachment data is not valid base64")
+            })?;
+            let upload_id = {
+                let sequence = self.sequence.fetch_add(1, Ordering::Relaxed);
+                format!("upload-{}-{}", now_ms(), sequence)
+            };
+            let total_chunks = bytes.len().div_ceil(CHUNK_BYTES) as u64;
+            let begun = runtime
+                .request(
+                    "v4/attachment/begin",
+                    json!({
+                        "connectionId": self.connection_id,
+                        "sessionId": session_id,
+                        "uploadId": upload_id,
+                        "fileName": file_name,
+                        "mime": mime,
+                        "totalBytes": bytes.len() as u64,
+                        "totalChunks": total_chunks,
+                        "checksum": format!("sha256:{}", nc_code_host::content_hash::sha256_hex(&bytes)),
+                    }),
+                )
+                .await?;
+            if begun.result.get("state").and_then(Value::as_str) == Some("committed") {
+                let ref_value = begun
+                    .result
+                    .get("ref")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| ServiceError::new("committed upload missing ref"))?;
+                refs.push(json!({
+                    "ref": ref_value,
+                    "fileName": file_name,
+                    "mime": mime,
+                    "bytes": bytes.len() as u64,
+                }));
+                continue;
+            }
+            for (index, chunk) in bytes.chunks(CHUNK_BYTES).enumerate() {
+                let chunked = runtime
+                    .request(
+                        "v4/attachment/chunk",
+                        json!({
+                            "connectionId": self.connection_id,
+                            "sessionId": session_id,
+                            "uploadId": upload_id,
+                            "chunkIndex": index as u64,
+                            "dataBase64": nc_code_host::tools::read_image::base64_encode(chunk),
+                        }),
+                    )
+                    .await?;
+                let next = chunked
+                    .result
+                    .get("nextChunkIndex")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(0);
+                if next != index as u64 + 1 {
+                    return Err(ServiceError::new(
+                        "attachment chunk was not accepted (invalid server progress)",
+                    ));
+                }
+            }
+            let committed = runtime
+                .request(
+                    "v4/attachment/commit",
+                    json!({
+                        "connectionId": self.connection_id,
+                        "sessionId": session_id,
+                        "uploadId": upload_id,
+                    }),
+                )
+                .await?;
+            let ref_value = committed
+                .result
+                .get("ref")
+                .and_then(Value::as_str)
+                .ok_or_else(|| ServiceError::new("commit did not return an attachment ref"))?;
+            refs.push(json!({
+                "ref": ref_value,
+                "fileName": file_name,
+                "mime": mime,
+                "bytes": bytes.len() as u64,
+            }));
+        }
+        Ok(refs)
+    }
+
     async fn conversation_request(
         &self,
         method: &str,
@@ -305,19 +626,28 @@ impl AgentService {
         mut extra: Value,
     ) -> Result<Value, ServiceError> {
         let runtime = self.ensure_runtime(params).await?;
+        // The subscription id is `{connectionId}:conversation/{sessionId}` (the same
+        // format the host builds in `subscribe`). The UI's resync/unsubscribe call
+        // carries only this id (TS resolves the route through its subscription
+        // registry), so the session/connection pair is derived from it instead of
+        // demanding a top-level sessionId the client never sends.
+        let route = params
+            .get("subscriptionId")
+            .and_then(Value::as_str)
+            .and_then(Self::parse_conversation_subscription_id);
         let session_id = params
             .get("sessionId")
             .and_then(Value::as_str)
+            .map(str::to_string)
+            .or_else(|| route.as_ref().map(|(_, session)| session.clone()))
             .ok_or_else(|| ServiceError::invalid_params("sessionId is required"))?;
+        let connection_id = route
+            .as_ref()
+            .map(|(connection, _)| connection.clone())
+            .unwrap_or_else(|| self.connection_id.clone());
         if let Some(object) = extra.as_object_mut() {
-            object.insert(
-                "sessionId".to_string(),
-                Value::String(session_id.to_string()),
-            );
-            object.insert(
-                "connectionId".to_string(),
-                Value::String(self.connection_id.clone()),
-            );
+            object.insert("sessionId".to_string(), Value::String(session_id));
+            object.insert("connectionId".to_string(), Value::String(connection_id));
             object.insert(
                 "clientMode".to_string(),
                 Value::String("desktop-continuous".to_string()),
@@ -335,7 +665,16 @@ impl AgentService {
         params: &Value,
         subscribe: bool,
     ) -> Result<Value, ServiceError> {
-        let runtime = self.ensure_runtime(params).await?;
+        // `existing-only` is a passive-observer policy: never create a runtime (and therefore
+        // never require a provider). The Tauri boot path subscribes the task list with this
+        // policy, so using `ensure_runtime` surfaced "Provider not configured" on every launch.
+        let existing_only =
+            params.get("runtimePolicy").and_then(Value::as_str) == Some("existing-only");
+        let runtime = if existing_only {
+            self.existing_runtime(params).await?
+        } else {
+            self.ensure_runtime(params).await?
+        };
         let (_, key) = Self::workspace_of(params)?;
         let mut request = params.clone();
         request["topic"] = Value::String(format!("sessions-index/{key}"));
@@ -983,6 +1322,90 @@ impl AgentService {
                         .result,
                 ))
             }
+            // `v4/conversation/workflowRuns`: journal-backed run read (single source of truth is the host workflow service;
+            // this layer only forwards — no second projection).
+            "conversationWorkflowRunsV4" => {
+                let params = args.required_json(0, "params")?;
+                let runtime = self.ensure_runtime(&params).await?;
+                Ok(WireValue::Json(
+                    runtime
+                        .request("v4/conversation/workflowRuns", params)
+                        .await?
+                        .result,
+                ))
+            }
+            // `v4/conversation/workflowRunEvents`: journal-backed run read (single source of truth is the host workflow service;
+            // this layer only forwards — no second projection).
+            "conversationWorkflowRunEventsV4" => {
+                let params = args.required_json(0, "params")?;
+                let runtime = self.ensure_runtime(&params).await?;
+                Ok(WireValue::Json(
+                    runtime
+                        .request("v4/conversation/workflowRunEvents", params)
+                        .await?
+                        .result,
+                ))
+            }
+            // `v4/conversation/workflowRunArtifacts`: journal-backed run read (single source of truth is the host workflow service;
+            // this layer only forwards — no second projection).
+            "conversationWorkflowRunArtifactsV4" => {
+                let params = args.required_json(0, "params")?;
+                let runtime = self.ensure_runtime(&params).await?;
+                Ok(WireValue::Json(
+                    runtime
+                        .request("v4/conversation/workflowRunArtifacts", params)
+                        .await?
+                        .result,
+                ))
+            }
+            // `v4/conversation/workflowRunArtifactData`: journal-backed run read (single source of truth is the host workflow service;
+            // this layer only forwards — no second projection).
+            "conversationWorkflowRunArtifactDataV4" => {
+                let params = args.required_json(0, "params")?;
+                let runtime = self.ensure_runtime(&params).await?;
+                Ok(WireValue::Json(
+                    runtime
+                        .request("v4/conversation/workflowRunArtifactData", params)
+                        .await?
+                        .result,
+                ))
+            }
+            // `v4/conversation/workflowRunArtifactRead`: journal-backed run read (single source of truth is the host workflow service;
+            // this layer only forwards — no second projection).
+            "conversationWorkflowRunArtifactReadV4" => {
+                let params = args.required_json(0, "params")?;
+                let runtime = self.ensure_runtime(&params).await?;
+                Ok(WireValue::Json(
+                    runtime
+                        .request("v4/conversation/workflowRunArtifactRead", params)
+                        .await?
+                        .result,
+                ))
+            }
+            // `v4/conversation/workflowRunWorkspace`: journal-backed run read (single source of truth is the host workflow service;
+            // this layer only forwards — no second projection).
+            "conversationWorkflowRunWorkspaceV4" => {
+                let params = args.required_json(0, "params")?;
+                let runtime = self.ensure_runtime(&params).await?;
+                Ok(WireValue::Json(
+                    runtime
+                        .request("v4/conversation/workflowRunWorkspace", params)
+                        .await?
+                        .result,
+                ))
+            }
+            // `v4/conversation/workflowRunNodeResult`: journal-backed run read (single source of truth is the host workflow service;
+            // this layer only forwards — no second projection).
+            "conversationWorkflowRunNodeResultV4" => {
+                let params = args.required_json(0, "params")?;
+                let runtime = self.ensure_runtime(&params).await?;
+                Ok(WireValue::Json(
+                    runtime
+                        .request("v4/conversation/workflowRunNodeResult", params)
+                        .await?
+                        .result,
+                ))
+            }
             "syncAppRuntimePreferences" => {
                 let params = args.required_json(0, "preferences")?;
                 self.sync_preferences(&params).await?;
@@ -1035,6 +1458,12 @@ impl AgentService {
             "readSessionMessages" => {
                 let params = args.required_json(0, "params")?;
                 Ok(WireValue::Json(self.read_session_messages(&params).await?))
+            }
+            "readWorkspacePresentation" => {
+                let params = args.required_json(0, "params")?;
+                Ok(WireValue::Json(
+                    self.read_workspace_presentation(&params).await?,
+                ))
             }
             // existing-only probe (same semantics as nc-code-session): if there is no runtime, do not create one.
             "getWorkspaceRuntimeIdentity" => {
@@ -1151,6 +1580,38 @@ impl AgentService {
                     .await?;
                 Ok(WireValue::Json(response.result))
             }
+            // Attachment command surface (the six upload/read members of the TS
+            // zcodeAgentService). The transaction state machine, content store and media
+            // authorization live in nc-code-host (one owner); this channel only routes the
+            // workspace-scoped request to that host runtime, exactly like the v4 forwards.
+            // The incoming params carry the workspace (the UI adds it to every upload
+            // request) plus the transaction fields the host reads by name.
+            "attachmentBeginV4"
+            | "attachmentChunkV4"
+            | "attachmentCommitV4"
+            | "attachmentAbortV4"
+            | "attachmentReadV4"
+            | "attachmentPreviewSourceV4" => {
+                let params = args.required_json(0, "params")?;
+                let host_method = match command {
+                    "attachmentBeginV4" => "v4/attachment/begin",
+                    "attachmentChunkV4" => "v4/attachment/chunk",
+                    "attachmentCommitV4" => "v4/attachment/commit",
+                    "attachmentAbortV4" => "v4/attachment/abort",
+                    "attachmentReadV4" => "v4/attachment/read",
+                    _ => "v4/attachment/previewSource",
+                };
+                let runtime = self.ensure_runtime(&params).await?;
+                let mut host_params = params;
+                if let Some(object) = host_params.as_object_mut() {
+                    object.insert(
+                        "connectionId".to_string(),
+                        Value::String(self.connection_id.clone()),
+                    );
+                }
+                let response = runtime.request(host_method, host_params).await?;
+                Ok(WireValue::Json(response.result))
+            }
             other if is_removed_agent_surface(other) => Err(ServiceError::named(
                 "ZCodeAgentCapabilityRemoved",
                 format!("agent capability is not part of this product: {other}"),
@@ -1228,6 +1689,10 @@ impl AgentService {
             .ok_or_else(|| ServiceError::invalid_params("sessionId is required"))?
             .to_string();
         let runtime = self.ensure_runtime(params).await?;
+        // 冷会话必须在 resync 之前注册：resync/subscribe 只认已注册的 session。
+        // closeSession 会在本进程里把 session 从注册表移除但保留 meta/transcript，
+        // 先 ensure_loaded（host 唯一的冷恢复入口）才能读到它，而不是报 not found。
+        runtime.ensure_loaded(&session_id);
         let response = runtime
             .request(
                 "v4/conversation/resync",
@@ -1242,8 +1707,6 @@ impl AgentService {
             .frames
             .iter()
             .find_map(|frame| frame.get("snapshot").cloned());
-        // resync performs a cold resume; retry once more to guarantee cold sessions are readable of facts.
-        runtime.ensure_loaded(&session_id);
         let view = runtime.session_view(&session_id).ok_or_else(|| {
             ServiceError::named(
                 "ZCodeSessionNotFound",
@@ -1891,16 +2354,27 @@ fn event_workspace_key(arg: &WireValue) -> Option<String> {
         .map(str::to_string)
 }
 
+/// The host refuses to overwrite an existing transcript (`reason: "session_exists"` in the
+/// error payload). Re-importing the same deterministic id is not a failure, so the caller
+/// resumes the session from disk instead of surfacing the refusal.
+fn is_session_exists(error: &ServiceError) -> bool {
+    error
+        .data
+        .as_deref()
+        .and_then(|data| data.get("reason"))
+        .and_then(Value::as_str)
+        == Some("session_exists")
+}
+
 fn is_removed_agent_surface(command: &str) -> bool {
+    // The upload/read attachment members are wired (see the dispatch arm above); only the
+    // surfaces with no host implementation remain explicit "removed capability" failures:
+    // - the conversation share reader runs on the share channel's own store;
+    // - promptAttachmentTransfer is the retired TS transfer service (the v4 transaction
+    //   replaced it).
     matches!(
         command,
-        "attachmentBeginV4"
-            | "attachmentChunkV4"
-            | "attachmentCommitV4"
-            | "attachmentAbortV4"
-            | "attachmentReadV4"
-            | "attachmentPreviewSourceV4"
-            | "conversationAttachmentReadV4"
+        "conversationAttachmentReadV4"
             | "conversationAttachmentStatV4"
             | "promptAttachmentTransfer"
     )

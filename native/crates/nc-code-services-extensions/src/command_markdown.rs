@@ -26,6 +26,9 @@ pub struct ParsedCommandFile {
     pub file_path: String,
     pub description: Option<String>,
     pub argument_hint: Option<String>,
+    /// `disable-noninteractive: true` removes the command from the protocol directory
+    /// (TS `listProtocolSlashCommands` filter).
+    pub disable_non_interactive: bool,
 }
 
 impl ParsedCommandFile {
@@ -42,6 +45,9 @@ impl ParsedCommandFile {
         );
         insert_optional(&mut object, "description", self.description.as_deref());
         insert_optional(&mut object, "argumentHint", self.argument_hint.as_deref());
+        if self.disable_non_interactive {
+            object.insert("disableNonInteractive".to_string(), Value::Bool(true));
+        }
         Value::Object(object)
     }
 }
@@ -69,6 +75,15 @@ pub fn parse_command_file(content: &str, file_path: &str) -> ParsedCommandFile {
     ParsedCommandFile {
         description: read_frontmatter_multiline_value(&frontmatter_lines, "description"),
         argument_hint: read_frontmatter_multiline_value(&frontmatter_lines, "argument-hint"),
+        disable_non_interactive: read_frontmatter_multiline_value(
+            &frontmatter_lines,
+            "disable-noninteractive",
+        )
+        .map(|value| {
+            let normalized = value.trim().to_ascii_lowercase();
+            normalized == "true" || normalized == "1" || normalized == "yes"
+        })
+        .unwrap_or(false),
         name,
         prompt: joined.trim().to_string(),
         content: joined,

@@ -287,11 +287,3 @@ async fn run_headless(
         1
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn basic_test() {
-        assert!(true);
-    }
-}

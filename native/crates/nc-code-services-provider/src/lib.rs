@@ -1,6 +1,9 @@
 //! Generic provider services (any provider): personal provider/model CRUD + model
 //! selection. Z.ai claim data is handled by `nc-code-services-zai` and never flows here.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 pub mod provisioning;
 // Completion record (ENTRY 084) for provisioning.rs (provider-provisioning-target channel, 1 member apply):
 // There is a complete `impl Channel … "apply"`, but the reference does not exist/unavailable API, complete the list (ENTRY 081):

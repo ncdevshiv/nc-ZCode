@@ -15,7 +15,7 @@ Based on RUST-PORT-MATRIX.md (2026-09-23), the port is far from complete:
 ## 1. Current State Inventory
 
 ### 1.1 Native Rust Crates (what exists)
-Located in `native/crates/` (33 crates including nc-code-*, zcode-host empty):
+Located in `native/crates/` (53 `nc-code-*` crates + 1 empty `zcode-host/` leftover):
 
 **Core infrastructure:**
 - `nc-code-core` - core types/utilities

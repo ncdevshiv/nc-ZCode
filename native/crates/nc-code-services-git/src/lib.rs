@@ -1,5 +1,8 @@
 //! `git` service channel — the Rust port of `packages/services/src/git/`.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 pub mod channel;
 pub mod cmd;
 pub mod commit_message;

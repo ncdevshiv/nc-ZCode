@@ -6,6 +6,9 @@
 //! logout/cancel are no-ops. This channel mirrors that contract; it does not perform
 //! network flows or fabricate tokens.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 use std::sync::Arc;
 
 use async_trait::async_trait;

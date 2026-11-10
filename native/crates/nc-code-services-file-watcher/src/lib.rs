@@ -10,6 +10,9 @@
 //! per watched directory, matching TS behavior. Each watcher has an independent event bus;
 //! `listen("onDynamicChange", id)` subscribes to that bus.
 
+/// Handoff skeleton (pure data/types): serde persistence structs, port trait, Send/Sync markers.
+pub mod handoff;
+
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};

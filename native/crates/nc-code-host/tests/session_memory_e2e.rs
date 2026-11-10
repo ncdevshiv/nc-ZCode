@@ -387,6 +387,20 @@ fn model_history_survives_across_turns_and_across_restart() {
 
     // ── 阶段二：重启后历史必须还在（durable）──
     {
+        // 一次性密钥契约：host 启动后删除 --provider-config，重启必须重新落盘，
+        // 否则第三轮直接 providerNotConfigured（此前本用例正是因此只看到 2 个请求）。
+        std::fs::write(
+            &provider_config,
+            json!({
+                "kind": "anthropic",
+                "baseUrl": format!("http://127.0.0.1:{port}"),
+                "apiKey": "test-key-not-a-real-credential",
+                "model": "test-model",
+                "maxTokens": 1024,
+            })
+            .to_string(),
+        )
+        .expect("provider config rewrite");
         let mut process = HostProcess::spawn(&workspace, &data_dir, &provider_config);
         let mut client = Client::new(&mut process);
         let id = client.send(
