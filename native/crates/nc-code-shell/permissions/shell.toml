@@ -16,6 +16,7 @@ commands.allow = [
   "app_version",
   "open_external_url",
   "open_path",
+  "reveal_path",
   "window_minimize",
   "window_toggle_maximize",
   "window_close",

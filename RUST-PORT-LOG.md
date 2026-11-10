@@ -5068,3 +5068,54 @@ It is impossible to honestly claim that the entire port is complete until the wo
   `cargo test -p nc-code-host --lib -- mcp` â†’ 17/17; `cargo check -p nc-code-host
   --all-targets` â†’ clean; workspace `cargo check --workspace --all-targets` â†’ exit 0.
 
+
+## ENTRY 132 â€” 2026-11-09 â€” Tauri single-instance parity (second launch reuses the running app)
+
+- **The gap**: the Tauri shell had no single-instance lock. A second launch opened a second
+  process (Electron `app.requestSingleInstanceLock`, `desktopSecondInstanceDeepLink.ts`), so
+  two shells could fight over the same data dir, the stable `43117` port and the tray, and a
+  `zcode://` deep link handed to the second process never reached the running window.
+- **What was implemented** (`native/crates/nc-code-shell`):
+  - `tauri-plugin-single-instance` registered as the **first** plugin, before window,
+    backend and any other plugin, so the second process exits before creating state.
+  - `handle_second_instance`: focus/restore the main window (existing `show_main_window`)
+    and replay every `zcode://â€¦` argument as the same `zcode:deep-link` event the OS
+    deep-link handler emits, so the renderer's OAuth/share routing stays the single
+    consumer.
+  - `deep_links_from_argv`: only the registered scheme is forwarded; matching is
+    case-insensitive and trims whitespace, so a launcher argument can never be mistaken
+    for an app route. Documented boundary: `--open-workspace <path>` argv routing needs a
+    renderer contract and stays OPEN (recorded in the shell README, not silently dropped).
+- **Spec/docs**: `native/crates/nc-code-shell/README.md` R4 table â€” the single-instance row
+  is now âœ… with the exact behaviour, and the `connectRemote` row was corrected to
+  âœ… å·²å®žçŽ°ï¼ˆç»åµŒå…¥åŽç«¯ï¼‰ after ENTRY 129 (it still said "deferred / TS host").
+- **Tests**: `nc-code-shell` binary unit `second_instance_argv_forwards_only_zcode_deep_links`
+  (exe path + `--open-workspace` + path ignored, both case/whitespace variants forwarded,
+  empty/unknown argv yields nothing) â€” suite **131 passed**.
+- **Verification**: `cargo test -p nc-code-shell --bin zcode-shell` â†’ 131/131.
+
+
+## ENTRY 133 â€” 2026-11-09 â€” Tauri shell: file-manager reveal parity + product tray icon (no placeholder glyph in the shipped app)
+
+- **Gaps closed**:
+  1. `openInFileManager` only called `open_path` (launch default app). Electron's
+     `openInFileManager` reveals the item in Explorer/Finder (`explorer /select,`,
+     `open -R`); the shell README had this classified "âš ï¸ éƒ¨åˆ† / deferred".
+     New `reveal_path` command: Windows `explorer /select,<path>`, macOS
+     `open -R <path>`, Linux `xdg-open <parent>` (documented: no cross-desktop "select"
+     argument exists); a missing path is an explicit error, never a silent no-op.
+     Registered in `tauri::generate_handler!` and `permissions/shell.toml` (the parity
+     test enforces both lists), and the renderer's Tauri adapter now calls it.
+  2. The tray used a generated 16Ã—16 blue-X glyph. It now uses the packaged product icon
+     (`app.default_window_icon()`, from `tauri.conf.json` `icons`), falling back to the
+     generated glyph only when a build carries no icon.
+- **Tests**: shell binary unit `reveal_command_selects_the_file_per_platform` (all three
+  argv shapes) and `reveal_command_opens_a_directory_itself_on_linux` â€” suite **133
+  passed**; the existing `command_permission_list_matches_invoke_handler` keeps the
+  permission file and handler list in lockstep for `reveal_path`.
+- **Docs**: `native/crates/nc-code-shell/README.md` R4 table rows updated
+  (`openInFileManager` â†’ âœ… with the per-OS command, tray row notes the icon source).
+- **Verification**: `cargo test -p nc-code-shell --bin zcode-shell` â†’ 133/133;
+  `cargo clippy -p nc-code-shell --all-targets -- -D warnings` â†’ 0;
+  `bunx tsc -p packages/web/tsconfig.json --noEmit` â†’ exit 0.
+

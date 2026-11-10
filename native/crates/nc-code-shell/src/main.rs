@@ -117,6 +117,48 @@ fn open_path(path: String) -> Result<(), String> {
     tauri_plugin_opener::open_path(path, None::<&str>).map_err(|e| e.to_string())
 }
 
+/// Reveal a file (or open a directory) in the OS file manager, selecting the file when
+/// the platform supports it — Electron parity for `openInFileManager` (`explorer
+/// /select,` on Windows, `open -R` on macOS, `xdg-open` on Linux).
+#[tauri::command]
+fn reveal_path(path: String) -> Result<(), String> {
+    let target = std::path::PathBuf::from(&path);
+    if !target.exists() {
+        return Err(format!("path does not exist: {path}"));
+    }
+    let (program, args) = reveal_command_for(std::env::consts::OS, &target);
+    std::process::Command::new(&program)
+        .args(&args)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("{program} failed: {error}"))
+}
+
+/// `(program, args)` for revealing `path`, per target OS. Pure so the argv shape is
+/// pinned by a unit test on every platform.
+fn reveal_command_for(platform: &str, path: &std::path::Path) -> (String, Vec<String>) {
+    let rendered = path.to_string_lossy().to_string();
+    match platform {
+        "windows" => ("explorer".to_string(), vec![format!("/select,{rendered}")]),
+        "macos" => ("open".to_string(), vec!["-R".to_string(), rendered]),
+        _ => {
+            // Linux/BSD file managers have no portable "select" argument: open the
+            // containing directory for a file, or the directory itself.
+            let target = if path.is_dir() {
+                rendered
+            } else {
+                path.parent()
+                    .map(|parent| parent.to_string_lossy().to_string())
+                    .unwrap_or(rendered)
+            };
+            ("xdg-open".to_string(), vec![target])
+        }
+    }
+}
+
 /// `IPlatformService.executeDesktopCommand("minimizeWindow")`。
 #[tauri::command]
 fn window_minimize(window: WebviewWindow) -> Result<(), String> {
@@ -200,6 +242,26 @@ fn emit_desktop_command(app: &tauri::AppHandle, command: &str) {
     let _ = app.emit("zcode:desktop-command", command);
 }
 
+/// Deep links carried by a second instance's argv (`zcode://…`). The launcher may pass
+/// other arguments; only the scheme the app registers is forwarded, so a random argv
+/// value can never be mistaken for an app route.
+fn deep_links_from_argv(argv: &[String]) -> Vec<String> {
+    argv.iter()
+        .map(|arg| arg.trim())
+        .filter(|arg| arg.to_ascii_lowercase().starts_with("zcode://"))
+        .map(str::to_string)
+        .collect()
+}
+
+/// A second launch must reuse the running app (Electron `requestSingleInstanceLock`):
+/// focus the window and replay the deep links this process was launched with.
+fn handle_second_instance(app: &tauri::AppHandle, argv: &[String]) {
+    show_main_window(app);
+    for url in deep_links_from_argv(argv) {
+        let _ = app.emit("zcode:deep-link", url);
+    }
+}
+
 /// 注册 tray：与 Electron 托盘一致的入口（Open / New Task / Open Workspace /
 /// About / Clear All Data / Quit）。菜单命令发到 renderer，窗口动作留在壳层。
 fn setup_tray(app: &mut tauri::App) -> tauri::Result<()> {
@@ -222,10 +284,15 @@ fn setup_tray(app: &mut tauri::App) -> tauri::Result<()> {
         ],
     )?;
 
-    TrayIconBuilder::with_id("main-tray")
-        .icon(Image::new_owned(generate_tray_rgba(), 16, 16))
-        .tooltip("NC-Code")
-        .menu(&menu)
+    // Use the packaged product icon when the bundle provides one (tauri.conf icons),
+    // falling back to the generated glyph only for builds without it.
+    let icon = app.default_window_icon().cloned();
+    let mut tray = TrayIconBuilder::with_id("main-tray").tooltip("NC-Code");
+    tray = match icon {
+        Some(icon) => tray.icon(icon),
+        None => tray.icon(Image::new_owned(generate_tray_rgba(), 16, 16)),
+    };
+    tray.menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.0.as_str() {
             "open" => show_main_window(app),
@@ -840,6 +907,11 @@ fn main() {
         std::process::exit(browser_selftest::run());
     }
     tauri::Builder::default()
+        // Must be the first plugin: a second launch has to be intercepted before any
+        // window or backend is created (Electron `requestSingleInstanceLock` parity).
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            handle_second_instance(app, &argv);
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -872,6 +944,7 @@ fn main() {
             app_version,
             open_external_url,
             open_path,
+            reveal_path,
             window_minimize,
             window_toggle_maximize,
             window_close,
@@ -989,7 +1062,57 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::is_blocked_ip;
+    use super::{deep_links_from_argv, is_blocked_ip, reveal_command_for};
+
+    #[test]
+    fn reveal_command_selects_the_file_per_platform() {
+        let file = std::path::PathBuf::from("C:/work/app/main.ts");
+        let (program, args) = reveal_command_for("windows", &file);
+        assert_eq!(program, "explorer");
+        assert_eq!(args, vec!["/select,C:/work/app/main.ts".to_string()]);
+        let (program, args) = reveal_command_for("macos", &file);
+        assert_eq!(program, "open");
+        assert_eq!(
+            args,
+            vec!["-R".to_string(), "C:/work/app/main.ts".to_string()]
+        );
+        // Linux has no portable select: a file reveals its parent directory.
+        let (program, args) = reveal_command_for("linux", &file);
+        assert_eq!(program, "xdg-open");
+        assert_eq!(args, vec!["C:/work/app".to_string()]);
+    }
+
+    #[test]
+    fn reveal_command_opens_a_directory_itself_on_linux() {
+        let dir = std::env::temp_dir();
+        let (_, args) = reveal_command_for("linux", &dir);
+        assert_eq!(args, vec![dir.to_string_lossy().to_string()]);
+    }
+
+    #[test]
+    fn second_instance_argv_forwards_only_zcode_deep_links() {
+        let argv: Vec<String> = [
+            "C:/Program Files/NC-Code/zcode-shell.exe",
+            "--open-workspace",
+            "C:/work",
+            "zcode://oauth/callback?code=abc",
+            " ZCODE://share/import?code=x ",
+        ]
+        .iter()
+        .map(|value| value.to_string())
+        .collect();
+        let links = deep_links_from_argv(&argv);
+        assert_eq!(
+            links,
+            vec![
+                "zcode://oauth/callback?code=abc".to_string(),
+                "ZCODE://share/import?code=x".to_string()
+            ],
+            "only the registered scheme is forwarded; case/whitespace tolerated"
+        );
+        assert!(deep_links_from_argv(&[]).is_empty());
+        assert!(deep_links_from_argv(&["--foo".to_string()]).is_empty());
+    }
 
     #[test]
     fn blocks_private_loopback_and_documentation_addresses() {

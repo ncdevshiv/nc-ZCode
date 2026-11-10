@@ -944,7 +944,9 @@ function createTauriPlatform(): IPlatformService {
     },
     openInFileManager: async (path) => {
       try {
-        await invoke("open_path", { path });
+        // The shell selects the file in Explorer/Finder (`reveal_path`); unlike
+        // `open_path` this does not launch the file's default application.
+        await invoke("reveal_path", { path });
         return { success: true };
       } catch (error) {
         return { success: false, error: String(error) };

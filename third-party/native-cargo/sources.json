@@ -4,7 +4,7 @@
   "inputs": {
     "scripts/third-party-cargo.mjs": "f149e0eb60186cfa64d139185bc26e0566ba0bd0f46561c6dbf849e82b1dee4d",
     "native/Cargo.toml": "28447cdf4bc05d37bc81185a2cb33962190e4f7a360012b861541dfd80440728",
-    "native/Cargo.lock": "38d85868fe0c5ccfddd2ed8a97aec238c8bd66fbf9320cd9e3e4559f55d62a41"
+    "native/Cargo.lock": "24aacea3723a690ec6230fe7ef81c7f1bba0bbc2680c345d7cf7ff9cbad628a3"
   },
   "packages": [
     {
@@ -9623,6 +9623,18 @@
       "notices": [
         {
           "file": "third-party/native-cargo/licenses/tauri-plugin-opener-2.5.5/LICENSE.spdx",
+          "sha256": "eb8a6c84630461b352badcab1dbe5d0168c56d377358b2b8c86b51003272d5ef"
+        }
+      ]
+    },
+    {
+      "name": "tauri-plugin-single-instance",
+      "version": "2.5.5",
+      "license": "Apache-2.0 OR MIT",
+      "source": "crates.io registry",
+      "notices": [
+        {
+          "file": "third-party/native-cargo/licenses/tauri-plugin-single-instance-2.5.5/LICENSE.spdx",
           "sha256": "eb8a6c84630461b352badcab1dbe5d0168c56d377358b2b8c86b51003272d5ef"
         }
       ]
