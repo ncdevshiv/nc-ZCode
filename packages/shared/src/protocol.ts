@@ -294,7 +294,7 @@ export interface AppSettings {
   desktopChromiumHardwareAccelerationEnabled?: boolean;
   /** 是否在消息流中展示模型思考过程 */
   messageStreamShowReasoning?: boolean;
-  // TODO(settings-schema-version): 能证明所有受支持升级路径都已执行本次迁移后，改用统一 settings schema version，并一起删除此 marker、迁移函数和持久化判断。
+  // One-time settings-migration marker: when a unified settings schema version lands (all supported upgrade paths proven), delete this flag, its migration and the persistence check together.
   /** 显示模型思考过程的默认值是否已执行过一次性迁移；只用于设置迁移，不参与消息渲染判断。 */
   messageStreamShowReasoningMigrationInitialized?: boolean;
   /** 是否在消息流中展示 todo 工具渲染；不影响摘要面板的 todo */

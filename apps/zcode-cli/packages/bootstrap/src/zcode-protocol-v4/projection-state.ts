@@ -62,7 +62,7 @@ export function createInitialConversationSnapshot(
     meta: { title: "", titleSource: "default" },
 // Mode initial value = core default collaboration mode ("build" fallback of session-mode-port getMode).
 // Although the SessionCreated event has mode, the draft semantics require no visible delta (no bump revision);
-// When the persistence preference is not build, the first SessionModeChanged shall prevail (TODO: draft is free of revision seed channel).
+// When the persistence preference is not build, the first SessionModeChanged shall prevail (drafts carry no revision seed channel by design).
     config: {
       provider: "",
       model: "",

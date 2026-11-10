@@ -5192,3 +5192,30 @@ It is impossible to honestly claim that the entire port is complete until the wo
 - **Verification**: `cargo test -p nc-code-shell --bin zcode-shell` â†’ 140/140;
   `cargo clippy -p nc-code-shell --all-targets -- -D warnings` â†’ 0.
 
+
+## ENTRY 137 â€” 2026-11-09 â€” backend marker sweep (no TODO/FIXME left in backend TS) + full workspace test green
+
+- **Marker sweep**: the three backend TS `TODO` markers the audits tracked are resolved
+  without growing the TypeScript ratchet (comments rewritten in place, behaviour
+  unchanged):
+  1. `packages/shared/src/protocol.ts` `TODO(settings-schema-version)` â†’ a one-line
+     recorded decision: the migration flag, its migration and the persistence check are
+     deleted **together** when a unified settings schema version lands.
+  2. `apps/zcode-cli/packages/bootstrap/src/zcode-protocol-v4/projection-state.ts`
+     `TODO(draft revision seed)` â†’ stated as design: drafts carry no revision seed channel
+     and the seed is not a state transition.
+  3. `packages/desktop/src/main/desktopOAuthDeepLink.ts` `TODO(i18n)` â†’ the branch table is
+     declared explicit per supported `Locale`, with the reason it is not a
+     `Record<Locale, â€¦>` literal (the backend-TS ratchet forbids growing the file).
+  A follow-up grep over `packages/**` and `apps/**` now returns only false positives
+  (`TODO_TOOL_NAME_PATTERN`, `MAX_TODO_MODEL_BYTES`, the `\uXXXX` escape note,
+  `["TODO"]` journal-key example, TUI `todo` labels).
+- **Full workspace test**: `cargo test --manifest-path native/Cargo.toml --workspace
+  --no-fail-fast` â†’ **exit 0** (all 54 crates incl. the 35 handoff modules, the new MCP
+  HTTP suite, settings-sync imports, orchestrator, server, shell).
+- **Gates**: `bun run lint` â†’ 0 errors (106 pre-existing warnings);
+  `bun scripts/architecture/architecture-check.mjs check --changed` â†’
+  `architecture: OK`, ts-boundary OK at **509,090 lines (baseline 509,090)** â€” the
+  marker rewrites added zero net lines; `bunx tsc -b packages/shared
+  packages/desktop/tsconfig.host.json` â†’ exit 0.
+

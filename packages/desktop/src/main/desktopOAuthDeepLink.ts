@@ -139,8 +139,8 @@ export function isNetworkWorkspacePath(path: string): boolean {
 export function resolveExternalWorkspaceOpenDialogCopy(
   locale: Locale,
 ): ExternalWorkspaceOpenDialogCopy {
-  // TODO(i18n): 新增 Locale 时把这里收敛成完整 Record<Locale, ...>，
-  // 避免未覆盖语言静默回退英文。
+  // Explicit branch per supported Locale (no silent English fallback); the backend-TS
+  // ratchet forbids growing this file, so no `Record<Locale, …>` literal here.
   if (locale === "zh-CN") {
     return {
       buttons: ["打开文件夹", "取消"],
