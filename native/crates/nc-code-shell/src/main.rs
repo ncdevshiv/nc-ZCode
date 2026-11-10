@@ -28,6 +28,7 @@ mod chrome_import;
 mod clear_data;
 mod computer_control;
 mod computer_selftest;
+mod crash_capture;
 mod device_id;
 mod editors;
 mod export_logs;
@@ -925,6 +926,11 @@ fn report_local_ttft_batch(
 }
 
 fn main() {
+    // First thing: a panic anywhere after this point leaves a report on disk
+    // (`<data-root>/.zcode/crashes/`) — the native equivalent of Electron Crashpad.
+    crash_capture::install(crash_capture::crash_dir(
+        &nc_code_service_core::AppPaths::from_env(),
+    ));
     if std::env::args().any(|argument| argument == "--window-selftest") {
         std::process::exit(window_selftest::run());
     }

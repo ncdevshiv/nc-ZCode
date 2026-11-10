@@ -5166,3 +5166,29 @@ It is impossible to honestly claim that the entire port is complete until the wo
   `bunx tsc -p packages/web/tsconfig.json --noEmit` â†’ exit 0;
   `node scripts/third-party-cargo.mjs --check` â†’ OK.
 
+
+## ENTRY 136 â€” 2026-11-09 â€” shell crash capture (panic reports on disk, bounded retention)
+
+- **The gap**: Electron shipped Crashpad and archived dumps (`desktopCrashCapture.ts`); the
+  Tauri shell had none â€” a panic in the shipped app died with only stderr, and
+  `main.rs` even used `.expect("zcode-shell å¯åŠ¨å¤±è´¥")` with no artifact to attach.
+- **Implementation** (`nc-code-shell/src/crash_capture.rs`, installed first thing in
+  `main`):
+  - panic hook writes `<data-root>/.zcode/crashes/crash-<ms>-<pid>.log` with time, thread
+    name, payload, source location and a forced backtrace; the **previous hook still
+    runs**, so process behaviour is unchanged;
+  - retention keeps the newest `MAX_CRASH_FILES` (10) reports and only deletes files it
+    owns (`crash-*.log`), never other data in the directory;
+  - report writes are best-effort (a failing write cannot change crash semantics), and the
+    path is echoed to stderr for the user to attach.
+  - `write_report` is a separate, directly testable function (no global-hook dependence in
+    tests).
+- **Boundary recorded**: WebView renderer crash monitoring (`render-process-gone`) is
+  Electron-specific and not ported; the README row says so explicitly.
+- **Tests** (6 new in the shell binary suite): report shape with/without location+backtrace,
+  chronological crash file names, retention (`prune` removes 3 of 5 + keeps foreign files),
+  missing dir is not an error, and `write_report` persists a full report and enforces the
+  retention bound â€” suite **140 passed**.
+- **Verification**: `cargo test -p nc-code-shell --bin zcode-shell` â†’ 140/140;
+  `cargo clippy -p nc-code-shell --all-targets -- -D warnings` â†’ 0.
+
